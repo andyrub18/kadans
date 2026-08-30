@@ -1,5 +1,5 @@
+using Kadans.Api.Contracts;
 using Kadans.Api.DTOs;
-using Kadans.Api.Models;
 using Kadans.Api.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -12,10 +12,13 @@ public static class TodoRoutes
 {
     extension(IEndpointRouteBuilder app)
     {
-        public void MapCreateTodoRoutes()
+        public void MapTodoRoutes()
         {
-            app.MapPost(
-                    "/todos/one-time",
+            var todos = app.MapGroup("/todos").WithTags("Todos").RequireAuthorization();
+
+            todos
+                .MapPost(
+                    "/one-time",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         CreateOneTimeTodo request,
                         TodoCreation service,
@@ -30,17 +33,16 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosCreateOneTime")
                 .WithSummary("Create one-time todo")
-                .WithDescription("Creates a one-time todo and schedules its initial occurrence.")
+                .WithDescription("Creates a one-time todo and schedules its single occurrence.")
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-            app.MapPost(
-                    "/todos/recurring",
+            todos
+                .MapPost(
+                    "/recurring",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         CreateRecurringTodo request,
                         TodoCreation service,
@@ -55,21 +57,17 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosCreateRecurring")
                 .WithSummary("Create recurring todo")
-                .WithDescription("Creates a recurring todo and generates initial occurrences.")
+                .WithDescription("Creates a recurring todo and generates its initial occurrences.")
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
-        }
 
-        public void MapGetTodoRoutes()
-        {
-            app.MapGet(
-                    "/todos",
-                    async Task<Results<Ok<List<Todo>>, ProblemHttpResult>> (
+            todos
+                .MapGet(
+                    string.Empty,
+                    async Task<Results<Ok<List<TodoResponse>>, ProblemHttpResult>> (
                         GetTodos service,
                         HttpContext context,
                         [FromQuery] int page = 1,
@@ -78,49 +76,45 @@ public static class TodoRoutes
                     ) =>
                     {
                         var result = await service.GetAllTodos(page, pageSize, status);
-                        return result.Match<Results<Ok<List<Todo>>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<List<TodoResponse>>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            todos => TypedResults.Ok(todos)
+                            list => TypedResults.Ok(list)
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosList")
                 .WithSummary("List todos")
                 .WithDescription("Returns paginated todos, optionally filtered by status.")
-                .Produces<List<Todo>>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest)
-                .ProducesProblem(StatusCodes.Status404NotFound);
+                .Produces<List<TodoResponse>>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest);
 
-            app.MapGet(
-                    "/todos/{id:guid}",
-                    async Task<Results<Ok<Todo>, ProblemHttpResult>> (
+            todos
+                .MapGet(
+                    "/{id:guid}",
+                    async Task<Results<Ok<TodoResponse>, ProblemHttpResult>> (
                         Guid id,
                         GetTodos service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.GetTodoById(id);
-                        return result.Match<Results<Ok<Todo>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<TodoResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             todo => TypedResults.Ok(todo)
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosGetById")
                 .WithSummary("Get todo by id")
-                .WithDescription("Returns a single todo by its identifier.")
-                .Produces<Todo>(StatusCodes.Status200OK)
+                .Produces<TodoResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapGet(
-                    "/todos/{id:guid}/occurrences",
-                    async Task<Results<Ok<List<TodoOccurrence>>, ProblemHttpResult>> (
+            todos
+                .MapGet(
+                    "/{id:guid}/occurrences",
+                    async Task<Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>> (
                         Guid id,
                         GetTodos service,
                         HttpContext context,
@@ -129,79 +123,50 @@ public static class TodoRoutes
                     ) =>
                     {
                         var result = await service.GetOccurrencesByTodoId(id, page, pageSize);
-                        return result.Match<Results<Ok<List<TodoOccurrence>>, ProblemHttpResult>>(
+                        return result.Match<
+                            Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
+                        >(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            occurrences => TypedResults.Ok(occurrences)
+                            list => TypedResults.Ok(list)
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosGetOccurrencesByTodo")
-                .WithSummary("List occurrences for a todo")
-                .WithDescription("Returns paginated occurrences for a specific todo.")
-                .Produces<List<TodoOccurrence>>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status404NotFound);
+                .WithName("TodosListOccurrences")
+                .WithSummary("List pending occurrences of a todo")
+                .Produces<List<TodoOccurrenceResponse>>(StatusCodes.Status200OK);
 
-            app.MapGet(
-                    "/todos/occurrences",
-                    async Task<Results<Ok<List<TodoOccurrence>>, ProblemHttpResult>> (
+            todos
+                .MapGet(
+                    "/{id:guid}/history",
+                    async Task<Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>> (
+                        Guid id,
                         GetTodos service,
                         HttpContext context,
-                        [FromQuery] DateTimeOffset startDate,
-                        [FromQuery] DateTimeOffset endDate
-                    ) =>
-                    {
-                        var result = await service.GetOccurrencesByDateRange(startDate, endDate);
-                        return result.Match<Results<Ok<List<TodoOccurrence>>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            occurrences => TypedResults.Ok(occurrences)
-                        );
-                    }
-                )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosGetOccurrencesByRange")
-                .WithSummary("List occurrences by date range")
-                .WithDescription("Returns occurrences between the provided start and end dates.")
-                .Produces<List<TodoOccurrence>>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest);
-
-            app.MapGet(
-                    "/todo/history",
-                    async Task<Results<Ok<List<TodoOccurrence>>, ProblemHttpResult>> (
-                        GetTodos service,
-                        HttpContext context,
-                        Guid todoId,
                         [FromQuery] int page = 1,
                         [FromQuery] int pageSize = 20
                     ) =>
                     {
-                        var result = await service.GetTodoHistory(todoId, page, pageSize);
-                        return result.Match<Results<Ok<List<TodoOccurrence>>, ProblemHttpResult>>(
+                        var result = await service.GetTodoHistory(id, page, pageSize);
+                        return result.Match<
+                            Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
+                        >(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            occurrences => TypedResults.Ok(occurrences)
+                            list => TypedResults.Ok(list)
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosGetHistory")
-                .WithSummary("Get todo history")
+                .WithName("TodosHistory")
+                .WithSummary("Todo history")
                 .WithDescription(
-                    "Returns historical occurrences for a todo, including completed or canceled items."
+                    "Returns all occurrences of a todo, including completed and cancelled ones, newest first."
                 )
-                .Produces<List<TodoOccurrence>>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status404NotFound);
-        }
+                .Produces<List<TodoOccurrenceResponse>>(StatusCodes.Status200OK);
 
-        public void MapUpdateTodoRoutes()
-        {
-            app.MapPut(
-                    "/todos/{id:guid}",
+            todos
+                .MapPut(
+                    "/{id:guid}",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
                         UpdateTodo request,
@@ -217,21 +182,22 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosUpdate")
                 .WithSummary("Update a todo")
-                .WithDescription("Updates a todo's core information.")
+                .WithDescription(
+                    "Updates a todo's details and recurrence rule; pending occurrences are regenerated."
+                )
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
-                    "/todos/{id:guid}/reschedule",
+            todos
+                .MapPut(
+                    "/{id:guid}/reschedule",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
-                        TodoUpdate service,
                         RescheduleNextOccurrence request,
+                        TodoUpdate service,
                         HttpContext context
                     ) =>
                     {
@@ -243,25 +209,23 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosRescheduleNextOccurrence")
                 .WithSummary("Reschedule next occurrence")
-                .WithDescription("Reschedules the next active occurrence for a todo.")
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
-                    "/todos/{id:guid}/cancel",
+            todos
+                .MapPut(
+                    "/{id:guid}/cancel",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
-                        TodoUpdate service,
                         Cancel request,
+                        TodoUpdate service,
                         HttpContext context
                     ) =>
                     {
-                        var result = await service.CancelOccurrence(id, request.Reason);
+                        var result = await service.CancelTodo(id, request.Reason);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
@@ -269,17 +233,15 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosCancelOccurrence")
-                .WithSummary("Cancel occurrence")
-                .WithDescription("Cancels an occurrence of a todo with a reason.")
+                .WithName("TodosCancel")
+                .WithSummary("Cancel a todo")
+                .WithDescription("Cancels the todo and all of its pending occurrences.")
                 .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
-                    "/todos/{id:guid}/remarks",
+            todos
+                .MapPost(
+                    "/{id:guid}/remarks",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
                         AddRemark request,
@@ -295,25 +257,22 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
                 .WithName("TodosAddRemark")
-                .WithSummary("Add todo remark")
-                .WithDescription("Adds a remark to a todo.")
+                .WithSummary("Add a remark to a todo")
                 .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
-                    "/todos/cancel/{id:guid}",
+            todos
+                .MapPut(
+                    "/{id:guid}/remarks",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
+                        ReplaceRemarks request,
                         TodoUpdate service,
-                        Cancel request,
                         HttpContext context
                     ) =>
                     {
-                        var result = await service.CancelTodo(id, request.Reason);
+                        var result = await service.UpdateAllTodosRemarks(id, request.Remarks);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
@@ -321,17 +280,47 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosCancel")
-                .WithSummary("Cancel todo")
-                .WithDescription("Cancels a todo and future occurrences with a reason.")
+                .WithName("TodosReplaceRemarks")
+                .WithSummary("Replace all remarks of a todo")
                 .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
+        }
 
-            app.MapPut(
-                    "/todos/{id:guid}/complete",
+        public void MapOccurrenceRoutes()
+        {
+            var occurrences = app.MapGroup("/occurrences")
+                .WithTags("Occurrences")
+                .RequireAuthorization();
+
+            occurrences
+                .MapGet(
+                    string.Empty,
+                    async Task<Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>> (
+                        GetTodos service,
+                        HttpContext context,
+                        [FromQuery(Name = "from")] DateTimeOffset from,
+                        [FromQuery(Name = "to")] DateTimeOffset to
+                    ) =>
+                    {
+                        var result = await service.GetOccurrencesByDateRange(from, to);
+                        return result.Match<
+                            Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
+                        >(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            list => TypedResults.Ok(list)
+                        );
+                    }
+                )
+                .WithName("OccurrencesListByRange")
+                .WithSummary("List pending occurrences in a date range")
+                .WithDescription("Returns pending occurrences across all todos between `from` and `to`.")
+                .Produces<List<TodoOccurrenceResponse>>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest);
+
+            occurrences
+                .MapPut(
+                    "/{id:guid}/complete",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
                         TodoUpdate service,
@@ -346,17 +335,39 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosCompleteOccurrence")
-                .WithSummary("Complete occurrence")
-                .WithDescription("Marks an occurrence as completed.")
+                .WithName("OccurrencesComplete")
+                .WithSummary("Complete an occurrence")
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
-                    "/todos/{id:guid}/remark",
+            occurrences
+                .MapPut(
+                    "/{id:guid}/cancel",
+                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
+                        Guid id,
+                        Cancel request,
+                        TodoUpdate service,
+                        HttpContext context
+                    ) =>
+                    {
+                        var result = await service.CancelOccurrence(id, request.Reason);
+                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            _ => TypedResults.Ok(new Success())
+                        );
+                    }
+                )
+                .WithName("OccurrencesCancel")
+                .WithSummary("Cancel an occurrence")
+                .Produces<Success>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            occurrences
+                .MapPut(
+                    "/{id:guid}/remark",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
                         AddRemark request,
@@ -372,39 +383,9 @@ public static class TodoRoutes
                         );
                     }
                 )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosAddOccurrenceRemark")
-                .WithSummary("Add occurrence remark")
-                .WithDescription("Adds a remark to a specific todo occurrence.")
+                .WithName("OccurrencesSetRemark")
+                .WithSummary("Set the remark of an occurrence")
                 .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest)
-                .ProducesProblem(StatusCodes.Status404NotFound);
-
-            app.MapPut(
-                    "/todos/{id:guid}/update-remarks",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
-                        Guid id,
-                        List<TodoRemark> request,
-                        TodoUpdate service,
-                        HttpContext context
-                    ) =>
-                    {
-                        var result = await service.UpdateAllTodosRemarks(id, request);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
-                )
-                .RequireAuthorization()
-                .WithTags("Todos")
-                .WithName("TodosUpdateAllRemarks")
-                .WithSummary("Update all remarks")
-                .WithDescription("Replaces all todo remarks with the provided list.")
-                .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
         }
     }

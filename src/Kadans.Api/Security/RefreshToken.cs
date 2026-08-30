@@ -10,5 +10,5 @@ public sealed class RefreshToken
     public DateTimeOffset CreatedAtUtc { get; set; }
     public bool IsActive { get; set; }
     public required string UserId { get; set; }
-    public required IdentityUser User { get; set; }
+    public required ApplicationUser User { get; set; }
 }

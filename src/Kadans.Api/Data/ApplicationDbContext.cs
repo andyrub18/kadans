@@ -12,7 +12,7 @@ namespace Kadans.Api.Data;
 public class ApplicationDbContext(
     DbContextOptions<ApplicationDbContext> options,
     ICurrentUserService userService
-) : IdentityDbContext<IdentityUser>(options)
+) : IdentityDbContext<ApplicationUser>(options)
 {
     public const string ACTIVE_OCCURRENCES_FILTER = "ActiveOccurrences";
     public const string USER_FILTER = "UserFilter";
@@ -33,6 +33,12 @@ public class ApplicationDbContext(
 
         builder.UseSnakeCaseNames();
 
+        builder.Entity<ApplicationUser>(u =>
+        {
+            u.Property(x => x.DisplayName).HasMaxLength(100);
+            u.Property(x => x.TimeZoneId).IsRequired().HasMaxLength(64);
+        });
+
         builder.Entity<Todo>(t =>
         {
             t.OwnsMany(
@@ -51,10 +57,8 @@ public class ApplicationDbContext(
             t.Property(p => p.Title).IsRequired().HasMaxLength(500);
             t.Property(p => p.Status).HasConversion<string>();
 
-            t.HasOne(todo => todo.User)
-                .WithMany()
-                .HasForeignKey(todo => todo.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Users live in the Identity module: reference by id only, no FK/navigation.
+            t.Property(todo => todo.UserId).IsRequired().HasMaxLength(450);
 
             t.HasOne(todo => todo.PomodoroTemplate)
                 .WithMany()
@@ -139,11 +143,6 @@ public class ApplicationDbContext(
             t.Property(p => p.Name).IsRequired().HasMaxLength(200);
             t.Property(p => p.UserId).IsRequired().HasMaxLength(450);
 
-            t.HasOne(p => p.User)
-                .WithMany()
-                .HasForeignKey(p => p.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             t.HasMany(p => p.Phases)
                 .WithOne()
                 .HasForeignKey(p => p.PomodoroTemplateId)
@@ -174,11 +173,6 @@ public class ApplicationDbContext(
             r.HasOne(x => x.Todo)
                 .WithMany()
                 .HasForeignKey(x => x.TodoId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            r.HasOne(x => x.User)
-                .WithMany()
-                .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             r.HasMany(x => x.Phases)

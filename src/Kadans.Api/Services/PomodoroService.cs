@@ -1,4 +1,5 @@
 using Kadans.SharedKernel.Security;
+using Kadans.Api.Contracts;
 using Kadans.Api.Data;
 using Kadans.Api.DTOs;
 using Kadans.SharedKernel.Errors;
@@ -16,7 +17,7 @@ public sealed class PomodoroService(
     ILogger<PomodoroService> logger
 )
 {
-    public async Task<OneOf<ApplicationError, PomodoroTemplate>> CreateTemplate(
+    public async Task<OneOf<ApplicationError, PomodoroTemplateResponse>> CreateTemplate(
         CreatePomodoroTemplate request
     )
     {
@@ -72,7 +73,7 @@ public sealed class PomodoroService(
         {
             await context.PomodoroTemplates.AddAsync(template);
             await context.SaveChangesAsync();
-            return template;
+            return template.ToResponse();
         }
         catch (Exception ex)
         {
@@ -84,7 +85,7 @@ public sealed class PomodoroService(
         }
     }
 
-    public async Task<OneOf<ApplicationError, List<PomodoroTemplate>>> GetTemplates()
+    public async Task<OneOf<ApplicationError, List<PomodoroTemplateResponse>>> GetTemplates()
     {
         try
         {
@@ -93,8 +94,7 @@ public sealed class PomodoroService(
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
-            templates.ForEach(t => t.Phases = [.. t.Phases.OrderBy(p => p.Order)]);
-            return templates;
+            return templates.ConvertAll(t => t.ToResponse());
         }
         catch (Exception ex)
         {
@@ -160,7 +160,7 @@ public sealed class PomodoroService(
         }
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRun>> StartRun(Guid todoId)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId)
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
@@ -235,7 +235,7 @@ public sealed class PomodoroService(
         {
             await context.PomodoroRuns.AddAsync(run);
             await context.SaveChangesAsync();
-            return run;
+            return run.ToResponse();
         }
         catch (Exception ex)
         {
@@ -244,7 +244,7 @@ public sealed class PomodoroService(
         }
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRun>> GetActiveRun(Guid todoId)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> GetActiveRun(Guid todoId)
     {
         var run = await context
             .PomodoroRuns.Include(r => r.Phases)
@@ -263,11 +263,10 @@ public sealed class PomodoroService(
             );
         }
 
-        run.Phases = [.. run.Phases.OrderBy(p => p.Order)];
-        return run;
+        return run.ToResponse();
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRun>> PauseRun(Guid runId)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> PauseRun(Guid runId)
     {
         var run = await context
             .PomodoroRuns.Include(r => r.Phases)
@@ -294,8 +293,7 @@ public sealed class PomodoroService(
         try
         {
             await context.SaveChangesAsync();
-            run.Phases = [.. run.Phases.OrderBy(p => p.Order)];
-            return run;
+            return run.ToResponse();
         }
         catch (Exception ex)
         {
@@ -304,7 +302,7 @@ public sealed class PomodoroService(
         }
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRun>> ResumeRun(Guid runId)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> ResumeRun(Guid runId)
     {
         var run = await context
             .PomodoroRuns.Include(r => r.Phases)
@@ -337,8 +335,7 @@ public sealed class PomodoroService(
         try
         {
             await context.SaveChangesAsync();
-            run.Phases = [.. run.Phases.OrderBy(p => p.Order)];
-            return run;
+            return run.ToResponse();
         }
         catch (Exception ex)
         {
@@ -347,7 +344,7 @@ public sealed class PomodoroService(
         }
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRun>> AdvanceRun(
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(
         Guid runId,
         AdvancePomodoroRun request
     )
@@ -425,7 +422,7 @@ public sealed class PomodoroService(
         {
             await context.SaveChangesAsync();
             run.Phases = orderedPhases;
-            return run;
+            return run.ToResponse();
         }
         catch (Exception ex)
         {
@@ -437,7 +434,7 @@ public sealed class PomodoroService(
         }
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRun>> CancelRun(Guid runId)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> CancelRun(Guid runId)
     {
         var run = await context
             .PomodoroRuns.Include(r => r.Phases)
@@ -464,8 +461,7 @@ public sealed class PomodoroService(
         try
         {
             await context.SaveChangesAsync();
-            run.Phases = [.. run.Phases.OrderBy(p => p.Order)];
-            return run;
+            return run.ToResponse();
         }
         catch (Exception ex)
         {

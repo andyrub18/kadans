@@ -1,5 +1,4 @@
 using Kadans.SharedKernel.Errors;
-using Microsoft.AspNetCore.Identity;
 using OneOf;
 
 namespace Kadans.Api.Models;
@@ -29,7 +28,6 @@ public sealed class Todo
     public TimeSpan NotificationLeadTime { get; set; } = TimeSpan.FromMinutes(15);
     public List<TodoRemark> Remarks { get; set; } = [];
     public string UserId { get; set; } = string.Empty;
-    public IdentityUser User { get; set; } = null!;
     public Guid? PomodoroTemplateId { get; set; }
     public PomodoroTemplate? PomodoroTemplate { get; set; }
     public TaskStatus Status { get; private set; } = TaskStatus.Scheduled;

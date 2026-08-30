@@ -49,7 +49,7 @@ public static class IdentityBootstrapper
         }
 
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
         if (!await roleManager.RoleExistsAsync(AdminRoleName))
         {
@@ -76,7 +76,7 @@ public static class IdentityBootstrapper
         var user = await userManager.FindByNameAsync(options.Username);
         if (user is null)
         {
-            user = new IdentityUser
+            user = new ApplicationUser
             {
                 UserName = options.Username,
                 Email = options.Email,

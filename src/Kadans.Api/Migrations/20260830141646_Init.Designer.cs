@@ -13,74 +13,217 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Kadans.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260214225343_AddedRefreshToken")]
-    partial class AddedRefreshToken
+    [Migration("20260830141646_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Api.Models.RecurrenceRule", b =>
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroRun", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.PrimitiveCollection<int[]>("ByDay")
-                        .HasColumnType("integer[]")
-                        .HasColumnName("by_day");
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
 
-                    b.PrimitiveCollection<List<int>>("ByHour")
-                        .HasColumnType("integer[]")
-                        .HasColumnName("by_hour");
-
-                    b.PrimitiveCollection<List<int>>("ByMinute")
-                        .HasColumnType("integer[]")
-                        .HasColumnName("by_minute");
-
-                    b.PrimitiveCollection<List<int>>("ByMonth")
-                        .HasColumnType("integer[]")
-                        .HasColumnName("by_month");
-
-                    b.PrimitiveCollection<List<int>>("ByMonthDay")
-                        .HasColumnType("integer[]")
-                        .HasColumnName("by_month_day");
-
-                    b.PrimitiveCollection<List<int>>("BySetPos")
-                        .HasColumnType("integer[]")
-                        .HasColumnName("by_set_pos");
-
-                    b.Property<int?>("Count")
+                    b.Property<int>("CurrentPhaseIndex")
                         .HasColumnType("integer")
-                        .HasColumnName("count");
+                        .HasColumnName("current_phase_index");
+
+                    b.Property<DateTimeOffset?>("PausedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paused_at");
+
+                    b.Property<Guid?>("PomodoroTemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pomodoro_template_id");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TodoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("todo_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pomodoro_runs");
+
+                    b.HasIndex("TodoId", "StartedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_pomodoro_runs_todo_id_started_at_desc");
+
+                    b.HasIndex("UserId", "Status", "StartedAt")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("ix_pomodoro_runs_user_id_status_started_at_desc");
+
+                    b.ToTable("pomodoro_runs");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroRunPhase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<Guid>("PomodoroRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pomodoro_run_id");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pomodoro_run_phases");
+
+                    b.HasIndex("PomodoroRunId", "Order")
+                        .HasDatabaseName("ix_pomodoro_run_phases_run_order");
+
+                    b.ToTable("pomodoro_run_phases");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pomodoro_templates");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_pomodoro_templates_user_id_created_at_desc");
+
+                    b.ToTable("pomodoro_templates");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroTemplatePhase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<Guid>("PomodoroTemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pomodoro_template_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pomodoro_template_phases");
+
+                    b.HasIndex("PomodoroTemplateId", "Order")
+                        .HasDatabaseName("ix_pomodoro_template_phases_template_order");
+
+                    b.ToTable("pomodoro_template_phases");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.RecurrenceRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.PrimitiveCollection<List<DateTimeOffset>>("Exceptions")
+                        .IsRequired()
                         .HasColumnType("timestamp with time zone[]")
                         .HasColumnName("exceptions");
 
-                    b.Property<string>("Frequency")
+                    b.Property<string>("Rrule")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("frequency");
-
-                    b.Property<int>("Interval")
-                        .HasColumnType("integer")
-                        .HasColumnName("interval");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("rrule");
 
                     b.Property<DateTimeOffset>("StartDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_date");
 
-                    b.Property<DateTimeOffset?>("Until")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("until");
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("time_zone_id");
 
                     b.HasKey("Id")
                         .HasName("pk_recurrence_rules");
@@ -88,7 +231,7 @@ namespace Kadans.Api.Migrations
                     b.ToTable("recurrence_rules");
                 });
 
-            modelBuilder.Entity("Api.Models.Todo", b =>
+            modelBuilder.Entity("Kadans.Api.Models.Todo", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -113,6 +256,10 @@ namespace Kadans.Api.Migrations
                         .HasColumnType("interval")
                         .HasColumnName("notification_lead_time");
 
+                    b.Property<Guid?>("PomodoroTemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pomodoro_template_id");
+
                     b.Property<Guid>("RecurrenceRuleId")
                         .HasColumnType("uuid")
                         .HasColumnName("recurrence_rule_id");
@@ -134,20 +281,37 @@ namespace Kadans.Api.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
                         .HasName("pk_todos");
 
+                    b.HasIndex("PomodoroTemplateId");
+
                     b.HasIndex("RecurrenceRuleId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_todos_user_id_created_at_desc");
+
+                    b.HasIndex("UserId", "Id")
+                        .HasDatabaseName("ix_todos_user_id_id");
+
+                    b.HasIndex("UserId", "CreatedAt", "Id")
+                        .IsDescending(false, true, false)
+                        .HasDatabaseName("ix_todos_user_id_created_at_id_active")
+                        .HasFilter("status IN ('Scheduled', 'Started')");
+
+                    b.HasIndex("UserId", "Status", "CreatedAt")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("ix_todos_user_id_status_created_at_desc");
 
                     b.ToTable("todos");
                 });
 
-            modelBuilder.Entity("Api.Models.TodoOccurrence", b =>
+            modelBuilder.Entity("Kadans.Api.Models.TodoOccurrence", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -193,12 +357,116 @@ namespace Kadans.Api.Migrations
                     b.HasKey("Id")
                         .HasName("pk_todo_occurrences");
 
-                    b.HasIndex("TodoId");
+                    b.HasIndex("OccurrenceDate")
+                        .HasDatabaseName("ix_todo_occurrences_occurrence_date_active")
+                        .HasFilter("NOT is_cancelled AND NOT is_completed");
+
+                    b.HasIndex("TodoId", "OccurrenceDate")
+                        .HasDatabaseName("ix_todo_occurrences_todo_id_occurrence_date");
 
                     b.ToTable("todo_occurrences");
                 });
 
-            modelBuilder.Entity("Api.Security.RefreshToken", b =>
+            modelBuilder.Entity("Kadans.Api.Security.ApplicationUser", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("access_failed_count");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text")
+                        .HasColumnName("concurrency_stamp");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_confirmed");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("lockout_enabled");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lockout_end");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("normalized_email");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("normalized_user_name");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text")
+                        .HasColumnName("password_hash");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("phone_number");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("phone_number_confirmed");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text")
+                        .HasColumnName("security_stamp");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("time_zone_id");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("two_factor_enabled");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("user_name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_asp_net_users");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex");
+
+                    b.ToTable("asp_net_users", (string)null);
+                });
+
+            modelBuilder.Entity("Kadans.Api.Security.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -303,86 +571,6 @@ namespace Kadans.Api.Migrations
                     b.ToTable("asp_net_role_claims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUser", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text")
-                        .HasColumnName("id");
-
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("access_failed_count");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("text")
-                        .HasColumnName("concurrency_stamp");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("email");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("email_confirmed");
-
-                    b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("lockout_enabled");
-
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lockout_end");
-
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("normalized_email");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("normalized_user_name");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("text")
-                        .HasColumnName("password_hash");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("text")
-                        .HasColumnName("phone_number");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("boolean")
-                        .HasColumnName("phone_number_confirmed");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("text")
-                        .HasColumnName("security_stamp");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("two_factor_enabled");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("user_name");
-
-                    b.HasKey("Id")
-                        .HasName("pk_asp_net_users");
-
-                    b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex");
-
-                    b.ToTable("asp_net_users", (string)null);
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -482,23 +670,54 @@ namespace Kadans.Api.Migrations
                     b.ToTable("asp_net_user_tokens", (string)null);
                 });
 
-            modelBuilder.Entity("Api.Models.Todo", b =>
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroRun", b =>
                 {
-                    b.HasOne("Api.Models.RecurrenceRule", "RecurrenceRule")
+                    b.HasOne("Kadans.Api.Models.Todo", "Todo")
+                        .WithMany()
+                        .HasForeignKey("TodoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_pomodoro_runs_todos_todo_id");
+
+                    b.Navigation("Todo");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroRunPhase", b =>
+                {
+                    b.HasOne("Kadans.Api.Models.PomodoroRun", null)
+                        .WithMany("Phases")
+                        .HasForeignKey("PomodoroRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_pomodoro_run_phases_pomodoro_runs_pomodoro_run_id");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroTemplatePhase", b =>
+                {
+                    b.HasOne("Kadans.Api.Models.PomodoroTemplate", null)
+                        .WithMany("Phases")
+                        .HasForeignKey("PomodoroTemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_pomodoro_template_phases_pomodoro_templates_pomodoro_templa~");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.Todo", b =>
+                {
+                    b.HasOne("Kadans.Api.Models.PomodoroTemplate", "PomodoroTemplate")
+                        .WithMany()
+                        .HasForeignKey("PomodoroTemplateId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_todos_pomodoro_templates_pomodoro_template_id");
+
+                    b.HasOne("Kadans.Api.Models.RecurrenceRule", "RecurrenceRule")
                         .WithMany()
                         .HasForeignKey("RecurrenceRuleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_todos_recurrence_rules_recurrence_rule_id");
 
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_todos_asp_net_users_user_id");
-
-                    b.OwnsMany("Api.Models.TodoRemark", "Remarks", b1 =>
+                    b.OwnsMany("Kadans.Api.Models.TodoRemark", "Remarks", b1 =>
                         {
                             b1.Property<Guid>("Id")
                                 .ValueGeneratedOnAdd()
@@ -532,16 +751,16 @@ namespace Kadans.Api.Migrations
                                 .HasConstraintName("fk_todo_remark_todos_todo_id");
                         });
 
+                    b.Navigation("PomodoroTemplate");
+
                     b.Navigation("RecurrenceRule");
 
                     b.Navigation("Remarks");
-
-                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Api.Models.TodoOccurrence", b =>
+            modelBuilder.Entity("Kadans.Api.Models.TodoOccurrence", b =>
                 {
-                    b.HasOne("Api.Models.Todo", "Todo")
+                    b.HasOne("Kadans.Api.Models.Todo", "Todo")
                         .WithMany()
                         .HasForeignKey("TodoId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -551,9 +770,9 @@ namespace Kadans.Api.Migrations
                     b.Navigation("Todo");
                 });
 
-            modelBuilder.Entity("Api.Security.RefreshToken", b =>
+            modelBuilder.Entity("Kadans.Api.Security.RefreshToken", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "User")
+                    b.HasOne("Kadans.Api.Security.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -575,7 +794,7 @@ namespace Kadans.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("Kadans.Api.Security.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -585,7 +804,7 @@ namespace Kadans.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("Kadans.Api.Security.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -602,7 +821,7 @@ namespace Kadans.Api.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_asp_net_user_roles_asp_net_roles_role_id");
 
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("Kadans.Api.Security.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -612,12 +831,22 @@ namespace Kadans.Api.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("Kadans.Api.Security.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_asp_net_user_tokens_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroRun", b =>
+                {
+                    b.Navigation("Phases");
+                });
+
+            modelBuilder.Entity("Kadans.Api.Models.PomodoroTemplate", b =>
+                {
+                    b.Navigation("Phases");
                 });
 #pragma warning restore 612, 618
         }

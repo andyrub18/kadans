@@ -12,7 +12,7 @@ namespace Kadans.Api.Services;
 public sealed class UserManagement(
     ILogger<UserManagement> logger,
     ApplicationDbContext dbContext,
-    UserManager<IdentityUser> userManager,
+    UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     ICurrentUserService currentUserService,
     IHttpContextAccessor httpContextAccessor
@@ -26,7 +26,9 @@ public sealed class UserManagement(
             request.Username,
             request.Password,
             request.Email,
-            null
+            null,
+            request.DisplayName,
+            request.TimeZone
         );
 
         return CreateUserInternal(createRequest, canManageRoles: false);
@@ -64,11 +66,16 @@ public sealed class UserManagement(
         if (roleValidationError is not null)
             return roleValidationError;
 
-        var user = new IdentityUser
+        if (request.TimeZone is not null && !IsValidTimeZone(request.TimeZone))
+            return InvalidTimeZoneError(request.TimeZone);
+
+        var user = new ApplicationUser
         {
             UserName = request.Username,
             Email = request.Email,
             LockoutEnabled = true,
+            DisplayName = NormalizeDisplayName(request.DisplayName),
+            TimeZoneId = request.TimeZone ?? "UTC",
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
@@ -131,7 +138,9 @@ public sealed class UserManagement(
             request.Username,
             request.Email,
             request.NewPassword,
-            null
+            null,
+            request.DisplayName,
+            request.TimeZone
         );
 
         return await UpdateUserInternal(
@@ -194,6 +203,32 @@ public sealed class UserManagement(
                 await transaction.RollbackAsync();
                 logger.LogWarning("Failed to update email for user {UserId}", userId);
                 return setEmailResult.ToValidationError("Validation failed for updating user.");
+            }
+        }
+
+        if (request.DisplayName is not null || request.TimeZone is not null)
+        {
+            if (request.TimeZone is not null)
+            {
+                if (!IsValidTimeZone(request.TimeZone))
+                {
+                    await transaction.RollbackAsync();
+                    return InvalidTimeZoneError(request.TimeZone);
+                }
+
+                user.TimeZoneId = request.TimeZone;
+            }
+
+            if (request.DisplayName is not null)
+                user.DisplayName = NormalizeDisplayName(request.DisplayName);
+
+            user.UpdatedAt = DateTimeOffset.UtcNow;
+            var profileResult = await userManager.UpdateAsync(user);
+            if (!profileResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                logger.LogWarning("Failed to update profile for user {UserId}", userId);
+                return profileResult.ToValidationError("Validation failed for updating user.");
             }
         }
 
@@ -338,7 +373,7 @@ public sealed class UserManagement(
         return await BuildUserResponseAsync(user);
     }
 
-    private async Task<UserResponse> BuildUserResponseAsync(IdentityUser user)
+    private async Task<UserResponse> BuildUserResponseAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
         var lockoutEndDate = await userManager.GetLockoutEndDateAsync(user);
@@ -348,6 +383,8 @@ public sealed class UserManagement(
             user.Id,
             user.UserName ?? string.Empty,
             user.Email,
+            user.DisplayName,
+            user.TimeZoneId,
             isActive,
             [.. roles]
         );
@@ -392,6 +429,19 @@ public sealed class UserManagement(
             .ExecuteUpdateAsync(setters =>
                 setters.SetProperty(refreshToken => refreshToken.IsActive, false)
             );
+
+    private static bool IsValidTimeZone(string timeZoneId) =>
+        TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out _);
+
+    private static string? NormalizeDisplayName(string? displayName) =>
+        string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
+
+    private static ValidationError InvalidTimeZoneError(string timeZoneId) =>
+        new(
+            ErrorTypes.ValidationError,
+            "Validation failed for user profile.",
+            [(ErrorTypes.InvalidTimeZone.Value, $"'{timeZoneId}' is not a known IANA time zone.")]
+        );
 
     private bool IsCurrentUserAdmin() =>
         httpContextAccessor.HttpContext?.User.IsInRole(AdminRoleName) is true;

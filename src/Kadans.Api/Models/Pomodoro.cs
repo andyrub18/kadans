@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Identity;
-
 namespace Kadans.Api.Models;
 
 public enum PomodoroPhaseType
@@ -21,7 +19,6 @@ public sealed class PomodoroTemplate
     public Guid Id { get; init; } = Guid.CreateVersion7();
     public string Name { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
-    public IdentityUser User { get; set; } = null!;
     public List<PomodoroTemplatePhase> Phases { get; set; } = [];
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
@@ -43,7 +40,6 @@ public sealed class PomodoroRun
     public Todo Todo { get; set; } = null!;
     public Guid? PomodoroTemplateId { get; set; }
     public string UserId { get; set; } = string.Empty;
-    public IdentityUser User { get; set; } = null!;
     public PomodoroRunStatus Status { get; private set; } = PomodoroRunStatus.Active;
     public int CurrentPhaseIndex { get; set; }
     public List<PomodoroRunPhase> Phases { get; set; } = [];

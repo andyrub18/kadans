@@ -18,7 +18,7 @@ public sealed class JwtProvider(
 {
     private readonly JwtParameter parameter = options.Value;
 
-    public async Task<string> CreateToken(IdentityUser user)
+    public async Task<string> CreateToken(ApplicationUser user)
     {
         var roleNames = await dbContext
             .UserRoles.Where(ur => ur.UserId == user.Id)

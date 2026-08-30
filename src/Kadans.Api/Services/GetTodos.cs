@@ -1,6 +1,6 @@
+using Kadans.Api.Contracts;
 using Kadans.Api.Data;
 using Kadans.SharedKernel.Errors;
-using Kadans.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using OneOf;
 using TaskStatus = Kadans.Api.Models.TaskStatus;
@@ -9,7 +9,7 @@ namespace Kadans.Api.Services;
 
 public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> logger)
 {
-    public async Task<OneOf<ApplicationError, List<Todo>>> GetAllTodos(
+    public async Task<OneOf<ApplicationError, List<TodoResponse>>> GetAllTodos(
         int page,
         int pageSize,
         TaskStatus? status
@@ -19,13 +19,15 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
         {
             var todos = await dbContext
                 .Todos.IgnoreQueryFilters([ApplicationDbContext.ACTIVE_TODOS_FILTER])
+                .Include(t => t.RecurrenceRule)
+                .Include(t => t.Remarks)
                 .Where(t => status == null || t.Status == status)
                 .OrderByDescending(t => t.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            return todos;
+            return todos.ConvertAll(t => t.ToResponse());
         }
         catch (Exception ex)
         {
@@ -37,20 +39,19 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
         }
     }
 
-    public async Task<OneOf<ApplicationError, Todo>> GetTodoById(Guid id)
+    public async Task<OneOf<ApplicationError, TodoResponse>> GetTodoById(Guid id)
     {
         try
         {
             var todo = await dbContext
                 .Todos.Include(t => t.RecurrenceRule)
                 .Include(t => t.Remarks)
-                .Include(t => t.PomodoroTemplate)
-                    .ThenInclude(t => t!.Phases)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
-            return todo
-                ?? (OneOf<ApplicationError, Todo>)
-                    new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {id} not found");
+            if (todo is null)
+                return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {id} not found");
+
+            return todo.ToResponse();
         }
         catch (Exception ex)
         {
@@ -62,7 +63,7 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
         }
     }
 
-    public async Task<OneOf<ApplicationError, List<TodoOccurrence>>> GetOccurrencesByTodoId(
+    public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetOccurrencesByTodoId(
         Guid todoId,
         int page = 1,
         int pageSize = 20
@@ -71,13 +72,14 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
         try
         {
             var occurrences = await dbContext
-                .TodoOccurrences.Where(o => o.TodoId == todoId)
+                .TodoOccurrences.Include(o => o.Todo)
+                .Where(o => o.TodoId == todoId)
                 .OrderBy(o => o.OccurrenceDate)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            return occurrences;
+            return occurrences.ConvertAll(o => o.ToResponse());
         }
         catch (Exception ex)
         {
@@ -93,37 +95,36 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
         }
     }
 
-    public async Task<OneOf<ApplicationError, List<TodoOccurrence>>> GetOccurrencesByDateRange(
-        DateTimeOffset startDate,
-        DateTimeOffset endDate
+    public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetOccurrencesByDateRange(
+        DateTimeOffset from,
+        DateTimeOffset to
     )
     {
-        if (startDate > endDate)
+        if (from > to)
         {
             return new ApplicationError(
                 ErrorTypes.InvalidInterval,
                 "Start date must be earlier than end date."
             );
         }
+
         try
         {
             var occurrences = await dbContext
-                .TodoOccurrences.Where(o =>
-                    o.OccurrenceDate >= startDate && o.OccurrenceDate <= endDate
-                )
-                .Include(o => o.Todo)
+                .TodoOccurrences.Include(o => o.Todo)
+                .Where(o => o.OccurrenceDate >= from && o.OccurrenceDate <= to)
                 .OrderBy(o => o.OccurrenceDate)
                 .ToListAsync();
 
-            return occurrences;
+            return occurrences.ConvertAll(o => o.ToResponse());
         }
         catch (Exception ex)
         {
             logger.LogError(
                 ex,
-                "An error occurred while retrieving occurrences between {StartDate} and {EndDate}.",
-                startDate,
-                endDate
+                "An error occurred while retrieving occurrences between {From} and {To}.",
+                from,
+                to
             );
             return new ApplicationError(
                 ErrorTypes.DatabaseError,
@@ -132,7 +133,7 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
         }
     }
 
-    public async Task<OneOf<ApplicationError, List<TodoOccurrence>>> GetTodoHistory(
+    public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetTodoHistory(
         Guid todoId,
         int page = 1,
         int pageSize = 20
@@ -149,7 +150,7 @@ public sealed class GetTodos(ApplicationDbContext dbContext, ILogger<GetTodos> l
                 .Take(pageSize)
                 .ToListAsync();
 
-            return occurrences;
+            return occurrences.ConvertAll(o => o.ToResponse());
         }
         catch (Exception ex)
         {

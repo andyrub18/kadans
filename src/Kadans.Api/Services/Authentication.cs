@@ -13,8 +13,8 @@ namespace Kadans.Api.Services;
 public sealed class Authentication(
     ILogger<Authentication> logger,
     JwtProvider jwtProvider,
-    UserManager<IdentityUser> userManager,
-    SignInManager<IdentityUser> signInManager,
+    UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
     ApplicationDbContext dbContext,
     IOptions<JwtParameter> jwtParameterOptions,
     IBackgroundTaskQueue taskQueue
@@ -125,7 +125,7 @@ public sealed class Authentication(
         }
     }
 
-    private async Task<LoginResponse> IssueTokensAsync(IdentityUser user)
+    private async Task<LoginResponse> IssueTokensAsync(ApplicationUser user)
     {
         var token = await jwtProvider.CreateToken(user);
 

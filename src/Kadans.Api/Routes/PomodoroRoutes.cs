@@ -1,6 +1,5 @@
+using Kadans.Api.Contracts;
 using Kadans.Api.DTOs;
-using Kadans.SharedKernel.Errors;
-using Kadans.Api.Models;
 using Kadans.Api.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using OneOf.Types;
@@ -13,16 +12,18 @@ public static class PomodoroRoutes
     {
         public void MapPomodoroRoutes()
         {
-            app.MapPost(
+            var group = app.MapGroup(string.Empty).RequireAuthorization();
+
+            group.MapPost(
                     "/pomodoro/templates",
-                    async Task<Results<Ok<PomodoroTemplate>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroTemplateResponse>, ProblemHttpResult>> (
                         CreatePomodoroTemplate request,
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.CreateTemplate(request);
-                        return result.Match<Results<Ok<PomodoroTemplate>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroTemplateResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             template => TypedResults.Ok(template)
@@ -33,20 +34,20 @@ public static class PomodoroRoutes
                 .WithName("PomodoroCreateTemplate")
                 .WithSummary("Create Pomodoro template")
                 .WithDescription("Creates a custom Pomodoro template with ordered phases.")
-                .Produces<PomodoroTemplate>(StatusCodes.Status200OK)
+                .Produces<PomodoroTemplateResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status401Unauthorized)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-            app.MapGet(
+            group.MapGet(
                     "/pomodoro/templates",
-                    async Task<Results<Ok<List<PomodoroTemplate>>, ProblemHttpResult>> (
+                    async Task<Results<Ok<List<PomodoroTemplateResponse>>, ProblemHttpResult>> (
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.GetTemplates();
-                        return result.Match<Results<Ok<List<PomodoroTemplate>>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<List<PomodoroTemplateResponse>>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             templates => TypedResults.Ok(templates)
@@ -57,10 +58,10 @@ public static class PomodoroRoutes
                 .WithName("PomodoroListTemplates")
                 .WithSummary("List Pomodoro templates")
                 .WithDescription("Returns all Pomodoro templates for the current user.")
-                .Produces<List<PomodoroTemplate>>(StatusCodes.Status200OK)
+                .Produces<List<PomodoroTemplateResponse>>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
-            app.MapPut(
+            group.MapPut(
                     "/todos/{id:guid}/pomodoro-template",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
@@ -88,16 +89,16 @@ public static class PomodoroRoutes
                 .ProducesProblem(StatusCodes.Status404NotFound)
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
-            app.MapPost(
+            group.MapPost(
                     "/todos/{id:guid}/pomodoro/start",
-                    async Task<Results<Ok<PomodoroRun>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid id,
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.StartRun(id);
-                        return result.Match<Results<Ok<PomodoroRun>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             run => TypedResults.Ok(run)
@@ -108,20 +109,20 @@ public static class PomodoroRoutes
                 .WithName("PomodoroStartRun")
                 .WithSummary("Start Pomodoro run")
                 .WithDescription("Starts a Pomodoro run for a todo from its attached template.")
-                .Produces<PomodoroRun>(StatusCodes.Status200OK)
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapGet(
+            group.MapGet(
                     "/todos/{id:guid}/pomodoro/active-run",
-                    async Task<Results<Ok<PomodoroRun>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid id,
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.GetActiveRun(id);
-                        return result.Match<Results<Ok<PomodoroRun>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             run => TypedResults.Ok(run)
@@ -132,19 +133,19 @@ public static class PomodoroRoutes
                 .WithName("PomodoroGetActiveRun")
                 .WithSummary("Get active Pomodoro run")
                 .WithDescription("Returns the active or paused Pomodoro run for a todo.")
-                .Produces<PomodoroRun>(StatusCodes.Status200OK)
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
+            group.MapPut(
                     "/pomodoro/runs/{runId:guid}/pause",
-                    async Task<Results<Ok<PomodoroRun>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid runId,
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.PauseRun(runId);
-                        return result.Match<Results<Ok<PomodoroRun>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             run => TypedResults.Ok(run)
@@ -155,20 +156,20 @@ public static class PomodoroRoutes
                 .WithName("PomodoroPauseRun")
                 .WithSummary("Pause Pomodoro run")
                 .WithDescription("Pauses an active Pomodoro run.")
-                .Produces<PomodoroRun>(StatusCodes.Status200OK)
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
+            group.MapPut(
                     "/pomodoro/runs/{runId:guid}/resume",
-                    async Task<Results<Ok<PomodoroRun>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid runId,
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.ResumeRun(runId);
-                        return result.Match<Results<Ok<PomodoroRun>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             run => TypedResults.Ok(run)
@@ -179,13 +180,13 @@ public static class PomodoroRoutes
                 .WithName("PomodoroResumeRun")
                 .WithSummary("Resume Pomodoro run")
                 .WithDescription("Resumes a paused Pomodoro run.")
-                .Produces<PomodoroRun>(StatusCodes.Status200OK)
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
+            group.MapPut(
                     "/pomodoro/runs/{runId:guid}/advance",
-                    async Task<Results<Ok<PomodoroRun>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid runId,
                         AdvancePomodoroRun request,
                         PomodoroService service,
@@ -193,7 +194,7 @@ public static class PomodoroRoutes
                     ) =>
                     {
                         var result = await service.AdvanceRun(runId, request);
-                        return result.Match<Results<Ok<PomodoroRun>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             run => TypedResults.Ok(run)
@@ -204,20 +205,20 @@ public static class PomodoroRoutes
                 .WithName("PomodoroAdvanceRun")
                 .WithSummary("Advance Pomodoro run phase")
                 .WithDescription("Completes the current phase and advances to the next one.")
-                .Produces<PomodoroRun>(StatusCodes.Status200OK)
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            app.MapPut(
+            group.MapPut(
                     "/pomodoro/runs/{runId:guid}/cancel",
-                    async Task<Results<Ok<PomodoroRun>, ProblemHttpResult>> (
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid runId,
                         PomodoroService service,
                         HttpContext context
                     ) =>
                     {
                         var result = await service.CancelRun(runId);
-                        return result.Match<Results<Ok<PomodoroRun>, ProblemHttpResult>>(
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
                             run => TypedResults.Ok(run)
@@ -228,7 +229,7 @@ public static class PomodoroRoutes
                 .WithName("PomodoroCancelRun")
                 .WithSummary("Cancel Pomodoro run")
                 .WithDescription("Cancels an active or paused Pomodoro run.")
-                .Produces<PomodoroRun>(StatusCodes.Status200OK)
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
         }

@@ -27,7 +27,6 @@ public sealed class TodoUpdate(
         todo.Title = update.Title;
         todo.Description = update.Description;
         todo.NotificationEnabled = update.NotificationEnabled;
-        todo.UpdateStatus(update.Status);
 
         if (update.PomodoroTemplateId is not null)
         {
@@ -595,7 +594,7 @@ public sealed class TodoUpdate(
 
     public async Task<OneOf<ApplicationError, bool>> UpdateAllTodosRemarks(
         Guid todoId,
-        List<TodoRemark> remarks
+        IReadOnlyList<string> remarks
     )
     {
         var todo = await context
@@ -610,7 +609,8 @@ public sealed class TodoUpdate(
             );
         }
 
-        todo.Remarks = remarks;
+        todo.Remarks = [.. remarks.Select(remark => new TodoRemark { Remark = remark })];
+        todo.UpdatedAt = DateTimeOffset.UtcNow;
 
         try
         {

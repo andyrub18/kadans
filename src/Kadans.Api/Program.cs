@@ -9,6 +9,7 @@ using Kadans.Api.Security;
 using Kadans.Api.Services;
 using Humanizer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -100,7 +101,7 @@ builder.Services.AddScoped<TodoUpdate>();
 builder.Services.AddScoped<GetTodos>();
 builder.Services.AddScoped<PomodoroService>();
 builder
-    .Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+    .Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
         options.Lockout.MaxFailedAccessAttempts = maxFailedAccessAttempts;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(defaultLockoutMinutes);
@@ -131,7 +132,10 @@ builder
         };
     });
 
-builder.Services.AddAuthorization();
+// Every endpoint requires an authenticated user unless it explicitly opts out.
+builder
+    .Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 builder.Services.ConfigureOptions<JwtParameterOptionsSetup>();
 
@@ -145,8 +149,8 @@ await app.SeedInitialAdminAsync();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
 app.UseAuthentication();
@@ -157,9 +161,8 @@ app.UseHttpsRedirection();
 
 app.MapAuthRoutes();
 app.MapUserRoutes();
-app.MapCreateTodoRoutes();
-app.MapGetTodoRoutes();
-app.MapUpdateTodoRoutes();
+app.MapTodoRoutes();
+app.MapOccurrenceRoutes();
 app.MapPomodoroRoutes();
 
 app.Run();

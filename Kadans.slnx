@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/solution-items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Kadans.Api/Kadans.Api.csproj" />
+    <Project Path="src/Kadans.SharedKernel/Kadans.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Kadans.Api.Tests/Kadans.Api.Tests.csproj" />
+  </Folder>
+</Solution>

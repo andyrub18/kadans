@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+# Runtime output
+logs/
+
+# IDE / OS
+.idea/
+.DS_Store
+*.swp
+
+# Local secrets never belong here; use `dotnet user-secrets` (see README)
+appsettings.*.local.json

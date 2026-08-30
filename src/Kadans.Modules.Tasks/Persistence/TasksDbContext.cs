@@ -129,6 +129,11 @@ internal sealed class TasksDbContext(
                 .HasDatabaseName("ix_todo_occurrences_scheduled_at_pending")
                 .HasFilter("status = 'Pending'");
 
+            // What the reminder job scans.
+            t.HasIndex(o => o.NotifyAt)
+                .HasDatabaseName("ix_todo_occurrences_notify_due")
+                .HasFilter("status = 'Pending' AND notified_at IS NULL AND notify_at IS NOT NULL");
+
             t.HasQueryFilter(ACTIVE_OCCURRENCES_FILTER, o => o.Status == OccurrenceStatus.Pending);
             t.HasQueryFilter(
                 USER_FILTER,

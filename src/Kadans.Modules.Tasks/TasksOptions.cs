@@ -13,4 +13,9 @@ internal sealed class TasksOptions
     public int HorizonRefreshMinutes { get; set; } = 60;
 
     public int MaxPreviewPerTodo { get; set; } = 500;
+
+    public int ReminderIntervalSeconds { get; set; } = 60;
+
+    /// <summary>Reminders for occurrences already this far in the past are skipped instead of sent late.</summary>
+    public int ReminderStaleAfterMinutes { get; set; } = 60;
 }

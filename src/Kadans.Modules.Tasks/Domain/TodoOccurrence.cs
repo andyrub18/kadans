@@ -33,7 +33,10 @@ internal sealed class TodoOccurrence
     public string? CancellationReason { get; private set; }
     public string? Remarks { get; set; }
 
-    /// <summary>Set by the notification dispatcher (Phase 4) so a reminder is sent once.</summary>
+    /// <summary>When the reminder is due (<c>ScheduledAt - lead time</c>); null when notifications are off.</summary>
+    public DateTimeOffset? NotifyAt { get; private set; }
+
+    /// <summary>Stamped by the reminder job so a reminder is sent once.</summary>
     public DateTimeOffset? NotifiedAt { get; set; }
 
     public bool IsPending => Status == OccurrenceStatus.Pending;
@@ -74,8 +77,15 @@ internal sealed class TodoOccurrence
         ScheduledAt = newDate;
         RescheduledAt = now;
         RescheduleReason = string.IsNullOrWhiteSpace(reason) ? null : reason;
+        // A moved occurrence deserves a fresh reminder.
+        NotifiedAt = null;
+        if (Todo is not null)
+            RefreshNotifyAt(Todo);
         return new Success();
     }
+
+    public void RefreshNotifyAt(Todo todo) =>
+        NotifyAt = todo.NotificationEnabled ? ScheduledAt - todo.NotificationLeadTime : null;
 
     private ApplicationError? NotPending() =>
         Status switch

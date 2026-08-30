@@ -20,6 +20,13 @@
     <PackageVersion Include="Ical.Net" Version="5.2.3" />
   </ItemGroup>
 
+  <ItemGroup Label="Scheduling and push">
+    <PackageVersion Include="Quartz" Version="3.20.0" />
+    <PackageVersion Include="Quartz.Extensions.DependencyInjection" Version="3.20.0" />
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.20.0" />
+    <PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Email">
     <PackageVersion Include="Resend" Version="0.15.0" />
   </ItemGroup>

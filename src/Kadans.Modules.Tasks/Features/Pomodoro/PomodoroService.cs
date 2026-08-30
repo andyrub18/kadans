@@ -1,3 +1,4 @@
+using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Security;
 using Kadans.Modules.Tasks.Contracts;
 using Kadans.Modules.Tasks.Persistence;
@@ -12,6 +13,7 @@ namespace Kadans.Modules.Tasks.Features.Pomodoro;
 internal sealed class PomodoroService(
     TasksDbContext context,
     ICurrentUserService currentUser,
+    IRealtimePublisher realtime,
     ILogger<PomodoroService> logger
 )
 {
@@ -233,7 +235,7 @@ internal sealed class PomodoroService(
         {
             await context.PomodoroRuns.AddAsync(run);
             await context.SaveChangesAsync();
-            return run.ToResponse();
+            return await PublishAsync(run);
         }
         catch (Exception ex)
         {
@@ -291,7 +293,7 @@ internal sealed class PomodoroService(
         try
         {
             await context.SaveChangesAsync();
-            return run.ToResponse();
+            return await PublishAsync(run);
         }
         catch (Exception ex)
         {
@@ -333,7 +335,7 @@ internal sealed class PomodoroService(
         try
         {
             await context.SaveChangesAsync();
-            return run.ToResponse();
+            return await PublishAsync(run);
         }
         catch (Exception ex)
         {
@@ -420,7 +422,7 @@ internal sealed class PomodoroService(
         {
             await context.SaveChangesAsync();
             run.Phases = orderedPhases;
-            return run.ToResponse();
+            return await PublishAsync(run);
         }
         catch (Exception ex)
         {
@@ -459,12 +461,28 @@ internal sealed class PomodoroService(
         try
         {
             await context.SaveChangesAsync();
-            return run.ToResponse();
+            return await PublishAsync(run);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to cancel Pomodoro run {RunId}", runId);
             return new ApplicationError(ErrorTypes.DatabaseError, "Failed to cancel Pomodoro run.");
         }
+    }
+
+    /// <summary>Every device of the user sees the same run state; the API is the source of truth.</summary>
+    private async Task<PomodoroRunResponse> PublishAsync(PomodoroRun run)
+    {
+        var response = run.ToResponse();
+        try
+        {
+            await realtime.PublishToUserAsync(run.UserId, "pomodoro.run.changed", response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not broadcast run {RunId}", run.Id);
+        }
+
+        return response;
     }
 }

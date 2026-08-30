@@ -34,14 +34,12 @@ internal sealed class OccurrenceGenerator(TasksDbContext dbContext, IOptions<Tas
             options.Value.MaxOccurrencesPerBatch
         );
 
-        dbContext.TodoOccurrences.AddRange(
-            plan.ToInsert.Select(at => new TodoOccurrence
-            {
-                TodoId = todo.Id,
-                OriginalScheduledAt = at,
-                ScheduledAt = at,
-            })
-        );
+        foreach (var at in plan.ToInsert)
+        {
+            var occurrence = new TodoOccurrence { TodoId = todo.Id, OriginalScheduledAt = at, ScheduledAt = at };
+            occurrence.RefreshNotifyAt(todo);
+            dbContext.TodoOccurrences.Add(occurrence);
+        }
         todo.OccurrencesGeneratedThrough = plan.GeneratedThrough;
 
         return plan.ToInsert.Count;

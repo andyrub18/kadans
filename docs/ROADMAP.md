@@ -12,12 +12,14 @@
 
 ## Phase 1 – Cheap-now, expensive-later
 
-- [ ] `ApplicationUser : IdentityUser` (display name, timezone, profile fields)
-- [ ] Response DTOs for every endpoint; stop returning entities
-- [ ] `FallbackPolicy = RequireAuthenticatedUser`; `AllowAnonymous` only on auth endpoints
-- [ ] Route cleanup: occurrence actions under `/occurrences/{id}/...`
-- [ ] Module split: Identity, Tasks (+Pomodoro), Notifications, each with its own DbContext/schema.
-      Migration history is reset (dev DB dropped) – agreed.
+- [x] `ApplicationUser : IdentityUser` (display name, time zone) – exposed on register/update/me
+- [x] Response DTOs for every endpoint (`Contracts/`); entities never leave a service
+- [x] `FallbackPolicy = RequireAuthenticatedUser`; `AllowAnonymous` only on auth + docs endpoints
+- [x] Route cleanup: `/occurrences` group, `/todos/{id}/cancel|history|remarks`, `Status` no longer client-settable
+- [x] Cross-module user navigations/FKs removed (`Todo`, `PomodoroTemplate`, `PomodoroRun` keep a plain `UserId`)
+- [x] Migration history reset to a single `Init`
+- [x] Module split: `Kadans.Modules.Identity` (`identity` schema) and `Kadans.Modules.Tasks` (`tasks` schema),
+      each with its own DbContext and migrations; host only wires `IModule`s. Notifications module comes with Phase 4.
 
 ## Phase 2 – Identity flows
 
@@ -58,6 +60,12 @@
 - [ ] `Money` value object, accounts, categories, transactions, budgets, HTG/USD
 - [ ] Recurring transactions on the shared recurrence engine
 
+## Fixed along the way
+
+- Npgsql rejects any `DateTimeOffset` with a non-zero offset (`timestamp with time zone`), so a client sending
+  `09:00-05:00` produced a 500. Every DbContext now applies `StoreDateTimeOffsetsAsUtc()` (SharedKernel) and
+  `RecurrenceSchedule` normalizes start/exceptions to UTC. Found by the Phase 1 smoke test, 2026-08-30.
+
 ## Known bugs in the current code (fix during Phases 1–3, most vanish with the redesign)
 
 | Where | Problem |
@@ -66,12 +74,9 @@
 | `Services/TodoCreation.cs` | Indefinite rules materialize 1 year then silently stop; `Minutely` = 525k rows |
 | `Services/TodoUpdate.cs` `RescheduleNextOccurrence` (recurring) | New one-time `Todo` has no `UserId` (FK violation); background job filters on the *new* todo id so the original occurrence is never cancelled |
 | `Services/TodoUpdate.cs` `CompleteOccurrence` | Overwrites `OccurrenceDate` with now instead of setting `CompletedAt` |
-| `Services/TodoUpdate.cs` `UpdateTodo` | Lets the client set `Status` directly; orphans the old `RecurrenceRule` row |
+| `Services/TodoUpdate.cs` `UpdateTodo` | ~~Lets the client set `Status` directly~~ (fixed Phase 1); still orphans the old `RecurrenceRule` row |
 | `Services/UserManagement.cs` `UpdateCurrentUser` | Password change without current password; email change without verification |
 | `Security/RefreshToken.cs` | Refresh tokens stored in plaintext |
-| `Routes/PomodoroRoutes.cs` | No `RequireAuthorization()` (saved only by query filters) |
-| `Routes/TodoRoutes.cs` | `/todos/{id}/cancel`, `/complete`, `/remark` take an *occurrence* id |
 | `BackgroundTasks/BackgroundTaskQueue.cs` | In-memory; lost on restart; `TryWrite` drops silently when full |
 | `Models/Pomodoro.cs` | Pause/resume does not track remaining time |
-| Endpoints | Return EF entities with `IdentityUser` navigations |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

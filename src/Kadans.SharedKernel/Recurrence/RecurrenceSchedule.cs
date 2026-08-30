@@ -41,11 +41,11 @@ public sealed class RecurrenceSchedule
     )
     {
         this.pattern = pattern;
-        this.exceptions = [.. exceptions];
+        this.exceptions = [.. exceptions.Select(e => e.ToUniversalTime())];
         Rrule = new RecurrenceRuleSerializer().SerializeToString(pattern)
             ?? throw new InvalidOperationException("Could not serialize recurrence pattern.");
         TimeZoneId = timeZoneId;
-        Start = start;
+        Start = start.ToUniversalTime();
     }
 
     public static OneOf<ApplicationError, RecurrenceSchedule> Create(

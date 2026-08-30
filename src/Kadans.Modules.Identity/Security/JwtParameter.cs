@@ -10,7 +10,8 @@ internal sealed class JwtParameter
     public required string Issuer { get; set; }
     public required string Audience { get; set; }
     public int ExpirationInMinutes { get; set; }
-    public int RefreshTokenExpirationInDays { get; set; }
+    public int RefreshTokenExpirationInDays { get; set; } = 7;
+    public int MfaChallengeExpirationInMinutes { get; set; } = 5;
 }
 
 internal sealed class JwtParameterOptionsSetup(IConfiguration configuration)

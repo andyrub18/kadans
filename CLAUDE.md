@@ -32,8 +32,13 @@ docker start kadans-postgres                # local Postgres 17 (created with PO
 dotnet user-secrets list --project src/Kadans.Api
 ```
 
-Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`) live in
-`dotnet user-secrets`, never in `appsettings*.json`.
+Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`, and when needed
+`Email:Resend:ApiKey`, `ExternalAuth:Google:ClientIds:0`) live in `dotnet user-secrets`, never in
+`appsettings*.json`. Development uses `Email:Provider=Log`: emails (with their links) go to the log.
+
+Running the API by hand for a smoke test: start it in the background, and stop it with `pkill -x Kadans.Api`
+(the apphost's process name) – killing the `dotnet run` parent leaves the server alive on its port.
+`python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end.
 
 ## Conventions
 

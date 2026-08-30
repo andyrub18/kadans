@@ -9,6 +9,7 @@
     <PackageReference Include="Humanizer" />
     <PackageReference Include="Ical.Net" />
     <PackageReference Include="OneOf" />
+    <PackageReference Include="Resend" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
   </ItemGroup>
 

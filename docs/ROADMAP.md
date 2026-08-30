@@ -21,15 +21,23 @@
 - [x] Module split: `Kadans.Modules.Identity` (`identity` schema) and `Kadans.Modules.Tasks` (`tasks` schema),
       each with its own DbContext and migrations; host only wires `IModule`s. Notifications module comes with Phase 4.
 
-## Phase 2 – Identity flows
+## Phase 2 – Identity flows ✅ (2026-08-30)
 
-- [ ] Change password (requires current password), revoke sessions
-- [ ] Forgot / reset password via email (`IEmailSender` + SMTP/Resend implementation)
-- [ ] Email confirmation; email change with verification
-- [ ] `POST /auth/external { provider, idToken }` – Google, then Apple (native ID-token verification)
-- [ ] Hash refresh tokens at rest; token family / reuse detection
-- [ ] TOTP MFA enrol/verify (needed before Budget ships)
-- [ ] Device registration (push tokens)
+- [x] Change password (requires current password); `POST /users/me/sessions/revoke-all`
+- [x] Forgot / reset password via email – `IEmailSender` with Resend (prod) and a log sender (dev)
+- [x] Email confirmation on register (+ resend); email change with verification to the new address
+- [x] `POST /auth/external { provider, idToken }` – Google and Apple ID tokens verified via OIDC discovery
+- [x] Refresh tokens hashed at rest; one family per login session; reuse revokes the family
+- [x] TOTP MFA: enrol → enable (recovery codes) → login returns an MFA challenge → `/auth/mfa/verify`
+- [x] Device registration: `PUT /users/me/devices/{installationId}` (upsert push token), list, delete
+- [x] `tools/smoke/identity_flows.py` exercises all of the above against a running API
+- [ ] Deep links: the client must handle `/auth/confirm-email`, `/auth/reset-password`, `/users/me/email/confirm`
+      (App Links / Universal Links); until then `Email:LinkBaseUrl` points at the API and only confirm-email works from a browser
+
+Config: `Email:Provider` (`Resend`|`Log`), `Email:From`, `Email:LinkBaseUrl`, secret `Email:Resend:ApiKey`;
+`ExternalAuth:Google:ClientIds`, `ExternalAuth:Apple:ClientIds` (one per client platform).
+Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the bearer handler rejects them;
+`User.RequireUniqueEmail = true`; the `IdentityFlows` migration drops all pre-existing refresh tokens.
 
 ## Phase 3 – Recurrence done right
 
@@ -75,8 +83,6 @@
 | `Services/TodoUpdate.cs` `RescheduleNextOccurrence` (recurring) | New one-time `Todo` has no `UserId` (FK violation); background job filters on the *new* todo id so the original occurrence is never cancelled |
 | `Services/TodoUpdate.cs` `CompleteOccurrence` | Overwrites `OccurrenceDate` with now instead of setting `CompletedAt` |
 | `Services/TodoUpdate.cs` `UpdateTodo` | ~~Lets the client set `Status` directly~~ (fixed Phase 1); still orphans the old `RecurrenceRule` row |
-| `Services/UserManagement.cs` `UpdateCurrentUser` | Password change without current password; email change without verification |
-| `Security/RefreshToken.cs` | Refresh tokens stored in plaintext |
 | `BackgroundTasks/BackgroundTaskQueue.cs` | In-memory; lost on restart; `TryWrite` drops silently when full |
 | `Models/Pomodoro.cs` | Pause/resume does not track remaining time |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

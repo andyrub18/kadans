@@ -194,6 +194,61 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    public static readonly ErrorTypes InvalidToken = new(
+        "10033",
+        "Invalid or expired token",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes MfaCodeInvalid = new(
+        "10034",
+        "Invalid verification code",
+        StatusCodes.Status401Unauthorized,
+        ""
+    );
+    public static readonly ErrorTypes ExternalLoginFailed = new(
+        "10035",
+        "External login failed",
+        StatusCodes.Status401Unauthorized,
+        ""
+    );
+    public static readonly ErrorTypes ExternalProviderNotConfigured = new(
+        "10036",
+        "External provider not configured",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes DeviceNotFound = new(
+        "10037",
+        "Device not found",
+        StatusCodes.Status404NotFound,
+        ""
+    );
+    public static readonly ErrorTypes EmailAlreadyInUse = new(
+        "10038",
+        "Email already in use",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes MfaAlreadyEnabled = new(
+        "10039",
+        "Two-factor authentication already enabled",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes MfaNotEnabled = new(
+        "10040",
+        "Two-factor authentication not enabled",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes EmailNotSet = new(
+        "10041",
+        "No email address on the account",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;
 }

@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["clients/**", "docs/**", "**.md"]
+  pull_request:
+    paths-ignore: ["clients/**", "docs/**", "**.md"]
+
+jobs:
+  backend:
+    name: Build & test (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore Kadans.slnx
+
+      - run: dotnet build Kadans.slnx --no-restore --configuration Release
+
+      - run: dotnet test --solution Kadans.slnx --no-build --configuration Release

@@ -18,7 +18,8 @@
 - [x] Route cleanup: `/occurrences` group, `/todos/{id}/cancel|history|remarks`, `Status` no longer client-settable
 - [x] Cross-module user navigations/FKs removed (`Todo`, `PomodoroTemplate`, `PomodoroRun` keep a plain `UserId`)
 - [x] Migration history reset to a single `Init`
-- [ ] Module split: Identity, Tasks (+Pomodoro), Notifications, each with its own DbContext/schema
+- [x] Module split: `Kadans.Modules.Identity` (`identity` schema) and `Kadans.Modules.Tasks` (`tasks` schema),
+      each with its own DbContext and migrations; host only wires `IModule`s. Notifications module comes with Phase 4.
 
 ## Phase 2 – Identity flows
 
@@ -58,6 +59,12 @@
 
 - [ ] `Money` value object, accounts, categories, transactions, budgets, HTG/USD
 - [ ] Recurring transactions on the shared recurrence engine
+
+## Fixed along the way
+
+- Npgsql rejects any `DateTimeOffset` with a non-zero offset (`timestamp with time zone`), so a client sending
+  `09:00-05:00` produced a 500. Every DbContext now applies `StoreDateTimeOffsetsAsUtc()` (SharedKernel) and
+  `RecurrenceSchedule` normalizes start/exceptions to UTC. Found by the Phase 1 smoke test, 2026-08-30.
 
 ## Known bugs in the current code (fix during Phases 1–3, most vanish with the redesign)
 

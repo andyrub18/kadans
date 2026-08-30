@@ -9,8 +9,12 @@
     <Project Path="src/Kadans.Api/Kadans.Api.csproj" />
     <Project Path="src/Kadans.SharedKernel/Kadans.SharedKernel.csproj" />
   </Folder>
+  <Folder Name="/src/modules/">
+    <Project Path="src/Kadans.Modules.Identity/Kadans.Modules.Identity.csproj" />
+    <Project Path="src/Kadans.Modules.Tasks/Kadans.Modules.Tasks.csproj" />
+  </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Kadans.Api.Tests/Kadans.Api.Tests.csproj" />
     <Project Path="tests/Kadans.SharedKernel.Tests/Kadans.SharedKernel.Tests.csproj" />
+    <Project Path="tests/Kadans.Tasks.Tests/Kadans.Tasks.Tests.csproj" />
   </Folder>
 </Solution>

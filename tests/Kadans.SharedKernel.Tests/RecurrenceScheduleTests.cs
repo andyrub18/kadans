@@ -38,6 +38,20 @@ public class RecurrenceScheduleTests
     }
 
     [Test]
+    public async Task Start_and_exceptions_are_normalized_to_utc()
+    {
+        var offsetStart = new DateTimeOffset(2027, 1, 10, 9, 0, 0, TimeSpan.FromHours(-5));
+        var offsetException = new DateTimeOffset(2027, 1, 11, 9, 0, 0, TimeSpan.FromHours(-5));
+
+        var schedule = Build(new RecurrenceSpec(Frequency.Daily), offsetStart, NewYork, [offsetException]);
+
+        await Assert.That(schedule.Start.Offset).IsEqualTo(TimeSpan.Zero);
+        await Assert.That(schedule.Exceptions.Single().Offset).IsEqualTo(TimeSpan.Zero);
+        await Assert.That(schedule.GetOccurrences(Utc(2027, 1, 10), Utc(2027, 1, 13)))
+            .IsEquivalentTo([Utc(2027, 1, 10, 14), Utc(2027, 1, 12, 14)]);
+    }
+
+    [Test]
     public async Task Daily_rule_follows_daylight_saving_transitions()
     {
         // US DST starts 2027-03-14: 09:00 New York moves from 14:00Z to 13:00Z.

@@ -9,4 +9,15 @@
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
   </PropertyGroup>
 
+  <!-- Class libraries that host ASP.NET Core code get the same implicit usings as the Web SDK. -->
+  <ItemGroup Condition="$(MSBuildProjectName.StartsWith('Kadans.Modules.')) Or '$(MSBuildProjectName)' == 'Kadans.SharedKernel'">
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.Routing" />
+    <Using Include="Microsoft.Extensions.Configuration" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <Using Include="Microsoft.Extensions.Hosting" />
+    <Using Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
 </Project>

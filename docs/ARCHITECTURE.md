@@ -6,7 +6,7 @@ One deployable API, one Postgres database, hard module boundaries inside the cod
 Not microservices, and not a four-layer "clean architecture" per module – vertical slices inside
 modules are enough.
 
-### Target layout
+### Layout (Identity and Tasks exist; Budget and Notifications are planned)
 
 ```
 src/
@@ -17,7 +17,7 @@ src/
   Kadans.Modules.Identity/       users, auth, tokens, external logins, profile, devices
   Kadans.Modules.Tasks/          todos, occurrences, pomodoro
   Kadans.Modules.Budget/         accounts, categories, transactions, budgets
-  Kadans.Modules.Notifications/  scheduler jobs, push/SignalR dispatch, hub
+  Kadans.Modules.Notifications/  scheduler jobs, push/SignalR dispatch, hub (Phase 4)
 tests/
   Kadans.<Module>.Tests/         TUnit unit tests
   Kadans.Api.IntegrationTests/   TUnit + Testcontainers (real Postgres)

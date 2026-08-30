@@ -9,10 +9,12 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 
 ## Layout
 
-- `src/Kadans.Api` – host + (for now) all features. Being split into modules, see ROADMAP.
+- `src/Kadans.Api` – host only: Serilog, OpenAPI/Scalar, JSON, authorization fallback, module wiring.
+- `src/Kadans.Modules.Identity` – users, auth, tokens, profile (`identity` schema).
+- `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro (`tasks` schema).
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
-- `tests/Kadans.Api.Tests`, `tests/Kadans.SharedKernel.Tests` – TUnit unit tests.
+- `tests/Kadans.Tasks.Tests`, `tests/Kadans.SharedKernel.Tests` – TUnit unit tests (modules expose internals via `InternalsVisibleTo`).
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions.
 
@@ -22,7 +24,11 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 dotnet build Kadans.slnx
 dotnet test --solution Kadans.slnx          # MTP mode; opt-in lives in global.json ("test.runner")
 dotnet run --project src/Kadans.Api         # Scalar UI at /scalar in Development
-dotnet ef database update --project src/Kadans.Api
+# one DbContext per module: always pass --project (module) --startup-project (host) --context
+dotnet ef database update --project src/Kadans.Modules.Identity --startup-project src/Kadans.Api --context IdentityModuleDbContext
+dotnet ef database update --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext
+dotnet ef migrations add <Name> --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext --output-dir Persistence/Migrations
+docker start kadans-postgres                # local Postgres 17 (created with POSTGRES_DB=kadans, password 'password')
 dotnet user-secrets list --project src/Kadans.Api
 ```
 
@@ -41,6 +47,9 @@ Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`) liv
   Keep that pattern; do not add manual `Where(UserId == ...)` checks instead of it.
 - Modules must only depend on `Kadans.SharedKernel`, never on each other. Cross-module
   references are by id (no foreign keys, no navigation properties to another module's entities).
+- Inside a module everything is `internal` except `Contracts/` (request/response records, enums they
+  expose) and the `IModule` class. Layout: `Domain/`, `Persistence/` (DbContext + Migrations),
+  `Contracts/`, `Features/<Area>/` (services, routes, validators).
 - Domain rules (recurrence, pomodoro state machine) are pure code with unit tests; EF-only behaviour
   goes in integration tests.
 - Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,

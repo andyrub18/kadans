@@ -3,7 +3,7 @@ using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Contracts;
 using Kadans.SharedKernel.Errors;
 using Kadans.Modules.Identity.Domain;
-using Kadans.Modules.Identity.Security;
+using Kadans.Modules.Identity.Features.Account;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OneOf;
@@ -16,10 +16,23 @@ internal sealed class UserManagement(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
     ICurrentUserService currentUserService,
-    IHttpContextAccessor httpContextAccessor
+    IHttpContextAccessor httpContextAccessor,
+    IdentityEmails emails
 )
 {
     private const string AdminRoleName = "Admin";
+
+    public async Task<OneOf<ApplicationError, UserResponse>> GetCurrentUser()
+    {
+        if (string.IsNullOrWhiteSpace(currentUserService.UserId))
+            return new ApplicationError(ErrorTypes.Unauthorized, "Unable to resolve current user.");
+
+        var user = await userManager.FindByIdAsync(currentUserService.UserId);
+        if (user is null)
+            return new ApplicationError(ErrorTypes.UserNotFound, "Current user no longer exists.");
+
+        return await BuildUserResponseAsync(user);
+    }
 
     public Task<OneOf<ApplicationError, UserResponse>> RegisterUser(RegisterUserRequest request)
     {
@@ -32,7 +45,7 @@ internal sealed class UserManagement(
             request.TimeZone
         );
 
-        return CreateUserInternal(createRequest, canManageRoles: false);
+        return CreateUserInternal(createRequest, canManageRoles: false, sendConfirmationEmail: true);
     }
 
     public async Task<OneOf<ApplicationError, UserResponse>> CreateUser(CreateUserRequest request)
@@ -50,7 +63,8 @@ internal sealed class UserManagement(
 
     private async Task<OneOf<ApplicationError, UserResponse>> CreateUserInternal(
         CreateUserRequest request,
-        bool canManageRoles
+        bool canManageRoles,
+        bool sendConfirmationEmail = false
     )
     {
         var requestedRoles = NormalizeRoles(request.Roles);
@@ -102,6 +116,9 @@ internal sealed class UserManagement(
         await transaction.CommitAsync();
 
         logger.LogInformation("User {UserId} created", user.Id);
+
+        if (sendConfirmationEmail)
+            await emails.SendConfirmationAsync(user);
         return await BuildUserResponseAsync(user);
     }
 
@@ -137,8 +154,8 @@ internal sealed class UserManagement(
 
         var updateRequest = new UpdateUserRequest(
             request.Username,
-            request.Email,
-            request.NewPassword,
+            null,
+            null,
             null,
             request.DisplayName,
             request.TimeZone
@@ -384,8 +401,10 @@ internal sealed class UserManagement(
             user.Id,
             user.UserName ?? string.Empty,
             user.Email,
+            user.EmailConfirmed,
             user.DisplayName,
             user.TimeZoneId,
+            user.TwoFactorEnabled,
             isActive,
             [.. roles]
         );
@@ -428,7 +447,10 @@ internal sealed class UserManagement(
                 refreshToken.UserId == userId && refreshToken.IsActive
             )
             .ExecuteUpdateAsync(setters =>
-                setters.SetProperty(refreshToken => refreshToken.IsActive, false)
+                setters
+                    .SetProperty(refreshToken => refreshToken.IsActive, false)
+                    .SetProperty(refreshToken => refreshToken.RevokedAtUtc, DateTimeOffset.UtcNow)
+                    .SetProperty(refreshToken => refreshToken.RevokedReason, "admin action")
             );
 
     private static bool IsValidTimeZone(string timeZoneId) =>

@@ -62,6 +62,14 @@ native ID-token verification, TOTP MFA, device registration) is a few hundred li
 a bearer JWT, so swapping the Identity module for an IdP later only touches `AddJwtBearer`.
 OpenIddict on top of Identity is the middle path if standard OIDC is ever needed.
 
+Implemented (Phase 2): sessions are refresh-token *families* (one per login/device), stored as
+SHA-256 hashes; refreshing rotates inside the family and replaying a rotated token revokes the whole
+family. Password change/reset revokes all families. TOTP MFA is a two-step login: the password step
+returns a short-lived challenge JWT with audience `<Audience>:mfa` (never accepted as a bearer token),
+exchanged with a TOTP or recovery code. External login verifies Google/Apple ID tokens obtained natively
+by the client against the provider's JWKS (OIDC discovery) and links by verified email or creates the
+account. Emails go through `Kadans.SharedKernel.Email.IEmailSender` (Resend in production, log in dev).
+
 ### Tests: TUnit on Microsoft.Testing.Platform
 
 Opt-in for `dotnet test` is `"test": { "runner": "Microsoft.Testing.Platform" }` in `global.json`.

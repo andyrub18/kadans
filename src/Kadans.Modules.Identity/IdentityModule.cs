@@ -1,6 +1,8 @@
 using System.Text;
 using Kadans.Modules.Identity.Domain;
+using Kadans.Modules.Identity.Features.Account;
 using Kadans.Modules.Identity.Features.Auth;
+using Kadans.Modules.Identity.Features.Devices;
 using Kadans.Modules.Identity.Features.Users;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
@@ -35,6 +37,7 @@ public sealed class IdentityModule : IModule
         services
             .AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
+                options.User.RequireUniqueEmail = true;
                 options.Lockout.MaxFailedAccessAttempts =
                     lockout.GetValue<int?>("MaxFailedAccessAttempts") ?? 5;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(
@@ -47,6 +50,7 @@ public sealed class IdentityModule : IModule
             .AddDefaultTokenProviders();
 
         services.ConfigureOptions<JwtParameterOptionsSetup>();
+        services.Configure<ExternalAuthOptions>(configuration.GetSection(ExternalAuthOptions.SectionName));
         services
             .AddAuthentication(options =>
             {
@@ -69,8 +73,13 @@ public sealed class IdentityModule : IModule
                 };
             });
 
+        services.AddSingleton<ExternalIdTokenValidator>();
         services.AddScoped<JwtProvider>();
         services.AddScoped<Authentication>();
+        services.AddScoped<ExternalAuthentication>();
+        services.AddScoped<AccountSecurity>();
+        services.AddScoped<IdentityEmails>();
+        services.AddScoped<DeviceService>();
         services.AddScoped<UserManagement>();
     }
 

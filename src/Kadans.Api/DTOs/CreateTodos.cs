@@ -1,4 +1,4 @@
-using Kadans.Api.Models;
+using Kadans.SharedKernel.Recurrence;
 
 namespace Kadans.Api.DTOs;
 
@@ -32,5 +32,6 @@ public sealed record CreateRecurrenceRule(
     List<int>? ByMonth = null,
     int? Count = null,
     DateTimeOffset? Until = null,
-    List<DateTimeOffset>? Exceptions = null
+    List<DateTimeOffset>? Exceptions = null,
+    string? TimeZone = null
 );

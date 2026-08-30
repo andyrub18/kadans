@@ -11,5 +11,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Kadans.Api.Tests/Kadans.Api.Tests.csproj" />
+    <Project Path="tests/Kadans.SharedKernel.Tests/Kadans.SharedKernel.Tests.csproj" />
   </Folder>
 </Solution>

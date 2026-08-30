@@ -1,4 +1,5 @@
 using Kadans.Api.Models;
+using Kadans.SharedKernel.Recurrence;
 
 namespace Kadans.Api.Tests;
 

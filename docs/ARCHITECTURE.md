@@ -78,9 +78,14 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 
 ### Recurrence (SharedKernel – used by Tasks and by Budget periods / recurring transactions)
 
-- Rule stored as an **RFC 5545 RRULE string + IANA timezone**, expanded with **Ical.Net**.
-  Replaces the hand-rolled engine in `RecurrenceRule.cs` (timezone, interval-alignment and
-  horizon bugs – see ROADMAP).
+- Rule stored as an **RFC 5545 RRULE string + IANA timezone**, expanded with **Ical.Net** –
+  implemented as `Kadans.SharedKernel.Recurrence.RecurrenceSchedule` (pure value object;
+  `RecurrenceSpec` is the structured input clients send, so nobody hand-writes RRULE strings).
+  The Tasks entity `RecurrenceRule` is only a persistence wrapper around it.
+  Semantics follow the RFC: omitted BY-parts come from the start date; `BYMONTHDAY=31` skips
+  short months (use `-1` for "last day"); `COUNT` bounds the generated set and exceptions
+  remove from it; `UNTIL` is stored in UTC. Wall-clock times are interpreted in the rule's
+  time zone, so "09:00 daily" crosses DST correctly.
 - **Materialized occurrences with a rolling horizon**: a scheduled job guarantees every active
   rule has occurrences generated through `now + 30 days`. Past and near future = table (truth);
   far future = computed preview only.

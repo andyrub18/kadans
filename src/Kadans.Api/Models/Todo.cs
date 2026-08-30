@@ -78,8 +78,7 @@ public sealed class Todo
         if (rule.IsT0)
             return rule.AsT0;
 
-        RecurrenceRule.Exceptions ??= [];
-        RecurrenceRule.Exceptions.Add(nextOccurrence.Value);
+        RecurrenceRule.AddException(nextOccurrence.Value);
 
         return new Todo(Title, Description, rule.AsT1);
     }

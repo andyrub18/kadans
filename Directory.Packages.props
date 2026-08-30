@@ -16,6 +16,10 @@
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Recurrence">
+    <PackageVersion Include="Ical.Net" Version="5.2.3" />
+  </ItemGroup>
+
   <ItemGroup Label="Testing">
     <PackageVersion Include="TUnit" Version="1.65.68" />
   </ItemGroup>

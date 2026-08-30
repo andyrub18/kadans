@@ -10,8 +10,9 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 ## Layout
 
 - `src/Kadans.Api` – host + (for now) all features. Being split into modules, see ROADMAP.
-- `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming.
-- `tests/Kadans.Api.Tests` – TUnit unit tests.
+- `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
+  and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
+- `tests/Kadans.Api.Tests`, `tests/Kadans.SharedKernel.Tests` – TUnit unit tests.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions.
 
@@ -42,6 +43,8 @@ Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`) liv
   references are by id (no foreign keys, no navigation properties to another module's entities).
 - Domain rules (recurrence, pomodoro state machine) are pure code with unit tests; EF-only behaviour
   goes in integration tests.
+- Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,
+  and ask it for occurrences. Clients send a structured rule plus an IANA `TimeZone`.
 
 ## Client
 

@@ -58,7 +58,8 @@ public sealed class TodoUpdate(
             update.RecurrenceRule.ByMonth,
             update.RecurrenceRule.Count,
             update.RecurrenceRule.Until,
-            update.RecurrenceRule.Exceptions
+            update.RecurrenceRule.Exceptions,
+            update.RecurrenceRule.TimeZone
         );
 
         if (newRule.IsT0)
@@ -112,12 +113,13 @@ public sealed class TodoUpdate(
 
                     var occurrences = todo
                         .RecurrenceRule.GetOccurrences(startDate, endDate)
-                        .ConvertAll(date => new TodoOccurrence
+                        .Select(date => new TodoOccurrence
                         {
                             TodoId = todo.Id,
                             OccurrenceDate = date,
                             Todo = todo,
-                        });
+                        })
+                        .ToList();
 
                     logger.LogInformation(
                         "Generating {Count} occurrences for updated todo with id {Id}",

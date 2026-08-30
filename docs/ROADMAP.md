@@ -31,11 +31,11 @@
 
 ## Phase 3 – Recurrence done right
 
-- [ ] Timezone on rule; RRULE string + Ical.Net expansion
+- [x] Timezone on rule; RRULE string + Ical.Net expansion (`SharedKernel/Recurrence`, 2026-08-30)
+- [x] Engine test suite: DST, intervals > 1, BYSETPOS, month-end, exceptions, round-trip
 - [ ] Rolling-horizon generation job (now + 30 days)
 - [ ] Occurrence overrides (cancel/reschedule/complete on rows, not on the rule)
 - [ ] Rule change = regenerate untouched future rows
-- [ ] Test suite covering DST, intervals > 1, BYSETPOS, month-end clamping, exceptions
 
 ## Phase 4 – Scheduler, notifications, real-time
 
@@ -62,8 +62,7 @@
 
 | Where | Problem |
 |-------|---------|
-| `Models/RecurrenceRule.cs` `Create` / `GenerateCandidates` | `ByHour = [startDate.Hour]` uses the client's offset, candidates are built as UTC → wrong hour for non-UTC offsets; DST not representable |
-| `RecurrenceRule.GetNextOccurrence` | Iterates from `now` instead of stepping from `StartDate` → wrong results for `Interval > 1` |
+| `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Services/TodoCreation.cs` | Indefinite rules materialize 1 year then silently stop; `Minutely` = 525k rows |
 | `Services/TodoUpdate.cs` `RescheduleNextOccurrence` (recurring) | New one-time `Todo` has no `UserId` (FK violation); background job filters on the *new* todo id so the original occurrence is never cancelled |
 | `Services/TodoUpdate.cs` `CompleteOccurrence` | Overwrites `OccurrenceDate` with now instead of setting `CompletedAt` |

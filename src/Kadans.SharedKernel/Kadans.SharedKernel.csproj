@@ -7,6 +7,8 @@
   <ItemGroup>
     <PackageReference Include="Ardalis.SmartEnum" />
     <PackageReference Include="Humanizer" />
+    <PackageReference Include="Ical.Net" />
+    <PackageReference Include="OneOf" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
   </ItemGroup>
 

@@ -96,7 +96,8 @@ public class ApplicationDbContext(
         builder.Entity<RecurrenceRule>(r =>
         {
             r.HasKey(p => p.Id);
-            r.Property(p => p.Frequency).HasConversion<string>();
+            r.Property(p => p.Rrule).IsRequired().HasMaxLength(512);
+            r.Property(p => p.TimeZoneId).IsRequired().HasMaxLength(64);
         });
 
         builder.Entity<TodoOccurrence>(t =>

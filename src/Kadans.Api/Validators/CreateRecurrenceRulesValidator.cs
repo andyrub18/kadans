@@ -44,9 +44,9 @@ public sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateRec
             .WithMessage("ByMonthDay must contain at least one day if specified.");
 
         RuleForEach(rule => rule.ByMonthDay ?? new())
-            .InclusiveBetween(1, 31)
+            .Must(day => day is (>= -31 and <= -1) or (>= 1 and <= 31))
             .WithErrorCode(ErrorTypes.InvalidDayOfMonth.Value)
-            .WithMessage("Day of month must be between 1 and 31.");
+            .WithMessage("Day of month must be between 1 and 31, or -1 and -31 to count from the end.");
 
         RuleFor(rule => rule.ByMonth)
             .Must(byMonth => byMonth is null || byMonth.Count > 0)
@@ -64,9 +64,14 @@ public sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateRec
             .WithMessage("BySetPos must contain at least one position if specified.");
 
         RuleForEach(rule => rule.BySetPos ?? new())
-            .InclusiveBetween(1, 4)
+            .Must(pos => pos is (>= -366 and <= -1) or (>= 1 and <= 366))
             .WithErrorCode(ErrorTypes.PossibleInvalidSetPos.Value)
-            .WithMessage("Set position must not be between 1 and 4.");
+            .WithMessage("Set position must be non-zero, between -366 and 366.");
+
+        RuleFor(rule => rule.TimeZone)
+            .Must(tz => tz is null || TimeZoneInfo.TryFindSystemTimeZoneById(tz, out _))
+            .WithErrorCode(ErrorTypes.InvalidTimeZone.Value)
+            .WithMessage("TimeZone must be a valid IANA time zone id (e.g. America/Port-au-Prince).");
 
         RuleFor(rule => rule.ByDayOfWeek)
             .Must(byDayOfWeek => byDayOfWeek is null || byDayOfWeek.Count > 0)

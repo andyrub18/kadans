@@ -162,7 +162,8 @@ public sealed class TodoCreation(
             byMonth: request.RecurrenceRule.ByMonth,
             count: request.RecurrenceRule.Count,
             until: request.RecurrenceRule.Until,
-            exceptions: request.RecurrenceRule.Exceptions
+            exceptions: request.RecurrenceRule.Exceptions,
+            timeZoneId: request.RecurrenceRule.TimeZone
         );
 
         if (rule.IsT0)

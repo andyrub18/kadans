@@ -187,6 +187,13 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    public static readonly ErrorTypes InvalidTimeZone = new(
+        "10032",
+        "Invalid time zone",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;
 }

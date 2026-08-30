@@ -39,13 +39,21 @@ Config: `Email:Provider` (`Resend`|`Log`), `Email:From`, `Email:LinkBaseUrl`, se
 Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the bearer handler rejects them;
 `User.RequireUniqueEmail = true`; the `IdentityFlows` migration drops all pre-existing refresh tokens.
 
-## Phase 3 – Recurrence done right
+## Phase 3 – Recurrence done right ✅ (2026-08-30)
 
-- [x] Timezone on rule; RRULE string + Ical.Net expansion (`SharedKernel/Recurrence`, 2026-08-30)
+- [x] Timezone on rule; RRULE string + Ical.Net expansion (`SharedKernel/Recurrence`)
 - [x] Engine test suite: DST, intervals > 1, BYSETPOS, month-end, exceptions, round-trip
-- [ ] Rolling-horizon generation job (now + 30 days)
-- [ ] Occurrence overrides (cancel/reschedule/complete on rows, not on the rule)
-- [ ] Rule change = regenerate untouched future rows
+- [x] Rolling horizon: `OccurrencePlanner` (pure, tested) + `OccurrenceGenerator` + `OccurrenceHorizonJob`
+      (`Tasks:OccurrenceHorizonDays`, batch cap `Tasks:MaxOccurrencesPerBatch`); creation materializes synchronously
+- [x] `Todo.OccurrencesGeneratedThrough` (null = never, MaxValue = bounded rule exhausted); bounded todos auto-complete
+- [x] Occurrence overrides on rows: `Status`, `ScheduledAt` vs `OriginalScheduledAt` (identity), reschedule/complete/cancel
+      with proper state errors; `PUT /occurrences/{id}/reschedule`; `PUT /todos/{id}/reschedule` = next pending
+- [x] Rule change (`PUT /todos/{id}` with `recurrenceRule`) drops untouched future rows the new rule does not produce,
+      keeps touched ones, materializes the rest; rule omitted = details only
+- [x] `GET /occurrences?from&to` fills the window past the horizon with computed previews (`isPreview`, no id)
+- [x] In-memory background queue removed (nothing used it any more)
+- [x] `tools/smoke/task_flows.py` exercises all of the above
+- [ ] Integration tests with Testcontainers (the smoke script covers the DB paths for now)
 
 ## Phase 4 – Scheduler, notifications, real-time
 
@@ -79,10 +87,5 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 | Where | Problem |
 |-------|---------|
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
-| `Services/TodoCreation.cs` | Indefinite rules materialize 1 year then silently stop; `Minutely` = 525k rows |
-| `Services/TodoUpdate.cs` `RescheduleNextOccurrence` (recurring) | New one-time `Todo` has no `UserId` (FK violation); background job filters on the *new* todo id so the original occurrence is never cancelled |
-| `Services/TodoUpdate.cs` `CompleteOccurrence` | Overwrites `OccurrenceDate` with now instead of setting `CompletedAt` |
-| `Services/TodoUpdate.cs` `UpdateTodo` | ~~Lets the client set `Status` directly~~ (fixed Phase 1); still orphans the old `RecurrenceRule` row |
-| `BackgroundTasks/BackgroundTaskQueue.cs` | In-memory; lost on restart; `TryWrite` drops silently when full |
 | `Models/Pomodoro.cs` | Pause/resume does not track remaining time |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

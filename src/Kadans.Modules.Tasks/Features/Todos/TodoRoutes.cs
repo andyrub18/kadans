@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Contracts;
+using Kadans.SharedKernel.Http;
 using Kadans.Modules.Tasks.Features.Todos;
 using Kadans.Modules.Tasks.Features.Pomodoro;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,48 +20,32 @@ internal static class TodoRoutes
             todos
                 .MapPost(
                     "/one-time",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
+                    async Task<Results<Ok<TodoResponse>, ProblemHttpResult>> (
                         CreateOneTimeTodo request,
                         TodoCreation service,
                         HttpContext context
-                    ) =>
-                    {
-                        var result = await service.CreateOneTimeTodo(request);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
+                    ) => (await service.CreateOneTimeTodo(request)).ToHttp(context)
                 )
                 .WithName("TodosCreateOneTime")
                 .WithSummary("Create one-time todo")
-                .WithDescription("Creates a one-time todo and schedules its single occurrence.")
-                .Produces<Success>(StatusCodes.Status200OK)
+                .WithDescription("Creates a one-time todo and materializes its single occurrence.")
+                .Produces<TodoResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
             todos
                 .MapPost(
                     "/recurring",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
+                    async Task<Results<Ok<TodoResponse>, ProblemHttpResult>> (
                         CreateRecurringTodo request,
                         TodoCreation service,
                         HttpContext context
-                    ) =>
-                    {
-                        var result = await service.CreateRecurringTodo(request);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
+                    ) => (await service.CreateRecurringTodo(request)).ToHttp(context)
                 )
                 .WithName("TodosCreateRecurring")
                 .WithSummary("Create recurring todo")
-                .WithDescription("Creates a recurring todo and generates its initial occurrences.")
-                .Produces<Success>(StatusCodes.Status200OK)
+                .WithDescription("Creates a recurring todo and materializes its occurrences up to the horizon.")
+                .Produces<TodoResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
@@ -167,51 +152,35 @@ internal static class TodoRoutes
             todos
                 .MapPut(
                     "/{id:guid}",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
+                    async Task<Results<Ok<TodoResponse>, ProblemHttpResult>> (
                         Guid id,
                         UpdateTodo request,
                         TodoUpdate service,
                         HttpContext context
-                    ) =>
-                    {
-                        var result = await service.UpdateTodo(id, request);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
+                    ) => (await service.UpdateTodo(id, request)).ToHttp(context)
                 )
                 .WithName("TodosUpdate")
                 .WithSummary("Update a todo")
                 .WithDescription(
-                    "Updates a todo's details and recurrence rule; pending occurrences are regenerated."
+                    "Updates details; with a recurrenceRule, untouched future occurrences are regenerated and touched ones kept."
                 )
-                .Produces<Success>(StatusCodes.Status200OK)
+                .Produces<TodoResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
             todos
                 .MapPut(
                     "/{id:guid}/reschedule",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
+                    async Task<Results<Ok<TodoOccurrenceResponse>, ProblemHttpResult>> (
                         Guid id,
-                        RescheduleNextOccurrence request,
+                        RescheduleOccurrence request,
                         TodoUpdate service,
                         HttpContext context
-                    ) =>
-                    {
-                        var result = await service.RescheduleNextOccurrence(id, request);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
+                    ) => (await service.RescheduleNextOccurrence(id, request)).ToHttp(context)
                 )
                 .WithName("TodosRescheduleNextOccurrence")
-                .WithSummary("Reschedule next occurrence")
-                .Produces<Success>(StatusCodes.Status200OK)
+                .WithSummary("Reschedule the next pending occurrence")
+                .Produces<TodoOccurrenceResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -314,9 +283,26 @@ internal static class TodoRoutes
                 )
                 .WithName("OccurrencesListByRange")
                 .WithSummary("List pending occurrences in a date range")
-                .WithDescription("Returns pending occurrences across all todos between `from` and `to`.")
+                .WithDescription("Pending occurrences across all todos between `from` and `to`; beyond the materialization horizon, computed previews (`isPreview`) fill the window.")
                 .Produces<List<TodoOccurrenceResponse>>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest);
+
+            occurrences
+                .MapPut(
+                    "/{id:guid}/reschedule",
+                    async Task<Results<Ok<TodoOccurrenceResponse>, ProblemHttpResult>> (
+                        Guid id,
+                        RescheduleOccurrence request,
+                        TodoUpdate service,
+                        HttpContext context
+                    ) => (await service.RescheduleOccurrence(id, request)).ToHttp(context)
+                )
+                .WithName("OccurrencesReschedule")
+                .WithSummary("Reschedule an occurrence")
+                .WithDescription("Moves one pending occurrence without touching the rule; the row keeps its original instant as identity.")
+                .Produces<TodoOccurrenceResponse>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
 
             occurrences
                 .MapPut(

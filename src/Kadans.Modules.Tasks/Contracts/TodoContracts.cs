@@ -1,3 +1,4 @@
+using Kadans.Modules.Tasks.Domain;
 using Kadans.SharedKernel.Recurrence;
 using TaskStatus = Kadans.Modules.Tasks.Domain.TaskStatus;
 
@@ -35,14 +36,22 @@ public sealed record TodoResponse(
     DateTimeOffset UpdatedAt
 );
 
+/// <summary>
+/// A materialized occurrence, or – when <see cref="IsPreview"/> is true – a computed instance beyond
+/// the materialization horizon (no <see cref="Id"/>; it cannot be acted on until it materializes).
+/// </summary>
 public sealed record TodoOccurrenceResponse(
-    Guid Id,
+    Guid? Id,
     Guid TodoId,
     string TodoTitle,
-    DateTimeOffset OccurrenceDate,
-    bool IsCompleted,
+    DateTimeOffset ScheduledAt,
+    DateTimeOffset OriginalScheduledAt,
+    OccurrenceStatus Status,
+    bool IsRescheduled,
+    string? RescheduleReason,
     DateTimeOffset? CompletedAt,
-    bool IsCancelled,
-    string CancellationReason,
-    string Remarks
+    DateTimeOffset? CancelledAt,
+    string? CancellationReason,
+    string? Remarks,
+    bool IsPreview
 );

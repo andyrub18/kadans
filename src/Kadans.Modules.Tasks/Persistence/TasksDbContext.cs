@@ -89,6 +89,11 @@ internal sealed class TasksDbContext(
 
             t.HasIndex(todo => new { todo.UserId, todo.Id }).HasDatabaseName("ix_todos_user_id_id");
 
+            // What the horizon job scans: active todos that are not generated far enough ahead.
+            t.HasIndex(todo => todo.OccurrencesGeneratedThrough)
+                .HasDatabaseName("ix_todos_generated_through_active")
+                .HasFilter("status IN ('Scheduled', 'Started')");
+
             t.HasQueryFilter(
                 ACTIVE_TODOS_FILTER,
                 todo => todo.Status != TaskStatus.Completed && todo.Status != TaskStatus.Cancelled
@@ -105,18 +110,26 @@ internal sealed class TasksDbContext(
 
         builder.Entity<TodoOccurrence>(t =>
         {
-            t.Property(p => p.Remarks).IsRequired().HasMaxLength(4000);
-            t.Property(p => p.CancellationReason).IsRequired().HasMaxLength(4000);
-            t.Property<bool>("IsRescheduled").HasColumnName("is_rescheduled");
+            t.Property(p => p.Status).HasConversion<string>();
+            t.Property(p => p.Remarks).HasMaxLength(4000);
+            t.Property(p => p.CancellationReason).HasMaxLength(4000);
+            t.Property(p => p.RescheduleReason).HasMaxLength(4000);
 
-            t.HasIndex(o => new { o.TodoId, o.OccurrenceDate })
-                .HasDatabaseName("ix_todo_occurrences_todo_id_occurrence_date");
+            t.HasOne(o => o.Todo)
+                .WithMany()
+                .HasForeignKey(o => o.TodoId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            t.HasIndex(o => o.OccurrenceDate)
-                .HasDatabaseName("ix_todo_occurrences_occurrence_date_active")
-                .HasFilter("NOT is_cancelled AND NOT is_completed");
+            // The rule instance is the identity: regeneration is idempotent on it.
+            t.HasIndex(o => new { o.TodoId, o.OriginalScheduledAt })
+                .IsUnique()
+                .HasDatabaseName("ix_todo_occurrences_todo_id_original_scheduled_at");
 
-            t.HasQueryFilter(ACTIVE_OCCURRENCES_FILTER, o => !o.IsCancelled && !o.IsCompleted);
+            t.HasIndex(o => o.ScheduledAt)
+                .HasDatabaseName("ix_todo_occurrences_scheduled_at_pending")
+                .HasFilter("status = 'Pending'");
+
+            t.HasQueryFilter(ACTIVE_OCCURRENCES_FILTER, o => o.Status == OccurrenceStatus.Pending);
             t.HasQueryFilter(
                 USER_FILTER,
                 o => o.Todo != null && o.Todo.UserId == userService.UserId

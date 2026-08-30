@@ -3,7 +3,6 @@ using Humanizer;
 using Kadans.Api.Documentation;
 using Kadans.Modules.Identity;
 using Kadans.Modules.Tasks;
-using Kadans.SharedKernel.BackgroundTasks;
 using Kadans.SharedKernel.Email;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Security;
@@ -83,8 +82,6 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-builder.Services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
-builder.Services.AddHostedService<QueuedHostedService>();
 builder.Services.AddKadansEmail(builder.Configuration);
 
 // Every endpoint requires an authenticated user unless it explicitly opts out.

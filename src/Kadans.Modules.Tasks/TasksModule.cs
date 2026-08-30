@@ -1,5 +1,6 @@
 using Kadans.Modules.Tasks.Features.Pomodoro;
 using Kadans.Modules.Tasks.Features.Todos;
+using Kadans.Modules.Tasks.Features.Todos.Occurrences;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Modules;
 using Microsoft.AspNetCore.Routing;
@@ -20,6 +21,10 @@ public sealed class TasksModule : IModule
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", TasksDbContext.Schema)
             )
         );
+
+        services.Configure<TasksOptions>(configuration.GetSection(TasksOptions.SectionName));
+        services.AddScoped<OccurrenceGenerator>();
+        services.AddHostedService<OccurrenceHorizonJob>();
 
         services.AddScoped<TodoCreation>();
         services.AddScoped<TodoUpdate>();

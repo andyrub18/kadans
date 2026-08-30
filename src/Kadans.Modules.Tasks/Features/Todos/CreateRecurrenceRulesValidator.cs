@@ -23,7 +23,7 @@ internal sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateR
             .WithErrorCode(ErrorTypes.InvalidHour.Value)
             .WithMessage("ByHour must contain at least one hour if specified.");
 
-        RuleForEach(rule => rule.ByHour ?? new())
+        RuleForEach(rule => rule.ByHour)
             .InclusiveBetween(0, 23)
             .WithErrorCode(ErrorTypes.InvalidHour.Value)
             .WithMessage("Hour must be between 0 and 23.");
@@ -33,7 +33,7 @@ internal sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateR
             .WithErrorCode(ErrorTypes.InvalidMinute.Value)
             .WithMessage("ByMinute must contain at least one minute if specified.");
 
-        RuleForEach(rule => rule.ByMinute ?? new())
+        RuleForEach(rule => rule.ByMinute)
             .InclusiveBetween(0, 59)
             .WithErrorCode(ErrorTypes.InvalidMinute.Value)
             .WithMessage("Minute must be between 0 and 59.");
@@ -43,7 +43,7 @@ internal sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateR
             .WithErrorCode(ErrorTypes.InvalidDayOfMonth.Value)
             .WithMessage("ByMonthDay must contain at least one day if specified.");
 
-        RuleForEach(rule => rule.ByMonthDay ?? new())
+        RuleForEach(rule => rule.ByMonthDay)
             .Must(day => day is (>= -31 and <= -1) or (>= 1 and <= 31))
             .WithErrorCode(ErrorTypes.InvalidDayOfMonth.Value)
             .WithMessage("Day of month must be between 1 and 31, or -1 and -31 to count from the end.");
@@ -53,7 +53,7 @@ internal sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateR
             .WithErrorCode(ErrorTypes.InvalidMonth.Value)
             .WithMessage("ByMonth must contain at least one month if specified.");
 
-        RuleForEach(rule => rule.ByMonth ?? new())
+        RuleForEach(rule => rule.ByMonth)
             .InclusiveBetween(1, 12)
             .WithErrorCode(ErrorTypes.InvalidMonth.Value)
             .WithMessage("Month must be between 1 and 12.");
@@ -63,7 +63,7 @@ internal sealed class CreateRecurrenceRulesValidator : AbstractValidator<CreateR
             .WithErrorCode(ErrorTypes.PossibleInvalidSetPos.Value)
             .WithMessage("BySetPos must contain at least one position if specified.");
 
-        RuleForEach(rule => rule.BySetPos ?? new())
+        RuleForEach(rule => rule.BySetPos)
             .Must(pos => pos is (>= -366 and <= -1) or (>= 1 and <= 366))
             .WithErrorCode(ErrorTypes.PossibleInvalidSetPos.Value)
             .WithMessage("Set position must be non-zero, between -366 and 366.");

@@ -98,8 +98,12 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   rule has occurrences generated through `now + 30 days`. Past and near future = table (truth);
   far future = computed preview only.
 - **Per-occurrence overrides**: cancel / reschedule / complete act only on occurrence rows
-  (`Status`, `ScheduledAt`, `OverriddenAt`, `CompletedAt`, `Reason`). Changing the rule regenerates
-  untouched future rows and keeps overridden ones. This is the Google Calendar model.
+  (`Status`, `ScheduledAt` vs `OriginalScheduledAt`, `RescheduledAt`, `CompletedAt`, `CancelledAt`,
+  reasons, `Remarks`, `NotifiedAt`). Changing the rule regenerates untouched future rows and keeps
+  touched ones. This is the Google Calendar model. (Implemented in Phase 3: `OccurrencePlanner` is the
+  pure part, `OccurrenceGenerator` writes rows, `OccurrenceHorizonJob` keeps every active todo ahead of
+  `Tasks:OccurrenceHorizonDays`; `Todo.OccurrencesGeneratedThrough` records progress, `MaxValue` meaning a
+  bounded rule is exhausted.)
 
 ### Pomodoro (Tasks module)
 

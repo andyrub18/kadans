@@ -54,12 +54,37 @@ internal static class ContractMappings
                 occurrence.Id,
                 occurrence.TodoId,
                 occurrence.Todo?.Title ?? string.Empty,
-                occurrence.OccurrenceDate,
-                occurrence.IsCompleted,
+                occurrence.ScheduledAt,
+                occurrence.OriginalScheduledAt,
+                occurrence.Status,
+                occurrence.IsRescheduled,
+                occurrence.RescheduleReason,
                 occurrence.CompletedAt,
-                occurrence.IsCancelled,
+                occurrence.CancelledAt,
                 occurrence.CancellationReason,
-                occurrence.Remarks
+                occurrence.Remarks,
+                IsPreview: false
+            );
+    }
+
+    extension(Todo todo)
+    {
+        /// <summary>A not-yet-materialized instance of the rule, for calendars looking past the horizon.</summary>
+        public TodoOccurrenceResponse PreviewOccurrence(DateTimeOffset at) =>
+            new(
+                null,
+                todo.Id,
+                todo.Title,
+                at,
+                at,
+                OccurrenceStatus.Pending,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                IsPreview: true
             );
     }
 

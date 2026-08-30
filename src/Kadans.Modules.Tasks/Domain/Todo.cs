@@ -1,5 +1,4 @@
-using Kadans.SharedKernel.Errors;
-using OneOf;
+using Kadans.SharedKernel.Recurrence;
 
 namespace Kadans.Modules.Tasks.Domain;
 
@@ -23,7 +22,7 @@ internal sealed class Todo
     public Guid Id { get; init; } = Guid.CreateVersion7();
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public RecurrenceRule RecurrenceRule { get; set; } = null!;
+    public RecurrenceRule RecurrenceRule { get; private set; } = null!;
     public bool NotificationEnabled { get; set; }
     public TimeSpan NotificationLeadTime { get; set; } = TimeSpan.FromMinutes(15);
     public List<TodoRemark> Remarks { get; set; } = [];
@@ -31,17 +30,23 @@ internal sealed class Todo
     public Guid? PomodoroTemplateId { get; set; }
     public PomodoroTemplate? PomodoroTemplate { get; set; }
     public TaskStatus Status { get; private set; } = TaskStatus.Scheduled;
+
+    /// <summary>
+    /// Occurrence rows exist for every rule instance up to this instant. <c>null</c> = nothing
+    /// generated yet; <see cref="DateTimeOffset.MaxValue"/> = the rule is bounded and fully
+    /// materialized, so the horizon job never needs to look at this todo again.
+    /// </summary>
+    public DateTimeOffset? OccurrencesGeneratedThrough { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    public bool IsActive => Status is TaskStatus.Scheduled or TaskStatus.Started;
+    public bool IsFullyGenerated => OccurrencesGeneratedThrough == DateTimeOffset.MaxValue;
+
     private Todo() { }
 
-    public Todo(
-        string title,
-        string description,
-        RecurrenceRule recurrenceRule,
-        bool notificationEnabled = false
-    )
+    public Todo(string title, string description, RecurrenceRule recurrenceRule, bool notificationEnabled = false)
     {
         Title = title;
         Description = description;
@@ -61,23 +66,11 @@ internal sealed class Todo
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public OneOf<ApplicationError, Todo> RescheduleNextOccurrence(DateTimeOffset date)
+    /// <summary>Swaps the rule; occurrences must be regenerated afterwards.</summary>
+    public void ReplaceRule(RecurrenceRule rule)
     {
-        var nextOccurrence = RecurrenceRule.GetNextOccurrence();
-        if (nextOccurrence is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.NoNextOccurrenceFound,
-                "No next occurrence found for the given recurrence rule."
-            );
-        }
-
-        var rule = RecurrenceRule.CreateOneTimeRule(date);
-        if (rule.IsT0)
-            return rule.AsT0;
-
-        RecurrenceRule.AddException(nextOccurrence.Value);
-
-        return new Todo(Title, Description, rule.AsT1);
+        RecurrenceRule = rule;
+        OccurrencesGeneratedThrough = null;
+        UpdatedAt = DateTimeOffset.UtcNow;
     }
 }

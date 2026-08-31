@@ -55,11 +55,22 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] `tools/smoke/task_flows.py` exercises all of the above
 - [ ] Integration tests with Testcontainers (the smoke script covers the DB paths for now)
 
-## Phase 4 – Scheduler, notifications, real-time
+## Phase 4 – Scheduler, notifications, real-time ✅ (2026-08-30)
 
-- [ ] Quartz.NET (or Hangfire) replaces `BackgroundTaskQueue`
-- [ ] Notification dispatch job + `notified_at` idempotency
-- [ ] FCM + SignalR hub; run-state broadcast
+- [x] Quartz.NET hosts the module jobs (`OccurrenceHorizonJob` hourly, `OccurrenceReminderJob` every
+      `Tasks:ReminderIntervalSeconds`); each module registers its own jobs via `AddQuartz` (additive)
+- [x] `TodoOccurrence.NotifyAt` (= scheduled − lead, null when off) is what the reminder job scans; `NotifiedAt`
+      makes delivery once-only; reschedule re-arms; lead/enabled changes refresh pending rows; stale ones are skipped
+- [x] `Kadans.Modules.Notifications` (`notifications` schema): notification log + `GET /notifications`,
+      `/unread-count`, `PUT /{id}/read`, `/read-all`; `INotificationDispatcher` = store → SignalR → push
+- [x] SignalR hub at `/hubs/kadans` (JWT via `?access_token=`); events `notification`, `pomodoro.run.changed`
+      (every pomodoro mutation is broadcast to all of the user's devices)
+- [x] Push: `IPushSender` – FCM (`Push:Provider=Fcm`, service-account JSON) or log sender in dev; dead tokens
+      are removed from the device via `IDevicePushTargets`
+- [x] Cross-module contracts in SharedKernel: `IUserDirectory`, `IDevicePushTargets` (implemented by Identity),
+      `INotificationDispatcher`, `IRealtimePublisher` (implemented by Notifications)
+- [x] `tools/smoke/notification_flows.py`
+- [ ] Web Push / desktop OS notifications are the client's job (desktop stays on the hub connection)
 
 ## Phase 5 – Pomodoro model
 
@@ -87,5 +98,5 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 | Where | Problem |
 |-------|---------|
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
-| `Models/Pomodoro.cs` | Pause/resume does not track remaining time |
+| `Models/Pomodoro.cs` | Pause/resume does not track remaining time (Phase 5) |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

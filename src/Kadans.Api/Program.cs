@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Humanizer;
 using Kadans.Api.Documentation;
 using Kadans.Modules.Identity;
+using Kadans.Modules.Notifications;
 using Kadans.Modules.Tasks;
 using Kadans.SharedKernel.Email;
 using Kadans.SharedKernel.Modules;
@@ -9,13 +10,14 @@ using Kadans.SharedKernel.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
+using Quartz;
 using Scalar.AspNetCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Modules own their services, persistence and endpoints; the host only wires them together.
-IModule[] modules = [new IdentityModule(), new TasksModule()];
+IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule()];
 
 builder.Host.UseSerilog(
     (context, configuration) => configuration.ReadFrom.Configuration(context.Configuration)
@@ -83,6 +85,10 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddKadansEmail(builder.Configuration);
+
+// Quartz runs the modules' scheduled jobs (each module adds its own via AddQuartz, which is additive).
+builder.Services.AddQuartz();
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
 // Every endpoint requires an authenticated user unless it explicitly opts out.
 builder

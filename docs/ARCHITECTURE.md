@@ -120,8 +120,11 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   dispatches, stamps `notified_at` (idempotent).
 - Channels: FCM (Android/iOS), SignalR for connected clients (desktop is long-running, so the
   persistent connection is the primary channel there), Web Push later if a web client appears.
-- Durable scheduling via Quartz.NET (or Hangfire) replaces the in-memory `Channel` queue, which
-  loses work on restart and silently drops items when full.
+- Durable scheduling via Quartz.NET (in-memory job store: every job is an idempotent periodic
+  scan, so nothing needs to survive a restart). Implemented in Phase 4: `OccurrenceReminderJob` scans
+  `notify_at <= now AND notified_at IS NULL`, builds the message in the user's time zone
+  (`IUserDirectory`) and hands it to `INotificationDispatcher`, which stores it, publishes it on the
+  hub and pushes it to the user's devices (`IDevicePushTargets` → `IPushSender`).
 
 ### Budget (later)
 

@@ -29,6 +29,10 @@ internal sealed class TodoUpdate(
         if (update.PomodoroTemplateId is not null && !await dbContext.PomodoroTemplates.AnyAsync(t => t.Id == update.PomodoroTemplateId.Value))
             return new ApplicationError(ErrorTypes.PomodoroTemplateNotFound, $"Pomodoro template with id {update.PomodoroTemplateId} not found");
 
+        var notificationChanged =
+            todo.NotificationEnabled != update.NotificationEnabled
+            || (update.NotifyBeforeInMinutes is not null && todo.NotificationLeadTime != TimeSpan.FromMinutes(update.NotifyBeforeInMinutes.Value));
+
         todo.Title = update.Title;
         todo.Description = update.Description;
         todo.NotificationEnabled = update.NotificationEnabled;
@@ -49,6 +53,13 @@ internal sealed class TodoUpdate(
                 return newRule.AsT0;
 
             replacedRule = await ReplaceRuleAsync(todo, newRule.AsT1);
+        }
+
+        if (notificationChanged)
+        {
+            var pending = await dbContext.TodoOccurrences.IgnoreQueryFilters().Where(o => o.TodoId == todo.Id && o.Status == OccurrenceStatus.Pending).ToListAsync();
+            foreach (var occurrence in pending)
+                occurrence.RefreshNotifyAt(todo);
         }
 
         try

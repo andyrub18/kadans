@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Quartz;
 
 namespace Kadans.Modules.Tasks;
 
@@ -22,9 +23,31 @@ public sealed class TasksModule : IModule
             )
         );
 
-        services.Configure<TasksOptions>(configuration.GetSection(TasksOptions.SectionName));
+        var tasksSection = configuration.GetSection(TasksOptions.SectionName);
+        services.Configure<TasksOptions>(tasksSection);
+        var tasksOptions = tasksSection.Get<TasksOptions>() ?? new TasksOptions();
+
         services.AddScoped<OccurrenceGenerator>();
-        services.AddHostedService<OccurrenceHorizonJob>();
+        services.AddQuartz(quartz =>
+        {
+            quartz.AddJob<OccurrenceHorizonJob>(job => job.WithIdentity(OccurrenceHorizonJob.Key));
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(OccurrenceHorizonJob.Key)
+                    .WithIdentity("occurrence-horizon-trigger", "tasks")
+                    .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Second))
+                    .WithSimpleSchedule(s => s.WithIntervalInMinutes(Math.Max(1, tasksOptions.HorizonRefreshMinutes)).RepeatForever())
+            );
+
+            quartz.AddJob<OccurrenceReminderJob>(job => job.WithIdentity(OccurrenceReminderJob.Key));
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(OccurrenceReminderJob.Key)
+                    .WithIdentity("occurrence-reminder-trigger", "tasks")
+                    .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Second))
+                    .WithSimpleSchedule(s => s.WithIntervalInSeconds(Math.Max(5, tasksOptions.ReminderIntervalSeconds)).RepeatForever())
+            );
+        });
 
         services.AddScoped<TodoCreation>();
         services.AddScoped<TodoUpdate>();

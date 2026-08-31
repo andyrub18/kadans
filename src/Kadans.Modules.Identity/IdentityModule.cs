@@ -7,6 +7,8 @@ using Kadans.Modules.Identity.Features.Users;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Modules;
+using Kadans.SharedKernel.Realtime;
+using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
@@ -71,6 +73,17 @@ public sealed class IdentityModule : IModule
                         Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!)
                     ),
                 };
+                // WebSockets cannot carry an Authorization header: the hub client sends ?access_token=.
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments(RealtimeHub.Path))
+                            context.Token = accessToken;
+                        return Task.CompletedTask;
+                    },
+                };
             });
 
         services.AddSingleton<ExternalIdTokenValidator>();
@@ -80,6 +93,8 @@ public sealed class IdentityModule : IModule
         services.AddScoped<AccountSecurity>();
         services.AddScoped<IdentityEmails>();
         services.AddScoped<DeviceService>();
+        services.AddScoped<IDevicePushTargets, DevicePushTargets>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddScoped<UserManagement>();
     }
 

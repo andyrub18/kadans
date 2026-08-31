@@ -28,6 +28,7 @@ dotnet user-secrets set "InitialAdmin:Password" "<strong password>" --project sr
 docker run -d --name kadans-postgres -e POSTGRES_PASSWORD=<pw> -e POSTGRES_DB=kadans -p 5432:5432 -v kadans_postgres-data:/var/lib/postgresql/data postgres:17
 dotnet ef database update --project src/Kadans.Modules.Identity --startup-project src/Kadans.Api --context IdentityModuleDbContext
 dotnet ef database update --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext
+dotnet ef database update --project src/Kadans.Modules.Notifications --startup-project src/Kadans.Api --context NotificationsDbContext
 dotnet run --project src/Kadans.Api      # then open https://localhost:<port>/scalar
 ```
 
@@ -45,3 +46,4 @@ Open `clients/app` in Android Studio (or Fleet) as a Gradle project.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Owner checklist](docs/OWNER-CHECKLIST.md) – accounts, keys and settings to create by hand

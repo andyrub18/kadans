@@ -249,6 +249,13 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    public static readonly ErrorTypes NotificationNotFound = new(
+        "10042",
+        "Notification not found",
+        StatusCodes.Status404NotFound,
+        ""
+    );
+
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;
 }

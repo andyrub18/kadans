@@ -1,9 +1,10 @@
-using Kadans.SharedKernel.Realtime;
-using Kadans.SharedKernel.Security;
 using Kadans.Modules.Tasks.Contracts;
+using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Errors;
-using Kadans.Modules.Tasks.Domain;
+using Kadans.SharedKernel.Realtime;
+using Kadans.SharedKernel.Security;
+using Kadans.SharedKernel.Users;
 using Microsoft.EntityFrameworkCore;
 using OneOf;
 using TaskStatus = Kadans.Modules.Tasks.Domain.TaskStatus;
@@ -13,43 +14,25 @@ namespace Kadans.Modules.Tasks.Features.Pomodoro;
 internal sealed class PomodoroService(
     TasksDbContext context,
     ICurrentUserService currentUser,
+    IUserDirectory users,
     IRealtimePublisher realtime,
     ILogger<PomodoroService> logger
 )
 {
-    public async Task<OneOf<ApplicationError, PomodoroTemplateResponse>> CreateTemplate(
-        CreatePomodoroTemplate request
-    )
+    public async Task<OneOf<ApplicationError, PomodoroTemplateResponse>> CreateTemplate(CreatePomodoroTemplate request)
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
-        {
             return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
-        }
 
         if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroTemplateInvalid,
-                "Template name is required."
-            );
-        }
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Template name is required.");
 
-        if (request.Phases is null || request.Phases.Count == 0)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroTemplateInvalid,
-                "At least one Pomodoro phase is required."
-            );
-        }
+        if (request.Phases is not { Count: > 0 })
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "At least one Pomodoro phase is required.");
 
         if (request.Phases.Any(p => p.DurationMinutes <= 0))
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroTemplateInvalid,
-                "Phase duration must be greater than zero."
-            );
-        }
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Phase duration must be greater than zero.");
 
         var template = new PomodoroTemplate
         {
@@ -58,67 +41,36 @@ internal sealed class PomodoroService(
             Phases =
             [
                 .. request.Phases.Select(
-                    (phase, index) =>
-                        new PomodoroTemplatePhase
-                        {
-                            Order = index,
-                            Type = phase.Type,
-                            DurationMinutes = phase.DurationMinutes,
-                        }
+                    (phase, index) => new PomodoroTemplatePhase
+                    {
+                        Order = index,
+                        Type = phase.Type,
+                        DurationMinutes = phase.DurationMinutes,
+                    }
                 ),
             ],
         };
 
-        try
-        {
-            await context.PomodoroTemplates.AddAsync(template);
-            await context.SaveChangesAsync();
-            return template.ToResponse();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create Pomodoro template");
-            return new ApplicationError(
-                ErrorTypes.DatabaseError,
-                "Failed to create Pomodoro template."
-            );
-        }
+        context.PomodoroTemplates.Add(template);
+        await context.SaveChangesAsync();
+        return template.ToResponse();
     }
 
     public async Task<OneOf<ApplicationError, List<PomodoroTemplateResponse>>> GetTemplates()
     {
-        try
-        {
-            var templates = await context
-                .PomodoroTemplates.Include(t => t.Phases)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
+        var templates = await context
+            .PomodoroTemplates.Include(t => t.Phases)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
 
-            return templates.ConvertAll(t => t.ToResponse());
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to retrieve Pomodoro templates");
-            return new ApplicationError(
-                ErrorTypes.DatabaseError,
-                "Failed to retrieve Pomodoro templates."
-            );
-        }
+        return templates.ConvertAll(t => t.ToResponse());
     }
 
-    public async Task<OneOf<ApplicationError, bool>> AttachTemplateToTodo(
-        Guid todoId,
-        Guid? templateId
-    )
+    public async Task<OneOf<ApplicationError, bool>> AttachTemplateToTodo(Guid todoId, Guid? templateId)
     {
         var todo = await context.Todos.FirstOrDefaultAsync(t => t.Id == todoId);
         if (todo is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.TodoNotFound,
-                $"Todo with id {todoId} not found"
-            );
-        }
+            return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {todoId} not found");
 
         if (templateId is not null)
         {
@@ -127,46 +79,22 @@ internal sealed class PomodoroService(
                 .FirstOrDefaultAsync(t => t.Id == templateId.Value);
 
             if (template is null)
-            {
-                return new ApplicationError(
-                    ErrorTypes.PomodoroTemplateNotFound,
-                    $"Pomodoro template with id {templateId} not found"
-                );
-            }
+                return new ApplicationError(ErrorTypes.PomodoroTemplateNotFound, $"Pomodoro template with id {templateId} not found");
 
             if (template.Phases.Count == 0)
-            {
-                return new ApplicationError(
-                    ErrorTypes.PomodoroTemplateInvalid,
-                    "Cannot attach an empty Pomodoro template."
-                );
-            }
+                return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Cannot attach an empty Pomodoro template.");
         }
 
         todo.PomodoroTemplateId = templateId;
-
-        try
-        {
-            await context.SaveChangesAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to attach Pomodoro template to todo {TodoId}", todoId);
-            return new ApplicationError(
-                ErrorTypes.DatabaseError,
-                "Failed to attach Pomodoro template to todo."
-            );
-        }
+        await context.SaveChangesAsync();
+        return true;
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId, bool autoAdvance)
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
-        {
             return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
-        }
 
         var todo = await context
             .Todos.Include(t => t.PomodoroTemplate)
@@ -174,179 +102,130 @@ internal sealed class PomodoroService(
             .FirstOrDefaultAsync(t => t.Id == todoId);
 
         if (todo is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.TodoNotFound,
-                $"Todo with id {todoId} not found"
-            );
-        }
+            return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {todoId} not found");
 
         if (todo.PomodoroTemplate is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroTemplateRequired,
-                "This todo has no Pomodoro template attached."
-            );
-        }
+            return new ApplicationError(ErrorTypes.PomodoroTemplateRequired, "This todo has no Pomodoro template attached.");
+
+        if (todo.PomodoroTemplate.Phases.Count == 0)
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Cannot start a Pomodoro run from an empty template.");
 
         var hasActiveRun = await context.PomodoroRuns.AnyAsync(r =>
-            r.TodoId == todoId
-            && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused)
+            r.TodoId == todoId && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused)
         );
-
         if (hasActiveRun)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroAlreadyActiveForTodo,
-                "This todo already has an active Pomodoro run."
-            );
-        }
+            return new ApplicationError(ErrorTypes.PomodoroAlreadyActiveForTodo, "This todo already has an active Pomodoro run.");
 
-        var orderedPhases = todo.PomodoroTemplate.Phases.OrderBy(p => p.Order).ToList();
-        if (orderedPhases.Count == 0)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroTemplateInvalid,
-                "Cannot start a Pomodoro run from an empty template."
-            );
-        }
-
-        var run = new PomodoroRun
-        {
-            TodoId = todo.Id,
-            PomodoroTemplateId = todo.PomodoroTemplateId,
-            UserId = userId,
-            CurrentPhaseIndex = 0,
-            Phases = orderedPhases.ConvertAll(p => new PomodoroRunPhase
-            {
-                Order = p.Order,
-                Type = p.Type,
-                DurationMinutes = p.DurationMinutes,
-                StartedAt = p.Order == 0 ? DateTimeOffset.UtcNow : null,
-            }),
-        };
+        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, DateTimeOffset.UtcNow);
 
         if (todo.Status == TaskStatus.Scheduled)
-        {
             todo.UpdateStatus(TaskStatus.Started);
-        }
 
-        try
-        {
-            await context.PomodoroRuns.AddAsync(run);
-            await context.SaveChangesAsync();
-            return await PublishAsync(run);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to start Pomodoro run for todo {TodoId}", todoId);
-            return new ApplicationError(ErrorTypes.DatabaseError, "Failed to start Pomodoro run.");
-        }
+        context.PomodoroRuns.Add(run);
+        await context.SaveChangesAsync();
+        logger.LogInformation("Started pomodoro run {RunId} on todo {TodoId} (autoAdvance: {AutoAdvance})", run.Id, todoId, autoAdvance);
+        return await PublishAsync(run);
     }
 
     public async Task<OneOf<ApplicationError, PomodoroRunResponse>> GetActiveRun(Guid todoId)
     {
         var run = await context
             .PomodoroRuns.Include(r => r.Phases)
-            .Where(r =>
-                r.TodoId == todoId
-                && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused)
-            )
+            .Where(r => r.TodoId == todoId && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused))
             .OrderByDescending(r => r.StartedAt)
             .FirstOrDefaultAsync();
 
         if (run is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunNotFound,
-                "No active Pomodoro run found for this todo."
-            );
-        }
+            return new ApplicationError(ErrorTypes.PomodoroRunNotFound, "No active Pomodoro run found for this todo.");
 
         return run.ToResponse();
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> PauseRun(Guid runId)
+    public async Task<OneOf<ApplicationError, List<PomodoroRunResponse>>> GetRunHistory(Guid todoId, int page = 1, int pageSize = 20)
     {
-        var run = await context
+        var runs = await context
             .PomodoroRuns.Include(r => r.Phases)
-            .FirstOrDefaultAsync(r => r.Id == runId);
+            .Where(r => r.TodoId == todoId)
+            .OrderByDescending(r => r.StartedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
-        if (run is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunNotFound,
-                $"Pomodoro run with id {runId} not found"
-            );
-        }
-
-        if (run.Status != PomodoroRunStatus.Active)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Only active runs can be paused."
-            );
-        }
-
-        run.Pause();
-
-        try
-        {
-            await context.SaveChangesAsync();
-            return await PublishAsync(run);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to pause Pomodoro run {RunId}", runId);
-            return new ApplicationError(ErrorTypes.DatabaseError, "Failed to pause Pomodoro run.");
-        }
+        return runs.ConvertAll(r => r.ToResponse());
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> ResumeRun(Guid runId)
+    /// <summary>Completed-phase minutes and run counts, grouped per day in the user's time zone.</summary>
+    public async Task<OneOf<ApplicationError, PomodoroStatsResponse>> GetStats(DateTimeOffset? from, DateTimeOffset? to)
     {
-        var run = await context
-            .PomodoroRuns.Include(r => r.Phases)
-            .FirstOrDefaultAsync(r => r.Id == runId);
+        var userId = currentUser.UserId;
+        if (string.IsNullOrWhiteSpace(userId))
+            return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
 
-        if (run is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunNotFound,
-                $"Pomodoro run with id {runId} not found"
-            );
-        }
+        var rangeTo = to ?? DateTimeOffset.UtcNow;
+        var rangeFrom = from ?? rangeTo.AddDays(-7);
+        if (rangeFrom > rangeTo || rangeTo - rangeFrom > TimeSpan.FromDays(366))
+            return new ApplicationError(ErrorTypes.InvalidInterval, "The stats range must be positive and at most a year.");
 
-        if (run.Status != PomodoroRunStatus.Paused)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Only paused runs can be resumed."
-            );
-        }
+        var user = await users.FindAsync(userId);
+        var timeZone = user is not null && TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var found)
+            ? found
+            : TimeZoneInfo.Utc;
 
-        run.Resume();
+        var phases = await context
+            .PomodoroRuns.SelectMany(r => r.Phases)
+            .Where(p => p.CompletedAt != null && p.CompletedAt >= rangeFrom && p.CompletedAt <= rangeTo)
+            .Select(p => new { p.Type, p.DurationMinutes, CompletedAt = p.CompletedAt!.Value })
+            .ToListAsync();
 
-        var currentPhase = run.Phases.FirstOrDefault(p => p.Order == run.CurrentPhaseIndex);
-        if (currentPhase is not null && currentPhase.StartedAt is null)
-        {
-            currentPhase.StartedAt = DateTimeOffset.UtcNow;
-        }
+        var completedRuns = await context
+            .PomodoroRuns.Where(r => r.Status == PomodoroRunStatus.Completed && r.CompletedAt >= rangeFrom && r.CompletedAt <= rangeTo)
+            .Select(r => r.CompletedAt!.Value)
+            .ToListAsync();
 
-        try
-        {
-            await context.SaveChangesAsync();
-            return await PublishAsync(run);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to resume Pomodoro run {RunId}", runId);
-            return new ApplicationError(ErrorTypes.DatabaseError, "Failed to resume Pomodoro run.");
-        }
+        var cancelledRuns = await context.PomodoroRuns.CountAsync(r =>
+            r.Status == PomodoroRunStatus.Cancelled && r.CompletedAt >= rangeFrom && r.CompletedAt <= rangeTo
+        );
+
+        DateOnly LocalDate(DateTimeOffset at) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(at, timeZone).Date);
+
+        var perDay = phases
+            .GroupBy(p => LocalDate(p.CompletedAt))
+            .Select(g => new PomodoroDayStats(
+                g.Key,
+                g.Where(p => p.Type == PomodoroPhaseType.Focus).Sum(p => p.DurationMinutes),
+                g.Where(p => p.Type == PomodoroPhaseType.Break).Sum(p => p.DurationMinutes),
+                completedRuns.Count(c => LocalDate(c) == g.Key)
+            ))
+            .OrderBy(d => d.Date)
+            .ToList();
+
+        return new PomodoroStatsResponse(
+            rangeFrom,
+            rangeTo,
+            timeZone.Id,
+            completedRuns.Count,
+            cancelledRuns,
+            phases.Where(p => p.Type == PomodoroPhaseType.Focus).Sum(p => p.DurationMinutes),
+            phases.Where(p => p.Type == PomodoroPhaseType.Break).Sum(p => p.DurationMinutes),
+            perDay
+        );
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(
+    public Task<OneOf<ApplicationError, PomodoroRunResponse>> PauseRun(Guid runId) =>
+        MutateAsync(runId, (run, now) => run.Pause(now));
+
+    public Task<OneOf<ApplicationError, PomodoroRunResponse>> ResumeRun(Guid runId) =>
+        MutateAsync(runId, (run, now) => run.Resume(now));
+
+    public Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request) =>
+        MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
+
+    public Task<OneOf<ApplicationError, PomodoroRunResponse>> CancelRun(Guid runId) =>
+        MutateAsync(runId, (run, now) => run.Cancel(now));
+
+    private async Task<OneOf<ApplicationError, PomodoroRunResponse>> MutateAsync(
         Guid runId,
-        AdvancePomodoroRun request
+        Func<PomodoroRun, DateTimeOffset, OneOf<ApplicationError, OneOf.Types.Success>> mutate
     )
     {
         var run = await context
@@ -354,120 +233,14 @@ internal sealed class PomodoroService(
             .FirstOrDefaultAsync(r => r.Id == runId);
 
         if (run is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunNotFound,
-                $"Pomodoro run with id {runId} not found"
-            );
-        }
+            return new ApplicationError(ErrorTypes.PomodoroRunNotFound, $"Pomodoro run with id {runId} not found");
 
-        if (run.Status != PomodoroRunStatus.Active)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Only active runs can advance phases."
-            );
-        }
+        var result = mutate(run, DateTimeOffset.UtcNow);
+        if (result.IsT0)
+            return result.AsT0;
 
-        var orderedPhases = run.Phases.OrderBy(p => p.Order).ToList();
-        if (orderedPhases.Count == 0)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Pomodoro run has no phases."
-            );
-        }
-
-        if (run.CurrentPhaseIndex >= orderedPhases.Count)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Pomodoro run is already completed."
-            );
-        }
-
-        if (
-            request.ExpectedPhaseIndex is not null
-            && request.ExpectedPhaseIndex.Value != run.CurrentPhaseIndex
-        )
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Run phase index mismatch. Refresh run state and retry."
-            );
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var currentPhase = orderedPhases[run.CurrentPhaseIndex];
-
-        currentPhase.StartedAt ??= now;
-
-        currentPhase.CompletedAt = now;
-
-        var isLastPhase = run.CurrentPhaseIndex == orderedPhases.Count - 1;
-        if (isLastPhase)
-        {
-            run.Complete();
-        }
-        else
-        {
-            run.CurrentPhaseIndex++;
-            var nextPhase = orderedPhases[run.CurrentPhaseIndex];
-            nextPhase.StartedAt ??= now;
-
-            run.UpdatedAt = now;
-        }
-
-        try
-        {
-            await context.SaveChangesAsync();
-            run.Phases = orderedPhases;
-            return await PublishAsync(run);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to advance Pomodoro run {RunId}", runId);
-            return new ApplicationError(
-                ErrorTypes.DatabaseError,
-                "Failed to advance Pomodoro run phase."
-            );
-        }
-    }
-
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> CancelRun(Guid runId)
-    {
-        var run = await context
-            .PomodoroRuns.Include(r => r.Phases)
-            .FirstOrDefaultAsync(r => r.Id == runId);
-
-        if (run is null)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunNotFound,
-                $"Pomodoro run with id {runId} not found"
-            );
-        }
-
-        if (run.Status == PomodoroRunStatus.Completed || run.Status == PomodoroRunStatus.Cancelled)
-        {
-            return new ApplicationError(
-                ErrorTypes.PomodoroRunInvalidState,
-                "Only active or paused runs can be cancelled."
-            );
-        }
-
-        run.Cancel();
-
-        try
-        {
-            await context.SaveChangesAsync();
-            return await PublishAsync(run);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to cancel Pomodoro run {RunId}", runId);
-            return new ApplicationError(ErrorTypes.DatabaseError, "Failed to cancel Pomodoro run.");
-        }
+        await context.SaveChangesAsync();
+        return await PublishAsync(run);
     }
 
     /// <summary>Every device of the user sees the same run state; the API is the source of truth.</summary>

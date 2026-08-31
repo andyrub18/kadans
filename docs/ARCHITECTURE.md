@@ -108,9 +108,11 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 ### Pomodoro (Tasks module)
 
 - Server-authoritative run state (already the case). Clients are countdowns.
-- Store an absolute `PhaseEndsAt`; on pause store `RemainingSeconds`; on resume set
-  `PhaseEndsAt = now + remaining`. Clients count down to a timestamp, which survives reconnects
-  and multiple devices. `ExpectedPhaseIndex` optimistic concurrency stays.
+- Implemented (Phase 5): absolute `PhaseEndsAt` while active, `PausedRemaining` while paused,
+  resume re-anchors (`PhaseEndsAt = now + remaining`). Clients count down to a timestamp, which
+  survives reconnects and multiple devices. `ExpectedPhaseIndex` optimistic concurrency stays.
+  Auto-advance is per-run opt-in: a Quartz job steps overdue runs phase by phase on their own
+  schedule and notifies through the normal pipeline.
 - Run state changes are broadcast over SignalR so phone and desktop stay in sync.
 
 ### Notifications

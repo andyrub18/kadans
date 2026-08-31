@@ -184,6 +184,11 @@ internal sealed class TasksDbContext(
                 .HasForeignKey(x => x.PomodoroRunId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // What the auto-advance job scans.
+            r.HasIndex(x => x.PhaseEndsAt)
+                .HasDatabaseName("ix_pomodoro_runs_auto_advance_due")
+                .HasFilter("status = 'Active' AND auto_advance");
+
             r.HasIndex(x => new { x.TodoId, x.StartedAt })
                 .HasDatabaseName("ix_pomodoro_runs_todo_id_started_at_desc")
                 .IsDescending(false, true);

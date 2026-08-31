@@ -3,7 +3,6 @@ package app.kadans.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +30,7 @@ data object HomeRoute
 
 @Composable
 fun App() {
-    MaterialTheme {
+    KadansTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             val tokenStore = koinInject<TokenStore>()
             var hasSession by remember { mutableStateOf<Boolean?>(null) }

@@ -97,6 +97,8 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       screen (next-7-days occurrences + todo list, refresh/sign-out)
 - [x] Navigation 3 (stable, multiplatform: androidx `navigation3-runtime` 1.1.1 + JetBrains
       `navigation3-ui`): owned back stack + `NavDisplay`, replacing navigation-compose 2.x
+- [x] Light/dark theme following the system on all platforms (`KadansTheme`, M3 baseline
+      schemes; the Kadans palette slots in there later)
 - [ ] Occurrence calendar; todo create/edit screens; account/MFA settings screen
 - [ ] Pomodoro countdown bound to `phaseEndsAt`; SignalR connection (`/hubs/kadans`)
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs

@@ -90,8 +90,16 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       launchers; package `app.kadans`, Kotlin 2.4.10 / Compose MP 1.11.1 / AGP 9.1 / Gradle 9.6.1;
       Ktor + kotlinx-serialization + Koin + navigation in the catalog. Gradle kept over Amper
       (alpha; ecosystem/IDE risk) – migrating a young Gradle project later is cheap.
-- [ ] API client (Ktor): auth + token refresh, todos/occurrences, pomodoro, notifications
-- [ ] Auth screens (login, register, MFA), todo list, occurrence calendar
+- [x] API client (Ktor): typed DTOs for every contract, bearer + refresh-token rotation on 401,
+      ProblemDetails → typed `KadansApiException`; MockEngine tests + env-gated live smoke (`KADANS_API_URL`)
+- [x] Auth flow: login → MFA code → register, session persisted via `SettingsTokenStore`
+      (multiplatform-settings; move to Keychain/Keystore before release), Koin DI; first Home
+      screen (next-7-days occurrences + todo list, refresh/sign-out)
+- [x] Navigation 3 (stable, multiplatform: androidx `navigation3-runtime` 1.1.1 + JetBrains
+      `navigation3-ui`): owned back stack + `NavDisplay`, replacing navigation-compose 2.x
+- [x] Light/dark theme following the system on all platforms (`KadansTheme`, M3 baseline
+      schemes; the Kadans palette slots in there later)
+- [ ] Occurrence calendar; todo create/edit screens; account/MFA settings screen
 - [ ] Pomodoro countdown bound to `phaseEndsAt`; SignalR connection (`/hubs/kadans`)
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs
 - [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`

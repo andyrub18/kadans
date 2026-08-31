@@ -71,7 +71,9 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 everything lives in `shared` (KMP library, package `app.kadans`); `androidApp`, `desktopApp`
 and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
 `./gradlew :desktopApp:run`, `:androidApp:assembleDebug`, `:shared:jvmTest`.
-iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). `local.properties` (untracked) points at the
+iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). The app talks to `http://localhost:5199`
+(desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. `local.properties`
+(untracked) points at the
 Android SDK. Versions are pinned in `gradle/libs.versions.toml` to the combo the official
 KMP-App-Template tests together – bump them as a set, not piecemeal. Gradle stays (Amper is
 alpha); revisit when Amper is stable.

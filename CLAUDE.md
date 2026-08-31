@@ -67,5 +67,11 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 
 ## Client
 
-`clients/app` is untouched from its original template so far (root project name still `todo`,
-package `com.example.todo` or similar). Enable the desktop (JVM) target before building UI.
+`clients/app` is a Compose Multiplatform app in the current JetBrains template structure:
+everything lives in `shared` (KMP library, package `app.kadans`); `androidApp`, `desktopApp`
+and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
+`./gradlew :desktopApp:run`, `:androidApp:assembleDebug`, `:shared:jvmTest`.
+iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). `local.properties` (untracked) points at the
+Android SDK. Versions are pinned in `gradle/libs.versions.toml` to the combo the official
+KMP-App-Template tests together – bump them as a set, not piecemeal. Gradle stays (Amper is
+alpha); revisit when Amper is stable.

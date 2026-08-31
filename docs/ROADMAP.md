@@ -85,8 +85,16 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 
 ## Phase 6 – Client
 
-- [ ] Enable desktop target in `clients/app`, rename project/package to Kadans
-- [ ] Auth screens, todo list, occurrence calendar, pomodoro countdown, notifications
+- [x] Re-scaffold `clients/app` in the current JetBrains template structure: `shared` KMP library
+      (all UI, AGP 9 `androidMultiplatformLibrary`) + thin `androidApp` / `desktopApp` / `iosApp`
+      launchers; package `app.kadans`, Kotlin 2.4.10 / Compose MP 1.11.1 / AGP 9.1 / Gradle 9.6.1;
+      Ktor + kotlinx-serialization + Koin + navigation in the catalog. Gradle kept over Amper
+      (alpha; ecosystem/IDE risk) – migrating a young Gradle project later is cheap.
+- [ ] API client (Ktor): auth + token refresh, todos/occurrences, pomodoro, notifications
+- [ ] Auth screens (login, register, MFA), todo list, occurrence calendar
+- [ ] Pomodoro countdown bound to `phaseEndsAt`; SignalR connection (`/hubs/kadans`)
+- [ ] FCM registration on Android/iOS; deep links for the emailed URLs
+- [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`
 
 ## Phase 7 – Budget module
 

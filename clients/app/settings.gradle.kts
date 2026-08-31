@@ -1,4 +1,4 @@
-rootProject.name = "todo"
+rootProject.name = "kadans"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
@@ -28,4 +28,10 @@ dependencyResolutionManagement {
     }
 }
 
-include(":composeApp")
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+include(":shared")
+include(":androidApp")
+include(":desktopApp")

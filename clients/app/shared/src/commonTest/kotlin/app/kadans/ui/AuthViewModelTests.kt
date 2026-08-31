@@ -85,9 +85,9 @@ class AuthViewModelTests {
         viewModel.onUsernameChange("alice")
         viewModel.onPasswordChange("nope")
         viewModel.submit()
-        dispatcher.scheduler.advanceUntilIdle()
 
-        val state = viewModel.state.value
+        // The mock reply resumes from a real thread; await the state instead of advancing virtual time.
+        val state = viewModel.state.first { it.error != null }
         assertEquals(false, state.isLoading)
         assertNotNull(state.error)
         assertEquals("Invalid username or password", state.error)

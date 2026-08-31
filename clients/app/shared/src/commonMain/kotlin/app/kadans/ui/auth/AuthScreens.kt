@@ -96,7 +96,7 @@ fun MfaScreen(
     mfaToken: String,
     onVerified: () -> Unit,
     onBack: () -> Unit,
-    viewModel: MfaViewModel = koinViewModel { parametersOf(mfaToken) },
+    viewModel: MfaViewModel = koinViewModel(key = "mfa-$mfaToken") { parametersOf(mfaToken) },
 ) {
     val state by viewModel.state.collectAsState()
 

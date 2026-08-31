@@ -37,6 +37,7 @@ kotlin {
     sourceSets {
         all {
             languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("androidx.compose.material3.ExperimentalMaterial3Api")
         }
 
         androidMain.dependencies {

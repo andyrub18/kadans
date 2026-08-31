@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Contracts;
+using Microsoft.AspNetCore.Mvc;
 using Kadans.Modules.Tasks.Features.Todos;
 using Kadans.Modules.Tasks.Features.Pomodoro;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -94,10 +95,11 @@ internal static class PomodoroRoutes
                     async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid id,
                         PomodoroService service,
-                        HttpContext context
+                        HttpContext context,
+                        [FromQuery] bool autoAdvance = false
                     ) =>
                     {
-                        var result = await service.StartRun(id);
+                        var result = await service.StartRun(id, autoAdvance);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
@@ -108,10 +110,58 @@ internal static class PomodoroRoutes
                 .WithTags("Pomodoro", "Todos")
                 .WithName("PomodoroStartRun")
                 .WithSummary("Start Pomodoro run")
-                .WithDescription("Starts a Pomodoro run for a todo from its attached template.")
+                .WithDescription("Starts a run from the attached template. With ?autoAdvance=true the server advances phases as they run out and notifies.")
                 .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
+
+            group.MapGet(
+                    "/todos/{id:guid}/pomodoro/runs",
+                    async Task<Results<Ok<List<PomodoroRunResponse>>, ProblemHttpResult>> (
+                        Guid id,
+                        PomodoroService service,
+                        HttpContext context,
+                        [FromQuery] int page = 1,
+                        [FromQuery] int pageSize = 20
+                    ) =>
+                    {
+                        var result = await service.GetRunHistory(id, page, pageSize);
+                        return result.Match<Results<Ok<List<PomodoroRunResponse>>, ProblemHttpResult>>(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            runs => TypedResults.Ok(runs)
+                        );
+                    }
+                )
+                .WithTags("Pomodoro", "Todos")
+                .WithName("PomodoroRunHistory")
+                .WithSummary("Run history for a todo")
+                .WithDescription("Every run of this todo, any status, newest first.")
+                .Produces<List<PomodoroRunResponse>>(StatusCodes.Status200OK);
+
+            group.MapGet(
+                    "/pomodoro/stats",
+                    async Task<Results<Ok<PomodoroStatsResponse>, ProblemHttpResult>> (
+                        PomodoroService service,
+                        HttpContext context,
+                        [FromQuery] DateTimeOffset? from = null,
+                        [FromQuery] DateTimeOffset? to = null
+                    ) =>
+                    {
+                        var result = await service.GetStats(from, to);
+                        return result.Match<Results<Ok<PomodoroStatsResponse>, ProblemHttpResult>>(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            stats => TypedResults.Ok(stats)
+                        );
+                    }
+                )
+                .WithTags("Pomodoro")
+                .WithName("PomodoroStats")
+                .WithSummary("Pomodoro statistics")
+                .WithDescription("Completed focus/break minutes and run counts, per day in the user's time zone. Defaults to the last 7 days.")
+                .Produces<PomodoroStatsResponse>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest);
 
             group.MapGet(
                     "/todos/{id:guid}/pomodoro/active-run",

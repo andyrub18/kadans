@@ -72,10 +72,16 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] `tools/smoke/notification_flows.py`
 - [ ] Web Push / desktop OS notifications are the client's job (desktop stays on the hub connection)
 
-## Phase 5 – Pomodoro model
+## Phase 5 – Pomodoro model ✅ (2026-08-30)
 
-- [ ] `PhaseEndsAt` / `RemainingSeconds` on pause; auto-advance option
-- [ ] Session history & stats per todo
+- [x] `PomodoroRun` is a domain state machine: `PhaseEndsAt` while active (clients count down to it),
+      `PausedRemaining` while paused, resume re-anchors; pause after the deadline freezes zero
+- [x] Auto-advance opt-in per run (`POST …/pomodoro/start?autoAdvance=true`): `PomodoroAutoAdvanceJob`
+      steps overdue runs on their own schedule (not job time), broadcasts and sends a
+      `pomodoro.phase.completed` notification ("Break — 5 min" / "Pomodoro complete")
+- [x] `GET /todos/{id}/pomodoro/runs` (history) and `GET /pomodoro/stats?from&to`
+      (focus/break minutes + run counts, per day in the user's time zone)
+- [x] `tools/smoke/pomodoro_flows.py`
 
 ## Phase 6 – Client
 
@@ -98,5 +104,4 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 | Where | Problem |
 |-------|---------|
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
-| `Models/Pomodoro.cs` | Pause/resume does not track remaining time (Phase 5) |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

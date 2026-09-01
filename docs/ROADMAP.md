@@ -99,8 +99,14 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       `navigation3-ui`): owned back stack + `NavDisplay`, replacing navigation-compose 2.x
 - [x] Light/dark theme following the system on all platforms (`KadansTheme`, M3 baseline
       schemes; the Kadans palette slots in there later)
-- [ ] Occurrence calendar; todo create/edit screens; account/MFA settings screen
-- [ ] Pomodoro countdown bound to `phaseEndsAt`; SignalR connection (`/hubs/kadans`)
+- [x] Create-todo screen (one-time + recurring: frequency/interval/count, M3 date & time pickers;
+      wall-clock picks are converted to instants in the user's zone and the zone rides on the rule)
+- [x] Todo detail: pending/history occurrences with complete/skip, cancel todo, entry to the focus session
+- [x] Pomodoro countdown bound to `phaseEndsAt` (server-authoritative: ticks to the deadline while
+      active, shows the frozen remainder while paused; pause/resume/skip/end; auto-attaches a
+      Classic 25+5+25 template when the todo has none)
+- [ ] Occurrence calendar; edit-todo & reschedule UI; account/MFA settings screen
+- [ ] SignalR connection (`/hubs/kadans`) so run state and notifications arrive live
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs
 - [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`
 

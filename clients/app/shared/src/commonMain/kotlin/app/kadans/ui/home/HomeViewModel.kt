@@ -34,10 +34,6 @@ class HomeViewModel(private val api: KadansApi) : ViewModel() {
     private val _loggedOut = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val loggedOut: SharedFlow<Unit> = _loggedOut.asSharedFlow()
 
-    init {
-        refresh()
-    }
-
     fun refresh() {
         _state.value = HomeUiState.Loading
         viewModelScope.launch {

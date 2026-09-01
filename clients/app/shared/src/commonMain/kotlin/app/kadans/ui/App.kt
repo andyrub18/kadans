@@ -20,6 +20,9 @@ import app.kadans.ui.auth.LoginScreen
 import app.kadans.ui.auth.MfaScreen
 import app.kadans.ui.auth.RegisterScreen
 import app.kadans.ui.home.HomeScreen
+import app.kadans.ui.todos.CreateTodoScreen
+import app.kadans.ui.todos.TodoDetailScreen
+import app.kadans.ui.pomodoro.PomodoroScreen
 import org.koin.compose.koinInject
 
 // Navigation 3: routes are plain keys; the back stack is state we own.
@@ -27,6 +30,9 @@ data object LoginRoute
 data object RegisterRoute
 data class MfaRoute(val mfaToken: String)
 data object HomeRoute
+data object CreateTodoRoute
+data class TodoDetailRoute(val todoId: String)
+data class PomodoroRoute(val todoId: String)
 
 @Composable
 fun App() {
@@ -83,7 +89,27 @@ private fun KadansNav(startAtHome: Boolean) {
                     )
                 }
                 is HomeRoute -> NavEntry(key) {
-                    HomeScreen(onLoggedOut = { resetTo(LoginRoute) })
+                    HomeScreen(
+                        onLoggedOut = { resetTo(LoginRoute) },
+                        onCreateTodo = { backStack.add(CreateTodoRoute) },
+                        onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
+                    )
+                }
+                is CreateTodoRoute -> NavEntry(key) {
+                    CreateTodoScreen(
+                        onCreated = { todoId -> backStack.removeLastOrNull(); backStack.add(TodoDetailRoute(todoId)) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is TodoDetailRoute -> NavEntry(key) {
+                    TodoDetailScreen(
+                        todoId = key.todoId,
+                        onOpenPomodoro = { backStack.add(PomodoroRoute(key.todoId)) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is PomodoroRoute -> NavEntry(key) {
+                    PomodoroScreen(todoId = key.todoId, onBack = { backStack.removeLastOrNull() })
                 }
                 else -> error("Unknown route: $key")
             }

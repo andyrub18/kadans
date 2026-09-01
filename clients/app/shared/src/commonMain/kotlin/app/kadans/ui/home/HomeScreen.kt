@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -31,11 +32,15 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun HomeScreen(
     onLoggedOut: () -> Unit,
+    onCreateTodo: () -> Unit,
+    onOpenTodo: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(viewModel) { viewModel.loggedOut.collect { onLoggedOut() } }
+    // Reload whenever this entry comes (back) on screen; data may have changed behind us.
+    LaunchedEffect(Unit) { viewModel.refresh() }
 
     Scaffold(
         topBar = {
@@ -50,7 +55,10 @@ fun HomeScreen(
                     TextButton(onClick = viewModel::logout) { Text("Sign out") }
                 }
             }
-        }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onCreateTodo) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+        },
     ) { padding ->
         when (val current = state) {
             is HomeUiState.Loading ->
@@ -66,13 +74,13 @@ fun HomeScreen(
                     Text(current.message, color = MaterialTheme.colorScheme.error)
                     Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text("Retry") }
                 }
-            is HomeUiState.Content -> HomeContent(current, Modifier.padding(padding))
+            is HomeUiState.Content -> HomeContent(current, onOpenTodo, Modifier.padding(padding))
         }
     }
 }
 
 @Composable
-private fun HomeContent(content: HomeUiState.Content, modifier: Modifier = Modifier) {
+private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Unit, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -83,7 +91,7 @@ private fun HomeContent(content: HomeUiState.Content, modifier: Modifier = Modif
             item { Text("Nothing scheduled.", style = MaterialTheme.typography.bodyMedium) }
         }
         items(content.upcoming, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
-            OccurrenceCard(occurrence)
+            OccurrenceCard(occurrence, onClick = { onOpenTodo(occurrence.todoId) })
         }
 
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
@@ -91,13 +99,13 @@ private fun HomeContent(content: HomeUiState.Content, modifier: Modifier = Modif
         if (content.todos.isEmpty()) {
             item { Text("No todos yet.", style = MaterialTheme.typography.bodyMedium) }
         }
-        items(content.todos, key = { it.id }) { todo -> TodoCard(todo) }
+        items(content.todos, key = { it.id }) { todo -> TodoCard(todo, onClick = { onOpenTodo(todo.id) }) }
     }
 }
 
 @Composable
-private fun OccurrenceCard(occurrence: TodoOccurrenceResponse) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun OccurrenceCard(occurrence: TodoOccurrenceResponse, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(occurrence.todoTitle, style = MaterialTheme.typography.titleSmall)
             Text(
@@ -110,8 +118,8 @@ private fun OccurrenceCard(occurrence: TodoOccurrenceResponse) {
 }
 
 @Composable
-private fun TodoCard(todo: TodoResponse) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun TodoCard(todo: TodoResponse, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

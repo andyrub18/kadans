@@ -8,6 +8,9 @@ import app.kadans.ui.auth.LoginViewModel
 import app.kadans.ui.auth.MfaViewModel
 import app.kadans.ui.auth.RegisterViewModel
 import app.kadans.ui.home.HomeViewModel
+import app.kadans.ui.pomodoro.PomodoroViewModel
+import app.kadans.ui.todos.CreateTodoViewModel
+import app.kadans.ui.todos.TodoDetailViewModel
 import com.russhwolf.settings.Settings
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.viewModelOf
@@ -22,6 +25,9 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::RegisterViewModel)
     viewModelOf(::HomeViewModel)
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
+    viewModelOf(::CreateTodoViewModel)
+    factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }
+    factory { (todoId: String) -> PomodoroViewModel(get(), todoId) }
 }
 
 private var started = false

@@ -39,6 +39,8 @@ public sealed record PomodoroRunResponse(
     DateTimeOffset? PhaseEndsAt,
     int? PausedRemainingSeconds,
     bool AutoAdvance,
+    bool Loop,
+    int CycleLength,
     IReadOnlyList<PomodoroRunPhaseResponse> Phases,
     DateTimeOffset StartedAt,
     DateTimeOffset? PausedAt,

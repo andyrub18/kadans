@@ -64,6 +64,8 @@ data class PomodoroRunResponse(
     val phaseEndsAt: Instant? = null,
     val pausedRemainingSeconds: Int? = null,
     val autoAdvance: Boolean = false,
+    val loop: Boolean = false,
+    val cycleLength: Int = 0,
     val phases: List<PomodoroRunPhaseResponse> = emptyList(),
     val startedAt: Instant,
     val pausedAt: Instant? = null,

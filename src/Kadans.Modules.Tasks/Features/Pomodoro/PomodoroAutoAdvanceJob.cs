@@ -43,14 +43,18 @@ internal sealed class PomodoroAutoAdvanceJob(
 
         foreach (var run in due)
         {
-            // Step on the schedule, not on job time: a run overdue by two phases lands where it should be.
-            while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now)
+            // Step on the schedule, not on job time: a run overdue by two phases lands where it
+            // should be. The cap only guards a pathological backlog (looping runs never complete).
+            var existingPhaseIds = run.Phases.Select(p => p.Id).ToHashSet();
+            var steps = 0;
+            while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now && steps++ < 500)
             {
                 var advanced = run.Advance(expectedPhaseIndex: null, run.PhaseEndsAt!.Value);
                 if (advanced.IsT0)
                     break;
             }
 
+            PomodoroService.MarkNewPhasesAdded(dbContext, run, existingPhaseIds);
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = run.ToResponse();
@@ -63,11 +67,13 @@ internal sealed class PomodoroAutoAdvanceJob(
                 logger.LogWarning(ex, "Could not broadcast run {RunId}", run.Id);
             }
 
+            var lap = run.CycleLength > 0 ? run.CurrentPhaseIndex / run.CycleLength + 1 : 1;
+            var lapPrefix = run.Loop && lap > 1 ? $"Lap {lap} · " : "";
             var body = run.Status == PomodoroRunStatus.Completed
                 ? "Pomodoro complete. Well done!"
                 : run.CurrentPhase.Type == PomodoroPhaseType.Break
-                    ? $"Break — {run.CurrentPhase.DurationMinutes} min"
-                    : $"Focus — {run.CurrentPhase.DurationMinutes} min";
+                    ? $"{lapPrefix}Break — {run.CurrentPhase.DurationMinutes} min"
+                    : $"{lapPrefix}Focus — {run.CurrentPhase.DurationMinutes} min";
 
             await dispatcher.DispatchAsync(
                 run.UserId,

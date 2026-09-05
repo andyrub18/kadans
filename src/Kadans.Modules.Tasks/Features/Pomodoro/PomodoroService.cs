@@ -90,7 +90,7 @@ internal sealed class PomodoroService(
         return true;
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId, bool autoAdvance)
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId, bool autoAdvance, bool loop)
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
@@ -118,7 +118,7 @@ internal sealed class PomodoroService(
         if (hasActiveRun)
             return new ApplicationError(ErrorTypes.PomodoroAlreadyActiveForTodo, "This todo already has an active Pomodoro run.");
 
-        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, DateTimeOffset.UtcNow);
+        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, DateTimeOffset.UtcNow, loop);
 
         if (todo.Status == TaskStatus.Scheduled)
             todo.UpdateStatus(TaskStatus.Started);
@@ -222,6 +222,9 @@ internal sealed class PomodoroService(
     public Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request) =>
         MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
 
+    public Task<OneOf<ApplicationError, PomodoroRunResponse>> FinishRun(Guid runId) =>
+        MutateAsync(runId, (run, now) => run.Finish(now));
+
     public Task<OneOf<ApplicationError, PomodoroRunResponse>> CancelRun(Guid runId) =>
         MutateAsync(runId, (run, now) => run.Cancel(now));
 
@@ -237,12 +240,25 @@ internal sealed class PomodoroService(
         if (run is null)
             return new ApplicationError(ErrorTypes.PomodoroRunNotFound, $"Pomodoro run with id {runId} not found");
 
+        var existingPhaseIds = run.Phases.Select(p => p.Id).ToHashSet();
         var result = mutate(run, DateTimeOffset.UtcNow);
         if (result.IsT0)
             return result.AsT0;
 
+        MarkNewPhasesAdded(context, run, existingPhaseIds);
         await context.SaveChangesAsync();
         return await PublishAsync(run);
+    }
+
+    /// <summary>
+    /// A looping Advance appends lap phases to an already-tracked run. Their GUID keys are set
+    /// client-side, so EF's navigation fixup would guess "existing row" and issue an UPDATE that
+    /// hits nothing (DbUpdateConcurrencyException). Mark what the mutation created as Added.
+    /// </summary>
+    internal static void MarkNewPhasesAdded(TasksDbContext context, PomodoroRun run, ISet<Guid> existingPhaseIds)
+    {
+        foreach (var phase in run.Phases.Where(p => !existingPhaseIds.Contains(p.Id)))
+            context.Entry(phase).State = EntityState.Added;
     }
 
     /// <summary>Every device of the user sees the same run state; the API is the source of truth.</summary>

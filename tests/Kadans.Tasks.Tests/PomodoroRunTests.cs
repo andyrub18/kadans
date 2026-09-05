@@ -7,6 +7,64 @@ public class PomodoroRunTests
 {
     private static readonly DateTimeOffset T0 = new(2027, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
+    private static PomodoroRun StartLooping() =>
+        PomodoroRun.Start(
+            new Todo("Workday", "", RecurrenceRule.CreateOneTimeRule(T0.AddYears(10)).AsT1),
+            [
+                new PomodoroTemplatePhase { Order = 0, Type = PomodoroPhaseType.Focus, DurationMinutes = 25 },
+                new PomodoroTemplatePhase { Order = 1, Type = PomodoroPhaseType.Break, DurationMinutes = 30 },
+            ],
+            "user-1",
+            autoAdvance: true,
+            T0,
+            loop: true
+        );
+
+    [Test]
+    public async Task Looping_run_starts_a_new_lap_instead_of_completing()
+    {
+        var run = StartLooping();
+        run.Advance(null, T0.AddMinutes(25));
+
+        // Advancing past the last phase of the lap wraps instead of completing.
+        await Assert.That(run.Advance(null, T0.AddMinutes(55)).IsT1).IsTrue();
+
+        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Active);
+        await Assert.That(run.Phases.Count).IsEqualTo(4);
+        await Assert.That(run.CurrentPhaseIndex).IsEqualTo(2);
+        await Assert.That(run.CycleLength).IsEqualTo(2);
+        await Assert.That(run.CurrentPhase.Type).IsEqualTo(PomodoroPhaseType.Focus);
+        await Assert.That(run.CurrentPhase.DurationMinutes).IsEqualTo(25);
+        await Assert.That(run.PhaseEndsAt).IsEqualTo(T0.AddMinutes(80));
+        await Assert.That(run.Phases[1].CompletedAt).IsEqualTo(T0.AddMinutes(55));
+    }
+
+    [Test]
+    public async Task Finish_completes_a_looping_run()
+    {
+        var run = StartLooping();
+        run.Advance(null, T0.AddMinutes(25));
+
+        await Assert.That(run.Finish(T0.AddMinutes(40)).IsT1).IsTrue();
+
+        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Completed);
+        await Assert.That(run.CompletedAt).IsEqualTo(T0.AddMinutes(40));
+        await Assert.That(run.PhaseEndsAt).IsNull();
+        await Assert.That(run.Finish(T0.AddMinutes(41)).AsT0.ErrorType).IsEqualTo(ErrorTypes.PomodoroRunInvalidState);
+    }
+
+    [Test]
+    public async Task Non_looping_run_still_completes_at_the_last_phase()
+    {
+        var run = Start();
+        run.Advance(null, T0.AddMinutes(25));
+        run.Advance(null, T0.AddMinutes(30));
+        run.Advance(null, T0.AddMinutes(55));
+
+        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Completed);
+        await Assert.That(run.Loop).IsEqualTo(false);
+    }
+
     private static PomodoroRun Start(bool autoAdvance = false) =>
         PomodoroRun.Start(
             new Todo("Deep work", "", RecurrenceRule.CreateOneTimeRule(T0.AddYears(10)).AsT1),

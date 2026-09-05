@@ -35,6 +35,7 @@ now = dt.datetime.now(dt.timezone.utc)
 s, tok = call("POST", "/auth/login", {"username": "admin", "password": "Admin123!"})
 T = tok["accessToken"]
 
+s, base = call("GET", "/pomodoro/stats", token=T)  # the dev DB accumulates; assert deltas
 s, tpl = call("POST", "/pomodoro/templates", {"name": "smoke classic", "phases": [
     {"type": "Focus", "durationMinutes": 25}, {"type": "Break", "durationMinutes": 5}, {"type": "Focus", "durationMinutes": 25}]}, token=T)
 s, todo = call("POST", "/todos/one-time", {"title": "smoke: deep work", "description": "", "notificationEnabled": False,
@@ -67,8 +68,9 @@ C("advancing the last phase completes the run", run["status"] == "Completed" and
 s, hist = call("GET", f"/todos/{todo['id']}/pomodoro/runs", token=T)
 C("run history lists the completed run", s == 200 and len(hist) == 1 and hist[0]["status"] == "Completed")
 s, stats = call("GET", "/pomodoro/stats", token=T)
-C("stats count the completed run and 50 focus minutes", stats["completedRuns"] == 1 and stats["focusMinutes"] == 50 and stats["breakMinutes"] == 5, json.dumps({k: stats[k] for k in ("completedRuns","focusMinutes","breakMinutes")}))
-C("stats per-day in user's tz", len(stats["perDay"]) == 1 and stats["perDay"][0]["completedRuns"] == 1, stats["timeZoneId"])
+deltas = {k: stats[k] - base[k] for k in ("completedRuns", "focusMinutes", "breakMinutes")}
+C("stats gained one completed run, 50 focus and 5 break minutes", deltas == {"completedRuns": 1, "focusMinutes": 50, "breakMinutes": 5}, json.dumps(deltas))
+C("stats per-day in user's tz has today", any(d["completedRuns"] >= 1 for d in stats["perDay"]), stats["timeZoneId"])
 
 # auto-advance run: 1-minute focus then 5-minute break
 s, tpl2 = call("POST", "/pomodoro/templates", {"name": "smoke tiny", "phases": [
@@ -95,6 +97,21 @@ C("phase-completed notification stored", phase_note is not None and "Break" in p
 
 s, run2 = call("PUT", f"/pomodoro/runs/{run2['id']}/cancel", token=T)
 C("cancel auto run", s == 200 and run2["status"] == "Cancelled")
+
+# --- loop: the cycle repeats until finished ---
+s, todo3 = call("POST", "/todos/one-time", {"title": "smoke: workday", "description": "", "notificationEnabled": False,
+               "dueDate": iso(now + dt.timedelta(days=1)), "pomodoroTemplateId": tpl["id"]}, token=T)
+s, run3 = call("POST", f"/todos/{todo3['id']}/pomodoro/start?loop=true", token=T)
+C("loop run started", s == 200 and run3["loop"] and run3["cycleLength"] == 3, f"{s}")
+for _ in range(3):
+    s, run3 = call("PUT", f"/pomodoro/runs/{run3['id']}/advance", {}, token=T)
+C("advancing past the last phase wraps into lap 2", run3["status"] == "Active" and run3["currentPhaseIndex"] == 3 and len(run3["phases"]) == 6, f"{run3['status']} idx={run3['currentPhaseIndex']} phases={len(run3['phases'])}")
+C("lap 2 deadline is live", run3["phaseEndsAt"] is not None)
+s, run3 = call("PUT", f"/pomodoro/runs/{run3['id']}/finish", token=T)
+C("finish ends the loop as Completed", s == 200 and run3["status"] == "Completed", f"{s}")
+s, stats = call("GET", "/pomodoro/stats", token=T)
+C("finished loop counts as a completed run", stats["completedRuns"] - base["completedRuns"] >= 2, str(stats["completedRuns"]))
+call("PUT", f"/todos/{todo3['id']}/cancel", {"reason": "cleanup"}, token=T)
 for t in (todo, todo2):
     call("PUT", f"/todos/{t['id']}/cancel", {"reason": "cleanup"}, token=T)
 

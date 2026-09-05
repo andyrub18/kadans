@@ -110,7 +110,11 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       "N times a day" via a times list (BYHOUR list, same-minute constraint surfaced in the UI),
       interval as a stepper reading "Every 2 days", all six frequencies exposed (hourly water
       plans work)
-- [ ] Server-side cyclic mode ("repeat template until ended") so auto-advance loops too
+- [x] Server-side loop mode: `?loop=true` repeats the cycle (fresh lap phases, so history and
+      stats count every one) until `PUT …/finish` completes the session; auto-advance loops too
+      and notifies with the lap number. Client: loop on by default, hands-free optional, lap-aware
+      countdown, "Finish session" vs "Discard". Default template fixed to the real pomodoro
+      (4×25/5 with a 30-minute long break).
 - [ ] Occurrence calendar; edit-todo & reschedule UI; account/MFA settings screen
 - [ ] SignalR connection (`/hubs/kadans`) so run state and notifications arrive live
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs

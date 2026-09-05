@@ -59,6 +59,7 @@ private fun Detail(
 ) {
     var loop by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
     var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -84,6 +85,16 @@ private fun Detail(
             }
         }
 
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Cycle: " + (content.templates.firstOrNull { it.id == content.todo.pomodoroTemplateId }?.name
+                        ?: "default (set on first start)"),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                TextButton(onClick = { pickingTemplate = true }) { Text("Change") }
+            }
+        }
         if (!content.hasActiveRun) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -129,6 +140,14 @@ private fun Detail(
             }
         }
     }
+
+    if (pickingTemplate) {
+        TemplatePickerDialog(
+            content = content,
+            onPick = { templateId -> viewModel.attachTemplate(templateId); pickingTemplate = false },
+            onDismiss = { pickingTemplate = false },
+        )
+    }
 }
 
 @Composable
@@ -151,4 +170,26 @@ private fun OccurrenceRow(occurrence: TodoOccurrenceResponse, viewModel: TodoDet
             }
         }
     }
+}
+
+@Composable
+private fun TemplatePickerDialog(
+    content: TodoDetailUiState.Content,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Pomodoro cycle") },
+        text = {
+            Column {
+                TextButton(onClick = { onPick(null) }) { Text("None (default on first start)") }
+                content.templates.forEach { template ->
+                    TextButton(onClick = { onPick(template.id) }) { Text(template.name) }
+                }
+            }
+        },
+    )
 }

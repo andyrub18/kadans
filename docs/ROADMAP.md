@@ -115,6 +115,10 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       and notifies with the lap number. Client: loop on by default, hands-free optional, lap-aware
       countdown, "Finish session" vs "Discard". Default template fixed to the real pomodoro
       (4×25/5 with a 30-minute long break).
+- [x] Pomodoro cycle management: template update/delete endpoints; client Templates screen
+      (create/edit/delete phases) reachable from Home; per-todo cycle picker on the detail screen
+- [x] Recurring end choice in the client: Never / after a number of times / on a date (inclusive
+      end-of-day `until` in the user's zone — the backend supported until XOR count all along)
 - [ ] Occurrence calendar; edit-todo & reschedule UI; account/MFA settings screen
 - [ ] SignalR connection (`/hubs/kadans`) so run state and notifications arrive live
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs

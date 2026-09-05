@@ -146,6 +146,13 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
     suspend fun createTemplate(request: CreatePomodoroTemplate): PomodoroTemplateResponse =
         api.http.post("pomodoro/templates") { setBody(request) }.orThrow()
 
+    suspend fun updateTemplate(templateId: String, request: CreatePomodoroTemplate): PomodoroTemplateResponse =
+        api.http.put("pomodoro/templates/$templateId") { setBody(request) }.orThrow()
+
+    suspend fun deleteTemplate(templateId: String) {
+        api.http.delete("pomodoro/templates/$templateId").orThrow<Success>()
+    }
+
     suspend fun attachTemplate(todoId: String, templateId: String?) {
         api.http.put("todos/$todoId/pomodoro-template") { setBody(UpdateTodoPomodoro(templateId)) }
             .orThrow<Success>()

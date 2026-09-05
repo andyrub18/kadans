@@ -8,6 +8,7 @@ import app.kadans.ui.auth.LoginViewModel
 import app.kadans.ui.auth.MfaViewModel
 import app.kadans.ui.auth.RegisterViewModel
 import app.kadans.ui.home.HomeViewModel
+import app.kadans.ui.templates.TemplatesViewModel
 import app.kadans.ui.pomodoro.PomodoroViewModel
 import app.kadans.ui.todos.CreateTodoViewModel
 import app.kadans.ui.todos.TodoDetailViewModel
@@ -24,6 +25,7 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
     viewModelOf(::HomeViewModel)
+    viewModelOf(::TemplatesViewModel)
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     viewModelOf(::CreateTodoViewModel)
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }

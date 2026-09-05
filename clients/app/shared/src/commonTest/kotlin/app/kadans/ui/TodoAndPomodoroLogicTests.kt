@@ -6,6 +6,7 @@ import app.kadans.api.model.PomodoroRunStatus
 import app.kadans.ui.pomodoro.PomodoroViewModel
 import app.kadans.ui.todos.CreateTodoUiState
 import app.kadans.ui.todos.CreateTodoViewModel
+import app.kadans.ui.todos.EndMode
 import app.kadans.ui.todos.TodoMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,6 +29,7 @@ class TodoAndPomodoroLogicTests {
         frequency = Frequency.Daily,
         interval = 2,
         count = 5,
+        endMode = EndMode.AfterCount,
     )
 
     @Test
@@ -39,6 +41,32 @@ class TodoAndPomodoroLogicTests {
         assertEquals("America/Port-au-Prince", request.recurrenceRule.timeZone)
         assertEquals(2, request.recurrenceRule.interval)
         assertEquals(5, request.recurrenceRule.count)
+    }
+
+    @Test
+    fun end_on_a_date_sends_an_inclusive_until_and_no_count() {
+        val byDate = state().copy(endMode = EndMode.OnDate, untilDate = LocalDate(2027, 1, 10))
+
+        val rule = CreateTodoViewModel.buildRecurring(byDate, portAuPrince).recurrenceRule
+
+        // End of Jan 10 in Port-au-Prince (UTC-5): 23:59 local = 04:59Z the next day.
+        assertEquals(Instant.parse("2027-01-11T04:59:00Z"), rule.until)
+        assertEquals(null, rule.count)
+    }
+
+    @Test
+    fun end_never_sends_neither_count_nor_until() {
+        val rule = CreateTodoViewModel.buildRecurring(state().copy(endMode = EndMode.Never), portAuPrince).recurrenceRule
+        assertEquals(null, rule.count)
+        assertEquals(null, rule.until)
+    }
+
+    @Test
+    fun end_mode_validation_gates_submission() {
+        assertEquals(false, state().copy(endMode = EndMode.AfterCount, count = null).canSubmit)
+        assertEquals(false, state().copy(endMode = EndMode.OnDate, untilDate = null).canSubmit)
+        assertEquals(false, state().copy(endMode = EndMode.OnDate, untilDate = LocalDate(2027, 1, 1)).canSubmit)
+        assertEquals(true, state().copy(endMode = EndMode.OnDate, untilDate = LocalDate(2027, 2, 1)).canSubmit)
     }
 
     @Test

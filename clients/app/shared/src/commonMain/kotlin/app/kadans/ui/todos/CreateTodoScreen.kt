@@ -42,6 +42,8 @@ import org.koin.compose.viewmodel.koinViewModel
 
 private enum class TimeTarget { Start, ExtraTime }
 
+private enum class DateTarget { Start, Until }
+
 @Composable
 fun CreateTodoScreen(
     onCreated: (String) -> Unit,
@@ -49,7 +51,7 @@ fun CreateTodoScreen(
     viewModel: CreateTodoViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    var showDatePicker by remember { mutableStateOf(false) }
+    var dateTarget by remember { mutableStateOf<DateTarget?>(null) }
     var timeTarget by remember { mutableStateOf<TimeTarget?>(null) }
 
     LaunchedEffect(viewModel) { viewModel.created.collect { onCreated(it) } }
@@ -98,7 +100,7 @@ fun CreateTodoScreen(
                     readOnly = true,
                     label = { Text(if (state.mode == TodoMode.OneTime) "Due date" else "First on") },
                     placeholder = { Text("Pick a date") },
-                    trailingIcon = { TextButton(onClick = { showDatePicker = true }) { Text("Pick") } },
+                    trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Start }) { Text("Pick") } },
                     modifier = Modifier.weight(1.4f),
                 )
                 if (state.times.isEmpty()) {
@@ -154,13 +156,45 @@ fun CreateTodoScreen(
                     }
                 }
 
-                OutlinedTextField(
-                    value = state.count?.toString() ?: "",
-                    onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
-                    label = { Text("How many times in total (blank = forever)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Text("Ends", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.endMode == EndMode.Never,
+                        onClick = { viewModel.update { it.copy(endMode = EndMode.Never) } },
+                        label = { Text("Never") },
+                    )
+                    FilterChip(
+                        selected = state.endMode == EndMode.AfterCount,
+                        onClick = { viewModel.update { it.copy(endMode = EndMode.AfterCount) } },
+                        label = { Text("After a number of times") },
+                    )
+                    FilterChip(
+                        selected = state.endMode == EndMode.OnDate,
+                        onClick = { viewModel.update { it.copy(endMode = EndMode.OnDate) } },
+                        label = { Text("On a date") },
+                    )
+                }
+                when (state.endMode) {
+                    EndMode.AfterCount ->
+                        OutlinedTextField(
+                            value = state.count?.toString() ?: "",
+                            onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
+                            label = { Text("How many times in total") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    EndMode.OnDate ->
+                        OutlinedTextField(
+                            value = state.untilDate?.toString() ?: "",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Last occurrence on") },
+                            placeholder = { Text("Pick the last day") },
+                            trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Until }) { Text("Pick") } },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    EndMode.Never -> {}
+                }
             }
 
             Row(
@@ -182,19 +216,26 @@ fun CreateTodoScreen(
         }
     }
 
-    if (showDatePicker) {
+    val pickingDate = dateTarget
+    if (pickingDate != null) {
         val pickerState = rememberDatePickerState()
         DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
+            onDismissRequest = { dateTarget = null },
             confirmButton = {
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { millis ->
-                        viewModel.update { it.copy(date = LocalDate.fromEpochDays((millis / 86_400_000L).toInt())) }
+                        val picked = LocalDate.fromEpochDays((millis / 86_400_000L).toInt())
+                        viewModel.update {
+                            when (pickingDate) {
+                                DateTarget.Start -> it.copy(date = picked)
+                                DateTarget.Until -> it.copy(untilDate = picked)
+                            }
+                        }
                     }
-                    showDatePicker = false
+                    dateTarget = null
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { dateTarget = null }) { Text("Cancel") } },
         ) { DatePicker(state = pickerState) }
     }
 

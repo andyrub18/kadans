@@ -23,6 +23,7 @@ import app.kadans.ui.home.HomeScreen
 import app.kadans.ui.todos.CreateTodoScreen
 import app.kadans.ui.todos.TodoDetailScreen
 import app.kadans.ui.pomodoro.PomodoroScreen
+import app.kadans.ui.templates.TemplatesScreen
 import org.koin.compose.koinInject
 
 // Navigation 3: routes are plain keys; the back stack is state we own.
@@ -31,6 +32,7 @@ data object RegisterRoute
 data class MfaRoute(val mfaToken: String)
 data object HomeRoute
 data object CreateTodoRoute
+data object TemplatesRoute
 data class TodoDetailRoute(val todoId: String)
 data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false)
 
@@ -92,8 +94,12 @@ private fun KadansNav(startAtHome: Boolean) {
                     HomeScreen(
                         onLoggedOut = { resetTo(LoginRoute) },
                         onCreateTodo = { backStack.add(CreateTodoRoute) },
+                        onOpenTemplates = { backStack.add(TemplatesRoute) },
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
                     )
+                }
+                is TemplatesRoute -> NavEntry(key) {
+                    TemplatesScreen(onBack = { backStack.removeLastOrNull() })
                 }
                 is CreateTodoRoute -> NavEntry(key) {
                     CreateTodoScreen(

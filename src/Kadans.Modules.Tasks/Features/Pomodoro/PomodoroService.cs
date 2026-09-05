@@ -25,14 +25,8 @@ internal sealed class PomodoroService(
         if (string.IsNullOrWhiteSpace(userId))
             return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
 
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Template name is required.");
-
-        if (request.Phases is not { Count: > 0 })
-            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "At least one Pomodoro phase is required.");
-
-        if (request.Phases.Any(p => p.DurationMinutes <= 0))
-            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Phase duration must be greater than zero.");
+        if (ValidateTemplate(request) is { } invalid)
+            return invalid;
 
         var template = new PomodoroTemplate
         {
@@ -54,6 +48,64 @@ internal sealed class PomodoroService(
         context.PomodoroTemplates.Add(template);
         await context.SaveChangesAsync();
         return template.ToResponse();
+    }
+
+    /// <summary>Replaces name and phases. Runs snapshot their phases at start, so past and active runs keep theirs.</summary>
+    public async Task<OneOf<ApplicationError, PomodoroTemplateResponse>> UpdateTemplate(Guid templateId, CreatePomodoroTemplate request)
+    {
+        if (ValidateTemplate(request) is { } invalid)
+            return invalid;
+
+        var template = await context
+            .PomodoroTemplates.Include(t => t.Phases)
+            .FirstOrDefaultAsync(t => t.Id == templateId);
+
+        if (template is null)
+            return new ApplicationError(ErrorTypes.PomodoroTemplateNotFound, $"Pomodoro template with id {templateId} not found");
+
+        context.PomodoroTemplatePhases.RemoveRange(template.Phases);
+        template.Name = request.Name.Trim();
+        template.UpdatedAt = DateTimeOffset.UtcNow;
+        template.Phases = request.Phases
+            .Select((phase, index) => new PomodoroTemplatePhase
+            {
+                PomodoroTemplateId = template.Id,
+                Order = index,
+                Type = phase.Type,
+                DurationMinutes = phase.DurationMinutes,
+            })
+            .ToList();
+        // Client-set GUID keys on a tracked parent: fixup would guess "existing" — mark explicitly.
+        context.PomodoroTemplatePhases.AddRange(template.Phases);
+
+        await context.SaveChangesAsync();
+        return template.ToResponse();
+    }
+
+    /// <summary>Todos referencing it fall back to no template (FK set-null); runs keep their snapshots.</summary>
+    public async Task<OneOf<ApplicationError, bool>> DeleteTemplate(Guid templateId)
+    {
+        var template = await context.PomodoroTemplates.FirstOrDefaultAsync(t => t.Id == templateId);
+        if (template is null)
+            return new ApplicationError(ErrorTypes.PomodoroTemplateNotFound, $"Pomodoro template with id {templateId} not found");
+
+        context.PomodoroTemplates.Remove(template);
+        await context.SaveChangesAsync();
+        return true;
+    }
+
+    private static ApplicationError? ValidateTemplate(CreatePomodoroTemplate request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Template name is required.");
+
+        if (request.Phases is not { Count: > 0 })
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "At least one Pomodoro phase is required.");
+
+        if (request.Phases.Any(p => p.DurationMinutes <= 0))
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Phase duration must be greater than zero.");
+
+        return null;
     }
 
     public async Task<OneOf<ApplicationError, List<PomodoroTemplateResponse>>> GetTemplates()

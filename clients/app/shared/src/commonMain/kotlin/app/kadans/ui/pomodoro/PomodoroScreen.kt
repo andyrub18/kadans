@@ -31,6 +31,9 @@ fun PomodoroScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    // Re-sync with the server every time this screen comes (back) on screen.
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.refresh() }
+
     when (val current = state) {
         is PomodoroUiState.Loading ->
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -56,12 +59,14 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
         when (run.status) {
             PomodoroRunStatus.Completed -> {
                 Text("Pomodoro complete", style = MaterialTheme.typography.headlineMedium)
-                Text("Well done.", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-                Button(onClick = onBack, modifier = Modifier.padding(top = 24.dp)) { Text("Back to todo") }
+                Text("Well done. Need more time on this?", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
+                Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text("Start another cycle") }
+                TextButton(onClick = onBack) { Text("Back to todo") }
             }
             PomodoroRunStatus.Cancelled -> {
                 Text("Session ended", style = MaterialTheme.typography.headlineMedium)
-                Button(onClick = onBack, modifier = Modifier.padding(top = 24.dp)) { Text("Back to todo") }
+                Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text("Start a new session") }
+                TextButton(onClick = onBack) { Text("Back to todo") }
             }
             else -> {
                 Text(

@@ -99,6 +99,8 @@ internal sealed class PomodoroService(
         var todo = await context
             .Todos.Include(t => t.PomodoroTemplate)
                 .ThenInclude(t => t!.Phases)
+            // Template phases + the todo's owned remarks are two collection loads: split them.
+            .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == todoId);
 
         if (todo is null)

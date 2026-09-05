@@ -34,7 +34,11 @@ internal sealed class PomodoroAutoAdvanceJob(
             .Include(r => r.Phases)
             .Include(r => r.Todo)
             .Where(r => r.Status == PomodoroRunStatus.Active && r.AutoAdvance && r.PhaseEndsAt <= now)
+            // Oldest-due first: deterministic under the Take, and it walks the filtered index.
+            .OrderBy(r => r.PhaseEndsAt)
             .Take(100)
+            // Two collection loads (Phases, plus Todo's owned Remarks): split to avoid the join blow-up.
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
         foreach (var run in due)

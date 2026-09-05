@@ -2,18 +2,22 @@ package app.kadans.ui.todos
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -21,7 +25,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,13 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.Frequency
-import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 import org.koin.compose.viewmodel.koinViewModel
+
+private enum class TimeTarget { Start, ExtraTime }
 
 @Composable
 fun CreateTodoScreen(
@@ -49,7 +50,7 @@ fun CreateTodoScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    var timeTarget by remember { mutableStateOf<TimeTarget?>(null) }
 
     LaunchedEffect(viewModel) { viewModel.created.collect { onCreated(it) } }
 
@@ -100,42 +101,66 @@ fun CreateTodoScreen(
                     trailingIcon = { TextButton(onClick = { showDatePicker = true }) { Text("Pick") } },
                     modifier = Modifier.weight(1.4f),
                 )
-                OutlinedTextField(
-                    value = twoDigits(state.time.hour) + ":" + twoDigits(state.time.minute),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Time") },
-                    trailingIcon = { TextButton(onClick = { showTimePicker = true }) { Text("Pick") } },
-                    modifier = Modifier.weight(1f),
-                )
+                if (state.times.isEmpty()) {
+                    OutlinedTextField(
+                        value = state.time.formatted(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Time") },
+                        trailingIcon = { TextButton(onClick = { timeTarget = TimeTarget.Start }) { Text("Pick") } },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             if (state.mode == TodoMode.Recurring) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Frequency.entries.filter { it >= Frequency.Daily }.forEach { f ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Frequency.entries.forEach { f ->
                         FilterChip(
                             selected = state.frequency == f,
-                            onClick = { viewModel.update { it.copy(frequency = f) } },
+                            onClick = { viewModel.update { it.copy(frequency = f, times = if (f == Frequency.Daily) it.times else emptyList()) } },
                             label = { Text(f.name) },
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = state.interval.toString(),
-                        onValueChange = { v -> viewModel.update { it.copy(interval = v.toIntOrNull() ?: 1) } },
-                        label = { Text("Every") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { viewModel.update { it.copy(interval = (it.interval - 1).coerceAtLeast(1)) } }) { Text("−") }
+                    Text(
+                        CreateTodoViewModel.everyLabel(state.frequency, state.interval),
+                        style = MaterialTheme.typography.titleMedium,
                     )
-                    OutlinedTextField(
-                        value = state.count?.toString() ?: "",
-                        onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
-                        label = { Text("Times (blank = forever)") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1.6f),
-                    )
+                    OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
                 }
+
+                if (state.frequency == Frequency.Daily) {
+                    Text("Times that day (for “3 times a day”)", style = MaterialTheme.typography.labelLarge)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.times.sorted().forEach { t ->
+                            InputChip(
+                                selected = false,
+                                onClick = { viewModel.update { it.copy(times = it.times - t) } },
+                                label = { Text(t.formatted() + "  ✕") },
+                            )
+                        }
+                        OutlinedButton(onClick = { timeTarget = TimeTarget.ExtraTime }) { Text("+ Add time") }
+                    }
+                    if (!state.timesShareMinute) {
+                        Text(
+                            "All daily times must share the same minutes — e.g. 8:00, 14:00, 20:00 (a recurrence-rule constraint).",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+
+                OutlinedTextField(
+                    value = state.count?.toString() ?: "",
+                    onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
+                    label = { Text("How many times in total (blank = forever)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             Row(
@@ -164,7 +189,6 @@ fun CreateTodoScreen(
             confirmButton = {
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { millis ->
-                        val date = Instant.fromEpochMilliseconds(millis)
                         viewModel.update { it.copy(date = LocalDate.fromEpochDays((millis / 86_400_000L).toInt())) }
                     }
                     showDatePicker = false
@@ -174,20 +198,28 @@ fun CreateTodoScreen(
         ) { DatePicker(state = pickerState) }
     }
 
-    if (showTimePicker) {
+    val target = timeTarget
+    if (target != null) {
         val timeState = rememberTimePickerState(initialHour = state.time.hour, initialMinute = state.time.minute, is24Hour = true)
         AlertDialog(
-            onDismissRequest = { showTimePicker = false },
+            onDismissRequest = { timeTarget = null },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.update { it.copy(time = LocalTime(timeState.hour, timeState.minute)) }
-                    showTimePicker = false
+                    val picked = LocalTime(timeState.hour, timeState.minute)
+                    viewModel.update {
+                        when (target) {
+                            TimeTarget.Start -> it.copy(time = picked)
+                            TimeTarget.ExtraTime -> it.copy(times = (it.times + picked).distinct())
+                        }
+                    }
+                    timeTarget = null
                 }) { Text("OK") }
             },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { timeTarget = null }) { Text("Cancel") } },
             text = { TimePicker(state = timeState) },
         )
     }
 }
 
-private fun twoDigits(value: Int): String = value.toString().padStart(2, '0')
+private fun LocalTime.formatted(): String =
+    hour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0')

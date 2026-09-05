@@ -105,6 +105,12 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] Pomodoro countdown bound to `phaseEndsAt` (server-authoritative: ticks to the deadline while
       active, shows the frozen remainder while paused; pause/resume/skip/end; auto-attaches a
       Classic 25+5+25 template when the todo has none)
+- [x] First manual test feedback (owner, 2026-08-31): sessions are cyclic ("Start another cycle"
+      after completion; re-entering a finished session no longer sticks and never auto-starts),
+      "N times a day" via a times list (BYHOUR list, same-minute constraint surfaced in the UI),
+      interval as a stepper reading "Every 2 days", all six frequencies exposed (hourly water
+      plans work)
+- [ ] Server-side cyclic mode ("repeat template until ended") so auto-advance loops too
 - [ ] Occurrence calendar; edit-todo & reschedule UI; account/MFA settings screen
 - [ ] SignalR connection (`/hubs/kadans`) so run state and notifications arrive live
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs

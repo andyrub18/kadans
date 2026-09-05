@@ -35,10 +35,15 @@ data class CreateTodoUiState(
     val frequency: Frequency = Frequency.Daily,
     val interval: Int = 1,
     val count: Int? = null,
+    /** Extra wall-clock times for "N times a day" (Daily only); empty = the single [time]. */
+    val times: List<LocalTime> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
 ) {
-    val canSubmit: Boolean get() = title.isNotBlank() && date != null && interval >= 1 && !isLoading
+    val timesShareMinute: Boolean get() = times.map { it.minute }.distinct().size <= 1
+
+    val canSubmit: Boolean
+        get() = title.isNotBlank() && date != null && interval >= 1 && timesShareMinute && !isLoading
 }
 
 class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
@@ -75,9 +80,12 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
     }
 
     internal companion object {
+        fun effectiveTime(state: CreateTodoUiState): LocalTime =
+            state.times.minOrNull() ?: state.time
+
         /** The picked wall-clock date/time is meant in the user's zone; the API takes instants. */
         fun startInstant(state: CreateTodoUiState, timeZone: TimeZone): Instant =
-            LocalDateTime(state.date!!, state.time).toInstant(timeZone)
+            LocalDateTime(state.date!!, effectiveTime(state)).toInstant(timeZone)
 
         fun buildOneTime(state: CreateTodoUiState, timeZone: TimeZone) = CreateOneTimeTodo(
             title = state.title.trim(),
@@ -86,17 +94,37 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
             dueDate = startInstant(state, timeZone),
         )
 
-        fun buildRecurring(state: CreateTodoUiState, timeZone: TimeZone) = CreateRecurringTodo(
-            title = state.title.trim(),
-            description = state.description.trim(),
-            notificationEnabled = state.notify,
-            recurrenceRule = CreateRecurrenceRule(
-                frequency = state.frequency,
-                startDate = startInstant(state, timeZone),
-                interval = state.interval,
-                count = state.count,
-                timeZone = timeZone.id,
-            ),
-        )
+        fun buildRecurring(state: CreateTodoUiState, timeZone: TimeZone): CreateRecurringTodo {
+            // "3 times a day": RRULE's BYHOUR×BYMINUTE is a cross product, so the UI keeps
+            // all times on the same minute and we send the hour list once.
+            val daily = state.frequency == Frequency.Daily && state.times.size > 1
+            return CreateRecurringTodo(
+                title = state.title.trim(),
+                description = state.description.trim(),
+                notificationEnabled = state.notify,
+                recurrenceRule = CreateRecurrenceRule(
+                    frequency = state.frequency,
+                    startDate = startInstant(state, timeZone),
+                    interval = state.interval,
+                    byHour = if (daily) state.times.map { it.hour }.distinct().sorted() else null,
+                    byMinute = if (daily) listOf(state.times.first().minute) else null,
+                    count = state.count,
+                    timeZone = timeZone.id,
+                ),
+            )
+        }
+
+        /** "Every day", "Every 2 hours" — the stepper's sentence. */
+        fun everyLabel(frequency: Frequency, interval: Int): String {
+            val unit = when (frequency) {
+                Frequency.Minutely -> "minute"
+                Frequency.Hourly -> "hour"
+                Frequency.Daily -> "day"
+                Frequency.Weekly -> "week"
+                Frequency.Monthly -> "month"
+                Frequency.Yearly -> "year"
+            }
+            return if (interval == 1) "Every $unit" else "Every $interval ${unit}s"
+        }
     }
 }

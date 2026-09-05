@@ -63,6 +63,54 @@ internal static class PomodoroRoutes
                 .ProducesProblem(StatusCodes.Status500InternalServerError);
 
             group.MapPut(
+                    "/pomodoro/templates/{id:guid}",
+                    async Task<Results<Ok<PomodoroTemplateResponse>, ProblemHttpResult>> (
+                        Guid id,
+                        CreatePomodoroTemplate request,
+                        PomodoroService service,
+                        HttpContext context
+                    ) =>
+                    {
+                        var result = await service.UpdateTemplate(id, request);
+                        return result.Match<Results<Ok<PomodoroTemplateResponse>, ProblemHttpResult>>(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            template => TypedResults.Ok(template)
+                        );
+                    }
+                )
+                .WithTags("Pomodoro")
+                .WithName("PomodoroUpdateTemplate")
+                .WithSummary("Update a Pomodoro template")
+                .WithDescription("Replaces name and phases. Past and active runs keep the phases they started with.")
+                .Produces<PomodoroTemplateResponse>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            group.MapDelete(
+                    "/pomodoro/templates/{id:guid}",
+                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
+                        Guid id,
+                        PomodoroService service,
+                        HttpContext context
+                    ) =>
+                    {
+                        var result = await service.DeleteTemplate(id);
+                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            _ => TypedResults.Ok(new Success())
+                        );
+                    }
+                )
+                .WithTags("Pomodoro")
+                .WithName("PomodoroDeleteTemplate")
+                .WithSummary("Delete a Pomodoro template")
+                .WithDescription("Todos using it fall back to no template; run history keeps its snapshots.")
+                .Produces<Success>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            group.MapPut(
                     "/todos/{id:guid}/pomodoro-template",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,

@@ -33,6 +33,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onLoggedOut: () -> Unit,
     onCreateTodo: () -> Unit,
+    onOpenTemplates: () -> Unit,
     onOpenTodo: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -51,6 +52,7 @@ fun HomeScreen(
             ) {
                 Text("Kadans", style = MaterialTheme.typography.headlineSmall)
                 Row {
+                    TextButton(onClick = onOpenTemplates) { Text("Cycles") }
                     TextButton(onClick = viewModel::refresh) { Text("Refresh") }
                     TextButton(onClick = viewModel::logout) { Text("Sign out") }
                 }

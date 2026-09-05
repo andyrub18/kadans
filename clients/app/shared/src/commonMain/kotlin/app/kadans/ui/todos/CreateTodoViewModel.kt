@@ -25,6 +25,9 @@ import kotlinx.coroutines.launch
 
 enum class TodoMode { OneTime, Recurring }
 
+/** How a recurring todo ends — clients often know the last date, not the count (a treatment course). */
+enum class EndMode { Never, AfterCount, OnDate }
+
 data class CreateTodoUiState(
     val title: String = "",
     val description: String = "",
@@ -35,6 +38,8 @@ data class CreateTodoUiState(
     val frequency: Frequency = Frequency.Daily,
     val interval: Int = 1,
     val count: Int? = null,
+    val endMode: EndMode = EndMode.Never,
+    val untilDate: LocalDate? = null,
     /** Extra wall-clock times for "N times a day" (Daily only); empty = the single [time]. */
     val times: List<LocalTime> = emptyList(),
     val isLoading: Boolean = false,
@@ -42,8 +47,16 @@ data class CreateTodoUiState(
 ) {
     val timesShareMinute: Boolean get() = times.map { it.minute }.distinct().size <= 1
 
+    val endValid: Boolean
+        get() = when (endMode) {
+            EndMode.Never -> true
+            EndMode.AfterCount -> (count ?: 0) > 0
+            EndMode.OnDate -> untilDate != null && (date == null || untilDate >= date)
+        }
+
     val canSubmit: Boolean
-        get() = title.isNotBlank() && date != null && interval >= 1 && timesShareMinute && !isLoading
+        get() = title.isNotBlank() && date != null && interval >= 1 && timesShareMinute &&
+            (mode == TodoMode.OneTime || endValid) && !isLoading
 }
 
 class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
@@ -108,7 +121,11 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                     interval = state.interval,
                     byHour = if (daily) state.times.map { it.hour }.distinct().sorted() else null,
                     byMinute = if (daily) listOf(state.times.first().minute) else null,
-                    count = state.count,
+                    count = if (state.endMode == EndMode.AfterCount) state.count else null,
+                    // Inclusive end of the picked day in the user's zone, so that day's occurrences count.
+                    until = if (state.endMode == EndMode.OnDate)
+                        LocalDateTime(state.untilDate!!, LocalTime(23, 59)).toInstant(timeZone)
+                    else null,
                     timeZone = timeZone.id,
                 ),
             )

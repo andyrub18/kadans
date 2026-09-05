@@ -60,6 +60,14 @@ C("bounded todo auto-completes once nothing is pending", todo["status"] == "Comp
 s, hist = call("GET", f"/todos/{t3['id']}/history", token=T)
 C("history shows all 3 with statuses", sorted(h["status"] for h in hist) == ["Cancelled", "Completed", "Completed"], f"{[h['status'] for h in hist]}")
 
+# --- until: "I know when it ends, not how many" (a treatment course) ---
+s, tu = call("POST", "/todos/recurring", {"title": "smoke: antibiotics", "description": "", "notificationEnabled": False,
+             "recurrenceRule": {"frequency": "Daily", "startDate": iso(start), "timeZone": "UTC", "until": iso(start + dt.timedelta(days=3))}}, token=T)
+C("recurring with until accepted", s == 200 and tu["recurrenceRule"]["until"] is not None and tu["recurrenceRule"]["count"] is None, f"{s}")
+ou = occ(tu["id"])
+C("until bounds the occurrences inclusively (4 days)", len(ou) == 4, f"{len(ou)}")
+call("PUT", f"/todos/{tu['id']}/cancel", {"reason": "cleanup"}, token=T)
+
 # --- indefinite hourly rule: horizon, batch cap, previews ---
 s, th = call("POST", "/todos/recurring", {"title": "smoke: hourly", "description": "", "notificationEnabled": False,
              "recurrenceRule": {"frequency": "Hourly", "startDate": iso(start), "timeZone": "UTC"}}, token=T)

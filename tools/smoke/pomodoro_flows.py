@@ -38,6 +38,16 @@ T = tok["accessToken"]
 s, base = call("GET", "/pomodoro/stats", token=T)  # the dev DB accumulates; assert deltas
 s, tpl = call("POST", "/pomodoro/templates", {"name": "smoke classic", "phases": [
     {"type": "Focus", "durationMinutes": 25}, {"type": "Break", "durationMinutes": 5}, {"type": "Focus", "durationMinutes": 25}]}, token=T)
+# template lifecycle: update and delete
+s, tmp = call("POST", "/pomodoro/templates", {"name": "smoke throwaway", "phases": [{"type": "Focus", "durationMinutes": 10}]}, token=T)
+s, tmp = call("PUT", f"/pomodoro/templates/{tmp['id']}", {"name": "smoke renamed", "phases": [
+    {"type": "Focus", "durationMinutes": 50}, {"type": "Break", "durationMinutes": 10}]}, token=T)
+C("template update replaces name and phases", s == 200 and tmp["name"] == "smoke renamed" and [p["durationMinutes"] for p in tmp["phases"]] == [50, 10], f"{s}")
+s, _ = call("DELETE", f"/pomodoro/templates/{tmp['id']}", token=T)
+C("template delete", s == 200)
+s, r = call("DELETE", f"/pomodoro/templates/{tmp['id']}", token=T)
+C("template delete again -> 404", s == 404)
+
 s, todo = call("POST", "/todos/one-time", {"title": "smoke: deep work", "description": "", "notificationEnabled": False,
                "dueDate": iso(now + dt.timedelta(days=1)), "pomodoroTemplateId": tpl["id"]}, token=T)
 

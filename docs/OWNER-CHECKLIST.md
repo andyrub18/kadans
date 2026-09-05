@@ -32,6 +32,11 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
       and the ID tokens it returns carry *this* id as audience → it must also go into
       `ExternalAuth:Google:ClientIds`
 - [ ] **iOS** OAuth client: bundle id `app.kadans`
+- Consent screen: keep it in **Testing** mode with your Google account as a test user — no domain,
+      homepage or privacy links required. At public launch: switch to Production and add
+      `kadans.app` as an authorized domain plus homepage/privacy-policy URLs (verification needs them).
+      Testing mode's 7-day limit applies to Google refresh tokens, which Kadans never uses — sign-in
+      consumes fresh ID tokens only.
 - The API itself never needs any Google client secret — it only verifies ID-token audiences.
 
 ## Sign in with Apple

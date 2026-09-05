@@ -32,7 +32,7 @@ data class MfaRoute(val mfaToken: String)
 data object HomeRoute
 data object CreateTodoRoute
 data class TodoDetailRoute(val todoId: String)
-data class PomodoroRoute(val todoId: String)
+data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false)
 
 @Composable
 fun App() {
@@ -104,12 +104,17 @@ private fun KadansNav(startAtHome: Boolean) {
                 is TodoDetailRoute -> NavEntry(key) {
                     TodoDetailScreen(
                         todoId = key.todoId,
-                        onOpenPomodoro = { backStack.add(PomodoroRoute(key.todoId)) },
+                        onOpenPomodoro = { loop, handsFree -> backStack.add(PomodoroRoute(key.todoId, loop, handsFree)) },
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }
                 is PomodoroRoute -> NavEntry(key) {
-                    PomodoroScreen(todoId = key.todoId, onBack = { backStack.removeLastOrNull() })
+                    PomodoroScreen(
+                        todoId = key.todoId,
+                        loop = key.loop,
+                        handsFree = key.handsFree,
+                        onBack = { backStack.removeLastOrNull() },
+                    )
                 }
                 else -> error("Unknown route: $key")
             }

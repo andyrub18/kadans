@@ -96,10 +96,11 @@ internal static class PomodoroRoutes
                         Guid id,
                         PomodoroService service,
                         HttpContext context,
-                        [FromQuery] bool autoAdvance = false
+                        [FromQuery] bool autoAdvance = false,
+                        [FromQuery] bool loop = false
                     ) =>
                     {
-                        var result = await service.StartRun(id, autoAdvance);
+                        var result = await service.StartRun(id, autoAdvance, loop);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
@@ -110,7 +111,7 @@ internal static class PomodoroRoutes
                 .WithTags("Pomodoro", "Todos")
                 .WithName("PomodoroStartRun")
                 .WithSummary("Start Pomodoro run")
-                .WithDescription("Starts a run from the attached template. With ?autoAdvance=true the server advances phases as they run out and notifies.")
+                .WithDescription("Starts a run from the attached template. ?autoAdvance=true: the server advances phases as they run out and notifies. ?loop=true: after the last phase the cycle restarts (a new lap) until /finish.")
                 .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
@@ -255,6 +256,30 @@ internal static class PomodoroRoutes
                 .WithName("PomodoroAdvanceRun")
                 .WithSummary("Advance Pomodoro run phase")
                 .WithDescription("Completes the current phase and advances to the next one.")
+                .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            group.MapPut(
+                    "/pomodoro/runs/{runId:guid}/finish",
+                    async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
+                        Guid runId,
+                        PomodoroService service,
+                        HttpContext context
+                    ) =>
+                    {
+                        var result = await service.FinishRun(runId);
+                        return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
+                            error =>
+                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                            run => TypedResults.Ok(run)
+                        );
+                    }
+                )
+                .WithTags("Pomodoro")
+                .WithName("PomodoroFinishRun")
+                .WithSummary("Finish a run (session complete)")
+                .WithDescription("Ends the session as completed — the natural end of a looping run.")
                 .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);

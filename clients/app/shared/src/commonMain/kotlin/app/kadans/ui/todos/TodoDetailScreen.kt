@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -30,7 +31,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun TodoDetailScreen(
     todoId: String,
-    onOpenPomodoro: () -> Unit,
+    onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
     onBack: () -> Unit,
     viewModel: TodoDetailViewModel = koinViewModel(key = "todo-$todoId") { parametersOf(todoId) },
 ) {
@@ -53,9 +54,11 @@ fun TodoDetailScreen(
 private fun Detail(
     content: TodoDetailUiState.Content,
     viewModel: TodoDetailViewModel,
-    onOpenPomodoro: () -> Unit,
+    onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
+    var loop by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+    var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -81,8 +84,22 @@ private fun Detail(
             }
         }
 
+        if (!content.hasActiveRun) {
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Repeat the cycle until I finish", style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Switch(checked = loop, onCheckedChange = { loop = it })
+                }
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Hands-free (advance + notify automatically)", style = MaterialTheme.typography.bodyMedium)
+                    androidx.compose.material3.Switch(checked = handsFree, onCheckedChange = { handsFree = it })
+                }
+            }
+        }
         item {
-            Button(onClick = onOpenPomodoro, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { onOpenPomodoro(loop, handsFree) }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (content.hasActiveRun) "Open focus session" else "Start focus session")
             }
         }

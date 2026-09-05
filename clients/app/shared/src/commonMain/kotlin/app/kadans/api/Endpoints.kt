@@ -151,8 +151,14 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
             .orThrow<Success>()
     }
 
-    suspend fun start(todoId: String, autoAdvance: Boolean = false): PomodoroRunResponse =
-        api.http.post("todos/$todoId/pomodoro/start") { parameter("autoAdvance", autoAdvance) }.orThrow()
+    suspend fun start(todoId: String, autoAdvance: Boolean = false, loop: Boolean = false): PomodoroRunResponse =
+        api.http.post("todos/$todoId/pomodoro/start") {
+            parameter("autoAdvance", autoAdvance)
+            parameter("loop", loop)
+        }.orThrow()
+
+    suspend fun finish(runId: String): PomodoroRunResponse =
+        api.http.put("pomodoro/runs/$runId/finish").orThrow()
 
     suspend fun activeRun(todoId: String): PomodoroRunResponse =
         api.http.get("todos/$todoId/pomodoro/active-run").orThrow()

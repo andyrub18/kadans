@@ -118,6 +118,8 @@ internal static class ContractMappings
                 run.PhaseEndsAt,
                 run.PausedRemaining is { } remaining ? (int)remaining.TotalSeconds : null,
                 run.AutoAdvance,
+                run.Loop,
+                run.CycleLength,
                 [.. run.Phases.OrderBy(p => p.Order).Select(p => p.ToResponse())],
                 run.StartedAt,
                 run.PausedAt,

@@ -27,7 +27,7 @@ val appModule = org.koin.dsl.module {
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     viewModelOf(::CreateTodoViewModel)
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }
-    factory { (todoId: String) -> PomodoroViewModel(get(), todoId) }
+    factory { (todoId: String, loop: Boolean, handsFree: Boolean) -> PomodoroViewModel(get(), todoId, loop, handsFree) }
 }
 
 private var started = false

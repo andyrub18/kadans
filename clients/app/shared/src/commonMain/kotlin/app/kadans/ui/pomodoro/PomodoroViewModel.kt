@@ -26,7 +26,12 @@ sealed interface PomodoroUiState {
     data class Error(val message: String) : PomodoroUiState
 }
 
-class PomodoroViewModel(private val api: KadansApi, private val todoId: String) : ViewModel() {
+class PomodoroViewModel(
+    private val api: KadansApi,
+    private val todoId: String,
+    private val loop: Boolean = true,
+    private val handsFree: Boolean = false,
+) : ViewModel() {
     private val _state = MutableStateFlow<PomodoroUiState>(PomodoroUiState.Loading)
     val state: StateFlow<PomodoroUiState> = _state.asStateFlow()
 
@@ -62,7 +67,7 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
 
     private suspend fun startInternal() {
         try {
-            adopt(api.pomodoro.start(todoId))
+            adopt(api.pomodoro.start(todoId, autoAdvance = handsFree, loop = loop))
         } catch (e: KadansApiException) {
             if (e.errorCode == "10031") {
                 // No template attached: give the todo the classic cycle and retry.
@@ -70,16 +75,23 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
                     val template = api.pomodoro.templates().firstOrNull()
                         ?: api.pomodoro.createTemplate(
                             CreatePomodoroTemplate(
-                                "Classic",
+                                "Pomodoro 4×25",
+                                // The real pomodoro cycle: four 25-minute focuses with short
+                                // breaks, the last break long. Loop repeats it until finished.
                                 listOf(
                                     CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
                                     CreatePomodoroPhase(PomodoroPhaseType.Break, 5),
                                     CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
+                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 5),
+                                    CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
+                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 5),
+                                    CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
+                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 30),
                                 ),
                             )
                         )
                     api.pomodoro.attachTemplate(todoId, template.id)
-                    adopt(api.pomodoro.start(todoId))
+                    adopt(api.pomodoro.start(todoId, autoAdvance = handsFree, loop = loop))
                 } catch (inner: KadansApiException) {
                     fail(inner)
                 } catch (inner: Exception) {
@@ -98,6 +110,8 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
     fun skipPhase() = mutate { api.pomodoro.advance(it.id, it.currentPhaseIndex) }
 
     fun end() = mutate { api.pomodoro.cancel(it.id) }
+
+    fun finish() = mutate { api.pomodoro.finish(it.id) }
 
     private fun mutate(action: suspend (PomodoroRunResponse) -> PomodoroRunResponse) {
         val run = (state.value as? PomodoroUiState.Session)?.run ?: return
@@ -136,6 +150,12 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
             PomodoroRunStatus.Paused -> (run.pausedRemainingSeconds ?: 0).seconds
             else -> Duration.ZERO
         }
+
+        fun lapOf(phaseIndex: Int, cycleLength: Int): Int =
+            if (cycleLength <= 0) 1 else phaseIndex / cycleLength + 1
+
+        fun positionInLap(phaseIndex: Int, cycleLength: Int): Int =
+            if (cycleLength <= 0) phaseIndex + 1 else phaseIndex % cycleLength + 1
 
         fun format(remaining: Duration): String {
             val total = remaining.inWholeSeconds

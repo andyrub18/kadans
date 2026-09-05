@@ -62,6 +62,12 @@ internal sealed class PomodoroRun
     /// <summary>When true, the server advances phases as they run out (and notifies); otherwise the client calls advance.</summary>
     public bool AutoAdvance { get; private set; }
 
+    /// <summary>A pomodoro proper: after the last phase the cycle starts over (a new lap) until <see cref="Finish"/>.</summary>
+    public bool Loop { get; private set; }
+
+    /// <summary>Phases per lap, fixed at start. CurrentPhaseIndex / CycleLength is the lap number.</summary>
+    public int CycleLength { get; private set; }
+
     public DateTimeOffset StartedAt { get; private init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? PausedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
@@ -77,7 +83,8 @@ internal sealed class PomodoroRun
         IReadOnlyList<PomodoroTemplatePhase> templatePhases,
         string userId,
         bool autoAdvance,
-        DateTimeOffset now
+        DateTimeOffset now,
+        bool loop = false
     )
     {
         var ordered = templatePhases.OrderBy(p => p.Order).ToList();
@@ -88,6 +95,8 @@ internal sealed class PomodoroRun
             PomodoroTemplateId = todo.PomodoroTemplateId,
             UserId = userId,
             AutoAdvance = autoAdvance,
+            Loop = loop,
+            CycleLength = ordered.Count,
             StartedAt = now,
             UpdatedAt = now,
             Phases = ordered
@@ -147,9 +156,31 @@ internal sealed class PomodoroRun
 
         if (CurrentPhaseIndex == ordered.Count - 1)
         {
-            Status = PomodoroRunStatus.Completed;
-            CompletedAt = now;
-            PhaseEndsAt = null;
+            if (Loop)
+            {
+                // New lap: append fresh copies of the first cycle so every lap keeps its own
+                // timestamps (history and stats count each completed phase).
+                var lapStart = ordered.Count;
+                var lap = ordered
+                    .Take(CycleLength)
+                    .Select((template, offset) => new PomodoroRunPhase
+                    {
+                        Order = lapStart + offset,
+                        Type = template.Type,
+                        DurationMinutes = template.DurationMinutes,
+                    })
+                    .ToList();
+                Phases.AddRange(lap);
+                CurrentPhaseIndex = lapStart;
+                lap[0].StartedAt = now;
+                PhaseEndsAt = now + TimeSpan.FromMinutes(lap[0].DurationMinutes);
+            }
+            else
+            {
+                Status = PomodoroRunStatus.Completed;
+                CompletedAt = now;
+                PhaseEndsAt = null;
+            }
         }
         else
         {
@@ -159,6 +190,20 @@ internal sealed class PomodoroRun
             PhaseEndsAt = now + TimeSpan.FromMinutes(next.DurationMinutes);
         }
 
+        UpdatedAt = now;
+        return new Success();
+    }
+
+    /// <summary>The workday is over: a looping session ends as completed, not cancelled.</summary>
+    public OneOf<ApplicationError, Success> Finish(DateTimeOffset now)
+    {
+        if (!IsRunning)
+            return InvalidState("Only active or paused runs can be finished.");
+
+        Status = PomodoroRunStatus.Completed;
+        CompletedAt = now;
+        PhaseEndsAt = null;
+        PausedRemaining = null;
         UpdatedAt = now;
         return new Success();
     }

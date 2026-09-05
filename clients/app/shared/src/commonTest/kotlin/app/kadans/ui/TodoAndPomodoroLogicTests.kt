@@ -105,6 +105,19 @@ class TodoAndPomodoroLogicTests {
     }
 
     @Test
+    fun lap_math_follows_the_cycle_length() {
+        // 8-phase cycle: index 0 -> lap 1 pos 1; index 7 -> lap 1 pos 8; index 8 -> lap 2 pos 1.
+        assertEquals(1, PomodoroViewModel.lapOf(0, 8))
+        assertEquals(8, PomodoroViewModel.positionInLap(7, 8))
+        assertEquals(2, PomodoroViewModel.lapOf(8, 8))
+        assertEquals(1, PomodoroViewModel.positionInLap(8, 8))
+        assertEquals(3, PomodoroViewModel.lapOf(17, 8))
+        // Legacy runs without a cycle length fall back to flat numbering.
+        assertEquals(1, PomodoroViewModel.lapOf(5, 0))
+        assertEquals(6, PomodoroViewModel.positionInLap(5, 0))
+    }
+
+    @Test
     fun countdown_formats_as_minutes_and_seconds() {
         assertEquals("25:00", PomodoroViewModel.format(25.minutes))
         assertEquals("4:05", PomodoroViewModel.format(4.minutes + 5.seconds))

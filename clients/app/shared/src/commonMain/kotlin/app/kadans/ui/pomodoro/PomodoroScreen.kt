@@ -26,8 +26,10 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun PomodoroScreen(
     todoId: String,
+    loop: Boolean,
+    handsFree: Boolean,
     onBack: () -> Unit,
-    viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId") { parametersOf(todoId) },
+    viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId-$loop-$handsFree") { parametersOf(todoId, loop, handsFree) },
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -75,7 +77,10 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "Phase ${run.currentPhaseIndex + 1} of ${run.phases.size}",
+                    if (run.loop && run.cycleLength > 0)
+                        "Lap ${PomodoroViewModel.lapOf(run.currentPhaseIndex, run.cycleLength)} · phase ${PomodoroViewModel.positionInLap(run.currentPhaseIndex, run.cycleLength)} of ${run.cycleLength}"
+                    else
+                        "Phase ${run.currentPhaseIndex + 1} of ${run.phases.size}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -93,10 +98,15 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     } else {
                         Button(onClick = viewModel::resume) { Text("Resume") }
                     }
-                    OutlinedButton(onClick = viewModel::skipPhase, enabled = run.status == PomodoroRunStatus.Active) { Text("Skip phase") }
+                    OutlinedButton(onClick = viewModel::skipPhase, enabled = run.status == PomodoroRunStatus.Active) { Text("Next phase") }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
-                    TextButton(onClick = viewModel::end) { Text("End session", color = MaterialTheme.colorScheme.error) }
+                    if (run.loop) {
+                        TextButton(onClick = viewModel::finish) { Text("Finish session") }
+                        TextButton(onClick = viewModel::end) { Text("Discard", color = MaterialTheme.colorScheme.error) }
+                    } else {
+                        TextButton(onClick = viewModel::end) { Text("End session", color = MaterialTheme.colorScheme.error) }
+                    }
                     TextButton(onClick = onBack) { Text("Back") }
                 }
             }

@@ -21,10 +21,23 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
 
 ## Google Sign-In
 
-- [ ] Google Cloud project → OAuth 2.0 client IDs, one per platform the app runs on
-      (Android: package name + SHA-1; iOS: bundle id; desktop/web: "Web application" client)
-- [ ] All of them → `ExternalAuth:Google:ClientIds` (array; user-secrets: `ExternalAuth:Google:ClientIds:0`, `:1`, …)
-- No client secret is needed: the API only verifies ID tokens the client obtained natively.
+- [x] Google Cloud project (`kadans-507716`) + **Desktop** OAuth client — registered as
+      `ExternalAuth:Google:ClientIds:0` in dev user-secrets. The desktop client is the right type
+      for the JVM app's future loopback sign-in; its "client secret" is non-confidential by
+      Google's definition for installed apps, but still keep the JSON out of git.
+- [ ] **Android** OAuth client: package `app.kadans`, plus the SHA-1 of your debug keystore
+      (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`)
+      and later the release keystore's SHA-1
+- [ ] **Web application** OAuth client: Android's Credential Manager wants it as `serverClientId`,
+      and the ID tokens it returns carry *this* id as audience → it must also go into
+      `ExternalAuth:Google:ClientIds`
+- [ ] **iOS** OAuth client: bundle id `app.kadans`
+- Consent screen: keep it in **Testing** mode with your Google account as a test user — no domain,
+      homepage or privacy links required. At public launch: switch to Production and add
+      `kadans.app` as an authorized domain plus homepage/privacy-policy URLs (verification needs them).
+      Testing mode's 7-day limit applies to Google refresh tokens, which Kadans never uses — sign-in
+      consumes fresh ID tokens only.
+- The API itself never needs any Google client secret — it only verifies ID-token audiences.
 
 ## Sign in with Apple
 

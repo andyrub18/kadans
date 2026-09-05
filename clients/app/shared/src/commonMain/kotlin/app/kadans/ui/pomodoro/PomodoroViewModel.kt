@@ -31,25 +31,41 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
     val state: StateFlow<PomodoroUiState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch { tick() }
+    }
+
+    /**
+     * Called on every entry of the screen. Adopts whatever the server says is live; auto-starts
+     * only on the first open (Loading). A finished session stays on screen until the user asks
+     * for another cycle — re-entering must never start a session by itself.
+     */
+    fun refresh() {
         viewModelScope.launch {
-            ensureRun()
-            tick()
+            try {
+                adopt(api.pomodoro.activeRun(todoId))
+            } catch (e: KadansApiException) {
+                when {
+                    e.errorCode != "10028" -> fail(e)
+                    _state.value is PomodoroUiState.Loading -> startInternal()
+                    // else: keep showing the finished session
+                }
+            } catch (e: Exception) {
+                fail(e)
+            }
         }
     }
 
-    /** Resume the todo's active run, or start one (attaching a Classic template if none is set). */
-    private suspend fun ensureRun() {
-        try {
-            adopt(api.pomodoro.activeRun(todoId))
-            return
-        } catch (e: KadansApiException) {
-            if (e.errorCode != "10028") { fail(e); return }
-        } catch (e: Exception) { fail(e); return }
+    /** "Start another cycle": a fresh run for the same todo (the old one is completed/cancelled). */
+    fun startNew() {
+        viewModelScope.launch { startInternal() }
+    }
 
+    private suspend fun startInternal() {
         try {
             adopt(api.pomodoro.start(todoId))
         } catch (e: KadansApiException) {
             if (e.errorCode == "10031") {
+                // No template attached: give the todo the classic cycle and retry.
                 try {
                     val template = api.pomodoro.templates().firstOrNull()
                         ?: api.pomodoro.createTemplate(
@@ -64,9 +80,36 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
                         )
                     api.pomodoro.attachTemplate(todoId, template.id)
                     adopt(api.pomodoro.start(todoId))
-                } catch (inner: Exception) { fail(inner) }
+                } catch (inner: KadansApiException) {
+                    fail(inner)
+                } catch (inner: Exception) {
+                    fail(inner)
+                }
             } else fail(e)
-        } catch (e: Exception) { fail(e) }
+        } catch (e: Exception) {
+            fail(e)
+        }
+    }
+
+    fun pause() = mutate { api.pomodoro.pause(it.id) }
+
+    fun resume() = mutate { api.pomodoro.resume(it.id) }
+
+    fun skipPhase() = mutate { api.pomodoro.advance(it.id, it.currentPhaseIndex) }
+
+    fun end() = mutate { api.pomodoro.cancel(it.id) }
+
+    private fun mutate(action: suspend (PomodoroRunResponse) -> PomodoroRunResponse) {
+        val run = (state.value as? PomodoroUiState.Session)?.run ?: return
+        viewModelScope.launch {
+            try {
+                adopt(action(run))
+            } catch (e: KadansApiException) {
+                fail(e)
+            } catch (e: Exception) {
+                fail(e)
+            }
+        }
     }
 
     private suspend fun tick() {
@@ -87,26 +130,7 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
         _state.value = PomodoroUiState.Error((e as? KadansApiException)?.message ?: "Could not reach the server.")
     }
 
-    fun pause() = mutate { api.pomodoro.pause(it.id) }
-
-    fun resume() = mutate { api.pomodoro.resume(it.id) }
-
-    fun skipPhase() = mutate { api.pomodoro.advance(it.id, it.currentPhaseIndex) }
-
-    fun end() = mutate { api.pomodoro.cancel(it.id) }
-
-    private fun mutate(action: suspend (PomodoroRunResponse) -> PomodoroRunResponse) {
-        val run = (state.value as? PomodoroUiState.Session)?.run ?: return
-        viewModelScope.launch {
-            try { adopt(action(run)) } catch (e: KadansApiException) { fail(e) } catch (e: Exception) { fail(e) }
-        }
-    }
-
     internal companion object {
-        /**
-         * The server is the clock's owner: active runs count down to phaseEndsAt, paused runs
-         * hold pausedRemainingSeconds, finished runs are at zero.
-         */
         fun remainingOf(run: PomodoroRunResponse, now: kotlin.time.Instant): Duration = when (run.status) {
             PomodoroRunStatus.Active -> ((run.phaseEndsAt ?: now) - now).coerceAtLeast(Duration.ZERO)
             PomodoroRunStatus.Paused -> (run.pausedRemainingSeconds ?: 0).seconds
@@ -115,9 +139,7 @@ class PomodoroViewModel(private val api: KadansApi, private val todoId: String) 
 
         fun format(remaining: Duration): String {
             val total = remaining.inWholeSeconds
-            val minutes = total / 60
-            val seconds = total % 60
-            return "$minutes:" + seconds.toString().padStart(2, '0')
+            return "${total / 60}:" + (total % 60).toString().padStart(2, '0')
         }
     }
 }

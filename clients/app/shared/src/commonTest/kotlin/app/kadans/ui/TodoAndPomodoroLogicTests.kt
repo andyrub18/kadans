@@ -42,6 +42,36 @@ class TodoAndPomodoroLogicTests {
     }
 
     @Test
+    fun three_times_a_day_becomes_a_byHour_list_with_one_minute() {
+        val withTimes = state().copy(
+            interval = 1,
+            times = listOf(LocalTime(14, 0), LocalTime(8, 0), LocalTime(20, 0)),
+        )
+
+        val rule = CreateTodoViewModel.buildRecurring(withTimes, portAuPrince).recurrenceRule
+
+        assertEquals(listOf(8, 14, 20), rule.byHour)
+        assertEquals(listOf(0), rule.byMinute)
+        // The start anchors on the earliest time of the day: 08:00 -05:00 = 13:00Z.
+        assertEquals(Instant.parse("2027-01-04T13:00:00Z"), rule.startDate)
+    }
+
+    @Test
+    fun mismatched_minutes_block_submission() {
+        val bad = state().copy(times = listOf(LocalTime(8, 0), LocalTime(14, 30)))
+        assertEquals(false, bad.timesShareMinute)
+        assertEquals(false, bad.copy(title = "x").canSubmit)
+        assertEquals(true, state().copy(times = listOf(LocalTime(8, 15), LocalTime(20, 15))).timesShareMinute)
+    }
+
+    @Test
+    fun every_label_reads_like_a_sentence() {
+        assertEquals("Every day", CreateTodoViewModel.everyLabel(Frequency.Daily, 1))
+        assertEquals("Every 2 hours", CreateTodoViewModel.everyLabel(Frequency.Hourly, 2))
+        assertEquals("Every 3 weeks", CreateTodoViewModel.everyLabel(Frequency.Weekly, 3))
+    }
+
+    @Test
     fun one_time_request_carries_the_due_instant() {
         val request = CreateTodoViewModel.buildOneTime(state().copy(mode = TodoMode.OneTime), portAuPrince)
         assertEquals(Instant.parse("2027-01-04T14:00:00Z"), request.dueDate)

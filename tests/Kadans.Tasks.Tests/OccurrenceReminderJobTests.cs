@@ -1,3 +1,4 @@
+using Kadans.Modules.Tasks.Features;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
 
 namespace Kadans.Tasks.Tests;
@@ -13,6 +14,7 @@ public class OccurrenceReminderJobTests
     [Arguments(76, 10, 0, "3 d 4 h")]
     public async Task Describe_renders_a_compact_duration(int hours, int minutes, int seconds, string expected)
     {
-        await Assert.That(OccurrenceReminderJob.Describe(new TimeSpan(hours, minutes, seconds))).IsEqualTo(expected);
+        var texts = LocalizedTexts.Reminder("en");
+        await Assert.That(OccurrenceReminderJob.Describe(new TimeSpan(hours, minutes, seconds), texts)).IsEqualTo(expected);
     }
 }

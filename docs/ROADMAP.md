@@ -119,6 +119,12 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       (create/edit/delete phases) reachable from Home; per-todo cycle picker on the detail screen
 - [x] Recurring end choice in the client: Never / after a number of times / on a date (inclusive
       end-of-day `until` in the user's zone — the backend supported until XOR count all along)
+- [x] Trilingual (en / fr / ht Kreyòl Ayisyen): client `StringsCatalog` data class (a missing
+      translation is a compile error) with `LocalStrings`; in-app picker (Login chips, Home cycle
+      button), persisted, first run follows the device language; API errors localized by
+      `errorCode` with server-detail fallback. Server: `PreferredLanguage` on the user (synced on
+      switch) drives localized emails and localized reminder/pomodoro notifications.
+      Still English: server-side validation detail texts (later pass).
 - [ ] Occurrence calendar; edit-todo & reschedule UI; account/MFA settings screen
 - [ ] SignalR connection (`/hubs/kadans`) so run state and notifications arrive live
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs

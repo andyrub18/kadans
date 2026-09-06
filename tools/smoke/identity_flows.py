@@ -38,10 +38,11 @@ def C(label, ok, extra=""):
     if not check(label, ok, extra): fails += 1
 
 # register + confirm
-s, r = call("POST", "/auth/register", {"username": "alice", "password": "Alice123!", "email": "alice@example.com", "displayName": "Alice", "timeZone": "America/Port-au-Prince"})
+s, r = call("POST", "/auth/register", {"username": "alice", "password": "Alice123!", "email": "alice@example.com", "displayName": "Alice", "timeZone": "America/Port-au-Prince", "language": "ht"})
 C("register alice", s == 200 and r["emailConfirmed"] is False, f"{s}")
 m = link(r"/auth/confirm-email\?userId=([^&\s]+)&token=([^\s]+)")
 C("confirmation link logged", m is not None)
+C("confirmation email is in Kreyòl", "Konfime imèl Kadans ou" in open(LOG).read())
 s, r = call("GET", f"/auth/confirm-email?userId={m[0]}&token={m[1]}", raw=True)
 C("GET confirm link", s == 200 and "confirmed" in r, f"{s}")
 s, tok = call("POST", "/auth/login", {"username": "alice@example.com", "password": "Alice123!"})
@@ -134,7 +135,8 @@ C("device delete again -> 404", s == 404)
 
 # external wiring
 s, r = call("POST", "/auth/external", {"provider": "google", "idToken": "junk"})
-C("external google unconfigured -> 400 10036", s == 400 and r["errorCode"] == "10036", f"{s} {r.get('errorCode') if r else r}")
+# unconfigured env -> 400/10036; env with a registered client id -> 401/10035 (token invalid)
+C("external google rejects junk", (s, r.get("errorCode")) in ((400, "10036"), (401, "10035")), f"{s} {r.get('errorCode') if r else r}")
 s, r = call("POST", "/auth/external", {"provider": "facebook", "idToken": "junk"})
 C("external unknown provider -> 400", s == 400)
 

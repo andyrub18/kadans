@@ -23,7 +23,7 @@ sealed interface PomodoroUiState {
 
     data class Session(val run: PomodoroRunResponse, val remaining: Duration) : PomodoroUiState
 
-    data class Error(val message: String) : PomodoroUiState
+    data class Error(val message: String?, val code: String? = null) : PomodoroUiState
 }
 
 class PomodoroViewModel(
@@ -141,7 +141,8 @@ class PomodoroViewModel(
     }
 
     private fun fail(e: Exception) {
-        _state.value = PomodoroUiState.Error((e as? KadansApiException)?.message ?: "Could not reach the server.")
+        val api = e as? KadansApiException
+        _state.value = if (api != null) PomodoroUiState.Error(api.message, api.errorCode) else PomodoroUiState.Error(null, "network")
     }
 
     internal companion object {

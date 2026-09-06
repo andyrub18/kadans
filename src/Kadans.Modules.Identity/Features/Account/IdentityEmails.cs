@@ -24,11 +24,12 @@ internal sealed class IdentityEmails(
 
         var token = Encode(await userManager.GenerateEmailConfirmationTokenAsync(user));
         var link = $"{BaseUrl}/auth/confirm-email?userId={Uri.EscapeDataString(user.Id)}&token={token}";
+        var texts = EmailTexts.For(user.PreferredLanguage);
 
         await SendAsync(
             user.Email,
-            "Confirm your Kadans email",
-            $"Welcome to Kadans, {Greeting(user)}. Confirm your email address by opening this link:\n{link}\n\nIf you did not create this account, ignore this message.",
+            texts.ConfirmSubject,
+            string.Format(texts.ConfirmBody, Greeting(user), link),
             cancellationToken
         );
     }
@@ -40,11 +41,12 @@ internal sealed class IdentityEmails(
 
         var token = Encode(await userManager.GeneratePasswordResetTokenAsync(user));
         var link = $"{BaseUrl}/auth/reset-password?email={Uri.EscapeDataString(user.Email)}&token={token}";
+        var texts = EmailTexts.For(user.PreferredLanguage);
 
         await SendAsync(
             user.Email,
-            "Reset your Kadans password",
-            $"Hi {Greeting(user)}, someone asked to reset the password of this account. Open this link to choose a new one:\n{link}\n\nThe link expires soon. If it wasn't you, you can ignore this message; your password stays unchanged.",
+            texts.ResetSubject,
+            string.Format(texts.ResetBody, Greeting(user), link),
             cancellationToken
         );
     }
@@ -53,11 +55,12 @@ internal sealed class IdentityEmails(
     {
         var token = Encode(await userManager.GenerateChangeEmailTokenAsync(user, newEmail));
         var link = $"{BaseUrl}/users/me/email/confirm?newEmail={Uri.EscapeDataString(newEmail)}&token={token}";
+        var texts = EmailTexts.For(user.PreferredLanguage);
 
         await SendAsync(
             newEmail,
-            "Confirm your new Kadans email",
-            $"Hi {Greeting(user)}, confirm that this is your new email address by opening this link:\n{link}\n\nIf you did not request this change, ignore this message.",
+            texts.ChangeSubject,
+            string.Format(texts.ChangeBody, Greeting(user), link),
             cancellationToken
         );
     }

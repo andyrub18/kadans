@@ -21,6 +21,8 @@ internal sealed class UserManagement(
 )
 {
     private const string AdminRoleName = "Admin";
+    private static readonly string[] SupportedLanguages = ["en", "fr", "ht"];
+    private string? pendingLanguage;
 
     public async Task<OneOf<ApplicationError, UserResponse>> GetCurrentUser()
     {
@@ -45,6 +47,7 @@ internal sealed class UserManagement(
             request.TimeZone
         );
 
+        pendingLanguage = NormalizeLanguage(request.Language);
         return CreateUserInternal(createRequest, canManageRoles: false, sendConfirmationEmail: true);
     }
 
@@ -91,6 +94,7 @@ internal sealed class UserManagement(
             LockoutEnabled = true,
             DisplayName = NormalizeDisplayName(request.DisplayName),
             TimeZoneId = request.TimeZone ?? "UTC",
+            PreferredLanguage = pendingLanguage ?? "en",
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
@@ -152,6 +156,7 @@ internal sealed class UserManagement(
             return new ApplicationError(ErrorTypes.Unauthorized, "Unable to resolve current user.");
         }
 
+        pendingLanguage = NormalizeLanguage(request.Language);
         var updateRequest = new UpdateUserRequest(
             request.Username,
             null,
@@ -224,7 +229,7 @@ internal sealed class UserManagement(
             }
         }
 
-        if (request.DisplayName is not null || request.TimeZone is not null)
+        if (request.DisplayName is not null || request.TimeZone is not null || pendingLanguage is not null)
         {
             if (request.TimeZone is not null)
             {
@@ -239,6 +244,9 @@ internal sealed class UserManagement(
 
             if (request.DisplayName is not null)
                 user.DisplayName = NormalizeDisplayName(request.DisplayName);
+
+            if (pendingLanguage is not null)
+                user.PreferredLanguage = pendingLanguage;
 
             user.UpdatedAt = DateTimeOffset.UtcNow;
             var profileResult = await userManager.UpdateAsync(user);
@@ -404,6 +412,7 @@ internal sealed class UserManagement(
             user.EmailConfirmed,
             user.DisplayName,
             user.TimeZoneId,
+            user.PreferredLanguage,
             user.TwoFactorEnabled,
             isActive,
             [.. roles]
@@ -455,6 +464,12 @@ internal sealed class UserManagement(
 
     private static bool IsValidTimeZone(string timeZoneId) =>
         TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out _);
+
+    private static string? NormalizeLanguage(string? language)
+    {
+        var normalized = language?.Trim().ToLowerInvariant();
+        return SupportedLanguages.Contains(normalized) ? normalized : null;
+    }
 
     private static string? NormalizeDisplayName(string? displayName) =>
         string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();

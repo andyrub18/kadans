@@ -2,6 +2,7 @@ using Kadans.Modules.Tasks.Contracts;
 using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Notifications;
+using Kadans.SharedKernel.Users;
 using Kadans.SharedKernel.Realtime;
 using Microsoft.EntityFrameworkCore;
 using Quartz;
@@ -18,6 +19,7 @@ internal sealed class PomodoroAutoAdvanceJob(
     TasksDbContext dbContext,
     INotificationDispatcher dispatcher,
     IRealtimePublisher realtime,
+    IUserDirectory users,
     ILogger<PomodoroAutoAdvanceJob> logger
 ) : IJob
 {
@@ -41,8 +43,16 @@ internal sealed class PomodoroAutoAdvanceJob(
             .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
+        var languages = new Dictionary<string, string>();
         foreach (var run in due)
         {
+            if (!languages.TryGetValue(run.UserId, out var language))
+            {
+                language = (await users.FindAsync(run.UserId, cancellationToken))?.Language ?? "en";
+                languages[run.UserId] = language;
+            }
+            var texts = LocalizedTexts.Pomodoro(language);
+
             // Step on the schedule, not on job time: a run overdue by two phases lands where it
             // should be. The cap only guards a pathological backlog (looping runs never complete).
             var existingPhaseIds = run.Phases.Select(p => p.Id).ToHashSet();
@@ -68,12 +78,12 @@ internal sealed class PomodoroAutoAdvanceJob(
             }
 
             var lap = run.CycleLength > 0 ? run.CurrentPhaseIndex / run.CycleLength + 1 : 1;
-            var lapPrefix = run.Loop && lap > 1 ? $"Lap {lap} · " : "";
+            var lapPrefix = run.Loop && lap > 1 ? string.Format(texts.LapFormat, lap) : "";
             var body = run.Status == PomodoroRunStatus.Completed
-                ? "Pomodoro complete. Well done!"
+                ? texts.Complete
                 : run.CurrentPhase.Type == PomodoroPhaseType.Break
-                    ? $"{lapPrefix}Break — {run.CurrentPhase.DurationMinutes} min"
-                    : $"{lapPrefix}Focus — {run.CurrentPhase.DurationMinutes} min";
+                    ? lapPrefix + string.Format(texts.BreakFormat, run.CurrentPhase.DurationMinutes)
+                    : lapPrefix + string.Format(texts.FocusFormat, run.CurrentPhase.DurationMinutes);
 
             await dispatcher.DispatchAsync(
                 run.UserId,

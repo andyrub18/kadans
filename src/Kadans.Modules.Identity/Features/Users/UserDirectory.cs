@@ -9,6 +9,6 @@ internal sealed class UserDirectory(UserManager<ApplicationUser> userManager) : 
     public async Task<UserSummary?> FindAsync(string userId, CancellationToken cancellationToken = default)
     {
         var user = await userManager.FindByIdAsync(userId);
-        return user is null ? null : new UserSummary(user.Id, user.DisplayName, user.Email, user.TimeZoneId);
+        return user is null ? null : new UserSummary(user.Id, user.DisplayName, user.Email, user.TimeZoneId, user.PreferredLanguage);
     }
 }

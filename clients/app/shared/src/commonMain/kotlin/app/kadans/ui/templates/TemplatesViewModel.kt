@@ -19,7 +19,7 @@ sealed interface TemplatesUiState {
 
     data class Content(val templates: List<PomodoroTemplateResponse>) : TemplatesUiState
 
-    data class Error(val message: String) : TemplatesUiState
+    data class Error(val message: String?, val code: String? = null) : TemplatesUiState
 }
 
 /** null id = creating a new template. */
@@ -32,6 +32,7 @@ data class TemplateEditorState(
     ),
     val isSaving: Boolean = false,
     val error: String? = null,
+    val errorCode: String? = null,
 ) {
     val canSave: Boolean
         get() = name.isNotBlank() && phases.isNotEmpty() && phases.all { it.durationMinutes > 0 } && !isSaving
@@ -49,9 +50,9 @@ class TemplatesViewModel(private val api: KadansApi) : ViewModel() {
             try {
                 _state.value = TemplatesUiState.Content(api.pomodoro.templates())
             } catch (e: KadansApiException) {
-                _state.value = TemplatesUiState.Error(e.message ?: "Request failed")
+                _state.value = TemplatesUiState.Error(e.message, e.errorCode)
             } catch (e: Exception) {
-                _state.value = TemplatesUiState.Error("Could not reach the server.")
+                _state.value = TemplatesUiState.Error(null, "network")
             }
         }
     }
@@ -73,7 +74,7 @@ class TemplatesViewModel(private val api: KadansApi) : ViewModel() {
     }
 
     fun updateEditor(transform: (TemplateEditorState) -> TemplateEditorState) =
-        _editor.update { it?.let { current -> transform(current).copy(error = null) } }
+        _editor.update { it?.let { current -> transform(current).copy(error = null, errorCode = null) } }
 
     fun save() {
         val current = _editor.value ?: return
@@ -88,9 +89,9 @@ class TemplatesViewModel(private val api: KadansApi) : ViewModel() {
                 _editor.value = null
                 refresh()
             } catch (e: KadansApiException) {
-                _editor.update { it?.copy(isSaving = false, error = e.message) }
+                _editor.update { it?.copy(isSaving = false, error = e.message, errorCode = e.errorCode) }
             } catch (e: Exception) {
-                _editor.update { it?.copy(isSaving = false, error = "Could not reach the server.") }
+                _editor.update { it?.copy(isSaving = false, error = null, errorCode = "network") }
             }
         }
     }
@@ -102,9 +103,9 @@ class TemplatesViewModel(private val api: KadansApi) : ViewModel() {
                 _editor.value = null
                 refresh()
             } catch (e: KadansApiException) {
-                _editor.update { it?.copy(error = e.message) }
+                _editor.update { it?.copy(error = e.message, errorCode = e.errorCode) }
             } catch (e: Exception) {
-                _editor.update { it?.copy(error = "Could not reach the server.") }
+                _editor.update { it?.copy(error = null, errorCode = "network") }
             }
         }
     }

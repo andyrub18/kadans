@@ -56,7 +56,7 @@ class RealRealtimeSmokeTest {
                     }
                 }
                 delay(300) // let the collector subscribe before triggering
-                val run = api.pomodoro.start(todo.id)
+                val run = api.pomodoro.start(todo.id, autoAdvance = true)
                 api.pomodoro.pause(run.id)
 
                 val event = pushed.await()
@@ -64,8 +64,23 @@ class RealRealtimeSmokeTest {
                 println("realtime: received pomodoro.run.changed (status ${event.run.status})")
                 assertTrue(realtime.connected.value)
 
-                api.pomodoro.cancel(run.id)
-                api.todos.cancel(todo.id, "realtime smoke cleanup")
+                // Advancing a hands-free run must also push a localized notification
+                // (that is what becomes the OS notification on desktop).
+                val notified = async {
+                    withTimeout(10_000) {
+                        realtime.events.first { it is RealtimeEvent.NotificationReceived }
+                            as RealtimeEvent.NotificationReceived
+                    }
+                }
+                delay(300)
+                api.pomodoro.resume(run.id)
+                api.pomodoro.advance(run.id, expectedPhaseIndex = 0)
+                val notification = notified.await()
+                println("realtime: received notification '${notification.notification.body}'")
+
+                // The advance may have completed a short run — a completed run can't be cancelled.
+                runCatching { api.pomodoro.cancel(run.id) }
+                runCatching { api.todos.cancel(todo.id, "realtime smoke cleanup") }
             } finally {
                 realtime.stop()
                 runCatching { api.auth.logout() }

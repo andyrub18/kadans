@@ -178,4 +178,27 @@ public class PomodoroRunTests
         await Assert.That(run.PausedRemaining).IsNull();
         await Assert.That(run.Cancel(T0.AddMinutes(8)).AsT0.ErrorType).IsEqualTo(ErrorTypes.PomodoroRunInvalidState);
     }
+
+    [Test]
+    public async Task Overdue_hands_free_advance_steps_on_the_schedule_not_on_request_time()
+    {
+        // 25-minute focus ends at T0+25; the advancing request lands 9 seconds late.
+        var run = StartLooping();
+        await Assert.That(run.Advance(0, T0.AddMinutes(25).AddSeconds(9)).IsT1).IsTrue();
+
+        // The phase completed when it ran out, so the 30-minute break still ends at T0+55 -
+        // the cadence never drifts by however late the client or the catch-up job was.
+        await Assert.That(run.Phases[0].CompletedAt).IsEqualTo(T0.AddMinutes(25));
+        await Assert.That(run.PhaseEndsAt).IsEqualTo(T0.AddMinutes(55));
+    }
+
+    [Test]
+    public async Task Manual_run_advance_uses_the_request_time()
+    {
+        var run = Start();
+        await Assert.That(run.Advance(0, T0.AddMinutes(30)).IsT1).IsTrue();
+
+        // The user kept focusing past the timer; the break starts when they actually advanced.
+        await Assert.That(run.Phases[0].CompletedAt).IsEqualTo(T0.AddMinutes(30));
+    }
 }

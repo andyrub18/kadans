@@ -6,6 +6,7 @@ import app.kadans.auth.SettingsTokenStore
 import app.kadans.config.defaultApiBaseUrl
 import app.kadans.i18n.LanguageController
 import app.kadans.realtime.KadansRealtime
+import app.kadans.realtime.SystemAlerts
 import app.kadans.ui.auth.LoginViewModel
 import app.kadans.ui.auth.MfaViewModel
 import app.kadans.ui.auth.RegisterViewModel
@@ -27,6 +28,7 @@ val appModule = org.koin.dsl.module {
     single<TokenStore> { SettingsTokenStore(get()) }
     single { KadansApi.create(baseUrl = defaultApiBaseUrl(), tokenStore = get()) }
     single { KadansRealtime(get()) }
+    single { SystemAlerts(get()) }
     single { LanguageController(get(), get()) }
 
     viewModelOf(::LoginViewModel)

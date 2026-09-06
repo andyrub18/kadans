@@ -149,6 +149,11 @@ internal sealed class PomodoroRun
         if (expectedPhaseIndex is not null && expectedPhaseIndex.Value != CurrentPhaseIndex)
             return InvalidState("Run phase index mismatch. Refresh run state and retry.");
 
+        // Hands-free runs keep their cadence: an overdue phase completed when it ran out, not
+        // when the advancing request (a watching client, or the catch-up job) happened to land.
+        if (AutoAdvance && PhaseEndsAt is { } scheduledEnd && scheduledEnd < now)
+            now = scheduledEnd;
+
         var ordered = Phases.OrderBy(p => p.Order).ToList();
         var current = ordered[CurrentPhaseIndex];
         current.StartedAt ??= now;

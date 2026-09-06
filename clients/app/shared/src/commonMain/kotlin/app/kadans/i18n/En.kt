@@ -61,6 +61,7 @@ val EnglishStrings = StringsCatalog(
     mfaManualKey = "Setup key",
     recoveryCodesTitle = "Recovery codes", recoveryCodesHint = "Save these somewhere safe — each one can replace a code once if you lose your phone.",
     regenerateRecoveryCodes = "New recovery codes", signOutEverywhere = "Sign out everywhere",
+    trayOpen = "Open Kadans", trayQuit = "Quit",
     errNetwork = "Could not reach the server.", errInvalidTimeZone = "That time zone is not recognized.",
     errInvalidCredentials = "Invalid username or password.",
     errUserInactive = "This account is deactivated.", errInvalidToken = "This link or code is invalid or expired.",

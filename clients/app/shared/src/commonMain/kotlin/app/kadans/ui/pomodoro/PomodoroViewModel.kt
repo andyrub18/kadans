@@ -154,19 +154,32 @@ class PomodoroViewModel(
         }
     }
 
-    private var lastResync = kotlin.time.Instant.DISTANT_PAST
+    private var lastOverdueAttempt = kotlin.time.Instant.DISTANT_PAST
+    private var overdueAttemptInFlight = false
 
     /**
-     * A hands-free phase that has run out advances server-side; poll until the new state lands.
-     * The hub push normally beats this, but the cadence must not depend on the socket's health.
+     * The watching client advances a hands-free phase itself the moment it runs out — no
+     * waiting on the server job. The domain steps on the schedule (not request time) and
+     * `expectedPhaseIndex` makes the race with the job safe: whoever loses just resyncs.
      * Manual runs sit at 0:00 on purpose — the user advances those.
      */
     private fun maybeResyncOverdue(run: PomodoroRunResponse, now: kotlin.time.Instant) {
         val endsAt = run.phaseEndsAt ?: return
         if (!run.autoAdvance || run.status != PomodoroRunStatus.Active || endsAt > now) return
-        if (now - lastResync < 3.seconds) return
-        lastResync = now
-        viewModelScope.launch { resync() }
+        if (overdueAttemptInFlight || now - lastOverdueAttempt < 2.seconds) return
+        lastOverdueAttempt = now
+        overdueAttemptInFlight = true
+        viewModelScope.launch {
+            try {
+                adopt(api.pomodoro.advance(run.id, run.currentPhaseIndex))
+            } catch (e: KadansApiException) {
+                resync() // someone else advanced (or the run ended) — show where it really is
+            } catch (_: Exception) {
+                // transient network problem: keep the display, the next tick retries
+            } finally {
+                overdueAttemptInFlight = false
+            }
+        }
     }
 
     /** Pull the server's view of this todo's run; true when a session was (re)adopted. */

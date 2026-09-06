@@ -3,6 +3,7 @@ package app.kadans.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -67,11 +68,13 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Kadans", style = MaterialTheme.typography.headlineSmall)
-                Row {
+                // FlowRow: five actions won't fit one line on a phone; let them wrap.
+                FlowRow(horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = { languageController.cycle() }) { Text(language.tag.uppercase()) }
                     TextButton(onClick = onOpenCalendar) { Text(s.calendar) }
                     TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
                     TextButton(onClick = onOpenSettings) { Text("⚙") }
+                    TextButton(onClick = viewModel::logout) { Text(s.signOut) }
                 }
             }
         },

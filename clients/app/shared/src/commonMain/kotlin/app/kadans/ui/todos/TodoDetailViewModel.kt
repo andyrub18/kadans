@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
+import app.kadans.api.model.RescheduleOccurrence
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.PomodoroTemplateResponse
 import app.kadans.api.model.TodoResponse
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +48,9 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
     fun completeOccurrence(occurrenceId: String) = act { api.todos.completeOccurrence(occurrenceId) }
 
     fun cancelOccurrence(occurrenceId: String) = act { api.todos.cancelOccurrence(occurrenceId) }
+
+    fun rescheduleOccurrence(occurrenceId: String, newDate: Instant, reason: String?) =
+        act { api.todos.rescheduleOccurrence(occurrenceId, RescheduleOccurrence(newDate, reason?.ifBlank { null })) }
 
     fun cancelTodo() = act { api.todos.cancel(todoId) }
 

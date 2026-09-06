@@ -135,8 +135,44 @@ data class StringsCatalog(
     val save: String,
     val deleteCycle: String,
     val noCyclesYet: String,
+    // calendar
+    val calendar: String,
+    val previewLabel: String,
+    val monthNames: List<String>,
+    val weekdayShort: List<String>,
+    // edit & reschedule
+    val editTodo: String,
+    val saveChanges: String,
+    val move: String,
+    val rescheduleTitle: String,
+    val reasonOptional: String,
+    val notifyBeforeMinutes: String,
+    // settings
+    val settings: String,
+    val profileSection: String,
+    val timeZoneLabel: String,
+    val languageLabel: String,
+    val saveProfile: String,
+    val profileSaved: String,
+    val changePasswordTitle: String,
+    val currentPassword: String,
+    val newPassword: String,
+    val changePasswordAction: String,
+    val passwordChangedSignInAgain: String,
+    val mfaSection: String,
+    val mfaEnabledBadge: String,
+    val mfaDisabledBadge: String,
+    val enableMfa: String,
+    val disableMfa: String,
+    val mfaEnrollHint: String,
+    val mfaManualKey: String,
+    val recoveryCodesTitle: String,
+    val recoveryCodesHint: String,
+    val regenerateRecoveryCodes: String,
+    val signOutEverywhere: String,
     // errors
     val errNetwork: String,
+    val errInvalidTimeZone: String,
     val errInvalidCredentials: String,
     val errUserInactive: String,
     val errInvalidToken: String,
@@ -185,6 +221,7 @@ data class StringsCatalog(
         "network" -> errNetwork
         "10001", "10024" -> errInvalidCredentials
         "10025" -> errUserInactive
+        "10032" -> errInvalidTimeZone
         "10033" -> errInvalidToken
         "10034" -> errMfaCode
         "10005" -> errAlreadyCompleted

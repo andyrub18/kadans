@@ -69,6 +69,25 @@ class AccountApi internal constructor(private val api: KadansApi) {
         api.invalidateTokenCache()
     }
 
+    /** Revokes every refresh-token family. The current access token stays valid until it expires. */
+    suspend fun revokeAllSessions() {
+        api.http.post("users/me/sessions/revoke-all").orThrow<Success>()
+    }
+
+    suspend fun mfaEnroll(): MfaEnrollResponse =
+        api.http.post("users/me/mfa/enroll").orThrow()
+
+    suspend fun mfaEnable(code: String): RecoveryCodesResponse =
+        api.http.post("users/me/mfa/enable") { setBody(MfaCodeRequest(code)) }.orThrow()
+
+    /** Accepts a TOTP code or a recovery code. */
+    suspend fun mfaDisable(code: String) {
+        api.http.post("users/me/mfa/disable") { setBody(MfaCodeRequest(code)) }.orThrow<Success>()
+    }
+
+    suspend fun regenerateRecoveryCodes(code: String): RecoveryCodesResponse =
+        api.http.post("users/me/mfa/recovery-codes") { setBody(MfaCodeRequest(code)) }.orThrow()
+
     suspend fun registerDevice(installationId: String, request: RegisterDeviceRequest): DeviceResponse =
         api.http.put("users/me/devices/$installationId") { setBody(request) }.orThrow()
 

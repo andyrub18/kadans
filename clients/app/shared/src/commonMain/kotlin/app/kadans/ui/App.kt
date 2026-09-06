@@ -23,8 +23,11 @@ import androidx.compose.runtime.collectAsState
 import app.kadans.ui.auth.LoginScreen
 import app.kadans.ui.auth.MfaScreen
 import app.kadans.ui.auth.RegisterScreen
+import app.kadans.ui.calendar.CalendarScreen
 import app.kadans.ui.home.HomeScreen
+import app.kadans.ui.settings.SettingsScreen
 import app.kadans.ui.todos.CreateTodoScreen
+import app.kadans.ui.todos.EditTodoScreen
 import app.kadans.ui.todos.TodoDetailScreen
 import app.kadans.ui.pomodoro.PomodoroScreen
 import app.kadans.ui.templates.TemplatesScreen
@@ -37,7 +40,10 @@ data class MfaRoute(val mfaToken: String)
 data object HomeRoute
 data object CreateTodoRoute
 data object TemplatesRoute
+data object CalendarRoute
+data object SettingsRoute
 data class TodoDetailRoute(val todoId: String)
+data class EditTodoRoute(val todoId: String)
 data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false)
 
 @Composable
@@ -105,11 +111,26 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         languageController = languageController,
                         onCreateTodo = { backStack.add(CreateTodoRoute) },
                         onOpenTemplates = { backStack.add(TemplatesRoute) },
+                        onOpenCalendar = { backStack.add(CalendarRoute) },
+                        onOpenSettings = { backStack.add(SettingsRoute) },
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
                     )
                 }
                 is TemplatesRoute -> NavEntry(key) {
                     TemplatesScreen(onBack = { backStack.removeLastOrNull() })
+                }
+                is CalendarRoute -> NavEntry(key) {
+                    CalendarScreen(
+                        onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is SettingsRoute -> NavEntry(key) {
+                    SettingsScreen(
+                        languageController = languageController,
+                        onLoggedOut = { resetTo(LoginRoute) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
                 }
                 is CreateTodoRoute -> NavEntry(key) {
                     CreateTodoScreen(
@@ -121,6 +142,14 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                     TodoDetailScreen(
                         todoId = key.todoId,
                         onOpenPomodoro = { loop, handsFree -> backStack.add(PomodoroRoute(key.todoId, loop, handsFree)) },
+                        onEdit = { backStack.add(EditTodoRoute(key.todoId)) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is EditTodoRoute -> NavEntry(key) {
+                    EditTodoScreen(
+                        todoId = key.todoId,
+                        onSaved = { backStack.removeLastOrNull() },
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

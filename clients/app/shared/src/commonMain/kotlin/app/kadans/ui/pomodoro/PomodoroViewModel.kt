@@ -9,6 +9,8 @@ import app.kadans.api.model.CreatePomodoroTemplate
 import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroRunStatus
+import app.kadans.realtime.KadansRealtime
+import app.kadans.realtime.RealtimeEvent
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -28,6 +30,7 @@ sealed interface PomodoroUiState {
 
 class PomodoroViewModel(
     private val api: KadansApi,
+    private val realtime: KadansRealtime,
     private val todoId: String,
     private val loop: Boolean = true,
     private val handsFree: Boolean = false,
@@ -37,6 +40,14 @@ class PomodoroViewModel(
 
     init {
         viewModelScope.launch { tick() }
+        // Hands-free advances happen server-side; the hub pushes each new phase to us live.
+        viewModelScope.launch {
+            realtime.events.collect { event ->
+                if (event is RealtimeEvent.PomodoroRunChanged && event.run.todoId == todoId) {
+                    adopt(event.run)
+                }
+            }
+        }
     }
 
     /**

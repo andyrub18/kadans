@@ -11,6 +11,7 @@ import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -31,6 +32,7 @@ import app.kadans.api.model.RefreshTokenRequest
 class KadansApi internal constructor(
     internal val http: HttpClient,
     internal val tokenStore: TokenStore,
+    internal val baseUrl: String,
 ) {
     val auth: AuthApi = AuthApi(this)
     val account: AccountApi = AccountApi(this)
@@ -53,6 +55,7 @@ class KadansApi internal constructor(
             val configure: io.ktor.client.HttpClientConfig<*>.() -> Unit = {
                 expectSuccess = false
                 install(ContentNegotiation) { json(KadansJson) }
+                install(WebSockets)
                 defaultRequest {
                     url.takeFrom(baseUrl.trimEnd('/') + "/")
                     contentType(ContentType.Application.Json)
@@ -82,7 +85,7 @@ class KadansApi internal constructor(
                 }
             }
             val http = if (engine is HttpClientEngine) HttpClient(engine, { configure() }) else HttpClient { configure() }
-            api = KadansApi(http, tokenStore)
+            api = KadansApi(http, tokenStore, baseUrl.trimEnd('/'))
             return api
         }
     }

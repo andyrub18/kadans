@@ -125,8 +125,12 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       `errorCode` with server-detail fallback. Server: `PreferredLanguage` on the user (synced on
       switch) drives localized emails and localized reminder/pomodoro notifications.
       Still English: server-side validation detail texts (later pass).
-- [ ] Occurrence calendar; edit-todo & reschedule UI; account/MFA settings screen
-- [ ] SignalR connection (`/hubs/kadans`) so run state and notifications arrive live
+- [x] Occurrence calendar (month grid, Monday-first, dots for pending/planned/done, day detail);
+      edit-todo & move-occurrence UI; settings screen (profile, language, password, TOTP MFA
+      enrol/disable/recovery codes, sign out everywhere)
+- [x] SignalR connection (`/hubs/kadans`): hand-rolled JSON hub protocol over Ktor websockets,
+      reconnect with backoff; live `pomodoro.run.changed` adoption + notification snackbars;
+      hub payloads now serialize enums as strings to match the REST contract
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs
 - [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`
 

@@ -74,6 +74,16 @@ data class UserResponse(
     val roles: List<String> = emptyList(),
 )
 
+/** TOTP enrollment: nothing is enforced until the code is confirmed via `mfa/enable`. */
+@Serializable
+data class MfaEnrollResponse(val sharedKey: String, val authenticatorUri: String)
+
+@Serializable
+data class MfaCodeRequest(val code: String)
+
+@Serializable
+data class RecoveryCodesResponse(val codes: List<String>)
+
 @Serializable
 enum class DevicePlatform { Android, Ios, Windows, MacOs, Linux, Web }
 

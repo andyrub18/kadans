@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -33,6 +35,7 @@ import org.koin.core.parameter.parametersOf
 fun TodoDetailScreen(
     todoId: String,
     onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
+    onEdit: () -> Unit,
     onBack: () -> Unit,
     viewModel: TodoDetailViewModel = koinViewModel(key = "todo-$todoId") { parametersOf(todoId) },
 ) {
@@ -48,7 +51,7 @@ fun TodoDetailScreen(
                 Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
                 TextButton(onClick = onBack) { Text(s.back) }
             }
-        is TodoDetailUiState.Content -> Detail(current, viewModel, onOpenPomodoro, onBack)
+        is TodoDetailUiState.Content -> Detail(current, viewModel, onOpenPomodoro, onEdit, onBack)
     }
 }
 
@@ -57,12 +60,14 @@ private fun Detail(
     content: TodoDetailUiState.Content,
     viewModel: TodoDetailViewModel,
     onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
+    onEdit: () -> Unit,
     onBack: () -> Unit,
 ) {
     val s = LocalStrings.current
     var loop by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
     var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -71,7 +76,10 @@ private fun Detail(
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Text("← " + s.back) }
-                Text(s.statusName(content.todo.status), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(s.statusName(content.todo.status), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                    TextButton(onClick = onEdit) { Text(s.editTodo) }
+                }
             }
         }
         item { Text(content.todo.title, style = MaterialTheme.typography.headlineSmall) }
@@ -132,7 +140,7 @@ private fun Detail(
             item { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
         }
         items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
-            OccurrenceRow(occurrence, viewModel)
+            OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it })
         }
 
         if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
@@ -151,10 +159,25 @@ private fun Detail(
             onDismiss = { pickingTemplate = false },
         )
     }
+
+    rescheduling?.let { occurrence ->
+        RescheduleDialog(
+            occurrence = occurrence,
+            onConfirm = { newDate, reason ->
+                occurrence.id?.let { viewModel.rescheduleOccurrence(it, newDate, reason) }
+                rescheduling = null
+            },
+            onDismiss = { rescheduling = null },
+        )
+    }
 }
 
 @Composable
-private fun OccurrenceRow(occurrence: TodoOccurrenceResponse, viewModel: TodoDetailViewModel) {
+private fun OccurrenceRow(
+    occurrence: TodoOccurrenceResponse,
+    viewModel: TodoDetailViewModel,
+    onMove: (TodoOccurrenceResponse) -> Unit,
+) {
     val s = LocalStrings.current
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
@@ -170,9 +193,98 @@ private fun OccurrenceRow(occurrence: TodoOccurrenceResponse, viewModel: TodoDet
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { viewModel.completeOccurrence(occurrence.id) }) { Text(s.complete) }
                     TextButton(onClick = { viewModel.cancelOccurrence(occurrence.id) }) { Text(s.skip) }
+                    TextButton(onClick = { onMove(occurrence) }) { Text(s.move) }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RescheduleDialog(
+    occurrence: TodoOccurrenceResponse,
+    onConfirm: (kotlin.time.Instant, String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val s = LocalStrings.current
+    val timeZone = kotlinx.datetime.TimeZone.currentSystemDefault()
+    val initial = occurrence.scheduledAt.toLocalDateTime(timeZone)
+    var date by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(initial.date) }
+    var time by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(initial.time) }
+    var reason by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var pickingDate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var pickingTime by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.rescheduleTitle) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = date.toString(),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(s.dueDate) },
+                    trailingIcon = { TextButton(onClick = { pickingDate = true }) { Text(s.pick) } },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = time.hour.toString().padStart(2, '0') + ":" + time.minute.toString().padStart(2, '0'),
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(s.timeLabel) },
+                    trailingIcon = { TextButton(onClick = { pickingTime = true }) { Text(s.pick) } },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text(s.reasonOptional) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val instant = kotlinx.datetime.LocalDateTime(date, time).toInstant(timeZone)
+                onConfirm(instant, reason.ifBlank { null })
+            }) { Text(s.ok) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+    )
+
+    if (pickingDate) {
+        val pickerState = androidx.compose.material3.rememberDatePickerState()
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickingDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        date = kotlinx.datetime.LocalDate.fromEpochDays((millis / 86_400_000L).toInt())
+                    }
+                    pickingDate = false
+                }) { Text(s.ok) }
+            },
+            dismissButton = { TextButton(onClick = { pickingDate = false }) { Text(s.cancel) } },
+        ) { androidx.compose.material3.DatePicker(state = pickerState) }
+    }
+
+    if (pickingTime) {
+        val timeState = androidx.compose.material3.rememberTimePickerState(
+            initialHour = time.hour, initialMinute = time.minute, is24Hour = true,
+        )
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pickingTime = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    time = kotlinx.datetime.LocalTime(timeState.hour, timeState.minute)
+                    pickingTime = false
+                }) { Text(s.ok) }
+            },
+            dismissButton = { TextButton(onClick = { pickingTime = false }) { Text(s.cancel) } },
+            text = { androidx.compose.material3.TimePicker(state = timeState) },
+        )
     }
 }
 

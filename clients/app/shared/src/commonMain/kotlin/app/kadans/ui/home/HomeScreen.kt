@@ -16,12 +16,15 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -37,14 +40,22 @@ fun HomeScreen(
     onLoggedOut: () -> Unit,
     onCreateTodo: () -> Unit,
     onOpenTemplates: () -> Unit,
+    onOpenCalendar: () -> Unit,
+    onOpenSettings: () -> Unit,
     onOpenTodo: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
     val language by languageController.language.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) { viewModel.loggedOut.collect { onLoggedOut() } }
+    LaunchedEffect(viewModel) {
+        viewModel.liveNotifications.collect { notification ->
+            snackbar.showSnackbar(notification.title + " — " + notification.body)
+        }
+    }
     // Reload whenever this entry comes (back) on screen; data may have changed behind us.
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -58,12 +69,13 @@ fun HomeScreen(
                 Text("Kadans", style = MaterialTheme.typography.headlineSmall)
                 Row {
                     TextButton(onClick = { languageController.cycle() }) { Text(language.tag.uppercase()) }
+                    TextButton(onClick = onOpenCalendar) { Text(s.calendar) }
                     TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
-                    TextButton(onClick = viewModel::refresh) { Text(s.refresh) }
-                    TextButton(onClick = viewModel::logout) { Text(s.signOut) }
+                    TextButton(onClick = onOpenSettings) { Text("⚙") }
                 }
             }
         },
+        snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateTodo) { Text("+", style = MaterialTheme.typography.headlineSmall) }
         },

@@ -7,6 +7,7 @@ using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace Kadans.Modules.Notifications;
 
@@ -22,7 +23,10 @@ public sealed class NotificationsModule : IModule
             )
         );
 
-        services.AddSignalR();
+        // Hub payloads must match the REST contract (string enums), or clients need two decoders.
+        services.AddSignalR().AddJsonProtocol(json =>
+            json.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter())
+        );
         services.AddSingleton<IRealtimePublisher, SignalRRealtimePublisher>();
 
         var pushSection = configuration.GetSection(PushOptions.SectionName);

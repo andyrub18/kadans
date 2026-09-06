@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.CreatePomodoroPhase
 import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroTemplateResponse
+import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -49,14 +50,15 @@ fun TemplatesScreen(
         return
     }
 
+    val s = LocalStrings.current
     when (val current = state) {
         is TemplatesUiState.Loading ->
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         is TemplatesUiState.Error ->
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(current.message, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = viewModel::refresh) { Text("Retry") }
-                TextButton(onClick = onBack) { Text("Back") }
+                Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = viewModel::refresh) { Text(s.retry) }
+                TextButton(onClick = onBack) { Text(s.back) }
             }
         is TemplatesUiState.Content -> TemplateList(current.templates, viewModel, onBack)
     }
@@ -68,6 +70,7 @@ private fun TemplateList(
     viewModel: TemplatesViewModel,
     onBack: () -> Unit,
 ) {
+    val s = LocalStrings.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -75,13 +78,13 @@ private fun TemplateList(
     ) {
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("← Back") }
-                Text("Pomodoro cycles", style = MaterialTheme.typography.headlineSmall)
-                TextButton(onClick = viewModel::openNew) { Text("New") }
+                TextButton(onClick = onBack) { Text("← " + s.back) }
+                Text(s.pomodoroCycles, style = MaterialTheme.typography.headlineSmall)
+                TextButton(onClick = viewModel::openNew) { Text(s.newWord) }
             }
         }
         if (templates.isEmpty()) {
-            item { Text("No cycles yet — create one, or start a session and get the default.", style = MaterialTheme.typography.bodyMedium) }
+            item { Text(s.noCyclesYet, style = MaterialTheme.typography.bodyMedium) }
         }
         items(templates, key = { it.id }) { template ->
             Card(onClick = { viewModel.openEdit(template) }, modifier = Modifier.fillMaxWidth()) {
@@ -89,7 +92,7 @@ private fun TemplateList(
                     Text(template.name, style = MaterialTheme.typography.titleSmall)
                     Text(
                         template.phases.sortedBy { it.order }.joinToString(" · ") {
-                            "${it.durationMinutes}m ${if (it.type == PomodoroPhaseType.Focus) "focus" else "break"}"
+                            "${it.durationMinutes}m ${if (it.type == PomodoroPhaseType.Focus) s.focus.lowercase() else s.breakWord.lowercase()}"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -102,22 +105,23 @@ private fun TemplateList(
 
 @Composable
 private fun TemplateEditor(editing: TemplateEditorState, viewModel: TemplatesViewModel) {
+    val s = LocalStrings.current
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(modifier = Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(if (editing.id == null) "New cycle" else "Edit cycle", style = MaterialTheme.typography.headlineSmall)
+            Text(if (editing.id == null) s.newCycle else s.editCycle, style = MaterialTheme.typography.headlineSmall)
 
             OutlinedTextField(
                 value = editing.name,
                 onValueChange = { v -> viewModel.updateEditor { it.copy(name = v) } },
-                label = { Text("Name") },
+                label = { Text(s.nameLabel) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Text("Phases, in order", style = MaterialTheme.typography.labelLarge)
+            Text(s.phasesInOrder, style = MaterialTheme.typography.labelLarge)
             editing.phases.forEachIndexed { index, phase ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     FilterChip(
@@ -129,7 +133,7 @@ private fun TemplateEditor(editing: TemplateEditorState, viewModel: TemplatesVie
                                 })
                             }
                         },
-                        label = { Text(if (phase.type == PomodoroPhaseType.Focus) "Focus" else "Break") },
+                        label = { Text(if (phase.type == PomodoroPhaseType.Focus) s.focus else s.breakWord) },
                     )
                     OutlinedTextField(
                         value = phase.durationMinutes.toString(),
@@ -140,7 +144,7 @@ private fun TemplateEditor(editing: TemplateEditorState, viewModel: TemplatesVie
                                 })
                             }
                         },
-                        label = { Text("Minutes") },
+                        label = { Text(s.minutes) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -152,24 +156,24 @@ private fun TemplateEditor(editing: TemplateEditorState, viewModel: TemplatesVie
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     viewModel.updateEditor { it.copy(phases = it.phases + CreatePomodoroPhase(PomodoroPhaseType.Focus, 25)) }
-                }) { Text("+ Focus") }
+                }) { Text(s.addFocus) }
                 OutlinedButton(onClick = {
                     viewModel.updateEditor { it.copy(phases = it.phases + CreatePomodoroPhase(PomodoroPhaseType.Break, 5)) }
-                }) { Text("+ Break") }
+                }) { Text(s.addBreak) }
             }
 
-            if (editing.error != null) {
-                Text(editing.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (editing.error != null || editing.errorCode != null) {
+                Text(s.errorFor(editing.errorCode, editing.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             Button(onClick = viewModel::save, enabled = editing.canSave, modifier = Modifier.fillMaxWidth()) {
-                if (editing.isSaving) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text("Save")
+                if (editing.isSaving) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.save)
             }
             if (editing.id != null) {
                 TextButton(onClick = { viewModel.delete(editing.id) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Delete this cycle", color = MaterialTheme.colorScheme.error)
+                    Text(s.deleteCycle, color = MaterialTheme.colorScheme.error)
                 }
             }
-            TextButton(onClick = viewModel::closeEditor, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
+            TextButton(onClick = viewModel::closeEditor, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }
         }
     }
 }

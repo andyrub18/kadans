@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Domain;
+using Kadans.Modules.Tasks.Features;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Users;
@@ -50,11 +51,12 @@ internal sealed class OccurrenceReminderJob(
         if (due.Count == 0)
             return;
 
-        var timeZones = new Dictionary<string, TimeZoneInfo>();
+        var users = new Dictionary<string, (TimeZoneInfo Zone, string Language)>();
         foreach (var occurrence in due)
         {
             var todo = occurrence.Todo!;
-            var timeZone = await TimeZoneForAsync(todo.UserId, timeZones, cancellationToken);
+            var (timeZone, language) = await UserContextAsync(todo.UserId, users, cancellationToken);
+            var texts = LocalizedTexts.Reminder(language);
             var local = TimeZoneInfo.ConvertTime(occurrence.ScheduledAt, timeZone);
             var untilStart = occurrence.ScheduledAt - now;
 
@@ -62,8 +64,8 @@ internal sealed class OccurrenceReminderJob(
                 Kind,
                 todo.Title,
                 untilStart > TimeSpan.FromSeconds(30)
-                    ? $"Starts at {local:HH:mm} — in {Describe(untilStart)}"
-                    : $"Starts now ({local:HH:mm})",
+                    ? string.Format(texts.StartsAtFormat, $"{local:HH:mm}", Describe(untilStart, texts))
+                    : string.Format(texts.StartsNowFormat, $"{local:HH:mm}"),
                 new Dictionary<string, string>
                 {
                     ["todoId"] = todo.Id.ToString(),
@@ -81,26 +83,31 @@ internal sealed class OccurrenceReminderJob(
         logger.LogInformation("Reminder run: {Count} reminder(s) sent", due.Count);
     }
 
-    /// <summary>"15 min", "2 h 05 min", "3 d 4 h".</summary>
-    internal static string Describe(TimeSpan span)
+    /// <summary>"15 min", "2 h 05 min", "3 d 4 h" — unit words from the user's language.</summary>
+    internal static string Describe(TimeSpan span, ReminderTexts texts)
     {
         if (span.TotalMinutes < 1)
-            return "less than a minute";
+            return texts.LessThanAMinute;
         if (span.TotalHours < 1)
-            return $"{(int)span.TotalMinutes} min";
+            return $"{(int)span.TotalMinutes} {texts.MinuteAbbrev}";
         if (span.TotalDays < 1)
-            return span.Minutes == 0 ? $"{(int)span.TotalHours} h" : $"{(int)span.TotalHours} h {span.Minutes:00} min";
-        return span.Hours == 0 ? $"{(int)span.TotalDays} d" : $"{(int)span.TotalDays} d {span.Hours} h";
+            return span.Minutes == 0
+                ? $"{(int)span.TotalHours} {texts.HourAbbrev}"
+                : $"{(int)span.TotalHours} {texts.HourAbbrev} {span.Minutes:00} {texts.MinuteAbbrev}";
+        return span.Hours == 0
+            ? $"{(int)span.TotalDays} {texts.DayAbbrev}"
+            : $"{(int)span.TotalDays} {texts.DayAbbrev} {span.Hours} {texts.HourAbbrev}";
     }
 
-    private async Task<TimeZoneInfo> TimeZoneForAsync(string userId, Dictionary<string, TimeZoneInfo> cache, CancellationToken cancellationToken)
+    private async Task<(TimeZoneInfo, string)> UserContextAsync(string userId, Dictionary<string, (TimeZoneInfo, string)> cache, CancellationToken cancellationToken)
     {
         if (cache.TryGetValue(userId, out var cached))
             return cached;
 
         var user = await users.FindAsync(userId, cancellationToken);
         var timeZone = user is not null && TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var found) ? found : TimeZoneInfo.Utc;
-        cache[userId] = timeZone;
-        return timeZone;
+        var context = (timeZone, user?.Language ?? "en");
+        cache[userId] = context;
+        return context;
     }
 }

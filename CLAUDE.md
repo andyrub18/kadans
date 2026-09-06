@@ -62,6 +62,11 @@ Running the API by hand for a smoke test: start it in the background, and stop i
   `Contracts/`, `Features/<Area>/` (services, routes, validators).
 - Domain rules (recurrence, pomodoro state machine) are pure code with unit tests; EF-only behaviour
   goes in integration tests.
+- The app is trilingual (en/fr/ht). Every user-visible client string goes through
+  `app.kadans.i18n.StringsCatalog` (add the key to the data class and all three instances —
+  the compiler enforces completeness); never hardcode UI text in composables. Server-rendered
+  texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
+  `PreferredLanguage`.
 - Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,
   and ask it for occurrences. Clients send a structured rule plus an IANA `TimeZone`.
 

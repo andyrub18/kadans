@@ -21,6 +21,7 @@ data class RegisterUiState(
     val displayName: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: String? = null,
 ) {
     val canSubmit: Boolean
         get() = username.isNotBlank() && email.isNotBlank() && password.isNotBlank() && !isLoading
@@ -60,9 +61,9 @@ class RegisterViewModel(private val api: KadansApi) : ViewModel() {
                 _registered.emit(Unit)
             } catch (e: KadansApiException) {
                 val details = e.problem?.errors?.mapNotNull { it.message }?.joinToString("\n")
-                _state.update { it.copy(isLoading = false, error = details?.ifBlank { null } ?: e.message) }
+                _state.update { it.copy(isLoading = false, error = details?.ifBlank { null } ?: e.message, errorCode = if (details.isNullOrBlank()) e.errorCode else null) }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Could not reach the server.") }
+                _state.update { it.copy(isLoading = false, error = null, errorCode = "network") }
             }
         }
     }

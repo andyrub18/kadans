@@ -16,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import app.kadans.api.TokenStore
+import app.kadans.i18n.LanguageController
+import app.kadans.i18n.LocalStrings
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import app.kadans.ui.auth.LoginScreen
 import app.kadans.ui.auth.MfaScreen
 import app.kadans.ui.auth.RegisterScreen
@@ -40,6 +44,8 @@ data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val hands
 fun App() {
     KadansTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
+            val languageController = koinInject<LanguageController>()
+            val language by languageController.language.collectAsState()
             val tokenStore = koinInject<TokenStore>()
             var hasSession by remember { mutableStateOf<Boolean?>(null) }
             LaunchedEffect(Unit) { hasSession = tokenStore.load() != null }
@@ -48,14 +54,16 @@ fun App() {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-                else -> KadansNav(startAtHome = hasSession == true)
+                else -> CompositionLocalProvider(LocalStrings provides language.catalog) {
+                    KadansNav(startAtHome = hasSession == true, languageController = languageController)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun KadansNav(startAtHome: Boolean) {
+private fun KadansNav(startAtHome: Boolean, languageController: LanguageController) {
     val backStack = remember {
         mutableStateListOf<Any>(if (startAtHome) HomeRoute else LoginRoute)
     }
@@ -72,6 +80,7 @@ private fun KadansNav(startAtHome: Boolean) {
             when (key) {
                 is LoginRoute -> NavEntry(key) {
                     LoginScreen(
+                        languageController = languageController,
                         onLoggedIn = { resetTo(HomeRoute) },
                         onMfaRequired = { mfaToken -> backStack.add(MfaRoute(mfaToken)) },
                         onRegister = { backStack.add(RegisterRoute) },
@@ -93,6 +102,7 @@ private fun KadansNav(startAtHome: Boolean) {
                 is HomeRoute -> NavEntry(key) {
                     HomeScreen(
                         onLoggedOut = { resetTo(LoginRoute) },
+                        languageController = languageController,
                         onCreateTodo = { backStack.add(CreateTodoRoute) },
                         onOpenTemplates = { backStack.add(TemplatesRoute) },
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },

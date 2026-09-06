@@ -18,6 +18,7 @@ data class LoginUiState(
     val password: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: String? = null,
 ) {
     val canSubmit: Boolean get() = username.isNotBlank() && password.isNotBlank() && !isLoading
 }
@@ -54,9 +55,9 @@ class LoginViewModel(private val api: KadansApi) : ViewModel() {
                     _events.emit(LoginEvent.LoggedIn)
                 }
             } catch (e: KadansApiException) {
-                _state.update { it.copy(isLoading = false, error = e.message) }
+                _state.update { it.copy(isLoading = false, error = e.message, errorCode = e.errorCode) }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Could not reach the server.") }
+                _state.update { it.copy(isLoading = false, error = null, errorCode = "network") }
             }
         }
     }

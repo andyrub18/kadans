@@ -12,6 +12,9 @@ internal sealed class ApplicationUser : IdentityUser
     /// </summary>
     public string TimeZoneId { get; set; } = "UTC";
 
+    /// <summary>UI/notification language: en, fr or ht.</summary>
+    public string PreferredLanguage { get; set; } = "en";
+
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

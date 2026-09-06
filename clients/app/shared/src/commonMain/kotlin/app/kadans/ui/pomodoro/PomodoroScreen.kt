@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroRunStatus
+import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -32,6 +33,7 @@ fun PomodoroScreen(
     viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId-$loop-$handsFree") { parametersOf(todoId, loop, handsFree) },
 ) {
     val state by viewModel.state.collectAsState()
+    val s = LocalStrings.current
 
     // Re-sync with the server every time this screen comes (back) on screen.
     androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.refresh() }
@@ -41,8 +43,8 @@ fun PomodoroScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         is PomodoroUiState.Error ->
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(current.message, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = onBack) { Text("Back") }
+                Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = onBack) { Text(s.back) }
             }
         is PomodoroUiState.Session -> Session(current, viewModel, onBack)
     }
@@ -50,6 +52,7 @@ fun PomodoroScreen(
 
 @Composable
 private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewModel, onBack: () -> Unit) {
+    val s = LocalStrings.current
     val run = session.run
     val phase = run.phases.getOrNull(run.currentPhaseIndex)
 
@@ -60,27 +63,27 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
     ) {
         when (run.status) {
             PomodoroRunStatus.Completed -> {
-                Text("Pomodoro complete", style = MaterialTheme.typography.headlineMedium)
-                Text("Well done. Need more time on this?", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
-                Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text("Start another cycle") }
-                TextButton(onClick = onBack) { Text("Back to todo") }
+                Text(s.pomodoroComplete, style = MaterialTheme.typography.headlineMedium)
+                Text(s.wellDoneMore, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
+                Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text(s.startAnotherCycle) }
+                TextButton(onClick = onBack) { Text(s.backToTodo) }
             }
             PomodoroRunStatus.Cancelled -> {
-                Text("Session ended", style = MaterialTheme.typography.headlineMedium)
-                Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text("Start a new session") }
-                TextButton(onClick = onBack) { Text("Back to todo") }
+                Text(s.sessionEnded, style = MaterialTheme.typography.headlineMedium)
+                Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text(s.startNewSession) }
+                TextButton(onClick = onBack) { Text(s.backToTodo) }
             }
             else -> {
                 Text(
-                    if (phase?.type == PomodoroPhaseType.Break) "Break" else "Focus",
+                    if (phase?.type == PomodoroPhaseType.Break) s.breakWord else s.focus,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
                     if (run.loop && run.cycleLength > 0)
-                        "Lap ${PomodoroViewModel.lapOf(run.currentPhaseIndex, run.cycleLength)} · phase ${PomodoroViewModel.positionInLap(run.currentPhaseIndex, run.cycleLength)} of ${run.cycleLength}"
+                        "${s.lapWord} ${PomodoroViewModel.lapOf(run.currentPhaseIndex, run.cycleLength)} · ${s.phaseWord} ${PomodoroViewModel.positionInLap(run.currentPhaseIndex, run.cycleLength)} ${s.ofWord} ${run.cycleLength}"
                     else
-                        "Phase ${run.currentPhaseIndex + 1} of ${run.phases.size}",
+                        "${s.phaseWord} ${run.currentPhaseIndex + 1} ${s.ofWord} ${run.phases.size}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -90,24 +93,24 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     modifier = Modifier.padding(vertical = 16.dp),
                 )
                 if (run.status == PomodoroRunStatus.Paused) {
-                    Text("Paused", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(s.paused, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 16.dp)) {
                     if (run.status == PomodoroRunStatus.Active) {
-                        Button(onClick = viewModel::pause) { Text("Pause") }
+                        Button(onClick = viewModel::pause) { Text(s.pause) }
                     } else {
-                        Button(onClick = viewModel::resume) { Text("Resume") }
+                        Button(onClick = viewModel::resume) { Text(s.resume) }
                     }
-                    OutlinedButton(onClick = viewModel::skipPhase, enabled = run.status == PomodoroRunStatus.Active) { Text("Next phase") }
+                    OutlinedButton(onClick = viewModel::skipPhase, enabled = run.status == PomodoroRunStatus.Active) { Text(s.nextPhase) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
                     if (run.loop) {
-                        TextButton(onClick = viewModel::finish) { Text("Finish session") }
-                        TextButton(onClick = viewModel::end) { Text("Discard", color = MaterialTheme.colorScheme.error) }
+                        TextButton(onClick = viewModel::finish) { Text(s.finishSession) }
+                        TextButton(onClick = viewModel::end) { Text(s.discard, color = MaterialTheme.colorScheme.error) }
                     } else {
-                        TextButton(onClick = viewModel::end) { Text("End session", color = MaterialTheme.colorScheme.error) }
+                        TextButton(onClick = viewModel::end) { Text(s.endSession, color = MaterialTheme.colorScheme.error) }
                     }
-                    TextButton(onClick = onBack) { Text("Back") }
+                    TextButton(onClick = onBack) { Text(s.back) }
                 }
             }
         }

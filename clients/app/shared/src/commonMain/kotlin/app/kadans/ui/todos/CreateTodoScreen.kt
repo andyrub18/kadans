@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.Frequency
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
+import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 
 private enum class TimeTarget { Start, ExtraTime }
@@ -51,6 +52,7 @@ fun CreateTodoScreen(
     viewModel: CreateTodoViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val s = LocalStrings.current
     var dateTarget by remember { mutableStateOf<DateTarget?>(null) }
     var timeTarget by remember { mutableStateOf<TimeTarget?>(null) }
 
@@ -64,19 +66,19 @@ fun CreateTodoScreen(
             modifier = Modifier.widthIn(max = 420.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("New todo", style = MaterialTheme.typography.headlineSmall)
+            Text(s.newTodo, style = MaterialTheme.typography.headlineSmall)
 
             OutlinedTextField(
                 value = state.title,
                 onValueChange = { v -> viewModel.update { it.copy(title = v) } },
-                label = { Text("Title") },
+                label = { Text(s.titleLabel) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.description,
                 onValueChange = { v -> viewModel.update { it.copy(description = v) } },
-                label = { Text("Description (optional)") },
+                label = { Text(s.descriptionOptional) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -84,12 +86,12 @@ fun CreateTodoScreen(
                 FilterChip(
                     selected = state.mode == TodoMode.OneTime,
                     onClick = { viewModel.update { it.copy(mode = TodoMode.OneTime) } },
-                    label = { Text("One-time") },
+                    label = { Text(s.oneTime) },
                 )
                 FilterChip(
                     selected = state.mode == TodoMode.Recurring,
                     onClick = { viewModel.update { it.copy(mode = TodoMode.Recurring) } },
-                    label = { Text("Recurring") },
+                    label = { Text(s.recurring) },
                 )
             }
 
@@ -98,9 +100,9 @@ fun CreateTodoScreen(
                     value = state.date?.toString() ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text(if (state.mode == TodoMode.OneTime) "Due date" else "First on") },
-                    placeholder = { Text("Pick a date") },
-                    trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Start }) { Text("Pick") } },
+                    label = { Text(if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn) },
+                    placeholder = { Text(s.pickADate) },
+                    trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Start }) { Text(s.pick) } },
                     modifier = Modifier.weight(1.4f),
                 )
                 if (state.times.isEmpty()) {
@@ -108,8 +110,8 @@ fun CreateTodoScreen(
                         value = state.time.formatted(),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Time") },
-                        trailingIcon = { TextButton(onClick = { timeTarget = TimeTarget.Start }) { Text("Pick") } },
+                        label = { Text(s.timeLabel) },
+                        trailingIcon = { TextButton(onClick = { timeTarget = TimeTarget.Start }) { Text(s.pick) } },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -121,7 +123,7 @@ fun CreateTodoScreen(
                         FilterChip(
                             selected = state.frequency == f,
                             onClick = { viewModel.update { it.copy(frequency = f, times = if (f == Frequency.Daily) it.times else emptyList()) } },
-                            label = { Text(f.name) },
+                            label = { Text(s.frequencyName(f)) },
                         )
                     }
                 }
@@ -129,14 +131,14 @@ fun CreateTodoScreen(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = { viewModel.update { it.copy(interval = (it.interval - 1).coerceAtLeast(1)) } }) { Text("−") }
                     Text(
-                        CreateTodoViewModel.everyLabel(state.frequency, state.interval),
+                        s.every(state.frequency, state.interval),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
                 }
 
                 if (state.frequency == Frequency.Daily) {
-                    Text("Times that day (for “3 times a day”)", style = MaterialTheme.typography.labelLarge)
+                    Text(s.timesThatDay, style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.times.sorted().forEach { t ->
                             InputChip(
@@ -145,33 +147,33 @@ fun CreateTodoScreen(
                                 label = { Text(t.formatted() + "  ✕") },
                             )
                         }
-                        OutlinedButton(onClick = { timeTarget = TimeTarget.ExtraTime }) { Text("+ Add time") }
+                        OutlinedButton(onClick = { timeTarget = TimeTarget.ExtraTime }) { Text(s.addTime) }
                     }
                     if (!state.timesShareMinute) {
                         Text(
-                            "All daily times must share the same minutes — e.g. 8:00, 14:00, 20:00 (a recurrence-rule constraint).",
+                            s.sameMinuteError,
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
 
-                Text("Ends", style = MaterialTheme.typography.labelLarge)
+                Text(s.ends, style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = state.endMode == EndMode.Never,
                         onClick = { viewModel.update { it.copy(endMode = EndMode.Never) } },
-                        label = { Text("Never") },
+                        label = { Text(s.endNever) },
                     )
                     FilterChip(
                         selected = state.endMode == EndMode.AfterCount,
                         onClick = { viewModel.update { it.copy(endMode = EndMode.AfterCount) } },
-                        label = { Text("After a number of times") },
+                        label = { Text(s.endAfterCount) },
                     )
                     FilterChip(
                         selected = state.endMode == EndMode.OnDate,
                         onClick = { viewModel.update { it.copy(endMode = EndMode.OnDate) } },
-                        label = { Text("On a date") },
+                        label = { Text(s.endOnDate) },
                     )
                 }
                 when (state.endMode) {
@@ -179,7 +181,7 @@ fun CreateTodoScreen(
                         OutlinedTextField(
                             value = state.count?.toString() ?: "",
                             onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
-                            label = { Text("How many times in total") },
+                            label = { Text(s.howManyTimes) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -188,9 +190,9 @@ fun CreateTodoScreen(
                             value = state.untilDate?.toString() ?: "",
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Last occurrence on") },
-                            placeholder = { Text("Pick the last day") },
-                            trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Until }) { Text("Pick") } },
+                            label = { Text(s.lastOccurrenceOn) },
+                            placeholder = { Text(s.pickLastDay) },
+                            trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Until }) { Text(s.pick) } },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     EndMode.Never -> {}
@@ -202,17 +204,17 @@ fun CreateTodoScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Remind me before it starts")
+                Text(s.remindMe)
                 Switch(checked = state.notify, onCheckedChange = { v -> viewModel.update { it.copy(notify = v) } })
             }
 
-            if (state.error != null) {
-                Text(state.error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (state.error != null || state.errorCode != null) {
+                Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-                if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text("Create")
+                if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.create)
             }
-            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Cancel") }
+            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }
         }
     }
 
@@ -233,9 +235,9 @@ fun CreateTodoScreen(
                         }
                     }
                     dateTarget = null
-                }) { Text("OK") }
+                }) { Text(s.ok) }
             },
-            dismissButton = { TextButton(onClick = { dateTarget = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { dateTarget = null }) { Text(s.cancel) } },
         ) { DatePicker(state = pickerState) }
     }
 
@@ -254,9 +256,9 @@ fun CreateTodoScreen(
                         }
                     }
                     timeTarget = null
-                }) { Text("OK") }
+                }) { Text(s.ok) }
             },
-            dismissButton = { TextButton(onClick = { timeTarget = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { timeTarget = null }) { Text(s.cancel) } },
             text = { TimePicker(state = timeState) },
         )
     }

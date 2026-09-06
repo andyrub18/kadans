@@ -22,9 +22,10 @@ sealed interface TodoDetailUiState {
         val hasActiveRun: Boolean,
         val templates: List<PomodoroTemplateResponse> = emptyList(),
         val actionError: String? = null,
+        val actionErrorCode: String? = null,
     ) : TodoDetailUiState
 
-    data class Error(val message: String) : TodoDetailUiState
+    data class Error(val message: String?, val code: String? = null) : TodoDetailUiState
 }
 
 class TodoDetailViewModel(private val api: KadansApi, private val todoId: String) : ViewModel() {
@@ -58,7 +59,7 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
             } catch (e: KadansApiException) {
                 val current = _state.value
                 if (current is TodoDetailUiState.Content)
-                    _state.value = current.copy(actionError = e.message)
+                    _state.value = current.copy(actionError = e.message, actionErrorCode = e.errorCode)
                 else load()
             } catch (e: Exception) {
                 load()
@@ -76,9 +77,9 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
             val templates = runCatching { api.pomodoro.templates() }.getOrElse { emptyList() }
             _state.value = TodoDetailUiState.Content(todo, occurrences, showHistory, hasActiveRun, templates)
         } catch (e: KadansApiException) {
-            _state.value = TodoDetailUiState.Error(e.message ?: "Request failed")
+            _state.value = TodoDetailUiState.Error(e.message, e.errorCode)
         } catch (e: Exception) {
-            _state.value = TodoDetailUiState.Error("Could not reach the server.")
+            _state.value = TodoDetailUiState.Error(null, "network")
         }
     }
 }

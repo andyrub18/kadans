@@ -30,7 +30,8 @@ public sealed record RegisterUserRequest(
     string Password,
     string? Email,
     string? DisplayName = null,
-    string? TimeZone = null
+    string? TimeZone = null,
+    string? Language = null
 );
 
 public sealed record ConfirmEmailRequest(string UserId, string Token);
@@ -83,7 +84,8 @@ public sealed record CreateUserRequest(
 public sealed record UpdateSelfUserRequest(
     string? Username,
     string? DisplayName = null,
-    string? TimeZone = null
+    string? TimeZone = null,
+    string? Language = null
 );
 
 public sealed record UpdateUserRequest(
@@ -102,6 +104,7 @@ public sealed record UserResponse(
     bool EmailConfirmed,
     string? DisplayName,
     string TimeZone,
+    string Language,
     bool TwoFactorEnabled,
     bool IsActive,
     IReadOnlyCollection<string> Roles

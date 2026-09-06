@@ -27,10 +27,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
+import app.kadans.i18n.LanguageController
+import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun HomeScreen(
+    languageController: LanguageController,
     onLoggedOut: () -> Unit,
     onCreateTodo: () -> Unit,
     onOpenTemplates: () -> Unit,
@@ -38,6 +41,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val s = LocalStrings.current
+    val language by languageController.language.collectAsState()
 
     LaunchedEffect(viewModel) { viewModel.loggedOut.collect { onLoggedOut() } }
     // Reload whenever this entry comes (back) on screen; data may have changed behind us.
@@ -52,9 +57,10 @@ fun HomeScreen(
             ) {
                 Text("Kadans", style = MaterialTheme.typography.headlineSmall)
                 Row {
-                    TextButton(onClick = onOpenTemplates) { Text("Cycles") }
-                    TextButton(onClick = viewModel::refresh) { Text("Refresh") }
-                    TextButton(onClick = viewModel::logout) { Text("Sign out") }
+                    TextButton(onClick = { languageController.cycle() }) { Text(language.tag.uppercase()) }
+                    TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
+                    TextButton(onClick = viewModel::refresh) { Text(s.refresh) }
+                    TextButton(onClick = viewModel::logout) { Text(s.signOut) }
                 }
             }
         },
@@ -73,8 +79,8 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(current.message, color = MaterialTheme.colorScheme.error)
-                    Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text("Retry") }
+                    Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
+                    Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
                 }
             is HomeUiState.Content -> HomeContent(current, onOpenTodo, Modifier.padding(padding))
         }
@@ -83,23 +89,24 @@ fun HomeScreen(
 
 @Composable
 private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Unit, modifier: Modifier = Modifier) {
+    val s = LocalStrings.current
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { Text("Next 7 days", style = MaterialTheme.typography.titleMedium) }
+        item { Text(s.next7Days, style = MaterialTheme.typography.titleMedium) }
         if (content.upcoming.isEmpty()) {
-            item { Text("Nothing scheduled.", style = MaterialTheme.typography.bodyMedium) }
+            item { Text(s.nothingScheduled, style = MaterialTheme.typography.bodyMedium) }
         }
         items(content.upcoming, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
             OccurrenceCard(occurrence, onClick = { onOpenTodo(occurrence.todoId) })
         }
 
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        item { Text("All todos", style = MaterialTheme.typography.titleMedium) }
+        item { Text(s.allTodos, style = MaterialTheme.typography.titleMedium) }
         if (content.todos.isEmpty()) {
-            item { Text("No todos yet.", style = MaterialTheme.typography.bodyMedium) }
+            item { Text(s.noTodosYet, style = MaterialTheme.typography.bodyMedium) }
         }
         items(content.todos, key = { it.id }) { todo -> TodoCard(todo, onClick = { onOpenTodo(todo.id) }) }
     }
@@ -121,6 +128,7 @@ private fun OccurrenceCard(occurrence: TodoOccurrenceResponse, onClick: () -> Un
 
 @Composable
 private fun TodoCard(todo: TodoResponse, onClick: () -> Unit) {
+    val s = LocalStrings.current
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(
@@ -129,7 +137,7 @@ private fun TodoCard(todo: TodoResponse, onClick: () -> Unit) {
             ) {
                 Text(todo.title, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    todo.status.name,
+                    s.statusName(todo.status),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

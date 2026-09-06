@@ -40,6 +40,7 @@ data class RegisterUserRequest(
     val email: String? = null,
     val displayName: String? = null,
     val timeZone: String? = null,
+    val language: String? = null,
 )
 
 @Serializable
@@ -47,6 +48,7 @@ data class UpdateSelfUserRequest(
     val username: String? = null,
     val displayName: String? = null,
     val timeZone: String? = null,
+    val language: String? = null,
 )
 
 @Serializable
@@ -66,6 +68,7 @@ data class UserResponse(
     val emailConfirmed: Boolean = false,
     val displayName: String? = null,
     val timeZone: String,
+    val language: String = "en",
     val twoFactorEnabled: Boolean = false,
     val isActive: Boolean = true,
     val roles: List<String> = emptyList(),

@@ -24,7 +24,7 @@ sealed interface HomeUiState {
         val upcoming: List<TodoOccurrenceResponse>,
     ) : HomeUiState
 
-    data class Error(val message: String) : HomeUiState
+    data class Error(val message: String?, val code: String? = null) : HomeUiState
 }
 
 class HomeViewModel(private val api: KadansApi) : ViewModel() {
@@ -45,9 +45,9 @@ class HomeViewModel(private val api: KadansApi) : ViewModel() {
                 _state.value = HomeUiState.Content(todos, upcoming)
             } catch (e: KadansApiException) {
                 if (e.httpStatus == 401) _loggedOut.emit(Unit)
-                else _state.value = HomeUiState.Error(e.message ?: "Request failed")
+                else _state.value = HomeUiState.Error(e.message, e.errorCode)
             } catch (e: Exception) {
-                _state.value = HomeUiState.Error("Could not reach the server.")
+                _state.value = HomeUiState.Error(null, "network")
             }
         }
     }

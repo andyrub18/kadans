@@ -20,6 +20,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.FilterChip
+import app.kadans.i18n.Language
+import app.kadans.i18n.LanguageController
+import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -51,6 +55,7 @@ private fun ErrorText(error: String?) {
 
 @Composable
 fun LoginScreen(
+    languageController: LanguageController,
     onLoggedIn: () -> Unit,
     onMfaRequired: (String) -> Unit,
     onRegister: () -> Unit,
@@ -67,27 +72,38 @@ fun LoginScreen(
         }
     }
 
-    AuthScaffold(title = "Sign in") {
+    val s = LocalStrings.current
+    val currentLanguage by languageController.language.collectAsState()
+    AuthScaffold(title = s.signInTitle) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Language.entries.forEach { lang ->
+                FilterChip(
+                    selected = currentLanguage == lang,
+                    onClick = { languageController.set(lang) },
+                    label = { Text(lang.tag.uppercase()) },
+                )
+            }
+        }
         OutlinedTextField(
             value = state.username,
             onValueChange = viewModel::onUsernameChange,
-            label = { Text("Username or email") },
+            label = { Text(s.usernameOrEmail) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
-            label = { Text("Password") },
+            label = { Text(s.password) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
         )
-        ErrorText(state.error)
+        ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
         Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text("Sign in")
+            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.signIn)
         }
-        TextButton(onClick = onRegister) { Text("Create an account") }
+        TextButton(onClick = onRegister) { Text(s.createAccount) }
     }
 }
 
@@ -102,19 +118,20 @@ fun MfaScreen(
 
     LaunchedEffect(viewModel) { viewModel.verified.collect { onVerified() } }
 
-    AuthScaffold(title = "Two-factor code") {
+    val s = LocalStrings.current
+    AuthScaffold(title = s.twoFactorTitle) {
         OutlinedTextField(
             value = state.code,
             onValueChange = viewModel::onCodeChange,
-            label = { Text("Code from your authenticator (or a recovery code)") },
+            label = { Text(s.mfaCodeLabel) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        ErrorText(state.error)
+        ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
         Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text("Verify")
+            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.verify)
         }
-        TextButton(onClick = onBack) { Text("Back") }
+        TextButton(onClick = onBack) { Text(s.back) }
     }
 }
 
@@ -128,40 +145,41 @@ fun RegisterScreen(
 
     LaunchedEffect(viewModel) { viewModel.registered.collect { onRegistered() } }
 
-    AuthScaffold(title = "Create your account") {
+    val s = LocalStrings.current
+    AuthScaffold(title = s.registerTitle) {
         OutlinedTextField(
             value = state.username,
             onValueChange = viewModel::onUsernameChange,
-            label = { Text("Username") },
+            label = { Text(s.username) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.email,
             onValueChange = viewModel::onEmailChange,
-            label = { Text("Email") },
+            label = { Text(s.email) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.displayName,
             onValueChange = viewModel::onDisplayNameChange,
-            label = { Text("Display name (optional)") },
+            label = { Text(s.displayNameOptional) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
-            label = { Text("Password") },
+            label = { Text(s.password) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
         )
-        ErrorText(state.error)
+        ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
         Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text("Create account")
+            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.register)
         }
-        TextButton(onClick = onBack) { Text("Back to sign in") }
+        TextButton(onClick = onBack) { Text(s.backToSignIn) }
     }
 }

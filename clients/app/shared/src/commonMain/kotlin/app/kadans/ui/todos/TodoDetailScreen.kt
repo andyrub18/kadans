@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
+import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -36,6 +37,7 @@ fun TodoDetailScreen(
     viewModel: TodoDetailViewModel = koinViewModel(key = "todo-$todoId") { parametersOf(todoId) },
 ) {
     val state by viewModel.state.collectAsState()
+    val s = LocalStrings.current
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     when (val current = state) {
@@ -43,8 +45,8 @@ fun TodoDetailScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         is TodoDetailUiState.Error ->
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(current.message, color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = onBack) { Text("Back") }
+                Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = onBack) { Text(s.back) }
             }
         is TodoDetailUiState.Content -> Detail(current, viewModel, onOpenPomodoro, onBack)
     }
@@ -57,6 +59,7 @@ private fun Detail(
     onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
+    val s = LocalStrings.current
     var loop by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
     var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -67,8 +70,8 @@ private fun Detail(
     ) {
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("← Back") }
-                Text(content.todo.status.name, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                TextButton(onClick = onBack) { Text("← " + s.back) }
+                Text(s.statusName(content.todo.status), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
             }
         }
         item { Text(content.todo.title, style = MaterialTheme.typography.headlineSmall) }
@@ -88,45 +91,45 @@ private fun Detail(
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Cycle: " + (content.templates.firstOrNull { it.id == content.todo.pomodoroTemplateId }?.name
-                        ?: "default (set on first start)"),
+                    s.cycleWord + ": " + (content.templates.firstOrNull { it.id == content.todo.pomodoroTemplateId }?.name
+                        ?: s.cycleDefault),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                TextButton(onClick = { pickingTemplate = true }) { Text("Change") }
+                TextButton(onClick = { pickingTemplate = true }) { Text(s.change) }
             }
         }
         if (!content.hasActiveRun) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Repeat the cycle until I finish", style = MaterialTheme.typography.bodyMedium)
+                    Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyMedium)
                     androidx.compose.material3.Switch(checked = loop, onCheckedChange = { loop = it })
                 }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Hands-free (advance + notify automatically)", style = MaterialTheme.typography.bodyMedium)
+                    Text(s.handsFree, style = MaterialTheme.typography.bodyMedium)
                     androidx.compose.material3.Switch(checked = handsFree, onCheckedChange = { handsFree = it })
                 }
             }
         }
         item {
             Button(onClick = { onOpenPomodoro(loop, handsFree) }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (content.hasActiveRun) "Open focus session" else "Start focus session")
+                Text(if (content.hasActiveRun) s.openFocus else s.startFocus)
             }
         }
 
-        if (content.actionError != null) {
-            item { Text(content.actionError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        if (content.actionError != null || content.actionErrorCode != null) {
+            item { Text(s.errorFor(content.actionErrorCode, content.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
 
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(if (content.showHistory) "History" else "Pending occurrences", style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = viewModel::toggleHistory) { Text(if (content.showHistory) "Show pending" else "Show history") }
+                Text(if (content.showHistory) s.history else s.pendingOccurrences, style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = viewModel::toggleHistory) { Text(if (content.showHistory) s.showPending else s.showHistory) }
             }
         }
         if (content.occurrences.isEmpty()) {
-            item { Text("Nothing here.", style = MaterialTheme.typography.bodyMedium) }
+            item { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
         }
         items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
             OccurrenceRow(occurrence, viewModel)
@@ -135,7 +138,7 @@ private fun Detail(
         if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
             item {
                 TextButton(onClick = viewModel::cancelTodo, modifier = Modifier.fillMaxWidth()) {
-                    Text("Cancel this todo", color = MaterialTheme.colorScheme.error)
+                    Text(s.cancelThisTodo, color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -152,20 +155,21 @@ private fun Detail(
 
 @Composable
 private fun OccurrenceRow(occurrence: TodoOccurrenceResponse, viewModel: TodoDetailViewModel) {
+    val s = LocalStrings.current
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(occurrence.scheduledAt.toString(), style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    occurrence.status.name + if (occurrence.isRescheduled) " · moved" else "",
+                    s.occurrenceStatusName(occurrence.status) + if (occurrence.isRescheduled) " · " + s.moved else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
             if (occurrence.status == OccurrenceStatus.Pending && occurrence.id != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = { viewModel.completeOccurrence(occurrence.id) }) { Text("Complete") }
-                    TextButton(onClick = { viewModel.cancelOccurrence(occurrence.id) }) { Text("Skip") }
+                    TextButton(onClick = { viewModel.completeOccurrence(occurrence.id) }) { Text(s.complete) }
+                    TextButton(onClick = { viewModel.cancelOccurrence(occurrence.id) }) { Text(s.skip) }
                 }
             }
         }
@@ -178,14 +182,15 @@ private fun TemplatePickerDialog(
     onPick: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val s = LocalStrings.current
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Pomodoro cycle") },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.close) } },
+        title = { Text(s.cycleDialogTitle) },
         text = {
             Column {
-                TextButton(onClick = { onPick(null) }) { Text("None (default on first start)") }
+                TextButton(onClick = { onPick(null) }) { Text(s.cycleNone) }
                 content.templates.forEach { template ->
                     TextButton(onClick = { onPick(template.id) }) { Text(template.name) }
                 }

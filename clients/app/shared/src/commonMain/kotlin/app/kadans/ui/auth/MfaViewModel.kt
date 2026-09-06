@@ -17,6 +17,7 @@ data class MfaUiState(
     val code: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: String? = null,
 ) {
     val canSubmit: Boolean get() = code.isNotBlank() && !isLoading
 }
@@ -41,9 +42,9 @@ class MfaViewModel(private val api: KadansApi, private val mfaToken: String) : V
                 _state.update { it.copy(isLoading = false) }
                 _verified.emit(Unit)
             } catch (e: KadansApiException) {
-                _state.update { it.copy(isLoading = false, error = e.message) }
+                _state.update { it.copy(isLoading = false, error = e.message, errorCode = e.errorCode) }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Could not reach the server.") }
+                _state.update { it.copy(isLoading = false, error = null, errorCode = "network") }
             }
         }
     }

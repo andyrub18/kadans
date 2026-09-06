@@ -44,6 +44,7 @@ data class CreateTodoUiState(
     val times: List<LocalTime> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val errorCode: String? = null,
 ) {
     val timesShareMinute: Boolean get() = times.map { it.minute }.distinct().size <= 1
 
@@ -67,7 +68,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
     val created: SharedFlow<String> = _created.asSharedFlow()
 
     fun update(transform: (CreateTodoUiState) -> CreateTodoUiState) =
-        _state.update { transform(it).copy(error = null) }
+        _state.update { transform(it).copy(error = null, errorCode = null) }
 
     fun submit() {
         val current = _state.value
@@ -85,9 +86,9 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                 _created.emit(todo.id)
             } catch (e: KadansApiException) {
                 val details = e.problem?.errors?.mapNotNull { it.message }?.joinToString("\n")
-                _state.update { it.copy(isLoading = false, error = details?.ifBlank { null } ?: e.message) }
+                _state.update { it.copy(isLoading = false, error = details?.ifBlank { null } ?: e.message, errorCode = if (details.isNullOrBlank()) e.errorCode else null) }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = "Could not reach the server.") }
+                _state.update { it.copy(isLoading = false, error = null, errorCode = "network") }
             }
         }
     }

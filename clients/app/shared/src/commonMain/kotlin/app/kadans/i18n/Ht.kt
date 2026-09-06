@@ -61,6 +61,7 @@ val CreoleStrings = StringsCatalog(
     mfaManualKey = "Kle konfigirasyon",
     recoveryCodesTitle = "Kòd rekiperasyon yo", recoveryCodesHint = "Sere yo yon kote ki an sekirite — chak ka ranplase yon kòd yon sèl fwa si w pèdi telefòn ou.",
     regenerateRecoveryCodes = "Nouvo kòd rekiperasyon", signOutEverywhere = "Dekonekte tout kote",
+    trayOpen = "Ouvri Kadans", trayQuit = "Kite",
     errNetwork = "Nou pa ka jwenn sèvè a.", errInvalidTimeZone = "Nou pa rekonèt zòn lè sa a.",
     errInvalidCredentials = "Non itilizatè oswa modpas la pa bon.",
     errUserInactive = "Kont sa a dezaktive.", errInvalidToken = "Lyen sa a oswa kòd sa a pa valab oswa li ekspire.",

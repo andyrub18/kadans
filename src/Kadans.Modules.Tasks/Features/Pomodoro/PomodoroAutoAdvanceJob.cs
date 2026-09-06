@@ -77,13 +77,15 @@ internal sealed class PomodoroAutoAdvanceJob(
                 logger.LogWarning(ex, "Could not broadcast run {RunId}", run.Id);
             }
 
-            var lap = run.CycleLength > 0 ? run.CurrentPhaseIndex / run.CycleLength + 1 : 1;
-            var lapPrefix = run.Loop && lap > 1 ? string.Format(texts.LapFormat, lap) : "";
-            var body = run.Status == PomodoroRunStatus.Completed
-                ? texts.Complete
-                : run.CurrentPhase.Type == PomodoroPhaseType.Break
-                    ? lapPrefix + string.Format(texts.BreakFormat, run.CurrentPhase.DurationMinutes)
-                    : lapPrefix + string.Format(texts.FocusFormat, run.CurrentPhase.DurationMinutes);
+            var body = PhaseBody(
+                texts,
+                run.Status,
+                run.CurrentPhase.Type,
+                run.CurrentPhase.DurationMinutes,
+                run.CurrentPhaseIndex,
+                run.CycleLength,
+                run.Loop
+            );
 
             await dispatcher.DispatchAsync(
                 run.UserId,
@@ -105,5 +107,25 @@ internal sealed class PomodoroAutoAdvanceJob(
 
         if (due.Count > 0)
             logger.LogInformation("Auto-advanced {Count} pomodoro run(s)", due.Count);
+    }
+
+    /// <summary>One phrasing for every phase notification, whoever advanced the run.</summary>
+    internal static string PhaseBody(
+        PomodoroTexts texts,
+        PomodoroRunStatus status,
+        PomodoroPhaseType currentType,
+        int currentDurationMinutes,
+        int currentPhaseIndex,
+        int cycleLength,
+        bool loop
+    )
+    {
+        var lap = cycleLength > 0 ? currentPhaseIndex / cycleLength + 1 : 1;
+        var lapPrefix = loop && lap > 1 ? string.Format(texts.LapFormat, lap) : "";
+        return status == PomodoroRunStatus.Completed
+            ? texts.Complete
+            : currentType == PomodoroPhaseType.Break
+                ? lapPrefix + string.Format(texts.BreakFormat, currentDurationMinutes)
+                : lapPrefix + string.Format(texts.FocusFormat, currentDurationMinutes);
     }
 }

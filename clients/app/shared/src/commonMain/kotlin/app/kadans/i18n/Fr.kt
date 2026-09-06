@@ -61,6 +61,7 @@ val FrenchStrings = StringsCatalog(
     mfaManualKey = "Clé de configuration",
     recoveryCodesTitle = "Codes de récupération", recoveryCodesHint = "Conservez-les en lieu sûr — chacun peut remplacer un code une fois si vous perdez votre téléphone.",
     regenerateRecoveryCodes = "Nouveaux codes de récupération", signOutEverywhere = "Se déconnecter partout",
+    trayOpen = "Ouvrir Kadans", trayQuit = "Quitter",
     errNetwork = "Impossible de joindre le serveur.", errInvalidTimeZone = "Ce fuseau horaire n'est pas reconnu.",
     errInvalidCredentials = "Nom d'utilisateur ou mot de passe invalide.",
     errUserInactive = "Ce compte est désactivé.", errInvalidToken = "Ce lien ou ce code est invalide ou expiré.",

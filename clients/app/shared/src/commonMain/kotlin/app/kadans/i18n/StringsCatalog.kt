@@ -170,6 +170,9 @@ data class StringsCatalog(
     val recoveryCodesHint: String,
     val regenerateRecoveryCodes: String,
     val signOutEverywhere: String,
+    // desktop tray
+    val trayOpen: String,
+    val trayQuit: String,
     // errors
     val errNetwork: String,
     val errInvalidTimeZone: String,

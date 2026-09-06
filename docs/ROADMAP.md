@@ -131,6 +131,12 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] SignalR connection (`/hubs/kadans`): hand-rolled JSON hub protocol over Ktor websockets,
       reconnect with backoff; live `pomodoro.run.changed` adoption + notification snackbars;
       hub payloads now serialize enums as strings to match the REST contract
+- [x] Instant hands-free cadence: the watching client advances the phase itself the moment it
+      runs out (domain steps on the schedule, so the cadence never drifts); the job (5s) only
+      covers runs nobody is watching, and every hands-free advance dispatches a notification
+- [x] Desktop background mode: OS notifications (notify-send / tray balloon + beep) for every
+      pushed notification; closing the window hides to the system tray and keeps counting
+      (guarded: quits normally when the desktop has no tray support)
 - [ ] FCM registration on Android/iOS; deep links for the emailed URLs
 - [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`
 

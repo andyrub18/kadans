@@ -16,7 +16,8 @@ internal sealed class TasksOptions
 
     public int ReminderIntervalSeconds { get; set; } = 60;
 
-    public int PomodoroAutoAdvanceSeconds { get; set; } = 15;
+    /// <summary>Catch-up cadence for hands-free runs nobody is watching; a watching client advances instantly itself.</summary>
+    public int PomodoroAutoAdvanceSeconds { get; set; } = 5;
 
     /// <summary>Reminders for occurrences already this far in the past are skipped instead of sent late.</summary>
     public int ReminderStaleAfterMinutes { get; set; } = 60;

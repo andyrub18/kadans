@@ -9,6 +9,7 @@ import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
 import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.RealtimeEvent
+import app.kadans.realtime.SystemAlerts
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -33,6 +34,7 @@ sealed interface HomeUiState {
 class HomeViewModel(
     private val api: KadansApi,
     private val realtime: KadansRealtime,
+    private val alerts: SystemAlerts,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -47,6 +49,7 @@ class HomeViewModel(
     init {
         // Home only exists with a session; the hub connection lives for as long as it does.
         realtime.start()
+        alerts.start()
         viewModelScope.launch {
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {

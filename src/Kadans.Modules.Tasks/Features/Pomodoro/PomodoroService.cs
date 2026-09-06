@@ -2,6 +2,7 @@ using Kadans.Modules.Tasks.Contracts;
 using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Security;
 using Kadans.SharedKernel.Users;
@@ -16,6 +17,7 @@ internal sealed class PomodoroService(
     ICurrentUserService currentUser,
     IUserDirectory users,
     IRealtimePublisher realtime,
+    INotificationDispatcher dispatcher,
     ILogger<PomodoroService> logger
 )
 {
@@ -271,8 +273,53 @@ internal sealed class PomodoroService(
     public Task<OneOf<ApplicationError, PomodoroRunResponse>> ResumeRun(Guid runId) =>
         MutateAsync(runId, (run, now) => run.Resume(now));
 
-    public Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request) =>
-        MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request)
+    {
+        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
+        // Hands-free phase changes notify every device, no matter who triggered the advance —
+        // the job only covers runs nobody is watching. Manual runs stay silent: the user did it.
+        if (result.IsT1 && result.AsT1.AutoAdvance)
+            await NotifyPhaseChange(result.AsT1);
+        return result;
+    }
+
+    private async Task NotifyPhaseChange(PomodoroRunResponse run)
+    {
+        try
+        {
+            var userId = currentUser.UserId!;
+            var language = (await users.FindAsync(userId))?.Language ?? "en";
+            var texts = LocalizedTexts.Pomodoro(language);
+            var title = await context
+                .Todos.Where(t => t.Id == run.TodoId)
+                .Select(t => t.Title)
+                .FirstOrDefaultAsync() ?? "Kadans";
+            var phase = run.Phases[run.CurrentPhaseIndex];
+            var body = PomodoroAutoAdvanceJob.PhaseBody(
+                texts, run.Status, phase.Type, phase.DurationMinutes,
+                run.CurrentPhaseIndex, run.CycleLength, run.Loop
+            );
+            await dispatcher.DispatchAsync(
+                userId,
+                new NotificationMessage(
+                    PomodoroAutoAdvanceJob.Kind,
+                    title,
+                    body,
+                    new Dictionary<string, string>
+                    {
+                        ["todoId"] = run.TodoId.ToString(),
+                        ["runId"] = run.Id.ToString(),
+                        ["status"] = run.Status.ToString(),
+                        ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
+                    }
+                )
+            );
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not notify phase change for run {RunId}", run.Id);
+        }
+    }
 
     public Task<OneOf<ApplicationError, PomodoroRunResponse>> FinishRun(Guid runId) =>
         MutateAsync(runId, (run, now) => run.Finish(now));

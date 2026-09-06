@@ -39,13 +39,16 @@ class PomodoroViewModel(
     val state: StateFlow<PomodoroUiState> = _state.asStateFlow()
 
     init {
+        realtime.start() // idempotent — the focus screen must not depend on Home having done it
         viewModelScope.launch { tick() }
         // Hands-free advances happen server-side; the hub pushes each new phase to us live.
+        // Adopt only pushes about the run on screen, and never a state older than what we show —
+        // a late event for a previous run must not overwrite the session we just started.
         viewModelScope.launch {
             realtime.events.collect { event ->
-                if (event is RealtimeEvent.PomodoroRunChanged && event.run.todoId == todoId) {
-                    adopt(event.run)
-                }
+                if (event !is RealtimeEvent.PomodoroRunChanged) return@collect
+                val current = (_state.value as? PomodoroUiState.Session)?.run
+                if (shouldAdoptPush(current, event.run, todoId)) adopt(event.run)
             }
         }
     }
@@ -130,7 +133,9 @@ class PomodoroViewModel(
             try {
                 adopt(action(run))
             } catch (e: KadansApiException) {
-                fail(e)
+                // Usually our copy was stale (the job or another device moved the run): resync to
+                // where the server actually is instead of dead-ending on "only active runs can…".
+                if (!resync()) fail(e)
             } catch (e: Exception) {
                 fail(e)
             }
@@ -141,10 +146,42 @@ class PomodoroViewModel(
         while (true) {
             val current = _state.value
             if (current is PomodoroUiState.Session) {
-                _state.value = current.copy(remaining = remainingOf(current.run, Clock.System.now()))
+                val now = Clock.System.now()
+                _state.value = current.copy(remaining = remainingOf(current.run, now))
+                maybeResyncOverdue(current.run, now)
             }
             delay(250)
         }
+    }
+
+    private var lastResync = kotlin.time.Instant.DISTANT_PAST
+
+    /**
+     * A hands-free phase that has run out advances server-side; poll until the new state lands.
+     * The hub push normally beats this, but the cadence must not depend on the socket's health.
+     * Manual runs sit at 0:00 on purpose — the user advances those.
+     */
+    private fun maybeResyncOverdue(run: PomodoroRunResponse, now: kotlin.time.Instant) {
+        val endsAt = run.phaseEndsAt ?: return
+        if (!run.autoAdvance || run.status != PomodoroRunStatus.Active || endsAt > now) return
+        if (now - lastResync < 3.seconds) return
+        lastResync = now
+        viewModelScope.launch { resync() }
+    }
+
+    /** Pull the server's view of this todo's run; true when a session was (re)adopted. */
+    private suspend fun resync(): Boolean = try {
+        adopt(api.pomodoro.activeRun(todoId))
+        true
+    } catch (e: KadansApiException) {
+        if (e.errorCode == "10028") {
+            // No active run any more: it completed or was ended elsewhere; show the latest one.
+            val latest = runCatching { api.pomodoro.runs(todoId, page = 1, pageSize = 1).firstOrNull() }
+                .getOrNull()
+            latest?.let { adopt(it) } != null
+        } else false
+    } catch (_: Exception) {
+        false // transient network problem: keep the current display and try again later
     }
 
     private fun adopt(run: PomodoroRunResponse) {
@@ -157,6 +194,16 @@ class PomodoroViewModel(
     }
 
     internal companion object {
+        /**
+         * A push may only update the run already on screen, and never rewind it — a late event
+         * for a previous (ended) run must not overwrite the session the user just started.
+         */
+        fun shouldAdoptPush(current: PomodoroRunResponse?, pushed: PomodoroRunResponse, todoId: String): Boolean =
+            pushed.todoId == todoId &&
+                current != null &&
+                pushed.id == current.id &&
+                pushed.updatedAt >= current.updatedAt
+
         fun remainingOf(run: PomodoroRunResponse, now: kotlin.time.Instant): Duration = when (run.status) {
             PomodoroRunStatus.Active -> ((run.phaseEndsAt ?: now) - now).coerceAtLeast(Duration.ZERO)
             PomodoroRunStatus.Paused -> (run.pausedRemainingSeconds ?: 0).seconds

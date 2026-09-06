@@ -72,4 +72,67 @@ class RealRealtimeSmokeTest {
             }
         }
     }
+
+    /**
+     * The slow one (~90s): a hands-free run with a 1-minute phase must be advanced BY THE
+     * QUARTZ JOB and the new phase must arrive over the socket — the exact user-visible
+     * "advances by itself" promise. Opt in with KADANS_SMOKE_SLOW=1.
+     */
+    @Test
+    fun quartz_job_advances_hands_free_run_and_pushes_it_live() {
+        val baseUrl = System.getenv("KADANS_API_URL") ?: return
+        if (System.getenv("KADANS_SMOKE_SLOW") != "1") {
+            println("KADANS_SMOKE_SLOW not set; skipping the slow hands-free smoke")
+            return
+        }
+        val user = System.getenv("KADANS_API_USER") ?: "admin"
+        val password = System.getenv("KADANS_API_PASSWORD") ?: "Admin123!"
+
+        runBlocking {
+            val api = KadansApi.create(baseUrl)
+            api.auth.login(user, password)
+            val realtime = KadansRealtime(api)
+            realtime.start()
+            try {
+                withTimeout(10_000) { realtime.connected.first { it } }
+                val todo = api.todos.createOneTime(
+                    CreateOneTimeTodo(title = "hands-free smoke", dueDate = Clock.System.now() + 1.hours),
+                )
+                val template = api.pomodoro.createTemplate(
+                    CreatePomodoroTemplate(
+                        "hands-free smoke 1m",
+                        listOf(
+                            CreatePomodoroPhase(PomodoroPhaseType.Focus, 1),
+                            CreatePomodoroPhase(PomodoroPhaseType.Break, 1),
+                        ),
+                    ),
+                )
+                api.pomodoro.attachTemplate(todo.id, template.id)
+
+                val advanced = async {
+                    withTimeout(120_000) {
+                        realtime.events.first {
+                            it is RealtimeEvent.PomodoroRunChanged &&
+                                it.run.todoId == todo.id &&
+                                it.run.currentPhaseIndex > 0
+                        } as RealtimeEvent.PomodoroRunChanged
+                    }
+                }
+                delay(300)
+                val run = api.pomodoro.start(todo.id, autoAdvance = true, loop = true)
+                println("hands-free: run started, waiting for the job to advance phase 0…")
+
+                val event = advanced.await()
+                assertTrue(event.run.currentPhaseIndex > 0, "job should have advanced past phase 0")
+                println("hands-free: job advanced to phase ${event.run.currentPhaseIndex}, pushed live")
+
+                api.pomodoro.cancel(run.id)
+                api.todos.cancel(todo.id, "hands-free smoke cleanup")
+                api.pomodoro.deleteTemplate(template.id)
+            } finally {
+                realtime.stop()
+                runCatching { api.auth.logout() }
+            }
+        }
+    }
 }

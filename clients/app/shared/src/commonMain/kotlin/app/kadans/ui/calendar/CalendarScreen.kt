@@ -6,11 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -45,7 +46,10 @@ fun CalendarScreen(
     val s = LocalStrings.current
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    // Width-capped so desktop windows don't blow the day cells up; the day detail below shares
+    // the height via weight, so tapping a date always shows its list on screen.
+    Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.widthIn(max = 480.dp).fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("← " + s.back) }
             Text(
@@ -105,11 +109,12 @@ fun CalendarScreen(
             if (state.selectedOccurrences.isEmpty()) {
                 Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium)
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f, fill = false)) {
                 items(state.selectedOccurrences, key = { it.id ?: (it.todoId + it.scheduledAt.toString()) }) { occurrence ->
                     DayOccurrenceCard(occurrence, onClick = { onOpenTodo(occurrence.todoId) })
                 }
             }
+        }
         }
     }
 }
@@ -130,7 +135,7 @@ private fun DayCell(
     }
     Column(
         modifier = modifier
-            .aspectRatio(1f)
+            .height(46.dp)
             .padding(2.dp)
             .clip(MaterialTheme.shapes.small)
             .background(background)

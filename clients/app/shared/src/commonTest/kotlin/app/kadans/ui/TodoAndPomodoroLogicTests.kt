@@ -151,4 +151,21 @@ class TodoAndPomodoroLogicTests {
         assertEquals("4:05", PomodoroViewModel.format(4.minutes + 5.seconds))
         assertEquals("0:09", PomodoroViewModel.format(9.seconds))
     }
+
+    @Test
+    fun pushes_only_update_the_run_on_screen_and_never_rewind_it() {
+        val current = run(PomodoroRunStatus.Active)
+        val newer = current.copy(currentPhaseIndex = 1, updatedAt = Instant.parse("2027-01-01T12:25:00Z"))
+        val older = current.copy(status = PomodoroRunStatus.Cancelled, updatedAt = Instant.parse("2027-01-01T11:00:00Z"))
+        val otherRun = newer.copy(id = "previous-run")
+
+        assertEquals(true, PomodoroViewModel.shouldAdoptPush(current, newer, todoId = "t"))
+        assertEquals(true, PomodoroViewModel.shouldAdoptPush(current, current, todoId = "t"))
+        // A late event for an ended earlier state must not overwrite the live session.
+        assertEquals(false, PomodoroViewModel.shouldAdoptPush(current, older, todoId = "t"))
+        // Nor may a different run of the same todo, another todo, or a push with nothing on screen.
+        assertEquals(false, PomodoroViewModel.shouldAdoptPush(current, otherRun, todoId = "t"))
+        assertEquals(false, PomodoroViewModel.shouldAdoptPush(current, newer, todoId = "other-todo"))
+        assertEquals(false, PomodoroViewModel.shouldAdoptPush(null, newer, todoId = "t"))
+    }
 }

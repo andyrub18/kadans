@@ -20,9 +20,11 @@ import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import app.kadans.ui.auth.ForgotPasswordScreen
 import app.kadans.ui.auth.LoginScreen
 import app.kadans.ui.auth.MfaScreen
 import app.kadans.ui.auth.RegisterScreen
+import app.kadans.ui.auth.ResetPasswordScreen
 import app.kadans.ui.calendar.CalendarScreen
 import app.kadans.ui.home.HomeScreen
 import app.kadans.ui.settings.SettingsScreen
@@ -36,6 +38,8 @@ import org.koin.compose.koinInject
 // Navigation 3: routes are plain keys; the back stack is state we own.
 data object LoginRoute
 data object RegisterRoute
+data object ForgotPasswordRoute
+data class ResetPasswordRoute(val email: String, val token: String)
 data class MfaRoute(val mfaToken: String)
 data object HomeRoute
 data object CreateTodoRoute
@@ -47,7 +51,7 @@ data class EditTodoRoute(val todoId: String)
 data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false)
 
 @Composable
-fun App() {
+fun App(deepLink: String? = null) {
     KadansTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             val languageController = koinInject<LanguageController>()
@@ -61,7 +65,11 @@ fun App() {
                     CircularProgressIndicator()
                 }
                 else -> CompositionLocalProvider(LocalStrings provides language.catalog) {
-                    KadansNav(startAtHome = hasSession == true, languageController = languageController)
+                    KadansNav(
+                        startAtHome = hasSession == true,
+                        languageController = languageController,
+                        deepLinkRoute = parseDeepLink(deepLink),
+                    )
                 }
             }
         }
@@ -69,9 +77,11 @@ fun App() {
 }
 
 @Composable
-private fun KadansNav(startAtHome: Boolean, languageController: LanguageController) {
+private fun KadansNav(startAtHome: Boolean, languageController: LanguageController, deepLinkRoute: Any? = null) {
     val backStack = remember {
-        mutableStateListOf<Any>(if (startAtHome) HomeRoute else LoginRoute)
+        mutableStateListOf<Any>(if (startAtHome) HomeRoute else LoginRoute).also { stack ->
+            deepLinkRoute?.let { stack.add(it) }
+        }
     }
 
     fun resetTo(route: Any) {
@@ -90,6 +100,18 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onLoggedIn = { resetTo(HomeRoute) },
                         onMfaRequired = { mfaToken -> backStack.add(MfaRoute(mfaToken)) },
                         onRegister = { backStack.add(RegisterRoute) },
+                        onForgotPassword = { backStack.add(ForgotPasswordRoute) },
+                    )
+                }
+                is ForgotPasswordRoute -> NavEntry(key) {
+                    ForgotPasswordScreen(onBack = { backStack.removeLastOrNull() })
+                }
+                is ResetPasswordRoute -> NavEntry(key) {
+                    ResetPasswordScreen(
+                        email = key.email,
+                        token = key.token,
+                        onDone = { resetTo(LoginRoute) },
+                        onBack = { backStack.removeLastOrNull() },
                     )
                 }
                 is MfaRoute -> NavEntry(key) {

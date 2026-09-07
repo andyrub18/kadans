@@ -17,3 +17,4 @@ logs/
 
 # Local secrets never belong here; use `dotnet user-secrets` (see README)
 appsettings.*.local.json
+google-services.json

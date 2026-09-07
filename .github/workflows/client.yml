@@ -1,0 +1,27 @@
+name: Client
+
+on:
+  push:
+    branches: [main]
+    paths: ["clients/**", ".github/workflows/client.yml"]
+  pull_request:
+    paths: ["clients/**", ".github/workflows/client.yml"]
+
+jobs:
+  client:
+    name: Build & test (Kotlin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # google-services.json is per-owner and gitignored; the build skips the plugin without it.
+      - name: Tests, desktop and Android builds
+        working-directory: clients/app
+        run: ./gradlew :shared:jvmTest :desktopApp:build :androidApp:assembleDebug

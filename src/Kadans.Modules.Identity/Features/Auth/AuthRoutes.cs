@@ -1,5 +1,7 @@
 using Kadans.Modules.Identity.Contracts;
+using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Account;
+using Microsoft.AspNetCore.Identity;
 using Kadans.Modules.Identity.Features.Users;
 using Kadans.SharedKernel.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -67,15 +69,28 @@ internal static class AuthRoutes
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
             // The link in the email is a GET so it also works from a plain browser click.
-            auth.MapGet("/confirm-email", async Task<Results<ContentHttpResult, ProblemHttpResult>> (string userId, string token, AccountSecurity service, HttpContext context) =>
+            auth.MapGet("/confirm-email", async Task<Results<ContentHttpResult, ProblemHttpResult>> (string userId, string token, AccountSecurity service, UserManager<ApplicationUser> userManager, HttpContext context) =>
                 {
+                    var language = (await userManager.FindByIdAsync(userId))?.PreferredLanguage;
                     var result = await service.ConfirmEmail(new ConfirmEmailRequest(userId, token));
                     return result.Match<Results<ContentHttpResult, ProblemHttpResult>>(
                         error => TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
-                        _ => TypedResults.Text("Your email is confirmed. You can go back to the app."));
+                        _ => TypedResults.Text(AuthPages.Confirmed(EmailTexts.For(language)), "text/html"));
                 })
                 .WithName("AuthConfirmEmailLink")
                 .WithSummary("Confirm an email address (link target)")
+                .ExcludeFromDescription();
+
+            // The reset email lands here: a self-contained form for any browser, plus the
+            // kadans:// link for phones. Always renders — the POST judges the token, and a
+            // missing account must look no different (no enumeration).
+            auth.MapGet("/reset-password", async Task<ContentHttpResult> (string email, string token, UserManager<ApplicationUser> userManager) =>
+                {
+                    var language = (await userManager.FindByEmailAsync(email))?.PreferredLanguage;
+                    return TypedResults.Text(AuthPages.ResetPassword(EmailTexts.For(language), email, token), "text/html");
+                })
+                .WithName("AuthResetPasswordPage")
+                .WithSummary("Choose a new password (link target)")
                 .ExcludeFromDescription();
 
             auth.MapPost("/resend-confirmation", async Task<Ok<Success>> (ResendConfirmationRequest request, AccountSecurity service, CancellationToken cancellationToken) =>

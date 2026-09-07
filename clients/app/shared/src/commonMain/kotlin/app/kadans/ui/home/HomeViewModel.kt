@@ -7,6 +7,7 @@ import app.kadans.api.KadansApiException
 import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
+import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.RealtimeEvent
 import app.kadans.realtime.SystemAlerts
@@ -35,6 +36,7 @@ class HomeViewModel(
     private val api: KadansApi,
     private val realtime: KadansRealtime,
     private val alerts: SystemAlerts,
+    private val deviceRegistrar: DeviceRegistrar,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -50,6 +52,7 @@ class HomeViewModel(
         // Home only exists with a session; the hub connection lives for as long as it does.
         realtime.start()
         alerts.start()
+        viewModelScope.launch { deviceRegistrar.register() }
         viewModelScope.launch {
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {

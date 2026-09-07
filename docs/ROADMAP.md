@@ -137,7 +137,12 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] Desktop background mode: OS notifications (notify-send / tray balloon + beep) for every
       pushed notification; closing the window hides to the system tray and keeps counting
       (guarded: quits normally when the desktop has no tray support)
-- [ ] FCM registration on Android/iOS; deep links for the emailed URLs
+- [x] Android FCM: google-services wired (plugin applied only when the gitignored json exists),
+      channel + foreground handler + POST_NOTIFICATIONS prompt; every sign-in upserts the device
+      with its push token. iOS push deferred (needs Mac + Apple Developer account).
+- [x] Password reset end-to-end: localized HTML landing pages for the emailed links (the reset
+      link used to 404), in-app Forgot/Reset screens, and a kadans:// deep link on Android;
+      client CI workflow (jvmTest + desktop + Android assemble) on clients/** changes
 - [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`
 
 ## Phase 7 – Budget module

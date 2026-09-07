@@ -60,6 +60,7 @@ fun LoginScreen(
     onLoggedIn: () -> Unit,
     onMfaRequired: (String) -> Unit,
     onRegister: () -> Unit,
+    onForgotPassword: () -> Unit,
     viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -104,7 +105,79 @@ fun LoginScreen(
         Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
             if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.signIn)
         }
-        TextButton(onClick = onRegister) { Text(s.createAccount) }
+        Row {
+            TextButton(onClick = onRegister) { Text(s.createAccount) }
+            TextButton(onClick = onForgotPassword) { Text(s.forgotPassword) }
+        }
+    }
+}
+
+@Composable
+fun ForgotPasswordScreen(
+    onBack: () -> Unit,
+    viewModel: ForgotPasswordViewModel = koinViewModel(),
+) {
+    val state by viewModel.state.collectAsState()
+    val s = LocalStrings.current
+    AuthScaffold(title = s.forgotTitle) {
+        if (state.sent) {
+            Text(s.resetEmailSent, style = MaterialTheme.typography.bodyMedium)
+        } else {
+            OutlinedTextField(
+                value = state.email,
+                onValueChange = { v -> viewModel.update { it.copy(email = v) } },
+                label = { Text(s.email) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
+            Button(
+                onClick = viewModel::submit,
+                enabled = state.email.isNotBlank() && !state.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.sendResetLink)
+            }
+        }
+        TextButton(onClick = onBack) { Text(s.backToSignIn) }
+    }
+}
+
+@Composable
+fun ResetPasswordScreen(
+    email: String,
+    token: String,
+    onDone: () -> Unit,
+    onBack: () -> Unit,
+    viewModel: ResetPasswordViewModel = koinViewModel(key = "reset-$email") { parametersOf(email, token) },
+) {
+    val state by viewModel.state.collectAsState()
+
+    val s = LocalStrings.current
+    AuthScaffold(title = s.resetPasswordTitle) {
+        if (state.done) {
+            Text(s.resetDone, style = MaterialTheme.typography.bodyMedium)
+            Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text(s.signIn) }
+        } else {
+            Text(email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = state.newPassword,
+                onValueChange = { v -> viewModel.update { it.copy(newPassword = v) } },
+                label = { Text(s.newPassword) },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
+            Button(
+                onClick = viewModel::submit,
+                enabled = state.newPassword.isNotBlank() && !state.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.resetPasswordAction)
+            }
+            TextButton(onClick = onBack) { Text(s.backToSignIn) }
+        }
     }
 }
 

@@ -5,11 +5,14 @@ import app.kadans.api.TokenStore
 import app.kadans.auth.SettingsTokenStore
 import app.kadans.config.defaultApiBaseUrl
 import app.kadans.i18n.LanguageController
+import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.SystemAlerts
+import app.kadans.ui.auth.ForgotPasswordViewModel
 import app.kadans.ui.auth.LoginViewModel
 import app.kadans.ui.auth.MfaViewModel
 import app.kadans.ui.auth.RegisterViewModel
+import app.kadans.ui.auth.ResetPasswordViewModel
 import app.kadans.ui.calendar.CalendarViewModel
 import app.kadans.ui.home.HomeViewModel
 import app.kadans.ui.settings.SettingsViewModel
@@ -29,10 +32,13 @@ val appModule = org.koin.dsl.module {
     single { KadansApi.create(baseUrl = defaultApiBaseUrl(), tokenStore = get()) }
     single { KadansRealtime(get()) }
     single { SystemAlerts(get()) }
+    single { DeviceRegistrar(get(), get()) }
     single { LanguageController(get(), get()) }
 
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
+    viewModelOf(::ForgotPasswordViewModel)
+    factory { (email: String, token: String) -> ResetPasswordViewModel(get(), email, token) }
     viewModelOf(::HomeViewModel)
     viewModelOf(::TemplatesViewModel)
     viewModelOf(::CalendarViewModel)

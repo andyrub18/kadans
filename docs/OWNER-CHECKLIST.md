@@ -48,12 +48,16 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
 
 ## Push notifications – Firebase Cloud Messaging
 
-- [ ] Firebase project (can be the same Google Cloud project); add the Android and iOS apps
+- [x] Firebase project `kadans-420a7`; Android app registered (package `app.kadans`).
+      Its `google-services.json` lives at `clients/app/androidApp/google-services.json`
+      (gitignored — the Android build works without it, push just stays off)
 - [ ] Project settings → Service accounts → generate a private key (JSON) →
       `Push:Firebase:CredentialsJson` (the whole JSON as one secret value) **or** a file path in
       `Push:Firebase:CredentialsFile`
 - [ ] `Push:Provider` = `Fcm` (dev defaults to `Log`)
-- [ ] iOS: upload the APNs key (.p8) in Firebase → Cloud Messaging so FCM can reach iPhones
+- [ ] iOS (deferred — needs a Mac + paid Apple Developer account): register the iOS app
+      (bundle `app.kadans`), add `GoogleService-Info.plist`, and upload the APNs key (.p8)
+      in Firebase → Cloud Messaging so FCM can reach iPhones
 - Desktop clients do not use push: they hold the SignalR connection (`/hubs/kadans`).
 
 ## Domain and hosting (later)
@@ -65,5 +69,7 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
 ## Client (Compose Multiplatform)
 
 - [ ] Google Play / App Store developer accounts when it is time to ship
-- [ ] Deep links (App Links / Universal Links) for the three emailed URLs
-- [ ] Register the device on every app start: `PUT /users/me/devices/{installationId}` with the FCM token
+- [x] Deep links: `kadans://auth/...` custom scheme handled on Android; the email landing pages
+      offer the app link. Verified https App Links / Universal Links wait for the domain.
+- [x] Device registration on every sign-in: `PUT /users/me/devices/{installationId}` with the
+      FCM token on Android (null elsewhere)

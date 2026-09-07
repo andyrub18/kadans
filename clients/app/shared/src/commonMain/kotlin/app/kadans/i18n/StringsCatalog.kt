@@ -173,6 +173,14 @@ data class StringsCatalog(
     // desktop tray
     val trayOpen: String,
     val trayQuit: String,
+    // forgot / reset password
+    val forgotPassword: String,
+    val forgotTitle: String,
+    val sendResetLink: String,
+    val resetEmailSent: String,
+    val resetPasswordTitle: String,
+    val resetPasswordAction: String,
+    val resetDone: String,
     // errors
     val errNetwork: String,
     val errInvalidTimeZone: String,

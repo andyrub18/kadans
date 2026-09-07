@@ -40,6 +40,7 @@ class KadansApi internal constructor(
     val account: AccountApi = AccountApi(this)
     val todos: TodosApi = TodosApi(this)
     val pomodoro: PomodoroApi = PomodoroApi(this)
+    val budget: BudgetApi = BudgetApi(this)
     val notifications: NotificationsApi = NotificationsApi(this)
 
     /** Drop Ktor's cached bearer so the next request re-reads [tokenStore]. */

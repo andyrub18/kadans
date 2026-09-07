@@ -215,6 +215,86 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
         }.orThrow()
 }
 
+class BudgetApi internal constructor(private val api: KadansApi) {
+    suspend fun accounts(includeArchived: Boolean = false): List<AccountResponse> =
+        api.http.get("budget/accounts/") { parameter("includeArchived", includeArchived) }.orThrow()
+
+    suspend fun createAccount(request: CreateAccount): AccountResponse =
+        api.http.post("budget/accounts/") { setBody(request) }.orThrow()
+
+    suspend fun updateAccount(id: String, request: UpdateAccount): AccountResponse =
+        api.http.put("budget/accounts/$id") { setBody(request) }.orThrow()
+
+    suspend fun categories(includeArchived: Boolean = false): List<CategoryResponse> =
+        api.http.get("budget/categories/") { parameter("includeArchived", includeArchived) }.orThrow()
+
+    suspend fun createCategory(request: CreateCategory): CategoryResponse =
+        api.http.post("budget/categories/") { setBody(request) }.orThrow()
+
+    suspend fun updateCategory(id: String, request: UpdateCategory): CategoryResponse =
+        api.http.put("budget/categories/$id") { setBody(request) }.orThrow()
+
+    suspend fun setCategoryBudget(categoryId: String, request: SetCategoryBudget): CategoryBudgetResponse =
+        api.http.put("budget/categories/$categoryId/budget") { setBody(request) }.orThrow()
+
+    suspend fun removeCategoryBudget(categoryId: String) {
+        api.http.delete("budget/categories/$categoryId/budget").orThrow<Success>()
+    }
+
+    suspend fun transactions(
+        accountId: String? = null,
+        categoryId: String? = null,
+        kind: BudgetTransactionKind? = null,
+        from: Instant? = null,
+        to: Instant? = null,
+        page: Int = 1,
+        pageSize: Int = 50,
+    ): List<BudgetTransactionResponse> =
+        api.http.get("budget/transactions/") {
+            if (accountId != null) parameter("accountId", accountId)
+            if (categoryId != null) parameter("categoryId", categoryId)
+            if (kind != null) parameter("kind", kind.name)
+            if (from != null) parameter("from", from.toString())
+            if (to != null) parameter("to", to.toString())
+            parameter("page", page)
+            parameter("pageSize", pageSize)
+        }.orThrow()
+
+    suspend fun createTransaction(request: CreateBudgetTransaction): BudgetTransactionResponse =
+        api.http.post("budget/transactions/") { setBody(request) }.orThrow()
+
+    suspend fun updateTransaction(id: String, request: UpdateBudgetTransaction): BudgetTransactionResponse =
+        api.http.put("budget/transactions/$id") { setBody(request) }.orThrow()
+
+    suspend fun deleteTransaction(id: String) {
+        api.http.delete("budget/transactions/$id").orThrow<Success>()
+    }
+
+    suspend fun recurring(): List<RecurringTransactionResponse> =
+        api.http.get("budget/recurring/").orThrow()
+
+    suspend fun createRecurring(request: CreateRecurringTransaction): RecurringTransactionResponse =
+        api.http.post("budget/recurring/") { setBody(request) }.orThrow()
+
+    suspend fun updateRecurring(id: String, request: UpdateRecurringTransaction): RecurringTransactionResponse =
+        api.http.put("budget/recurring/$id") { setBody(request) }.orThrow()
+
+    suspend fun deleteRecurring(id: String) {
+        api.http.delete("budget/recurring/$id").orThrow<Success>()
+    }
+
+    suspend fun exchangeRate(): ExchangeRateResponse = api.http.get("budget/exchange-rate/").orThrow()
+
+    suspend fun setExchangeRate(htgPerUsd: Double): ExchangeRateResponse =
+        api.http.put("budget/exchange-rate/") { setBody(SetExchangeRate(htgPerUsd)) }.orThrow()
+
+    suspend fun summary(year: Int, month: Int): MonthlySummaryResponse =
+        api.http.get("budget/summary") {
+            parameter("year", year)
+            parameter("month", month)
+        }.orThrow()
+}
+
 class NotificationsApi internal constructor(private val api: KadansApi) {
     suspend fun list(unreadOnly: Boolean = false, page: Int = 1, pageSize: Int = 20): List<NotificationResponse> =
         api.http.get("notifications") {

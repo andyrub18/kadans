@@ -209,7 +209,31 @@ internal sealed class TransactionService(
             .OrderByDescending(s => s.Amount)
             .ToList();
 
-        return new MonthlySummaryResponse(year, month, timeZone.Id, totals, await accounts.List(), spends);
+        var accountList = await accounts.List();
+        var rate = (await context.ExchangeRates.FirstOrDefaultAsync(cancellationToken))?.HtgPerUsd;
+        return new MonthlySummaryResponse(year, month, timeZone.Id, totals, accountList, spends,
+            Combine(rate, totals, accountList));
+    }
+
+    /// <summary>
+    /// Everything in gourdes at the user's own rate — an estimate for the summary header, never
+    /// applied to stored amounts. Null until they set a rate.
+    /// </summary>
+    internal static CombinedAtYourRate? Combine(
+        decimal? htgPerUsd,
+        IReadOnlyList<CurrencyTotals> totals,
+        IReadOnlyList<AccountResponse> accounts
+    )
+    {
+        if (htgPerUsd is not { } rate)
+            return null;
+        decimal ToHtg(Currency currency, decimal amount) =>
+            currency == Currency.Usd ? decimal.Round(amount * rate, 2) : amount;
+
+        var income = totals.Sum(t => ToHtg(t.Currency, t.Income));
+        var expense = totals.Sum(t => ToHtg(t.Currency, t.Expense));
+        var balance = accounts.Where(a => !a.IsArchived).Sum(a => ToHtg(a.Currency, a.Balance));
+        return new CombinedAtYourRate(rate, income, expense, income - expense, balance);
     }
 
     internal static TransactionResponse ToResponse(Transaction t) =>

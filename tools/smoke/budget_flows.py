@@ -41,6 +41,14 @@ T = tok["accessToken"]
 now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 def iso(d): return d.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+# summary totals accumulate per user per month across runs: snapshot first, assert deltas
+def month_summary():
+    return call("GET", f"/budget/summary?year={now.year}&month={now.month}", token=T)[1]
+def htg_totals(summary):
+    row = next((x for x in summary["totals"] if x["currency"] == "Htg"), None)
+    return (row["income"], row["expense"]) if row else (0, 0)
+income0, expense0 = htg_totals(month_summary())
+
 # --- accounts, one per currency ---
 s, cash = call("POST", "/budget/accounts/", {"name": "smoke: Cash", "currency": "Htg", "type": "Cash", "initialBalance": 1000}, T)
 C("create HTG cash account", s == 200 and cash["balance"] == 1000, f"{s}")
@@ -88,9 +96,9 @@ s, r = call("PUT", f"/budget/categories/{food['id']}/budget", {"monthlyLimit": 2
 C("set monthly limit on expense category", s == 200)
 s, r = call("PUT", f"/budget/categories/{salary['id']}/budget", {"monthlyLimit": 1, "currency": "Htg"}, T)
 C("limit on income category rejected (10050)", s == 400 and code(r) == "10050")
-s, summary = call("GET", f"/budget/summary?year={now.year}&month={now.month}", token=T)
-htg = next((t for t in summary["totals"] if t["currency"] == "Htg"), None)
-C("summary totals per currency", s == 200 and htg and htg["income"] == 85000 and htg["expense"] == 2500.50, f"{htg}")
+summary = month_summary()
+income1, expense1 = htg_totals(summary)
+C("summary totals per currency (delta)", income1 - income0 == 85000 and expense1 - expense0 == 2500.50, f"+{income1-income0}/+{expense1-expense0}")
 spend = next((c for c in summary["categories"] if c["categoryId"] == food["id"]), None)
 C("category spend vs limit", spend is not None and spend["amount"] == 2500.50 and spend["monthlyLimit"] == 20000, f"{spend}")
 
@@ -119,6 +127,20 @@ C("job materialized all 3 past occurrences", count == 3, f"got {count}")
 s, rules = call("GET", "/budget/recurring/", token=T)
 mine = next((x for x in rules if x["id"] == rule["id"]), None)
 C("exhausted rule deactivated", mine is not None and mine["isActive"] is False, f"{mine and mine['isActive']}")
+
+# --- exchange rate: parameter the user updates daily; estimates only ---
+s, r = call("GET", "/budget/exchange-rate/", token=T)
+C("rate starts unset (or from a prior run)", s == 200)
+s, r = call("PUT", "/budget/exchange-rate/", {"htgPerUsd": 132.50}, T)
+C("set the day's rate", s == 200 and r["htgPerUsd"] == 132.50)
+s, r = call("PUT", "/budget/exchange-rate/", {"htgPerUsd": -1}, T)
+C("negative rate rejected (10048)", s == 400 and code(r) == "10048")
+summary = month_summary()
+combined = summary.get("combined")
+C("summary now carries the at-your-rate estimate", combined is not None and combined["htgPerUsd"] == 132.50, f"{combined}")
+# no USD income exists, so the combined income must equal the plain HTG income
+income_now, _ = htg_totals(summary)
+C("combined income converts correctly", combined is not None and combined["income"] == income_now)
 
 # --- cleanup: archive smoke accounts (transactions stay; archived accounts refuse new money) ---
 for account in (cash, bank, usd):

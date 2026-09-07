@@ -19,6 +19,7 @@ internal sealed class BudgetDbContext(
     public DbSet<CategoryBudget> CategoryBudgets => Set<CategoryBudget>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<RecurringTransaction> RecurringTransactions => Set<RecurringTransaction>();
+    public DbSet<ExchangeRateSetting> ExchangeRates => Set<ExchangeRateSetting>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -88,6 +89,14 @@ internal sealed class BudgetDbContext(
             t.HasIndex(p => p.TransferAccountId);
 
             t.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+        });
+
+        builder.Entity<ExchangeRateSetting>(e =>
+        {
+            e.HasKey(p => p.UserId);
+            e.Property(p => p.UserId).HasMaxLength(450);
+            e.Property(p => p.HtgPerUsd).HasPrecision(12, 4);
+            e.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
         });
 
         builder.Entity<RecurringTransaction>(r =>

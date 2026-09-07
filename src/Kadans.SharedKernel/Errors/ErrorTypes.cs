@@ -256,6 +256,61 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    public static readonly ErrorTypes BudgetAccountNotFound = new(
+        "10043",
+        "Account not found",
+        StatusCodes.Status404NotFound,
+        ""
+    );
+    public static readonly ErrorTypes BudgetCategoryNotFound = new(
+        "10044",
+        "Category not found",
+        StatusCodes.Status404NotFound,
+        ""
+    );
+    public static readonly ErrorTypes TransactionNotFound = new(
+        "10045",
+        "Transaction not found",
+        StatusCodes.Status404NotFound,
+        ""
+    );
+    public static readonly ErrorTypes RecurringTransactionNotFound = new(
+        "10046",
+        "Recurring transaction not found",
+        StatusCodes.Status404NotFound,
+        ""
+    );
+    public static readonly ErrorTypes CurrencyMismatch = new(
+        "10047",
+        "Currency mismatch",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes InvalidAmount = new(
+        "10048",
+        "Invalid amount",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes SameAccountTransfer = new(
+        "10049",
+        "Transfer needs two different accounts",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes CategoryKindMismatch = new(
+        "10050",
+        "Category kind does not match the transaction",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+    public static readonly ErrorTypes AccountArchived = new(
+        "10051",
+        "Account is archived",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;
 }

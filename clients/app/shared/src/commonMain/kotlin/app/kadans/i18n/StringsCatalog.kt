@@ -170,6 +170,45 @@ data class StringsCatalog(
     val recoveryCodesHint: String,
     val regenerateRecoveryCodes: String,
     val signOutEverywhere: String,
+    // budget
+    val budget: String,
+    val accountsSection: String,
+    val newAccount: String,
+    val accountName: String,
+    val currencyLabel: String,
+    val initialBalanceLabel: String,
+    val typeCash: String,
+    val typeBank: String,
+    val typeMobileMoney: String,
+    val typeCard: String,
+    val typeSavings: String,
+    val typeOther: String,
+    val income: String,
+    val expense: String,
+    val transferWord: String,
+    val amountLabel: String,
+    val categoryLabel: String,
+    val noCategory: String,
+    val addTransaction: String,
+    val fromAccount: String,
+    val toAccount: String,
+    val receivedAmount: String,
+    val exchangeRateTitle: String,
+    val ratePerUsd: String,
+    val rateHint: String,
+    val atYourRate: String,
+    val totalBalanceLabel: String,
+    val netLabel: String,
+    val categoriesSection: String,
+    val newCategory: String,
+    val categoryName: String,
+    val iconOptional: String,
+    val limitLabel: String,
+    val recurringSection: String,
+    val repeatLabel: String,
+    val recentTransactions: String,
+    val noTransactionsYet: String,
+    val deleteWord: String,
     // desktop tray
     val trayOpen: String,
     val trayQuit: String,
@@ -194,6 +233,11 @@ data class StringsCatalog(
     val errAlreadyCompleted: String,
     val errAlreadyCancelled: String,
     val errNotFound: String,
+    val errInvalidAmount: String,
+    val errCurrencyMismatch: String,
+    val errSameAccount: String,
+    val errCategoryKind: String,
+    val errAccountArchived: String,
     val errGeneric: String,
 ) {
     fun every(frequency: Frequency, interval: Int): String {
@@ -230,6 +274,21 @@ data class StringsCatalog(
         OccurrenceStatus.Cancelled -> occCancelled
     }
 
+    fun accountTypeName(type: app.kadans.api.model.AccountType): String = when (type) {
+        app.kadans.api.model.AccountType.Cash -> typeCash
+        app.kadans.api.model.AccountType.Bank -> typeBank
+        app.kadans.api.model.AccountType.MobileMoney -> typeMobileMoney
+        app.kadans.api.model.AccountType.Card -> typeCard
+        app.kadans.api.model.AccountType.Savings -> typeSavings
+        app.kadans.api.model.AccountType.Other -> typeOther
+    }
+
+    fun transactionKindName(kind: app.kadans.api.model.BudgetTransactionKind): String = when (kind) {
+        app.kadans.api.model.BudgetTransactionKind.Income -> income
+        app.kadans.api.model.BudgetTransactionKind.Expense -> expense
+        app.kadans.api.model.BudgetTransactionKind.Transfer -> transferWord
+    }
+
     /** Server errors by Kadans errorCode, falling back to the server's own detail text. */
     fun errorFor(code: String?, fallback: String?): String = when (code) {
         "network" -> errNetwork
@@ -240,7 +299,12 @@ data class StringsCatalog(
         "10034" -> errMfaCode
         "10005" -> errAlreadyCompleted
         "10020" -> errAlreadyCancelled
-        "10019", "10021", "10028" -> errNotFound
+        "10019", "10021", "10028", "10043", "10044", "10045", "10046" -> errNotFound
+        "10047" -> errCurrencyMismatch
+        "10048" -> errInvalidAmount
+        "10049" -> errSameAccount
+        "10050" -> errCategoryKind
+        "10051" -> errAccountArchived
         else -> fallback ?: errGeneric
     }
 }

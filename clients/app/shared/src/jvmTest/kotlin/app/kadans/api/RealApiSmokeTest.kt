@@ -39,6 +39,27 @@ class RealApiSmokeTest {
                 .exceptionOrNull() as? KadansApiException
             assertEquals("10019", error?.errorCode, "expected TodoNotFound problem details")
 
+            // budget round trip: the typed client against the real routes
+            val account = api.budget.createAccount(
+                app.kadans.api.model.CreateAccount("smoke client acct", app.kadans.api.model.Currency.Htg)
+            )
+            api.budget.createTransaction(
+                app.kadans.api.model.CreateBudgetTransaction(
+                    account.id, app.kadans.api.model.BudgetTransactionKind.Income, 1234.56,
+                    kotlin.time.Clock.System.now(),
+                )
+            )
+            val refreshed = api.budget.accounts().first { it.id == account.id }
+            assertEquals(1234.56, refreshed.balance, "income should land in the balance")
+            val summary = api.budget.summary(2026, 9)
+            assertTrue(summary.timeZoneId.isNotBlank())
+            api.budget.setExchangeRate(132.5)
+            assertEquals(132.5, api.budget.exchangeRate().htgPerUsd)
+            api.budget.updateAccount(
+                account.id,
+                app.kadans.api.model.UpdateAccount(account.name, account.type, isArchived = true),
+            )
+
             api.auth.logout()
         }
     }

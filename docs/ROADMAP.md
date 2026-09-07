@@ -154,8 +154,13 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] Recurring transactions on the shared recurrence engine (`RecurrenceSchedule`): a Quartz job
       materializes due rules into real transactions (salary lands on the 1st with no client
       running); exhausted rules self-deactivate
-- [ ] Client: budget tab — accounts & balances, add income/expense/transfer, month summary with
-      category limits, recurring rules
+- [x] Daily exchange rate as a user parameter (`/budget/exchange-rate`): pre-fills cross-currency
+      transfers and powers the "everything in HTG, at your rate" estimate in the summary —
+      stored amounts never move
+- [x] Client: Budget screen (month pager, at-your-rate card, accounts & balances, category
+      spend-vs-limit bars, recurring list with pause/delete, recent movements) and an Add screen
+      (income/expense/transfer with rate pre-fill, repeat switch on the recurrence engine),
+      trilingual like everything else
 
 ## Fixed along the way
 

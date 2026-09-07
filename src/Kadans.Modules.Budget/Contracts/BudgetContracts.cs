@@ -132,6 +132,13 @@ public sealed record RecurringTransactionResponse(
     DateTimeOffset CreatedAt
 );
 
+// ---- exchange rate ----
+
+/// <summary>The user's own daily rate. Estimates and pre-fill only — never rewrites stored amounts.</summary>
+public sealed record SetExchangeRate(decimal HtgPerUsd);
+
+public sealed record ExchangeRateResponse(decimal? HtgPerUsd, DateTimeOffset? UpdatedAt);
+
 // ---- summary ----
 
 public sealed record CurrencyTotals(Currency Currency, decimal Income, decimal Expense, decimal Net);
@@ -146,6 +153,15 @@ public sealed record CategorySpend(
     decimal? MonthlyLimit
 );
 
+/// <summary>Everything expressed in gourdes at the user's own rate — an estimate, clearly labeled as such.</summary>
+public sealed record CombinedAtYourRate(
+    decimal HtgPerUsd,
+    decimal Income,
+    decimal Expense,
+    decimal Net,
+    decimal TotalBalance
+);
+
 /// <summary>One month of the user's money, computed in their time zone.</summary>
 public sealed record MonthlySummaryResponse(
     int Year,
@@ -153,5 +169,6 @@ public sealed record MonthlySummaryResponse(
     string TimeZoneId,
     IReadOnlyList<CurrencyTotals> Totals,
     IReadOnlyList<AccountResponse> Accounts,
-    IReadOnlyList<CategorySpend> Categories
+    IReadOnlyList<CategorySpend> Categories,
+    CombinedAtYourRate? Combined = null
 );

@@ -60,6 +60,26 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
       in Firebase → Cloud Messaging so FCM can reach iPhones
 - Desktop clients do not use push: they hold the SignalR connection (`/hubs/kadans`).
 
+## Testing push on a real Android phone
+
+The server side is done and verified (service-account key at `~/.kadans/firebase-admin.json`,
+`Push:Provider=Fcm` in dev user-secrets). To feel it on a phone:
+
+1. Phone and computer on the same Wi-Fi. Find the computer's LAN IP: `ip addr` (e.g. `192.168.1.10`).
+2. Start the API listening on all interfaces so the phone can reach it:
+   `ASPNETCORE_URLS=http://0.0.0.0:5199 dotnet run --project src/Kadans.Api`
+3. Build and install the app: `cd clients/app && ./gradlew :androidApp:assembleDebug`,
+   then copy `androidApp/build/outputs/apk/debug/androidApp-debug.apk` to the phone and open it
+   (allow "install unknown apps"), or `adb install` it with USB debugging on.
+4. In the app, on the **Login screen tap the small ⚙ server line** and enter
+   `http://<your-LAN-IP>:5199` — it applies immediately, no restart.
+5. Sign in, allow notifications when prompted (Android 13+). Signing in registers the phone's
+   FCM token automatically (Settings-era device list shows it as e.g. "Google Pixel").
+6. Start a hands-free session with 1-minute phases and lock the phone: each phase change should
+   arrive as a real notification, even with the app closed — the server does the counting.
+
+If nothing arrives: check the API log for `FCM: 1 sent` lines, and that the phone kept Wi-Fi on.
+
 ## Domain and hosting (later)
 
 - [ ] Domain (e.g. `kadans.app`) – used by `Email:LinkBaseUrl`, `Email:From`, deep links

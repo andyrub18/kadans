@@ -67,6 +67,8 @@ val EnglishStrings = StringsCatalog(
     resetEmailSent = "If that address exists, a reset link is on its way — open it on this device.",
     resetPasswordTitle = "Choose a new password", resetPasswordAction = "Reset password",
     resetDone = "Password changed — sign in with the new one.",
+    serverLabel = "Server",
+    serverHint = "API address — on a phone, your computer's Wi-Fi IP, e.g. http://192.168.1.10:5199. Empty = default.",
     errNetwork = "Could not reach the server.", errInvalidTimeZone = "That time zone is not recognized.",
     errInvalidCredentials = "Invalid username or password.",
     errUserInactive = "This account is deactivated.", errInvalidToken = "This link or code is invalid or expired.",

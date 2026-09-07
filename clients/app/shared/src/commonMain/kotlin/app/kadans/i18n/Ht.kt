@@ -67,6 +67,8 @@ val CreoleStrings = StringsCatalog(
     resetEmailSent = "Si adrès sa a egziste, yon lyen reyinisyalizasyon ap vini — ouvri li sou aparèy sa a.",
     resetPasswordTitle = "Chwazi yon nouvo modpas", resetPasswordAction = "Reyinisyalize modpas la",
     resetDone = "Modpas la chanje — konekte ak nouvo a.",
+    serverLabel = "Sèvè",
+    serverHint = "Adrès API a — sou yon telefòn, IP Wi-Fi òdinatè w la, pa egzanp http://192.168.1.10:5199. Vid = valè otomatik.",
     errNetwork = "Nou pa ka jwenn sèvè a.", errInvalidTimeZone = "Nou pa rekonèt zòn lè sa a.",
     errInvalidCredentials = "Non itilizatè oswa modpas la pa bon.",
     errUserInactive = "Kont sa a dezaktive.", errInvalidToken = "Lyen sa a oswa kòd sa a pa valab oswa li ekspire.",

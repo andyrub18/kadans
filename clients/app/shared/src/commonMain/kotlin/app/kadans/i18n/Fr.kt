@@ -67,6 +67,8 @@ val FrenchStrings = StringsCatalog(
     resetEmailSent = "Si cette adresse existe, un lien de réinitialisation est en route — ouvrez-le sur cet appareil.",
     resetPasswordTitle = "Choisissez un nouveau mot de passe", resetPasswordAction = "Réinitialiser le mot de passe",
     resetDone = "Mot de passe changé — connectez-vous avec le nouveau.",
+    serverLabel = "Serveur",
+    serverHint = "Adresse de l'API — sur un téléphone, l'IP Wi-Fi de votre ordinateur, p. ex. http://192.168.1.10:5199. Vide = valeur par défaut.",
     errNetwork = "Impossible de joindre le serveur.", errInvalidTimeZone = "Ce fuseau horaire n'est pas reconnu.",
     errInvalidCredentials = "Nom d'utilisateur ou mot de passe invalide.",
     errUserInactive = "Ce compte est désactivé.", errInvalidToken = "Ce lien ou ce code est invalide ou expiré.",

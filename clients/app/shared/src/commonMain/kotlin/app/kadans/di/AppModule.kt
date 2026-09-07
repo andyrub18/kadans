@@ -3,7 +3,7 @@ package app.kadans.di
 import app.kadans.api.KadansApi
 import app.kadans.api.TokenStore
 import app.kadans.auth.SettingsTokenStore
-import app.kadans.config.defaultApiBaseUrl
+import app.kadans.config.ServerAddress
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
@@ -29,7 +29,10 @@ import org.koin.dsl.module
 val appModule = org.koin.dsl.module {
     single<Settings> { Settings() }
     single<TokenStore> { SettingsTokenStore(get()) }
-    single { KadansApi.create(baseUrl = defaultApiBaseUrl(), tokenStore = get()) }
+    single {
+        val settings = get<Settings>()
+        KadansApi.create(tokenStore = get(), baseUrlProvider = { ServerAddress.current(settings) })
+    }
     single { KadansRealtime(get()) }
     single { SystemAlerts(get()) }
     single { DeviceRegistrar(get(), get()) }

@@ -147,8 +147,15 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 
 ## Phase 7 – Budget module
 
-- [ ] `Money` value object, accounts, categories, transactions, budgets, HTG/USD
-- [ ] Recurring transactions on the shared recurrence engine
+- [x] Backend (`Kadans.Modules.Budget`, `budget` schema): `Money` value object (HTG/USD never mix
+      implicitly), accounts (computed balances), income/expense categories, transactions incl.
+      transfers — cross-currency transfers carry the received amount (that IS the exchange),
+      monthly category limits, `/budget/summary` per month in the user's time zone
+- [x] Recurring transactions on the shared recurrence engine (`RecurrenceSchedule`): a Quartz job
+      materializes due rules into real transactions (salary lands on the 1st with no client
+      running); exhausted rules self-deactivate
+- [ ] Client: budget tab — accounts & balances, add income/expense/transfer, month summary with
+      category limits, recurring rules
 
 ## Fixed along the way
 

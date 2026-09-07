@@ -32,8 +32,10 @@ import app.kadans.api.model.RefreshTokenRequest
 class KadansApi internal constructor(
     internal val http: HttpClient,
     internal val tokenStore: TokenStore,
-    internal val baseUrl: String,
+    private val baseUrlProvider: () -> String,
 ) {
+    internal val baseUrl: String get() = baseUrlProvider().trimEnd('/')
+
     val auth: AuthApi = AuthApi(this)
     val account: AccountApi = AccountApi(this)
     val todos: TodosApi = TodosApi(this)
@@ -47,17 +49,20 @@ class KadansApi internal constructor(
 
     companion object {
         fun create(
-            baseUrl: String,
+            baseUrl: String = "",
             tokenStore: TokenStore = InMemoryTokenStore(),
             engine: HttpClientEngine? = null,
+            baseUrlProvider: (() -> String)? = null,
         ): KadansApi {
+            // The provider is consulted per request, so a settings change applies immediately.
+            val provider = baseUrlProvider ?: { baseUrl }
             lateinit var api: KadansApi
             val configure: io.ktor.client.HttpClientConfig<*>.() -> Unit = {
                 expectSuccess = false
                 install(ContentNegotiation) { json(KadansJson) }
                 install(WebSockets)
                 defaultRequest {
-                    url.takeFrom(baseUrl.trimEnd('/') + "/")
+                    url.takeFrom(provider().trimEnd('/') + "/")
                     contentType(ContentType.Application.Json)
                 }
                 install(Auth) {
@@ -85,7 +90,7 @@ class KadansApi internal constructor(
                 }
             }
             val http = if (engine is HttpClientEngine) HttpClient(engine, { configure() }) else HttpClient { configure() }
-            api = KadansApi(http, tokenStore, baseUrl.trimEnd('/'))
+            api = KadansApi(http, tokenStore, provider)
             return api
         }
     }

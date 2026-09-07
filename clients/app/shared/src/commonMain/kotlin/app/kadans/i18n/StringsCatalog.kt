@@ -181,6 +181,9 @@ data class StringsCatalog(
     val resetPasswordTitle: String,
     val resetPasswordAction: String,
     val resetDone: String,
+    // server address override
+    val serverLabel: String,
+    val serverHint: String,
     // errors
     val errNetwork: String,
     val errInvalidTimeZone: String,

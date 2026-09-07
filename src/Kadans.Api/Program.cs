@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Humanizer;
 using Kadans.Api.Documentation;
+using Kadans.Modules.Budget;
 using Kadans.Modules.Identity;
 using Kadans.Modules.Notifications;
 using Kadans.Modules.Tasks;
@@ -17,7 +18,7 @@ using Serilog;
 var builder = WebApplication.CreateBuilder(args);
 
 // Modules own their services, persistence and endpoints; the host only wires them together.
-IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule()];
+IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule(), new BudgetModule()];
 
 builder.Host.UseSerilog(
     (context, configuration) => configuration.ReadFrom.Configuration(context.Configuration)

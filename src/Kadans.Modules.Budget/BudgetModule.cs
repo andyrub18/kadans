@@ -41,6 +41,7 @@ public sealed class BudgetModule : IModule
         services.AddScoped<CategoryService>();
         services.AddScoped<TransactionService>();
         services.AddScoped<RecurringTransactionService>();
+        services.AddScoped<BudgetSettingsService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
@@ -49,6 +50,7 @@ public sealed class BudgetModule : IModule
         endpoints.MapBudgetCategoryRoutes();
         endpoints.MapBudgetTransactionRoutes();
         endpoints.MapBudgetRecurringRoutes();
+        endpoints.MapBudgetSettingsRoutes();
     }
 }
 

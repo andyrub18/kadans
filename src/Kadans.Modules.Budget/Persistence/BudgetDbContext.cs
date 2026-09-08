@@ -19,6 +19,8 @@ internal sealed class BudgetDbContext(
     public DbSet<CategoryBudget> CategoryBudgets => Set<CategoryBudget>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<RecurringTransaction> RecurringTransactions => Set<RecurringTransaction>();
+    public DbSet<BudgetProfile> Profiles => Set<BudgetProfile>();
+    public DbSet<CurrencyRate> CurrencyRates => Set<CurrencyRate>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -88,6 +90,23 @@ internal sealed class BudgetDbContext(
             t.HasIndex(p => p.TransferAccountId);
 
             t.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+        });
+
+        builder.Entity<BudgetProfile>(p =>
+        {
+            p.HasKey(x => x.UserId);
+            p.Property(x => x.UserId).HasMaxLength(450);
+            p.Property(x => x.BaseCurrency).HasConversion<string>().HasMaxLength(8);
+            p.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+        });
+
+        builder.Entity<CurrencyRate>(r =>
+        {
+            r.Property(x => x.UserId).IsRequired().HasMaxLength(450);
+            r.Property(x => x.Currency).HasConversion<string>().HasMaxLength(8);
+            r.Property(x => x.RateInBase).HasPrecision(14, 6);
+            r.HasIndex(x => new { x.UserId, x.Currency }).IsUnique();
+            r.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
         });
 
         builder.Entity<RecurringTransaction>(r =>

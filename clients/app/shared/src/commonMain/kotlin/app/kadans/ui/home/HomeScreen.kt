@@ -42,6 +42,7 @@ fun HomeScreen(
     onCreateTodo: () -> Unit,
     onOpenTemplates: () -> Unit,
     onOpenCalendar: () -> Unit,
+    onOpenBudget: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenTodo: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
@@ -72,6 +73,7 @@ fun HomeScreen(
                 FlowRow(horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = { languageController.cycle() }) { Text(language.tag.uppercase()) }
                     TextButton(onClick = onOpenCalendar) { Text(s.calendar) }
+                    TextButton(onClick = onOpenBudget) { Text(s.budget) }
                     TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
                     TextButton(onClick = onOpenSettings) { Text("⚙") }
                     TextButton(onClick = viewModel::logout) { Text(s.signOut) }

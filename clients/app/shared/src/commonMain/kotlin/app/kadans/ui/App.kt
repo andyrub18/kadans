@@ -25,6 +25,8 @@ import app.kadans.ui.auth.LoginScreen
 import app.kadans.ui.auth.MfaScreen
 import app.kadans.ui.auth.RegisterScreen
 import app.kadans.ui.auth.ResetPasswordScreen
+import app.kadans.ui.budget.BudgetAddScreen
+import app.kadans.ui.budget.BudgetScreen
 import app.kadans.ui.calendar.CalendarScreen
 import app.kadans.ui.home.HomeScreen
 import app.kadans.ui.settings.SettingsScreen
@@ -46,6 +48,8 @@ data object CreateTodoRoute
 data object TemplatesRoute
 data object CalendarRoute
 data object SettingsRoute
+data object BudgetRoute
+data object BudgetAddRoute
 data class TodoDetailRoute(val todoId: String)
 data class EditTodoRoute(val todoId: String)
 data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false)
@@ -134,6 +138,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onCreateTodo = { backStack.add(CreateTodoRoute) },
                         onOpenTemplates = { backStack.add(TemplatesRoute) },
                         onOpenCalendar = { backStack.add(CalendarRoute) },
+                        onOpenBudget = { backStack.add(BudgetRoute) },
                         onOpenSettings = { backStack.add(SettingsRoute) },
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
                     )
@@ -144,6 +149,18 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is CalendarRoute -> NavEntry(key) {
                     CalendarScreen(
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is BudgetRoute -> NavEntry(key) {
+                    BudgetScreen(
+                        onAddTransaction = { backStack.add(BudgetAddRoute) },
+                        onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is BudgetAddRoute -> NavEntry(key) {
+                    BudgetAddScreen(
+                        onSaved = { backStack.removeLastOrNull() },
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

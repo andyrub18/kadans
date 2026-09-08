@@ -132,6 +132,22 @@ public sealed record RecurringTransactionResponse(
     DateTimeOffset CreatedAt
 );
 
+// ---- settings: base currency + indicative rates ----
+
+/// <summary>
+/// A real exchange lives in its transaction (the pair of amounts, on that date). These are the
+/// user's *indicative* rates — 1 unit of a foreign currency in the base — refreshable whenever,
+/// used only to pre-fill transfers and price unconverted holdings in today's estimate.
+/// </summary>
+public sealed record CurrencyRateResponse(Currency Currency, decimal RateInBase, DateTimeOffset UpdatedAt);
+
+public sealed record BudgetSettingsResponse(Currency BaseCurrency, IReadOnlyList<CurrencyRateResponse> Rates);
+
+/// <summary>Changing the base clears stored rates — they were denominated in the old base.</summary>
+public sealed record SetBaseCurrency(Currency BaseCurrency);
+
+public sealed record SetCurrencyRate(decimal RateInBase);
+
 // ---- summary ----
 
 public sealed record CurrencyTotals(Currency Currency, decimal Income, decimal Expense, decimal Net);
@@ -146,6 +162,20 @@ public sealed record CategorySpend(
     decimal? MonthlyLimit
 );
 
+/// <summary>
+/// Everything expressed in the base currency at the user's indicative rates — an estimate,
+/// clearly labeled as such. Currencies without a rate are excluded and listed in
+/// <see cref="MissingRates"/>, never silently guessed.
+/// </summary>
+public sealed record CombinedEstimate(
+    Currency BaseCurrency,
+    decimal Income,
+    decimal Expense,
+    decimal Net,
+    decimal TotalBalance,
+    IReadOnlyList<Currency> MissingRates
+);
+
 /// <summary>One month of the user's money, computed in their time zone.</summary>
 public sealed record MonthlySummaryResponse(
     int Year,
@@ -153,5 +183,6 @@ public sealed record MonthlySummaryResponse(
     string TimeZoneId,
     IReadOnlyList<CurrencyTotals> Totals,
     IReadOnlyList<AccountResponse> Accounts,
-    IReadOnlyList<CategorySpend> Categories
+    IReadOnlyList<CategorySpend> Categories,
+    CombinedEstimate? Combined = null
 );

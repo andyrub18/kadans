@@ -205,6 +205,19 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                         ),
                     )
                 }
+                // The ViewModel can outlive the screen: unstick the button and present a fresh
+                // form next time, keeping the account/category/date the user was working with.
+                _state.value = _state.value.copy(
+                    isSaving = false,
+                    amountText = "",
+                    receivedText = "",
+                    note = "",
+                    repeat = false,
+                    endMode = EndMode.Never,
+                    count = null,
+                    untilDate = null,
+                    byDays = emptySet(),
+                )
                 _saved.emit(Unit)
             } catch (e: KadansApiException) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message, errorCode = e.errorCode)

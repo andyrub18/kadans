@@ -26,7 +26,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
+import app.kadans.ui.todos.EndMode
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
@@ -47,7 +51,10 @@ data class BudgetAddUiState(
     val repeat: Boolean = false,
     val frequency: Frequency = Frequency.Monthly,
     val interval: Int = 1,
+    val endMode: EndMode = EndMode.Never,
     val count: Int? = null,
+    val untilDate: LocalDate? = null,
+    val byDays: Set<ApiDayOfWeek> = emptySet(),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
@@ -69,8 +76,16 @@ data class BudgetAddUiState(
             BudgetTransactionKind.Transfer -> emptyList()
         }
 
+    val endValid: Boolean
+        get() = when (endMode) {
+            EndMode.Never -> true
+            EndMode.AfterCount -> (count ?: 0) > 0
+            EndMode.OnDate -> untilDate != null && (date == null || untilDate >= date)
+        }
+
     val canSubmit: Boolean
         get() = !isSaving && account != null && (amount ?: 0.0) > 0.0 &&
+            (!repeat || kind == BudgetTransactionKind.Transfer || endValid) &&
             (kind != BudgetTransactionKind.Transfer ||
                 (transferAccount != null && (!crossCurrency || (received ?: 0.0) > 0.0)))
 
@@ -103,15 +118,27 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
     private val timeZone = TimeZone.currentSystemDefault()
 
     init {
+        reload()
+    }
+
+    /** Re-runs on every entry of the screen: accounts created since the last open must appear. */
+    fun reload() {
         viewModelScope.launch {
             try {
                 val accounts = api.budget.accounts()
                 val categories = api.budget.categories()
                 val settings = runCatching { api.budget.settings() }.getOrNull()
                 val today = Clock.System.now().toLocalDateTime(timeZone).date
-                _state.value = _state.value.copy(
-                    accounts = accounts, categories = categories, settings = settings,
-                    accountId = accounts.firstOrNull()?.id, date = today, isLoading = false,
+                val current = _state.value
+                _state.value = current.copy(
+                    accounts = accounts,
+                    categories = categories,
+                    settings = settings,
+                    accountId = current.accountId?.takeIf { id -> accounts.any { it.id == id } }
+                        ?: accounts.firstOrNull()?.id,
+                    transferAccountId = current.transferAccountId?.takeIf { id -> accounts.any { it.id == id } },
+                    date = current.date ?: today,
+                    isLoading = false,
                 )
             } catch (e: KadansApiException) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
@@ -147,9 +174,16 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                                 interval = current.interval,
                                 byMonthDay = if (current.frequency == Frequency.Monthly)
                                     current.date?.let { listOf(it.day) } else null,
-                                byDayOfWeek = if (current.frequency == Frequency.Weekly)
-                                    current.date?.let { listOf(it.dayOfWeek.toApi()) } else null,
-                                count = current.count,
+                                byDayOfWeek = when {
+                                    current.frequency != Frequency.Weekly -> null
+                                    current.byDays.isNotEmpty() -> current.byDays.sorted()
+                                    else -> current.date?.let { listOf(it.dayOfWeek.toApi()) }
+                                },
+                                count = current.count.takeIf { current.endMode == EndMode.AfterCount },
+                                // Inclusive end of the picked day, so that day's occurrence counts.
+                                until = if (current.endMode == EndMode.OnDate)
+                                    LocalDateTime(current.untilDate!!, LocalTime(23, 59)).toInstant(timeZone)
+                                else null,
                                 timeZone = timeZone.id,
                             ),
                             categoryId = current.categoryId,

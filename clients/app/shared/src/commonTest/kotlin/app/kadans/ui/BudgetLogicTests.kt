@@ -6,10 +6,12 @@ import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.BudgetSettingsResponse
 import app.kadans.api.model.Currency
 import app.kadans.api.model.CurrencyRateResponse
+import app.kadans.ui.todos.EndMode
 import app.kadans.ui.budget.BudgetAddUiState
 import app.kadans.ui.budget.formatAmount
 import app.kadans.ui.budget.formatMoney
 import kotlin.test.Test
+import kotlinx.datetime.LocalDate
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.time.Instant
@@ -69,5 +71,24 @@ class BudgetLogicTests {
         assertEquals(true, state.canSubmit)
         // without the received amount a cross-currency transfer cannot submit
         assertEquals(false, state.copy(receivedText = "").canSubmit)
+    }
+
+    @Test
+    fun repeatEndModesGateSubmission() {
+        val base = BudgetAddUiState(
+            accounts = listOf(account("htg", Currency.Htg)),
+            kind = BudgetTransactionKind.Expense,
+            accountId = "htg",
+            amountText = "250",
+            date = LocalDate(2026, 9, 8),
+            repeat = true,
+        )
+        // Never: fine as-is. After-count needs a count; on-date needs a day at/after the start.
+        assertEquals(true, base.canSubmit)
+        assertEquals(false, base.copy(endMode = EndMode.AfterCount).canSubmit)
+        assertEquals(true, base.copy(endMode = EndMode.AfterCount, count = 30).canSubmit)
+        assertEquals(false, base.copy(endMode = EndMode.OnDate).canSubmit)
+        assertEquals(false, base.copy(endMode = EndMode.OnDate, untilDate = LocalDate(2026, 9, 1)).canSubmit)
+        assertEquals(true, base.copy(endMode = EndMode.OnDate, untilDate = LocalDate(2026, 12, 31)).canSubmit)
     }
 }

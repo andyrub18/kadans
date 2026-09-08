@@ -53,8 +53,9 @@ class RealApiSmokeTest {
             assertEquals(1234.56, refreshed.balance, "income should land in the balance")
             val summary = api.budget.summary(2026, 9)
             assertTrue(summary.timeZoneId.isNotBlank())
-            api.budget.setExchangeRate(132.5)
-            assertEquals(132.5, api.budget.exchangeRate().htgPerUsd)
+            api.budget.setRate(app.kadans.api.model.Currency.Usd, 132.5)
+            val settings = api.budget.settings()
+            assertEquals(132.5, settings.rates.first { it.currency == app.kadans.api.model.Currency.Usd }.rateInBase)
             api.budget.updateAccount(
                 account.id,
                 app.kadans.api.model.UpdateAccount(account.name, account.type, isArchived = true),

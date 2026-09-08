@@ -283,10 +283,17 @@ class BudgetApi internal constructor(private val api: KadansApi) {
         api.http.delete("budget/recurring/$id").orThrow<Success>()
     }
 
-    suspend fun exchangeRate(): ExchangeRateResponse = api.http.get("budget/exchange-rate/").orThrow()
+    suspend fun settings(): BudgetSettingsResponse = api.http.get("budget/settings/").orThrow()
 
-    suspend fun setExchangeRate(htgPerUsd: Double): ExchangeRateResponse =
-        api.http.put("budget/exchange-rate/") { setBody(SetExchangeRate(htgPerUsd)) }.orThrow()
+    suspend fun setBaseCurrency(base: Currency): BudgetSettingsResponse =
+        api.http.put("budget/settings/base-currency") { setBody(SetBaseCurrency(base)) }.orThrow()
+
+    suspend fun setRate(currency: Currency, rateInBase: Double): BudgetSettingsResponse =
+        api.http.put("budget/settings/rates/${currency.name}") { setBody(SetCurrencyRate(rateInBase)) }.orThrow()
+
+    suspend fun deleteRate(currency: Currency) {
+        api.http.delete("budget/settings/rates/${currency.name}").orThrow<Success>()
+    }
 
     suspend fun summary(year: Int, month: Int): MonthlySummaryResponse =
         api.http.get("budget/summary") {

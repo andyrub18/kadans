@@ -79,6 +79,28 @@ namespace Kadans.Modules.Budget.Migrations
                     b.ToTable("accounts", "budget");
                 });
 
+            modelBuilder.Entity("Kadans.Modules.Budget.Domain.BudgetProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("BaseCurrency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("base_currency");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("profiles", "budget");
+                });
+
             modelBuilder.Entity("Kadans.Modules.Budget.Domain.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -172,25 +194,41 @@ namespace Kadans.Modules.Budget.Migrations
                     b.ToTable("category_budgets", "budget");
                 });
 
-            modelBuilder.Entity("Kadans.Modules.Budget.Domain.ExchangeRateSetting", b =>
+            modelBuilder.Entity("Kadans.Modules.Budget.Domain.CurrencyRate", b =>
                 {
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("character varying(450)")
-                        .HasColumnName("user_id");
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
-                    b.Property<decimal>("HtgPerUsd")
-                        .HasPrecision(12, 4)
-                        .HasColumnType("numeric(12,4)")
-                        .HasColumnName("htg_per_usd");
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("currency");
+
+                    b.Property<decimal>("RateInBase")
+                        .HasPrecision(14, 6)
+                        .HasColumnType("numeric(14,6)")
+                        .HasColumnName("rate_in_base");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("UserId");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("user_id");
 
-                    b.ToTable("exchange_rates", "budget");
+                    b.HasKey("Id")
+                        .HasName("pk_currency_rates");
+
+                    b.HasIndex("UserId", "Currency")
+                        .IsUnique();
+
+                    b.ToTable("currency_rates", "budget");
                 });
 
             modelBuilder.Entity("Kadans.Modules.Budget.Domain.RecurringTransaction", b =>

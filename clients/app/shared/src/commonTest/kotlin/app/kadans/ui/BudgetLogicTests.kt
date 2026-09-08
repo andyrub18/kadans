@@ -3,7 +3,9 @@ package app.kadans.ui
 import app.kadans.api.model.AccountResponse
 import app.kadans.api.model.AccountType
 import app.kadans.api.model.BudgetTransactionKind
+import app.kadans.api.model.BudgetSettingsResponse
 import app.kadans.api.model.Currency
+import app.kadans.api.model.CurrencyRateResponse
 import app.kadans.ui.budget.BudgetAddUiState
 import app.kadans.ui.budget.formatAmount
 import app.kadans.ui.budget.formatMoney
@@ -31,7 +33,10 @@ class BudgetLogicTests {
     fun crossCurrencyTransfersPrefillFromTheUsersRate() {
         val state = BudgetAddUiState(
             accounts = listOf(account("htg", Currency.Htg), account("usd", Currency.Usd)),
-            htgPerUsd = 132.0,
+            settings = BudgetSettingsResponse(
+                baseCurrency = Currency.Htg,
+                rates = listOf(CurrencyRateResponse(Currency.Usd, 132.0, Instant.parse("2026-09-07T00:00:00Z"))),
+            ),
             kind = BudgetTransactionKind.Transfer,
             accountId = "htg",
             transferAccountId = "usd",
@@ -53,7 +58,7 @@ class BudgetLogicTests {
     fun noRateMeansNoSuggestionButTransferStillPossible() {
         val state = BudgetAddUiState(
             accounts = listOf(account("htg", Currency.Htg), account("usd", Currency.Usd)),
-            htgPerUsd = null,
+            settings = BudgetSettingsResponse(baseCurrency = Currency.Htg),
             kind = BudgetTransactionKind.Transfer,
             accountId = "htg",
             transferAccountId = "usd",

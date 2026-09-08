@@ -132,12 +132,21 @@ public sealed record RecurringTransactionResponse(
     DateTimeOffset CreatedAt
 );
 
-// ---- exchange rate ----
+// ---- settings: base currency + indicative rates ----
 
-/// <summary>The user's own daily rate. Estimates and pre-fill only — never rewrites stored amounts.</summary>
-public sealed record SetExchangeRate(decimal HtgPerUsd);
+/// <summary>
+/// A real exchange lives in its transaction (the pair of amounts, on that date). These are the
+/// user's *indicative* rates — 1 unit of a foreign currency in the base — refreshable whenever,
+/// used only to pre-fill transfers and price unconverted holdings in today's estimate.
+/// </summary>
+public sealed record CurrencyRateResponse(Currency Currency, decimal RateInBase, DateTimeOffset UpdatedAt);
 
-public sealed record ExchangeRateResponse(decimal? HtgPerUsd, DateTimeOffset? UpdatedAt);
+public sealed record BudgetSettingsResponse(Currency BaseCurrency, IReadOnlyList<CurrencyRateResponse> Rates);
+
+/// <summary>Changing the base clears stored rates — they were denominated in the old base.</summary>
+public sealed record SetBaseCurrency(Currency BaseCurrency);
+
+public sealed record SetCurrencyRate(decimal RateInBase);
 
 // ---- summary ----
 
@@ -153,13 +162,18 @@ public sealed record CategorySpend(
     decimal? MonthlyLimit
 );
 
-/// <summary>Everything expressed in gourdes at the user's own rate — an estimate, clearly labeled as such.</summary>
-public sealed record CombinedAtYourRate(
-    decimal HtgPerUsd,
+/// <summary>
+/// Everything expressed in the base currency at the user's indicative rates — an estimate,
+/// clearly labeled as such. Currencies without a rate are excluded and listed in
+/// <see cref="MissingRates"/>, never silently guessed.
+/// </summary>
+public sealed record CombinedEstimate(
+    Currency BaseCurrency,
     decimal Income,
     decimal Expense,
     decimal Net,
-    decimal TotalBalance
+    decimal TotalBalance,
+    IReadOnlyList<Currency> MissingRates
 );
 
 /// <summary>One month of the user's money, computed in their time zone.</summary>
@@ -170,5 +184,5 @@ public sealed record MonthlySummaryResponse(
     IReadOnlyList<CurrencyTotals> Totals,
     IReadOnlyList<AccountResponse> Accounts,
     IReadOnlyList<CategorySpend> Categories,
-    CombinedAtYourRate? Combined = null
+    CombinedEstimate? Combined = null
 );

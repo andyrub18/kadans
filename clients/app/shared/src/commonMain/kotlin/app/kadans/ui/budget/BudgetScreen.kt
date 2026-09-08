@@ -98,14 +98,22 @@ fun BudgetScreen(
                     item { Text(s.errorFor(state.actionErrorCode, state.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
 
-                // ---- combined / totals ----
-                summary.combined?.let { combined ->
+                // ---- combined estimate: only worth showing once a second currency exists ----
+                val currencyCount = summary.accounts.map { it.currency }.distinct().size
+                if (currencyCount > 1) summary.combined?.let { combined ->
                     item {
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(s.atYourRate + " (" + formatAmount(combined.htgPerUsd) + ")", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(s.totalBalanceLabel + ": " + formatMoney(combined.totalBalance, Currency.Htg), style = MaterialTheme.typography.titleMedium)
+                                Text(s.atYourRate, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(s.totalBalanceLabel + ": " + formatMoney(combined.totalBalance, combined.baseCurrency), style = MaterialTheme.typography.titleMedium)
                                 Text("${s.income}: ${formatAmount(combined.income)}  ·  ${s.expense}: ${formatAmount(combined.expense)}  ·  ${s.netLabel}: ${formatAmount(combined.net)}", style = MaterialTheme.typography.bodySmall)
+                                if (combined.missingRates.isNotEmpty()) {
+                                    Text(
+                                        s.missingRatesLabel + " " + combined.missingRates.joinToString { it.name.uppercase() },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
                             }
                         }
                     }
@@ -117,9 +125,7 @@ fun BudgetScreen(
                     )
                 }
                 item {
-                    TextButton(onClick = { editingRate = true }) {
-                        Text(s.exchangeRateTitle + (summary.combined?.let { " · " + formatAmount(it.htgPerUsd) } ?: ""))
-                    }
+                    TextButton(onClick = { editingRate = true }) { Text(s.exchangeRateTitle) }
                 }
 
                 // ---- accounts ----
@@ -231,9 +237,11 @@ fun BudgetScreen(
         }, onDismiss = { creatingCategory = false })
     }
     if (editingRate) {
-        RateDialog(
-            current = state.summary?.combined?.htgPerUsd,
-            onSet = { viewModel.setExchangeRate(it); editingRate = false },
+        CurrenciesDialog(
+            settings = state.settings ?: app.kadans.api.model.BudgetSettingsResponse(),
+            usedCurrencies = state.summary?.accounts?.map { it.currency }?.toSet() ?: emptySet(),
+            onSetBase = viewModel::setBaseCurrency,
+            onSetRate = viewModel::setRate,
             onDismiss = { editingRate = false },
         )
     }
@@ -259,7 +267,7 @@ private fun NewAccountDialog(onCreate: (String, Currency, AccountType, Double) -
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(s.accountName) }, singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Currency.entries.forEach { c ->
                         FilterChip(selected = currency == c, onClick = { currency = c }, label = { Text(c.name.uppercase()) })
                     }
@@ -309,26 +317,69 @@ private fun NewCategoryDialog(onCreate: (String, CategoryKind, String?) -> Unit,
 }
 
 @Composable
-private fun RateDialog(current: Double?, onSet: (Double) -> Unit, onDismiss: () -> Unit) {
+private fun CurrenciesDialog(
+    settings: app.kadans.api.model.BudgetSettingsResponse,
+    usedCurrencies: Set<Currency>,
+    onSetBase: (Currency) -> Unit,
+    onSetRate: (Currency, Double) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val s = LocalStrings.current
-    var value by remember { mutableStateOf(current?.toString() ?: "") }
+    var revealed by remember { mutableStateOf(setOf<Currency>()) }
+    val base = settings.baseCurrency
+    val listed = (usedCurrencies + settings.rates.map { it.currency } + revealed - base).sortedBy { it.ordinal }
+    val others = Currency.entries.filter { it != base && it !in listed }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(s.exchangeRateTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(s.ratePerUsd) }, singleLine = true)
+                Text(s.baseCurrencyLabel, style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Currency.entries.forEach { c ->
+                        FilterChip(selected = base == c, onClick = { onSetBase(c) }, label = { Text(c.name.uppercase()) })
+                    }
+                }
                 Text(s.rateHint, style = MaterialTheme.typography.bodySmall)
+                listed.forEach { c ->
+                    RateRow(
+                        currency = c,
+                        base = base,
+                        current = settings.rates.firstOrNull { it.currency == c }?.rateInBase,
+                        onSet = { onSetRate(c, it) },
+                    )
+                }
+                if (others.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        others.forEach { c ->
+                            TextButton(onClick = { revealed = revealed + c }) { Text("+ " + c.name.uppercase()) }
+                        }
+                    }
+                }
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = { value.replace(",", ".").toDoubleOrNull()?.let(onSet) },
-                enabled = (value.replace(",", ".").toDoubleOrNull() ?: 0.0) > 0.0,
-            ) { Text(s.save) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(s.close) } },
     )
+}
+
+@Composable
+private fun RateRow(currency: Currency, base: Currency, current: Double?, onSet: (Double) -> Unit) {
+    val s = LocalStrings.current
+    var value by remember(currency, current) { mutableStateOf(current?.let { formatAmount(it).replace(" ", "") } ?: "") }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("1 " + currency.name.uppercase() + " =", style = MaterialTheme.typography.bodyMedium)
+        OutlinedTextField(
+            value = value,
+            onValueChange = { value = it },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+        )
+        Text(base.name.uppercase(), style = MaterialTheme.typography.bodyMedium)
+        TextButton(
+            onClick = { value.replace(",", ".").toDoubleOrNull()?.let(onSet) },
+            enabled = (value.replace(",", ".").toDoubleOrNull() ?: 0.0) > 0.0,
+        ) { Text(s.save) }
+    }
 }
 
 @Composable

@@ -128,22 +128,33 @@ s, rules = call("GET", "/budget/recurring/", token=T)
 mine = next((x for x in rules if x["id"] == rule["id"]), None)
 C("exhausted rule deactivated", mine is not None and mine["isActive"] is False, f"{mine and mine['isActive']}")
 
-# --- exchange rate: parameter the user updates daily; estimates only ---
-s, r = call("GET", "/budget/exchange-rate/", token=T)
-C("rate starts unset (or from a prior run)", s == 200)
-s, r = call("PUT", "/budget/exchange-rate/", {"htgPerUsd": 132.50}, T)
-C("set the day's rate", s == 200 and r["htgPerUsd"] == 132.50)
-s, r = call("PUT", "/budget/exchange-rate/", {"htgPerUsd": -1}, T)
+# --- settings: base currency + indicative per-currency rates (estimates only) ---
+s, r = call("GET", "/budget/settings/", token=T)
+C("settings default to HTG base", s == 200 and r["baseCurrency"] == "Htg", f"{r}")
+s, r = call("PUT", "/budget/settings/rates/Usd", {"rateInBase": 132.50}, T)
+C("set today's USD rate", s == 200 and any(x["currency"] == "Usd" and x["rateInBase"] == 132.50 for x in r["rates"]))
+s, r = call("PUT", "/budget/settings/rates/Dop", {"rateInBase": 2.20}, T)
+C("a second currency (DOP) gets its own rate", s == 200 and len(r["rates"]) >= 2)
+s, r = call("PUT", "/budget/settings/rates/Htg", {"rateInBase": 1}, T)
+C("rate on the base itself rejected (10047)", s == 400 and code(r) == "10047")
+s, r = call("PUT", "/budget/settings/rates/Usd", {"rateInBase": -1}, T)
 C("negative rate rejected (10048)", s == 400 and code(r) == "10048")
+s, eur_acc = call("POST", "/budget/accounts/", {"name": "smoke: EUR", "currency": "Eur", "type": "Savings", "initialBalance": 300}, T)
+C("EUR account (diaspora) accepted", s == 200)
 summary = month_summary()
 combined = summary.get("combined")
-C("summary now carries the at-your-rate estimate", combined is not None and combined["htgPerUsd"] == 132.50, f"{combined}")
-# no USD income exists, so the combined income must equal the plain HTG income
+C("estimate is in the base currency", combined is not None and combined["baseCurrency"] == "Htg", f"{combined}")
+C("EUR reported missing, never guessed", combined is not None and "Eur" in combined.get("missingRates", []))
 income_now, _ = htg_totals(summary)
-C("combined income converts correctly", combined is not None and combined["income"] == income_now)
+C("combined income converts correctly (no USD income yet)", combined is not None and combined["income"] == income_now)
+s, r = call("DELETE", "/budget/settings/rates/Dop", token=T)
+C("forget a rate", s == 200)
+s, r = call("PUT", "/budget/settings/base-currency", {"baseCurrency": "Usd"}, T)
+C("base change clears old-base rates", s == 200 and r["baseCurrency"] == "Usd" and r["rates"] == [], f"{s} {r}")
+call("PUT", "/budget/settings/base-currency", {"baseCurrency": "Htg"}, T)  # restore
 
 # --- cleanup: archive smoke accounts (transactions stay; archived accounts refuse new money) ---
-for account in (cash, bank, usd):
+for account in (cash, bank, usd, eur_acc):
     call("PUT", f"/budget/accounts/{account['id']}", {"name": account["name"], "type": account["type"], "isArchived": True}, T)
 s, r = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Income", "amount": 1, "occurredAt": iso(now)}, T)
 C("archived account refuses new money (10051)", s == 400 and code(r) == "10051")

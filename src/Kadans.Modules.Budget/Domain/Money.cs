@@ -4,11 +4,19 @@ using OneOf.Types;
 
 namespace Kadans.Modules.Budget.Domain;
 
-/// <summary>Haiti's daily reality is bi-monetary: gourdes and US dollars never mix implicitly.</summary>
+/// <summary>
+/// Gourdes first, then the money that actually reaches Haitian wallets: US dollars, euros and
+/// Canadian dollars (diaspora), Dominican and Mexican pesos (border and trade). Currencies
+/// never mix implicitly — an exchange is always an explicit pair of amounts.
+/// </summary>
 public enum Currency
 {
     Htg,
     Usd,
+    Eur,
+    Cad,
+    Dop,
+    Mxn,
 }
 
 /// <summary>

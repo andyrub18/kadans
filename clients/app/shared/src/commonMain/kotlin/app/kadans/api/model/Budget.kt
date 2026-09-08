@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
 @Serializable
-enum class Currency { Htg, Usd }
+enum class Currency { Htg, Usd, Eur, Cad, Dop, Mxn }
 
 @Serializable
 enum class AccountType { Cash, Bank, MobileMoney, Card, Savings, Other }
@@ -149,10 +149,19 @@ data class RecurringTransactionResponse(
 )
 
 @Serializable
-data class SetExchangeRate(val htgPerUsd: Double)
+data class SetBaseCurrency(val baseCurrency: Currency)
 
 @Serializable
-data class ExchangeRateResponse(val htgPerUsd: Double? = null, val updatedAt: Instant? = null)
+data class SetCurrencyRate(val rateInBase: Double)
+
+@Serializable
+data class CurrencyRateResponse(val currency: Currency, val rateInBase: Double, val updatedAt: Instant)
+
+@Serializable
+data class BudgetSettingsResponse(
+    val baseCurrency: Currency = Currency.Htg,
+    val rates: List<CurrencyRateResponse> = emptyList(),
+)
 
 @Serializable
 data class CurrencyTotals(val currency: Currency, val income: Double, val expense: Double, val net: Double)
@@ -168,13 +177,15 @@ data class CategorySpend(
     val monthlyLimit: Double? = null,
 )
 
+/** Today's estimate in the base currency; currencies without a rate are listed, never guessed. */
 @Serializable
-data class CombinedAtYourRate(
-    val htgPerUsd: Double,
+data class CombinedEstimate(
+    val baseCurrency: Currency,
     val income: Double,
     val expense: Double,
     val net: Double,
     val totalBalance: Double,
+    val missingRates: List<Currency> = emptyList(),
 )
 
 @Serializable
@@ -185,5 +196,5 @@ data class MonthlySummaryResponse(
     val totals: List<CurrencyTotals>,
     val accounts: List<AccountResponse>,
     val categories: List<CategorySpend>,
-    val combined: CombinedAtYourRate? = null,
+    val combined: CombinedEstimate? = null,
 )

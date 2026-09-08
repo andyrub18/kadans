@@ -11,6 +11,7 @@ import app.kadans.api.model.CategoryResponse
 import app.kadans.api.model.CreateAccount
 import app.kadans.api.model.CreateCategory
 import app.kadans.api.model.Currency
+import app.kadans.api.model.BudgetSettingsResponse
 import app.kadans.api.model.MonthlySummaryResponse
 import app.kadans.api.model.RecurringTransactionResponse
 import app.kadans.api.model.SetCategoryBudget
@@ -28,6 +29,7 @@ data class BudgetUiState(
     val year: Int,
     val month: Int,
     val summary: MonthlySummaryResponse? = null,
+    val settings: BudgetSettingsResponse? = null,
     val categories: List<CategoryResponse> = emptyList(),
     val recent: List<BudgetTransactionResponse> = emptyList(),
     val recurring: List<RecurringTransactionResponse> = emptyList(),
@@ -67,7 +69,11 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
     fun setCategoryLimit(categoryId: String, limit: Double, currency: Currency) =
         act { api.budget.setCategoryBudget(categoryId, SetCategoryBudget(limit, currency)) }
 
-    fun setExchangeRate(htgPerUsd: Double) = act { api.budget.setExchangeRate(htgPerUsd) }
+    fun setBaseCurrency(base: Currency) = act { api.budget.setBaseCurrency(base) }
+
+    fun setRate(currency: Currency, rateInBase: Double) = act { api.budget.setRate(currency, rateInBase) }
+
+    fun deleteRate(currency: Currency) = act { api.budget.deleteRate(currency) }
 
     fun toggleRecurring(rule: RecurringTransactionResponse) =
         act {
@@ -112,9 +118,10 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
             val categories = api.budget.categories()
             val recent = api.budget.transactions(pageSize = 30)
             val recurring = runCatching { api.budget.recurring() }.getOrElse { emptyList() }
+            val settings = runCatching { api.budget.settings() }.getOrNull()
             _state.value = _state.value.copy(
                 summary = summary, categories = categories, recent = recent,
-                recurring = recurring, isLoading = false,
+                recurring = recurring, settings = settings, isLoading = false,
             )
         } catch (e: KadansApiException) {
             _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)

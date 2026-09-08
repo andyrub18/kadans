@@ -210,30 +210,43 @@ internal sealed class TransactionService(
             .ToList();
 
         var accountList = await accounts.List();
-        var rate = (await context.ExchangeRates.FirstOrDefaultAsync(cancellationToken))?.HtgPerUsd;
+        var baseCurrency = (await context.Profiles.FirstOrDefaultAsync(cancellationToken))?.BaseCurrency
+            ?? Currency.Htg;
+        var rates = await context.CurrencyRates
+            .ToDictionaryAsync(r => r.Currency, r => r.RateInBase, cancellationToken);
         return new MonthlySummaryResponse(year, month, timeZone.Id, totals, accountList, spends,
-            Combine(rate, totals, accountList));
+            Combine(baseCurrency, rates, totals, accountList));
     }
 
     /// <summary>
-    /// Everything in gourdes at the user's own rate — an estimate for the summary header, never
-    /// applied to stored amounts. Null until they set a rate.
+    /// Everything in the base currency at the user's indicative rates — today's estimate for the
+    /// summary header, never applied to stored amounts. A currency with no rate is excluded and
+    /// reported in MissingRates rather than silently guessed: unconverted foreign money floats
+    /// until the user actually exchanges it (and then the transfer records the real pair).
     /// </summary>
-    internal static CombinedAtYourRate? Combine(
-        decimal? htgPerUsd,
+    internal static CombinedEstimate Combine(
+        Currency baseCurrency,
+        IReadOnlyDictionary<Currency, decimal> rates,
         IReadOnlyList<CurrencyTotals> totals,
         IReadOnlyList<AccountResponse> accounts
     )
     {
-        if (htgPerUsd is not { } rate)
-            return null;
-        decimal ToHtg(Currency currency, decimal amount) =>
-            currency == Currency.Usd ? decimal.Round(amount * rate, 2) : amount;
+        decimal? ToBase(Currency currency, decimal amount) =>
+            currency == baseCurrency ? amount
+            : rates.TryGetValue(currency, out var rate) ? decimal.Round(amount * rate, 2)
+            : null;
 
-        var income = totals.Sum(t => ToHtg(t.Currency, t.Income));
-        var expense = totals.Sum(t => ToHtg(t.Currency, t.Expense));
-        var balance = accounts.Where(a => !a.IsArchived).Sum(a => ToHtg(a.Currency, a.Balance));
-        return new CombinedAtYourRate(rate, income, expense, income - expense, balance);
+        var missing = totals.Select(t => t.Currency)
+            .Concat(accounts.Where(a => !a.IsArchived).Select(a => a.Currency))
+            .Distinct()
+            .Where(c => ToBase(c, 0m) is null)
+            .OrderBy(c => c)
+            .ToList();
+
+        var income = totals.Sum(t => ToBase(t.Currency, t.Income) ?? 0m);
+        var expense = totals.Sum(t => ToBase(t.Currency, t.Expense) ?? 0m);
+        var balance = accounts.Where(a => !a.IsArchived).Sum(a => ToBase(a.Currency, a.Balance) ?? 0m);
+        return new CombinedEstimate(baseCurrency, income, expense, income - expense, balance, missing);
     }
 
     internal static TransactionResponse ToResponse(Transaction t) =>

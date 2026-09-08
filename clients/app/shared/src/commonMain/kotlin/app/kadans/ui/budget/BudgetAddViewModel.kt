@@ -9,7 +9,9 @@ import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.BudgetRecurrence
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.CategoryKind
+import app.kadans.api.model.BudgetSettingsResponse
 import app.kadans.api.model.CategoryResponse
+import app.kadans.api.model.Currency
 import app.kadans.api.model.CreateBudgetTransaction
 import app.kadans.api.model.CreateRecurringTransaction
 import app.kadans.api.model.Frequency
@@ -32,7 +34,7 @@ import kotlinx.datetime.toLocalDateTime
 data class BudgetAddUiState(
     val accounts: List<AccountResponse> = emptyList(),
     val categories: List<CategoryResponse> = emptyList(),
-    val htgPerUsd: Double? = null,
+    val settings: BudgetSettingsResponse? = null,
     val kind: BudgetTransactionKind = BudgetTransactionKind.Expense,
     val accountId: String? = null,
     val transferAccountId: String? = null,
@@ -72,17 +74,22 @@ data class BudgetAddUiState(
             (kind != BudgetTransactionKind.Transfer ||
                 (transferAccount != null && (!crossCurrency || (received ?: 0.0) > 0.0)))
 
-    /** The rate pre-fills the received amount for cross-currency transfers. */
+    /**
+     * Indicative rates pre-fill the received amount by pivoting through the base currency
+     * (rate(base) = 1). Only a suggestion — the amount the user actually types IS the exchange.
+     */
     fun suggestedReceived(): Double? {
-        val rate = htgPerUsd ?: return null
         val value = amount ?: return null
         val from = account?.currency ?: return null
         val to = transferAccount?.currency ?: return null
-        return when {
-            from == to -> null
-            to.name == "Usd" -> value / rate
-            else -> value * rate
-        }
+        if (from == to) return null
+        val base = settings?.baseCurrency ?: return null
+        fun rateOf(currency: Currency): Double? =
+            if (currency == base) 1.0 else settings.rates.firstOrNull { it.currency == currency }?.rateInBase
+        val fromRate = rateOf(from) ?: return null
+        val toRate = rateOf(to) ?: return null
+        if (toRate <= 0.0) return null
+        return value * fromRate / toRate
     }
 }
 
@@ -100,10 +107,10 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
             try {
                 val accounts = api.budget.accounts()
                 val categories = api.budget.categories()
-                val rate = runCatching { api.budget.exchangeRate().htgPerUsd }.getOrNull()
+                val settings = runCatching { api.budget.settings() }.getOrNull()
                 val today = Clock.System.now().toLocalDateTime(timeZone).date
                 _state.value = _state.value.copy(
-                    accounts = accounts, categories = categories, htgPerUsd = rate,
+                    accounts = accounts, categories = categories, settings = settings,
                     accountId = accounts.firstOrNull()?.id, date = today, isLoading = false,
                 )
             } catch (e: KadansApiException) {

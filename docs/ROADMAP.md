@@ -147,10 +147,14 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 
 ## Phase 7 – Budget module
 
-- [x] Backend (`Kadans.Modules.Budget`, `budget` schema): `Money` value object (HTG/USD never mix
-      implicitly), accounts (computed balances), income/expense categories, transactions incl.
-      transfers — cross-currency transfers carry the received amount (that IS the exchange),
-      monthly category limits, `/budget/summary` per month in the user's time zone
+- [x] Backend (`Kadans.Modules.Budget`, `budget` schema): `Money` value object (currencies never
+      mix implicitly — HTG, USD, EUR, CAD, DOP, MXN), accounts (computed balances), income/expense
+      categories, transactions incl. transfers — a cross-currency transfer carries the received
+      amount (that pair IS the rate, for that date), monthly category limits, `/budget/summary`
+      per month in the user's time zone
+- [x] Base currency per user + indicative per-currency rates (1 unit = X base, refreshable daily):
+      estimates and transfer pre-fill only, stored amounts never move; the combined estimate
+      excludes and reports currencies without a rate instead of guessing
 - [x] Recurring transactions on the shared recurrence engine (`RecurrenceSchedule`): a Quartz job
       materializes due rules into real transactions (salary lands on the 1st with no client
       running); exhausted rules self-deactivate

@@ -55,6 +55,7 @@ fun BudgetScreen(
     var creatingCategory by remember { mutableStateOf(false) }
     var editingRate by remember { mutableStateOf(false) }
     var limitFor by remember { mutableStateOf<CategorySpend?>(null) }
+    var editingAccount by remember { mutableStateOf<app.kadans.api.model.AccountResponse?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -137,7 +138,7 @@ fun BudgetScreen(
                     }
                 }
                 items(summary.accounts, key = { it.id }) { account ->
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(onClick = { editingAccount = account }, modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
                                 Text(account.name, style = MaterialTheme.typography.titleSmall)
@@ -245,6 +246,15 @@ fun BudgetScreen(
             onDismiss = { editingRate = false },
         )
     }
+    editingAccount?.let { account ->
+        EditAccountDialog(
+            account = account,
+            onSave = { name, type, archived ->
+                viewModel.updateAccount(account.id, name, type, archived); editingAccount = null
+            },
+            onDismiss = { editingAccount = null },
+        )
+    }
     limitFor?.let { spend ->
         LimitDialog(
             spend = spend,
@@ -285,6 +295,42 @@ private fun NewAccountDialog(onCreate: (String, Currency, AccountType, Double) -
                 onClick = { onCreate(name.trim(), currency, type, balance.replace(",", ".").toDoubleOrNull() ?: 0.0) },
                 enabled = name.isNotBlank(),
             ) { Text(s.create) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+    )
+}
+
+@Composable
+private fun EditAccountDialog(
+    account: app.kadans.api.model.AccountResponse,
+    onSave: (String, AccountType, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val s = LocalStrings.current
+    var name by remember { mutableStateOf(account.name) }
+    var type by remember { mutableStateOf(account.type) }
+    var archived by remember { mutableStateOf(account.isArchived) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.editAccount) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(s.accountName) }, singleLine = true)
+                // The currency is the account's identity: change it by making a new account.
+                Text(s.currencyLabel + ": " + account.currency.name.uppercase(), style = MaterialTheme.typography.bodySmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AccountType.entries.forEach { t ->
+                        FilterChip(selected = type == t, onClick = { type = t }, label = { Text(s.accountTypeName(t)) })
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(s.archivedLabel, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(end = 8.dp))
+                    androidx.compose.material3.Switch(checked = archived, onCheckedChange = { archived = it })
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(name.trim(), type, archived) }, enabled = name.isNotBlank()) { Text(s.save) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
     )

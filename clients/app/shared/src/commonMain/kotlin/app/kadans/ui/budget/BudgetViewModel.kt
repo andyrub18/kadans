@@ -15,6 +15,7 @@ import app.kadans.api.model.BudgetSettingsResponse
 import app.kadans.api.model.MonthlySummaryResponse
 import app.kadans.api.model.RecurringTransactionResponse
 import app.kadans.api.model.SetCategoryBudget
+import app.kadans.api.model.UpdateAccount
 import app.kadans.api.model.UpdateRecurringTransaction
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,6 +63,9 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
 
     fun createAccount(name: String, currency: Currency, type: AccountType, initialBalance: Double) =
         act { api.budget.createAccount(CreateAccount(name, currency, type, initialBalance)) }
+
+    fun updateAccount(id: String, name: String, type: AccountType, isArchived: Boolean) =
+        act { api.budget.updateAccount(id, UpdateAccount(name, type, isArchived)) }
 
     fun createCategory(name: String, kind: CategoryKind, icon: String?) =
         act { api.budget.createCategory(CreateCategory(name, kind, icon?.ifBlank { null })) }

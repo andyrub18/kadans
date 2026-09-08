@@ -33,9 +33,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.todos.EndMode
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -47,9 +49,11 @@ fun BudgetAddScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
-    var pickingDate by remember { mutableStateOf(false) }
+    var dateTarget by remember { mutableStateOf<BudgetDateTarget?>(null) }
 
     LaunchedEffect(viewModel) { viewModel.saved.collect { onSaved() } }
+    // Accounts or categories created since the last open must show up.
+    LaunchedEffect(Unit) { viewModel.reload() }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -86,13 +90,18 @@ fun BudgetAddScreen(
 
             if (state.kind == BudgetTransactionKind.Transfer) {
                 Text(s.toAccount, style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    state.accounts.filter { it.id != state.accountId }.forEach { account ->
-                        FilterChip(
-                            selected = state.transferAccountId == account.id,
-                            onClick = { viewModel.update { it.copy(transferAccountId = account.id) } },
-                            label = { Text(account.name + " · " + account.currency.name.uppercase()) },
-                        )
+                val destinations = state.accounts.filter { it.id != state.accountId }
+                if (destinations.isEmpty()) {
+                    Text(s.transferNeedsTwoAccounts, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                } else {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        destinations.forEach { account ->
+                            FilterChip(
+                                selected = state.transferAccountId == account.id,
+                                onClick = { viewModel.update { it.copy(transferAccountId = account.id) } },
+                                label = { Text(account.name + " · " + account.currency.name.uppercase()) },
+                            )
+                        }
                     }
                 }
             }
@@ -146,7 +155,7 @@ fun BudgetAddScreen(
                 onValueChange = {},
                 readOnly = true,
                 label = { Text(s.dueDate) },
-                trailingIcon = { TextButton(onClick = { pickingDate = true }) { Text(s.pick) } },
+                trailingIcon = { TextButton(onClick = { dateTarget = BudgetDateTarget.Start }) { Text(s.pick) } },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -178,13 +187,61 @@ fun BudgetAddScreen(
                         Text(s.every(state.frequency, state.interval), style = MaterialTheme.typography.titleMedium)
                         OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
                     }
-                    OutlinedTextField(
-                        value = state.count?.toString() ?: "",
-                        onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
-                        label = { Text(s.howManyTimes + " (" + s.endNever.lowercase() + " = ∅)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    if (state.frequency == Frequency.Weekly) {
+                        Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            mondayFirstDays.forEachIndexed { index, day ->
+                                FilterChip(
+                                    selected = day in state.byDays,
+                                    onClick = {
+                                        viewModel.update {
+                                            it.copy(byDays = if (day in it.byDays) it.byDays - day else it.byDays + day)
+                                        }
+                                    },
+                                    label = { Text(s.weekdayShort[index]) },
+                                )
+                            }
+                        }
+                    }
+                    Text(s.ends, style = MaterialTheme.typography.labelLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = state.endMode == EndMode.Never,
+                            onClick = { viewModel.update { it.copy(endMode = EndMode.Never) } },
+                            label = { Text(s.endNever) },
+                        )
+                        FilterChip(
+                            selected = state.endMode == EndMode.AfterCount,
+                            onClick = { viewModel.update { it.copy(endMode = EndMode.AfterCount) } },
+                            label = { Text(s.endAfterCount) },
+                        )
+                        FilterChip(
+                            selected = state.endMode == EndMode.OnDate,
+                            onClick = { viewModel.update { it.copy(endMode = EndMode.OnDate) } },
+                            label = { Text(s.endOnDate) },
+                        )
+                    }
+                    when (state.endMode) {
+                        EndMode.AfterCount ->
+                            OutlinedTextField(
+                                value = state.count?.toString() ?: "",
+                                onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
+                                label = { Text(s.howManyTimes) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        EndMode.OnDate ->
+                            OutlinedTextField(
+                                value = state.untilDate?.toString() ?: "",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(s.lastOccurrenceOn) },
+                                placeholder = { Text(s.pickLastDay) },
+                                trailingIcon = { TextButton(onClick = { dateTarget = BudgetDateTarget.Until }) { Text(s.pick) } },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        EndMode.Never -> {}
+                    }
                 }
             }
 
@@ -198,19 +255,33 @@ fun BudgetAddScreen(
         }
     }
 
-    if (pickingDate) {
+    val target = dateTarget
+    if (target != null) {
         val pickerState = rememberDatePickerState()
         DatePickerDialog(
-            onDismissRequest = { pickingDate = false },
+            onDismissRequest = { dateTarget = null },
             confirmButton = {
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { millis ->
-                        viewModel.update { it.copy(date = LocalDate.fromEpochDays((millis / 86_400_000L).toInt())) }
+                        val picked = LocalDate.fromEpochDays((millis / 86_400_000L).toInt())
+                        viewModel.update {
+                            when (target) {
+                                BudgetDateTarget.Start -> it.copy(date = picked)
+                                BudgetDateTarget.Until -> it.copy(untilDate = picked)
+                            }
+                        }
                     }
-                    pickingDate = false
+                    dateTarget = null
                 }) { Text(s.ok) }
             },
-            dismissButton = { TextButton(onClick = { pickingDate = false }) { Text(s.cancel) } },
+            dismissButton = { TextButton(onClick = { dateTarget = null }) { Text(s.cancel) } },
         ) { DatePicker(state = pickerState) }
     }
 }
+
+private enum class BudgetDateTarget { Start, Until }
+
+private val mondayFirstDays = listOf(
+    ApiDayOfWeek.Monday, ApiDayOfWeek.Tuesday, ApiDayOfWeek.Wednesday, ApiDayOfWeek.Thursday,
+    ApiDayOfWeek.Friday, ApiDayOfWeek.Saturday, ApiDayOfWeek.Sunday,
+)

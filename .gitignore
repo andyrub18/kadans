@@ -20,3 +20,8 @@ appsettings.*.local.json
 google-services.json
 # OAuth client downloads from Google Cloud: their values go into user-secrets, the files stay out
 client_secret*.json
+
+# Deployment: real values and data never leave the server
+deploy/.env
+deploy/secrets/
+deploy/backups/

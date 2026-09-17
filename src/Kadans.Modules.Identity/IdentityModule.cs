@@ -7,6 +7,7 @@ using Kadans.Modules.Identity.Features.Users;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Modules;
+using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -107,6 +108,9 @@ public sealed class IdentityModule : IModule
         endpoints.MapUserRoutes();
     }
 
-    public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken) =>
-        services.SeedInitialAdminAsync();
+    public async Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken)
+    {
+        await services.MigrateIfConfiguredAsync<IdentityModuleDbContext>(cancellationToken);
+        await services.SeedInitialAdminAsync(); // needs the tables
+    }
 }

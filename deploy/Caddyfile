@@ -1,0 +1,7 @@
+# Caddy obtains and renews the certificate for this name by itself; it needs ports 80 and 443
+# reachable and the DNS A/AAAA record pointing at this machine. WebSockets (the SignalR hub at
+# /hubs/kadans) pass through reverse_proxy without extra configuration.
+{$KADANS_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8080
+}

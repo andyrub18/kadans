@@ -1,0 +1,17 @@
+# Only global.json, the two Directory.*.props and src/ are needed to build the image.
+**/bin/
+**/obj/
+.git/
+.github/
+.vscode/
+clients/
+docs/
+tests/
+tools/
+deploy/
+TestResults/
+**/logs/
+**/*.user
+**/appsettings.*.local.json
+**/google-services.json
+**/client_secret*.json

@@ -106,11 +106,24 @@ The server side is done and verified (service-account key at `~/.kadans/firebase
 
 If nothing arrives: check the API log for `FCM: 1 sent` lines, and that the phone kept Wi-Fi on.
 
-## Domain and hosting (later)
+## Domain and hosting
 
-- [ ] Domain (e.g. `kadans.app`) – used by `Email:LinkBaseUrl`, `Email:From`, deep links
-- [ ] Production Postgres and a host for the API; `ConnectionStrings:kadans`, `Jwt:Key` (≥ 32 random chars)
-- [ ] Rotate `InitialAdmin:Password` after first login, or disable seeding (`InitialAdmin:Enabled=false`)
+The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). What only you can do:
+
+- [ ] Buy the domain. Plan on **`api.<domain>`** for the backend (what the apps and emailed links use) and
+      keep the bare domain free for a website later.
+- [ ] Resend → Domains → add the domain, create the DNS records it shows (SPF/DKIM), wait for "verified",
+      then `EMAIL_FROM=Kadans <no-reply@<domain>>` and a production API key as `RESEND_API_KEY`.
+- [ ] A server: a small VPS in the eastern US (Miami if offered) – reasoning and alternatives in
+      DEPLOYMENT.md → Where to host it. DNS `A` record `api` → its address.
+- [ ] On the server: `deploy/.env` from `.env.example` (`POSTGRES_PASSWORD` and `JWT_KEY` from
+      `openssl rand -hex 32`), `deploy/secrets/firebase-admin.json` (the same service-account key as
+      `~/.kadans/firebase-admin.json`), then `docker compose up -d --build`.
+- [ ] First start with `INITIAL_ADMIN_ENABLED=true`, sign in, enable two-factor, set it back to `false`.
+- [ ] Google Cloud → OAuth consent screen: add `<domain>` as an authorized domain when you leave Testing
+      mode. No redirect URIs are needed for any of the three clients.
+- [ ] An uptime monitor on `https://api.<domain>/health/ready`, and an off-server copy of `deploy/backups/`.
+- [ ] Build the apps for production: `-Pkadans.apiBaseUrl=https://api.<domain>` (DEPLOYMENT.md → Building the apps).
 
 ## Client (Compose Multiplatform)
 

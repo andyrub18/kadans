@@ -62,4 +62,5 @@ Details in [clients/app/README.md](clients/app/README.md).
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Deployment](docs/DEPLOYMENT.md) – the container image, the Docker Compose setup, DNS, backups
 - [Owner checklist](docs/OWNER-CHECKLIST.md) – accounts, keys and settings to create by hand

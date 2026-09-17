@@ -1,6 +1,7 @@
 using Kadans.Modules.Budget.Features;
 using Kadans.Modules.Budget.Persistence;
 using Kadans.SharedKernel.Modules;
+using Kadans.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -43,6 +44,9 @@ public sealed class BudgetModule : IModule
         services.AddScoped<RecurringTransactionService>();
         services.AddScoped<BudgetSettingsService>();
     }
+
+    public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken) =>
+        services.MigrateIfConfiguredAsync<BudgetDbContext>(cancellationToken);
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {

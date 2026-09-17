@@ -16,6 +16,7 @@
     <Project Path="src/Kadans.Modules.Tasks/Kadans.Modules.Tasks.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Kadans.Api.Tests/Kadans.Api.Tests.csproj" />
     <Project Path="tests/Kadans.Budget.Tests/Kadans.Budget.Tests.csproj" />
     <Project Path="tests/Kadans.Identity.Tests/Kadans.Identity.Tests.csproj" />
     <Project Path="tests/Kadans.Notifications.Tests/Kadans.Notifications.Tests.csproj" />

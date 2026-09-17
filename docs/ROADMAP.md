@@ -231,8 +231,9 @@ installing on real devices second, hosting last.
       numbers and names. Guards: every error type must have its sentence, every Identity message must be
       translated, and a scan of `src/` fails the build on a static message without a translation (97 today).
       The Kreyòl wording is a first pass and wants the owner's native review.
-- [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
-      Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
+- [x] Layout nits: Budget migrations moved to `Persistence/Migrations/` like every other module (EF keys
+      migrations by id, so the move is invisible to the database) and the Budget project sits in the
+      `src/modules` solution folder.
 
 2. Before installing on your own devices
 

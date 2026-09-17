@@ -18,7 +18,6 @@ src/
   Kadans.Modules.Tasks/          todos, occurrences, pomodoro
   Kadans.Modules.Budget/         accounts, categories, transactions/transfers, category limits,
                                  recurring money, monthly summary, base currency + rates
-                                 (migrations in Migrations/ at the module root)
   Kadans.Modules.Notifications/  notification log, SignalR hub, push (FCM), dispatcher
 tests/
   Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, Identity, Notifications, SharedKernel)

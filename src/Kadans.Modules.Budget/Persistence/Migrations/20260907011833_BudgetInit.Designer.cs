@@ -3,17 +3,20 @@ using System;
 using Kadans.Modules.Budget.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Kadans.Modules.Budget.Migrations
+namespace Kadans.Modules.Budget.Persistence.Migrations
 {
     [DbContext(typeof(BudgetDbContext))]
-    partial class BudgetDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260907011833_BudgetInit")]
+    partial class BudgetInit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -77,28 +80,6 @@ namespace Kadans.Modules.Budget.Migrations
                     b.HasIndex("UserId", "IsArchived");
 
                     b.ToTable("accounts", "budget");
-                });
-
-            modelBuilder.Entity("Kadans.Modules.Budget.Domain.BudgetProfile", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("character varying(450)")
-                        .HasColumnName("user_id");
-
-                    b.Property<string>("BaseCurrency")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)")
-                        .HasColumnName("base_currency");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("profiles", "budget");
                 });
 
             modelBuilder.Entity("Kadans.Modules.Budget.Domain.Category", b =>
@@ -192,43 +173,6 @@ namespace Kadans.Modules.Budget.Migrations
                         .IsUnique();
 
                     b.ToTable("category_budgets", "budget");
-                });
-
-            modelBuilder.Entity("Kadans.Modules.Budget.Domain.CurrencyRate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)")
-                        .HasColumnName("currency");
-
-                    b.Property<decimal>("RateInBase")
-                        .HasPrecision(14, 6)
-                        .HasColumnType("numeric(14,6)")
-                        .HasColumnName("rate_in_base");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("character varying(450)")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_currency_rates");
-
-                    b.HasIndex("UserId", "Currency")
-                        .IsUnique();
-
-                    b.ToTable("currency_rates", "budget");
                 });
 
             modelBuilder.Entity("Kadans.Modules.Budget.Domain.RecurringTransaction", b =>

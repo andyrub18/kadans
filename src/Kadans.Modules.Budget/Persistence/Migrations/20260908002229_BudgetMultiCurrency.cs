@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Kadans.Modules.Budget.Migrations
+namespace Kadans.Modules.Budget.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class BudgetMultiCurrency : Migration

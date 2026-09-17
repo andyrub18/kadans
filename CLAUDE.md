@@ -16,8 +16,7 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro, Quartz jobs (`tasks` schema).
 - `src/Kadans.Modules.Notifications` – notification log, SignalR hub `/hubs/kadans`, push (FCM) (`notifications` schema).
 - `src/Kadans.Modules.Budget` – accounts, categories, transactions/transfers, recurring money, monthly
-  summary, base currency + rates (`budget` schema). Its migrations live in `Migrations/` at the module
-  root (the other modules use `Persistence/Migrations/`) – pass that `--output-dir` when adding one.
+  summary, base currency + rates (`budget` schema).
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
 - `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.Identity.Tests`, `tests/Kadans.Notifications.Tests`,
@@ -38,7 +37,7 @@ dotnet ef database update --project src/Kadans.Modules.Tasks --startup-project s
 dotnet ef database update --project src/Kadans.Modules.Notifications --startup-project src/Kadans.Api --context NotificationsDbContext
 dotnet ef database update --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext
 dotnet ef migrations add <Name> --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext --output-dir Persistence/Migrations
-dotnet ef migrations add <Name> --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext --output-dir Migrations
+dotnet ef migrations add <Name> --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext --output-dir Persistence/Migrations
 docker start kadans-postgres                # local Postgres 17 (created with POSTGRES_DB=kadans, password 'password')
 dotnet user-secrets list --project src/Kadans.Api
 ```

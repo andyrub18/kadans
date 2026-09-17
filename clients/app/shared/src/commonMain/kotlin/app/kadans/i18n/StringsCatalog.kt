@@ -59,6 +59,8 @@ data class StringsCatalog(
     val howManyTimes: String,
     val lastOccurrenceOn: String,
     val pickLastDay: String,
+    val lastOccurrenceAt: String,
+    val endOfDay: String,
     val remindMe: String,
     val create: String,
     val cancel: String,

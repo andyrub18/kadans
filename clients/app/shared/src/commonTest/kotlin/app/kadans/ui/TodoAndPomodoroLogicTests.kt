@@ -55,6 +55,29 @@ class TodoAndPomodoroLogicTests {
     }
 
     @Test
+    fun end_on_a_date_and_time_sends_that_exact_moment() {
+        val byMoment = state().copy(
+            frequency = Frequency.Hourly, interval = 2,
+            endMode = EndMode.OnDate, untilDate = LocalDate(2027, 1, 10), untilTime = LocalTime(18, 0),
+        )
+
+        val rule = CreateTodoViewModel.buildRecurring(byMoment, portAuPrince).recurrenceRule
+
+        assertEquals(Instant.parse("2027-01-10T23:00:00Z"), rule.until) // 18:00 in Port-au-Prince
+        assertEquals(null, rule.count)
+    }
+
+    @Test
+    fun an_end_earlier_the_same_day_than_the_first_time_is_refused() {
+        val start = state() // starts 2027-01-04 at 09:00
+        val sameDay = start.copy(endMode = EndMode.OnDate, untilDate = start.date)
+
+        assertEquals(true, sameDay.canSubmit) // end of that day: fine
+        assertEquals(true, sameDay.copy(untilTime = start.time).canSubmit) // exactly the first time: one occurrence
+        assertEquals(false, sameDay.copy(untilTime = LocalTime(8, 0)).canSubmit)
+    }
+
+    @Test
     fun end_never_sends_neither_count_nor_until() {
         val rule = CreateTodoViewModel.buildRecurring(state().copy(endMode = EndMode.Never), portAuPrince).recurrenceRule
         assertEquals(null, rule.count)

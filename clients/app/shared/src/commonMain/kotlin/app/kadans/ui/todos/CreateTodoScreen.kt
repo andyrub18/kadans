@@ -41,7 +41,7 @@ import kotlinx.datetime.LocalTime
 import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 
-private enum class TimeTarget { Start, ExtraTime }
+private enum class TimeTarget { Start, ExtraTime, Until }
 
 private enum class DateTarget { Start, Until }
 
@@ -185,7 +185,7 @@ fun CreateTodoScreen(
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                    EndMode.OnDate ->
+                    EndMode.OnDate -> {
                         OutlinedTextField(
                             value = state.untilDate?.toString() ?: "",
                             onValueChange = {},
@@ -195,6 +195,23 @@ fun CreateTodoScreen(
                             trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Until }) { Text(s.pick) } },
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        // A date alone ends the rule with that day; a time makes it a precise moment.
+                        OutlinedTextField(
+                                value = state.untilTime?.formatted() ?: s.endOfDay,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(s.lastOccurrenceAt) },
+                                trailingIcon = {
+                                    Row {
+                                        if (state.untilTime != null) {
+                                            TextButton(onClick = { viewModel.update { it.copy(untilTime = null) } }) { Text(s.endOfDay) }
+                                        }
+                                        TextButton(onClick = { timeTarget = TimeTarget.Until }) { Text(s.pick) }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     EndMode.Never -> {}
                 }
             }
@@ -243,7 +260,8 @@ fun CreateTodoScreen(
 
     val target = timeTarget
     if (target != null) {
-        val timeState = rememberTimePickerState(initialHour = state.time.hour, initialMinute = state.time.minute, is24Hour = true)
+        val initial = if (target == TimeTarget.Until) state.untilTime ?: state.time else state.time
+        val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
         AlertDialog(
             onDismissRequest = { timeTarget = null },
             confirmButton = {
@@ -253,6 +271,7 @@ fun CreateTodoScreen(
                         when (target) {
                             TimeTarget.Start -> it.copy(time = picked)
                             TimeTarget.ExtraTime -> it.copy(times = (it.times + picked).distinct())
+                            TimeTarget.Until -> it.copy(untilTime = picked)
                         }
                     }
                     timeTarget = null

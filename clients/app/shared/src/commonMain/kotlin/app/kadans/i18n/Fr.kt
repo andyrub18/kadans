@@ -17,6 +17,7 @@ val FrenchStrings = StringsCatalog(
     sameMinuteError = "Toutes les heures doivent partager les mêmes minutes — p. ex. 8:00, 14:00, 20:00 (contrainte de la règle de récurrence).",
     ends = "Se termine", endNever = "Jamais", endAfterCount = "Après un nombre de fois", endOnDate = "À une date",
     howManyTimes = "Combien de fois au total", lastOccurrenceOn = "Dernière fois le", pickLastDay = "Choisir le dernier jour",
+    lastOccurrenceAt = "Dernière fois à", endOfDay = "Fin de la journée",
     remindMe = "Me rappeler avant le début", create = "Créer", cancel = "Annuler", ok = "OK",
     everySingularPrefix = "Chaque", everyPluralPrefix = "Tous les",
     unitMinute = "minute", unitMinutes = "minutes", unitHour = "heure", unitHours = "heures",

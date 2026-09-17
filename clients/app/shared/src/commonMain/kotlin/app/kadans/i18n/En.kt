@@ -17,6 +17,7 @@ val EnglishStrings = StringsCatalog(
     sameMinuteError = "All daily times must share the same minutes — e.g. 8:00, 14:00, 20:00 (a recurrence-rule constraint).",
     ends = "Ends", endNever = "Never", endAfterCount = "After a number of times", endOnDate = "On a date",
     howManyTimes = "How many times in total", lastOccurrenceOn = "Last occurrence on", pickLastDay = "Pick the last day",
+    lastOccurrenceAt = "Last time at", endOfDay = "End of the day",
     remindMe = "Remind me before it starts", create = "Create", cancel = "Cancel", ok = "OK",
     everySingularPrefix = "Every", everyPluralPrefix = "Every",
     unitMinute = "minute", unitMinutes = "minutes", unitHour = "hour", unitHours = "hours",

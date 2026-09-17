@@ -17,6 +17,7 @@ val CreoleStrings = StringsCatalog(
     sameMinuteError = "Tout lè yo dwe gen menm minit — pa egzanp 8:00, 14:00, 20:00 (se yon limit règ repetisyon an).",
     ends = "Li fini", endNever = "Janm", endAfterCount = "Apre yon kantite fwa", endOnDate = "Nan yon dat",
     howManyTimes = "Konbyen fwa antou", lastOccurrenceOn = "Dènye fwa a nan", pickLastDay = "Chwazi dènye jou a",
+    lastOccurrenceAt = "Dènye fwa a a", endOfDay = "Nan fen jounen an",
     remindMe = "Fè m sonje anvan li kòmanse", create = "Kreye", cancel = "Anile", ok = "OK",
     everySingularPrefix = "Chak", everyPluralPrefix = "Chak",
     unitMinute = "minit", unitMinutes = "minit", unitHour = "èdtan", unitHours = "èdtan",

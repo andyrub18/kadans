@@ -198,8 +198,11 @@ installing on real devices second, hosting last.
       Still there: FCM's own delivery delay to a phone (1–3 s, more in Doze).
 - [ ] Optional, only if the phone still feels late: schedule a local exact alarm on Android for the
       current phase end, and dedupe the pushed notification.
-- [ ] Recurring "ends on": today a date at 23:59 in the user's zone. Add a time picker so hourly rules
-      can end at a precise time ("every 2 hours until Friday 18:00"); daily-and-slower keep end of day.
+- [x] Recurring "ends on" is a date **and an optional time**: the create-todo form shows "Last time at"
+      next to the date, defaulting to "End of the day" (23:59 in the user's zone, what daily-and-slower
+      rules want); picking a time ends the rule at that exact, inclusive moment ("every 2 hours until
+      Friday 18:00"), and an end before the first occurrence is refused. No server change – `until` was
+      always an instant. Budget recurring rules keep a plain end date: money rules are day-granular.
 - [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
       only shows live snackbars / OS notifications today
 - [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)

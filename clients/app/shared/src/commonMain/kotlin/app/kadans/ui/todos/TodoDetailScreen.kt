@@ -143,6 +143,27 @@ private fun Detail(
             OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it })
         }
 
+        if (content.runs.isNotEmpty()) {
+            item { Text(s.focusStats.focusSessions, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
+            items(content.runs, key = { "run-" + it.id }) { run ->
+                val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
+                val laps = app.kadans.ui.stats.StatsViewModel.lapsOf(run)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        app.kadans.ui.notifications.NotificationsViewModel.formatTimestamp(run.startedAt, zone) +
+                            (if (laps > 1) " · ×$laps" else ""),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        s.focusStats.runStatusName(run.status) + " · " + s.focus + " " +
+                            app.kadans.ui.stats.StatsViewModel.formatMinutes(app.kadans.ui.stats.StatsViewModel.focusMinutesOf(run)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
             item {
                 TextButton(onClick = viewModel::cancelTodo, modifier = Modifier.fillMaxWidth()) {

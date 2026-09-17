@@ -6,6 +6,7 @@ import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.RescheduleOccurrence
 import app.kadans.api.model.TodoOccurrenceResponse
+import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroTemplateResponse
 import app.kadans.api.model.TodoResponse
 import kotlin.time.Instant
@@ -23,6 +24,8 @@ sealed interface TodoDetailUiState {
         val showHistory: Boolean,
         val hasActiveRun: Boolean,
         val templates: List<PomodoroTemplateResponse> = emptyList(),
+        /** The latest focus sessions on this todo, newest first. */
+        val runs: List<PomodoroRunResponse> = emptyList(),
         val actionError: String? = null,
         val actionErrorCode: String? = null,
     ) : TodoDetailUiState
@@ -35,6 +38,10 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
     val state: StateFlow<TodoDetailUiState> = _state.asStateFlow()
 
     private var showHistory = false
+
+    private companion object {
+        const val RECENT_RUNS = 5
+    }
 
     fun refresh() {
         viewModelScope.launch { load() }
@@ -80,7 +87,8 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
                 else api.todos.occurrences(todoId, pageSize = 50)
             val hasActiveRun = runCatching { api.pomodoro.activeRun(todoId) }.isSuccess
             val templates = runCatching { api.pomodoro.templates() }.getOrElse { emptyList() }
-            _state.value = TodoDetailUiState.Content(todo, occurrences, showHistory, hasActiveRun, templates)
+            val runs = runCatching { api.pomodoro.runs(todoId, page = 1, pageSize = RECENT_RUNS) }.getOrElse { emptyList() }
+            _state.value = TodoDetailUiState.Content(todo, occurrences, showHistory, hasActiveRun, templates, runs)
         } catch (e: KadansApiException) {
             _state.value = TodoDetailUiState.Error(e.message, e.errorCode)
         } catch (e: Exception) {

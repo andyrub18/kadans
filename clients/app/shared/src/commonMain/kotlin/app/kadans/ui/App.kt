@@ -33,6 +33,7 @@ import app.kadans.ui.calendar.CalendarScreen
 import app.kadans.ui.home.HomeScreen
 import app.kadans.ui.notifications.NotificationsScreen
 import app.kadans.ui.settings.SettingsScreen
+import app.kadans.ui.stats.StatsScreen
 import app.kadans.ui.todos.CreateTodoScreen
 import app.kadans.ui.todos.EditTodoScreen
 import app.kadans.ui.todos.TodoDetailScreen
@@ -52,6 +53,7 @@ data object TemplatesRoute
 data object CalendarRoute
 data object SettingsRoute
 data object NotificationsRoute
+data object StatsRoute
 data object BudgetRoute
 data object BudgetAddRoute
 data class TodoDetailRoute(val todoId: String)
@@ -154,6 +156,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onOpenBudget = { backStack.add(BudgetRoute) },
                         onOpenSettings = { backStack.add(SettingsRoute) },
                         onOpenNotifications = { backStack.add(NotificationsRoute) },
+                        onOpenStats = { backStack.add(StatsRoute) },
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
                     )
                 }
@@ -163,6 +166,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }
+                is StatsRoute -> NavEntry(key) { StatsScreen(onBack = { backStack.removeLastOrNull() }) }
                 is TemplatesRoute -> NavEntry(key) {
                     TemplatesScreen(onBack = { backStack.removeLastOrNull() })
                 }

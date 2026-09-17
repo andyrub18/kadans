@@ -3,6 +3,8 @@ package app.kadans.i18n
 val EnglishStrings = StringsCatalog(
     signInTitle = "Sign in", usernameOrEmail = "Username or email", password = "Password",
     signIn = "Sign in", createAccount = "Create an account", twoFactorTitle = "Two-factor code",
+    notificationsTitle = "Notifications", markAllRead = "Mark all read",
+    noNotificationsYet = "Nothing yet. Reminders and phase changes will show up here.", loadMore = "Load more",
     continueWithGoogle = "Continue with Google", googleWaiting = "Finish signing in in your browser…",
     googleReturnToApp = "You are signed in. You can close this tab and return to Kadans.",
     mfaCodeLabel = "Code from your authenticator (or a recovery code)", verify = "Verify", back = "Back",

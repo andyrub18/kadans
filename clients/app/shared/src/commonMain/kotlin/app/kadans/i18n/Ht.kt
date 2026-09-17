@@ -3,6 +3,8 @@ package app.kadans.i18n
 val CreoleStrings = StringsCatalog(
     signInTitle = "Konekte", usernameOrEmail = "Non itilizatè oswa imèl", password = "Modpas",
     signIn = "Konekte", createAccount = "Kreye yon kont", twoFactorTitle = "Kòd verifikasyon",
+    notificationsTitle = "Notifikasyon", markAllRead = "Make tout kòm li",
+    noNotificationsYet = "Poko gen anyen. Rapèl yo ak chanjman faz yo ap parèt la a.", loadMore = "Chaje plis",
     continueWithGoogle = "Kontinye ak Google", googleWaiting = "Fini koneksyon an nan navigatè ou a…",
     googleReturnToApp = "Ou konekte. Ou ka fèmen onglè sa a epi retounen nan Kadans.",
     mfaCodeLabel = "Kòd aplikasyon otantifikasyon ou (oswa yon kòd rekiperasyon)", verify = "Verifye", back = "Retounen",

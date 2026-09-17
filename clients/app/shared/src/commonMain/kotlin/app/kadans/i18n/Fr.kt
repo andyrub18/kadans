@@ -3,6 +3,8 @@ package app.kadans.i18n
 val FrenchStrings = StringsCatalog(
     signInTitle = "Connexion", usernameOrEmail = "Nom d'utilisateur ou e-mail", password = "Mot de passe",
     signIn = "Se connecter", createAccount = "Créer un compte", twoFactorTitle = "Code de vérification",
+    notificationsTitle = "Notifications", markAllRead = "Tout marquer comme lu",
+    noNotificationsYet = "Rien pour l'instant. Les rappels et les changements de phase apparaîtront ici.", loadMore = "Charger plus",
     continueWithGoogle = "Continuer avec Google", googleWaiting = "Terminez la connexion dans votre navigateur…",
     googleReturnToApp = "Vous êtes connecté. Vous pouvez fermer cet onglet et revenir à Kadans.",
     mfaCodeLabel = "Code de votre application (ou un code de récupération)", verify = "Vérifier", back = "Retour",

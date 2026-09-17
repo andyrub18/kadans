@@ -19,6 +19,7 @@ import app.kadans.ui.budget.BudgetAddViewModel
 import app.kadans.ui.budget.BudgetViewModel
 import app.kadans.ui.calendar.CalendarViewModel
 import app.kadans.ui.home.HomeViewModel
+import app.kadans.ui.notifications.NotificationsViewModel
 import app.kadans.ui.settings.SettingsViewModel
 import app.kadans.ui.templates.TemplatesViewModel
 import app.kadans.ui.pomodoro.PomodoroViewModel
@@ -53,6 +54,7 @@ val appModule = org.koin.dsl.module {
     factory { (email: String, token: String) -> ResetPasswordViewModel(get(), email, token) }
     viewModelOf(::HomeViewModel)
     viewModelOf(::TemplatesViewModel)
+    factory { NotificationsViewModel(get(), get<KadansRealtime>().events) }
     viewModelOf(::CalendarViewModel)
     viewModelOf(::BudgetViewModel)
     viewModelOf(::BudgetAddViewModel)

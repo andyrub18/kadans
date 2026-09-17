@@ -203,8 +203,11 @@ installing on real devices second, hosting last.
       rules want); picking a time ends the rule at that exact, inclusive moment ("every 2 hours until
       Friday 18:00"), and an end before the first occurrence is refused. No server change – `until` was
       always an instant. Budget recurring rules keep a plain end date: money rules are day-granular.
-- [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
-      only shows live snackbars / OS notifications today
+- [x] Notification centre: a 🔔 with an unread badge on Home (`/notifications/unread-count`, bumped live by
+      the hub) opens the list of everything the server sent (reminders, phase changes), newest first,
+      paged. Unread rows are highlighted; tapping one marks it read and opens its todo (`data.todoId`);
+      "Mark all read" in one call. Reads are optimistic and resync from the server if the call fails;
+      a notification arriving while the list is open lands on top, once.
 - [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
 - [ ] Email change and device list in Settings
 - [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)

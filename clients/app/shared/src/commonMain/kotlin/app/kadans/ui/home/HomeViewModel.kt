@@ -48,6 +48,10 @@ class HomeViewModel(
     private val _liveNotifications = MutableSharedFlow<NotificationResponse>(extraBufferCapacity = 4)
     val liveNotifications: SharedFlow<NotificationResponse> = _liveNotifications.asSharedFlow()
 
+    /** Unread notifications, shown as the badge on the bell. */
+    private val _unread = MutableStateFlow(0)
+    val unread: StateFlow<Int> = _unread.asStateFlow()
+
     init {
         // Home only exists with a session; the hub connection lives for as long as it does.
         realtime.start()
@@ -57,6 +61,7 @@ class HomeViewModel(
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {
                     _liveNotifications.emit(event.notification)
+                    _unread.value += 1 // instant; quietRefresh below replaces it with the server's count
                     quietRefresh()
                 }
             }
@@ -80,12 +85,19 @@ class HomeViewModel(
             val upcoming = api.todos.occurrencesBetween(now, now + 7.days)
                 .filter { !it.isPreview }
             _state.value = HomeUiState.Content(todos, upcoming)
+            // The badge is a nicety: never let it turn a loaded Home into an error.
+            runCatching { api.notifications.unreadCount() }.onSuccess { _unread.value = it }
         } catch (e: KadansApiException) {
             if (e.httpStatus == 401) _loggedOut.emit(Unit)
             else _state.value = HomeUiState.Error(e.message, e.errorCode)
         } catch (e: Exception) {
             _state.value = HomeUiState.Error(null, "network")
         }
+    }
+
+    internal companion object {
+        /** A badge must stay a badge: past 99 the exact number stops mattering. */
+        fun badgeText(unread: Int): String = if (unread > 99) "99+" else unread.toString()
     }
 
     fun logout() {

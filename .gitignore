@@ -18,3 +18,5 @@ logs/
 # Local secrets never belong here; use `dotnet user-secrets` (see README)
 appsettings.*.local.json
 google-services.json
+# OAuth client downloads from Google Cloud: their values go into user-secrets, the files stay out
+client_secret*.json

@@ -25,13 +25,15 @@ The code is done on both sides (Phase 8); it lights up the moment these values e
 ask `GET /auth/providers` and show **Continue with Google** only when the server publishes the id
 their platform needs – so nothing to rebuild or configure in the apps.
 
-- [ ] One Google Cloud project for everything: the Firebase project **`kadans-420a7`** (every Firebase
+- [x] One Google Cloud project for everything: the Firebase project **`kadans-420a7`** (every Firebase
       project is a Google Cloud project). The earlier standalone project `kadans-507716` was deleted
       on purpose; the Desktop OAuth client registered from it as `ExternalAuth:Google:ClientIds:0`
       died with it.
 - [ ] In `kadans-420a7`: APIs & Services → OAuth consent screen: **Testing** mode, your Google account
       as test user — no domain, homepage or privacy links required.
-- [ ] Credentials → **Desktop app** OAuth client → the JVM app's loopback sign-in. The app only gets
+- [x] (2026-09-18, dev) Credentials → **Desktop app** OAuth client → the JVM app's loopback sign-in.
+      Verified: `/auth/providers` publishes the id and Google answers a fake code with `invalid_grant`
+      (it would say `invalid_client` for a wrong id/secret pair). Left to do: sign in once for real. The app only gets
       the id; the API does the code exchange, so the secret stays on the server:
       `ExternalAuth:Google:Desktop:ClientId` and `ExternalAuth:Google:Desktop:ClientSecret`
 - [ ] Credentials → **Web application** OAuth client (no redirect URIs needed) → Android's Credential
@@ -40,7 +42,11 @@ their platform needs – so nothing to rebuild or configure in the apps.
 - [ ] Credentials → **Android** OAuth client: package `app.kadans` + the SHA-1 of your debug keystore
       (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`),
       later a second one with the release keystore's SHA-1. Its id goes nowhere in our config – it only
-      has to exist in the same project, it is how Google recognises the app.
+      has to exist in the same project, it is how Google recognises the app. You do **not** need release
+      signing first: the debug keystore exists as soon as Android Studio or Gradle has built once, and
+      debug builds are what you test with. When the app goes through Google Play, add a third Android
+      client with the *Play App Signing* SHA-1 from the Play Console – Play re-signs the app, so the
+      release keystore's fingerprint is not the one on users' phones.
 - [ ] **iOS** OAuth client (bundle id `app.kadans`) when iOS happens; its id goes into the
       `ExternalAuth:Google:ClientIds` list (extra accepted audiences).
 

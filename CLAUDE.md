@@ -50,8 +50,8 @@ live in `dotnet user-secrets`, never in
 
 Running the API by hand for a smoke test: start it in the background, and stop it with `pkill -x Kadans.Api`
 (the apphost's process name) – killing the `dotnet run` parent leaves the server alive on its port.
-`python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end (not re-runnable:
-it fails at step one if an earlier run left the user `alice` in the database);
+`python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end (a fresh
+`alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
 `python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, stats, and the hands-free

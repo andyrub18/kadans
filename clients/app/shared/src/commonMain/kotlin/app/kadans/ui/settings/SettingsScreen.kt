@@ -71,9 +71,6 @@ fun SettingsScreen(
 
             // ---- Profile ----
             Text(s.profileSection, style = MaterialTheme.typography.titleMedium)
-            state.user?.email?.let { email ->
-                Text(email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
             OutlinedTextField(
                 value = state.username,
                 onValueChange = { v -> viewModel.update { it.copy(username = v) } },
@@ -110,6 +107,45 @@ fun SettingsScreen(
             }
             if (state.profileSaved) {
                 Text(s.profileSaved, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+            // ---- Email ----
+            val a = s.account
+            Text(a.emailSection, style = MaterialTheme.typography.titleMedium)
+            val currentEmail = state.user?.email
+            if (currentEmail != null) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    SelectionContainer { Text(currentEmail, style = MaterialTheme.typography.bodyMedium) }
+                    Text(
+                        if (state.user?.emailConfirmed == true) a.emailConfirmed else a.emailNotConfirmed,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (state.user?.emailConfirmed == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    )
+                }
+                if (state.user?.emailConfirmed != true) {
+                    TextButton(onClick = viewModel::resendConfirmation, enabled = !state.isBusy) { Text(a.resendConfirmation) }
+                    if (state.confirmationResent) {
+                        Text(a.confirmationSent, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            } else {
+                Text(a.noEmailYet, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            OutlinedTextField(
+                value = state.newEmail,
+                onValueChange = { v -> viewModel.update { it.copy(newEmail = v, emailChangeSentTo = null) } },
+                label = { Text(a.newEmailLabel) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(a.emailChangeHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = viewModel::requestEmailChange, enabled = state.canRequestEmailChange, modifier = Modifier.fillMaxWidth()) {
+                Text(a.sendEmailChangeLink)
+            }
+            state.emailChangeSentTo?.let { sentTo ->
+                Text(a.emailChangeSent(sentTo), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
             }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -211,6 +247,46 @@ fun SettingsScreen(
                                 fontFamily = FontFamily.Monospace,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+            // ---- Devices ----
+            Text(a.devicesSection, style = MaterialTheme.typography.titleMedium)
+            Text(a.devicesHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (state.devices.isEmpty()) {
+                Text(a.noDevices, style = MaterialTheme.typography.bodySmall)
+            }
+            val zone = androidx.compose.runtime.remember { kotlinx.datetime.TimeZone.currentSystemDefault() }
+            state.devices.forEach { device ->
+                val isThis = device.installationId == state.thisInstallationId
+                Card(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(device.name + if (isThis) " · " + a.thisDevice else "", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                device.platform.name + " · " + (if (device.hasPushToken) a.pushOn else a.pushOff),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                a.lastSeen + " " + app.kadans.ui.notifications.NotificationsViewModel.formatTimestamp(device.lastSeenAt, zone),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        // Removing the device you are holding would only re-add it at the next launch.
+                        if (!isThis) {
+                            TextButton(onClick = { viewModel.removeDevice(device.installationId) }, enabled = !state.isBusy) {
+                                Text(a.removeDevice, color = MaterialTheme.colorScheme.error)
+                            }
                         }
                     }
                 }

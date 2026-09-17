@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
+import app.kadans.api.model.DeviceResponse
 import app.kadans.api.model.MfaEnrollResponse
 import app.kadans.api.model.UpdateSelfUserRequest
 import app.kadans.api.model.UserResponse
+import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,14 @@ data class SettingsUiState(
     val displayName: String = "",
     val timeZone: String = "",
     val profileSaved: Boolean = false,
+    // email
+    val newEmail: String = "",
+    /** The address a change link was just sent to; the change itself happens when that link is opened. */
+    val emailChangeSentTo: String? = null,
+    val confirmationResent: Boolean = false,
+    // devices
+    val devices: List<DeviceResponse> = emptyList(),
+    val thisInstallationId: String? = null,
     // password form
     val currentPassword: String = "",
     val newPassword: String = "",
@@ -34,11 +44,15 @@ data class SettingsUiState(
     val isBusy: Boolean = false,
     val error: String? = null,
     val errorCode: String? = null,
-)
+) {
+    val canRequestEmailChange: Boolean
+        get() = !isBusy && newEmail.trim().let { it.contains('@') && !it.equals(user?.email, ignoreCase = true) }
+}
 
 class SettingsViewModel(
     private val api: KadansApi,
     private val realtime: KadansRealtime,
+    private val deviceRegistrar: DeviceRegistrar,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
@@ -63,7 +77,9 @@ class SettingsViewModel(
                     isLoading = false,
                     error = null,
                     errorCode = null,
+                    thisInstallationId = deviceRegistrar.installationId(),
                 )
+                refreshDevicesQuietly()
             } catch (e: KadansApiException) {
                 if (e.httpStatus == 401) _loggedOut.emit(Unit)
                 else _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
@@ -93,6 +109,25 @@ class SettingsViewModel(
             timeZone = user.timeZone,
             profileSaved = true,
         )
+    }
+
+    /** Nothing changes yet: the server mails a link to the new address and applies the change when it is opened. */
+    fun requestEmailChange() = busy {
+        val target = _state.value.newEmail.trim()
+        api.account.requestEmailChange(target)
+        _state.value = _state.value.copy(newEmail = "", emailChangeSentTo = target, confirmationResent = false)
+    }
+
+    fun resendConfirmation() = busy {
+        val email = _state.value.user?.email ?: return@busy
+        api.account.resendConfirmation(email)
+        _state.value = _state.value.copy(confirmationResent = true)
+    }
+
+    /** Signs that device out of push; it comes back by itself the next time someone signs in on it. */
+    fun removeDevice(installationId: String) = busy {
+        api.account.removeDevice(installationId)
+        _state.value = _state.value.copy(devices = _state.value.devices.filterNot { it.installationId == installationId })
     }
 
     /** The server revokes every session on success; the client session is gone too. */
@@ -140,6 +175,13 @@ class SettingsViewModel(
         }
     }
 
+    /** The list is a convenience: failing to load it must not turn Settings into an error screen. */
+    private suspend fun refreshDevicesQuietly() {
+        runCatching { api.account.devices() }.onSuccess { devices ->
+            _state.value = _state.value.copy(devices = sortDevices(devices, _state.value.thisInstallationId))
+        }
+    }
+
     private suspend fun refreshUserQuietly() {
         runCatching { api.account.me() }.onSuccess { _state.value = _state.value.copy(user = it) }
     }
@@ -156,5 +198,11 @@ class SettingsViewModel(
                 _state.value = _state.value.copy(isBusy = false, errorCode = "network")
             }
         }
+    }
+
+    internal companion object {
+        /** This device first, then the most recently seen. */
+        fun sortDevices(devices: List<DeviceResponse>, thisInstallationId: String?): List<DeviceResponse> =
+            devices.sortedWith(compareByDescending<DeviceResponse> { it.installationId == thisInstallationId }.thenByDescending { it.lastSeenAt })
     }
 }

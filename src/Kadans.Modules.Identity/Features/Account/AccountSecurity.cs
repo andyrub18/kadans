@@ -139,11 +139,34 @@ internal sealed class AccountSecurity(
         if (user is null)
             return Unauthorized();
 
-        var token = IdentityEmails.Decode(request.Token);
+        return await ApplyEmailChangeAsync(user, request.NewEmail, request.Token);
+    }
+
+    /// <summary>
+    /// The emailed link, opened in a browser with no session. The token is bound to this user and
+    /// this address and was only ever sent there, so holding it is the proof — same model as confirm-email.
+    /// </summary>
+    public async Task<OneOf<ApplicationError, Success>> ConfirmEmailChangeByLink(string userId, string newEmail, string token)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null)
+            return new ApplicationError(ErrorTypes.InvalidToken, "The confirmation link is invalid or expired.");
+
+        return await ApplyEmailChangeAsync(user, newEmail, token);
+    }
+
+    private async Task<OneOf<ApplicationError, Success>> ApplyEmailChangeAsync(ApplicationUser user, string newEmail, string encodedToken)
+    {
+        var token = IdentityEmails.Decode(encodedToken);
         if (token is null)
             return new ApplicationError(ErrorTypes.InvalidToken, "The confirmation link is invalid or expired.");
 
-        var result = await userManager.ChangeEmailAsync(user, request.NewEmail.Trim(), token);
+        newEmail = newEmail.Trim();
+        var oldEmail = user.Email;
+        if (string.Equals(oldEmail, newEmail, StringComparison.OrdinalIgnoreCase))
+            return new Success(); // the link was opened twice (or a mail scanner got there first)
+
+        var result = await userManager.ChangeEmailAsync(user, newEmail, token);
         if (!result.Succeeded)
         {
             if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidToken)))
@@ -153,6 +176,18 @@ internal sealed class AccountSecurity(
         }
 
         logger.LogInformation("User {UserId} changed their email", user.Id);
+        if (!string.IsNullOrWhiteSpace(oldEmail))
+        {
+            try
+            {
+                await emails.SendEmailChangedNoticeAsync(user, oldEmail, newEmail);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not notify the previous address of user {UserId}", user.Id);
+            }
+        }
+
         return new Success();
     }
 

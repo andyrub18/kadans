@@ -50,6 +50,31 @@ data class FocusStatsStrings(
  * Every user-visible string. A data class so the compiler forces each language to provide
  * every key — a missing translation is a build error, not a runtime English leak.
  */
+/** Settings → email and devices. A feature group, like [FocusStatsStrings] (the flat catalog is full). */
+data class AccountStrings(
+    val emailSection: String,
+    val emailConfirmed: String,
+    val emailNotConfirmed: String,
+    val noEmailYet: String,
+    val resendConfirmation: String,
+    val confirmationSent: String,
+    val newEmailLabel: String,
+    val emailChangeHint: String,
+    val sendEmailChangeLink: String,
+    /** `%s` = the address the link went to. */
+    val emailChangeSentFormat: String,
+    val devicesSection: String,
+    val devicesHint: String,
+    val noDevices: String,
+    val thisDevice: String,
+    val pushOn: String,
+    val pushOff: String,
+    val lastSeen: String,
+    val removeDevice: String,
+) {
+    fun emailChangeSent(address: String): String = emailChangeSentFormat.replace("%s", address)
+}
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -57,6 +82,7 @@ data class StringsCatalog(
     val password: String,
     val signIn: String,
     val focusStats: FocusStatsStrings,
+    val account: AccountStrings,
     val notificationsTitle: String,
     val markAllRead: String,
     val noNotificationsYet: String,

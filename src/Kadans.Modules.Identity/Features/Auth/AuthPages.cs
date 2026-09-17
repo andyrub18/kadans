@@ -11,6 +11,9 @@ namespace Kadans.Modules.Identity.Features.Auth;
 /// </summary>
 internal static class AuthPages
 {
+    /// <summary>A one-sentence page: the outcome of a link, good or bad, in the account's language.</summary>
+    public static string Message(string text) => Page($"<p>{HtmlEncoder.Default.Encode(text)}</p>");
+
     public static string Confirmed(EmailTexts texts) =>
         Page($"<p>{HtmlEncoder.Default.Encode(texts.ConfirmedPage)}</p>");
 

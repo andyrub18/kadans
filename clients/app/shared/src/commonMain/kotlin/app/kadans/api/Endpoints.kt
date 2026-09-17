@@ -78,6 +78,16 @@ class AccountApi internal constructor(private val api: KadansApi) {
         api.invalidateTokenCache()
     }
 
+    /** Sends a confirmation link to [newEmail]; the address changes once that link is opened. */
+    suspend fun requestEmailChange(newEmail: String) {
+        api.http.post("users/me/email") { setBody(ChangeEmailRequest(newEmail)) }.orThrow<Success>()
+    }
+
+    /** Sends the "confirm your email" link again (always answers OK, whether or not the address exists). */
+    suspend fun resendConfirmation(email: String) {
+        api.http.post("auth/resend-confirmation") { setBody(ResendConfirmationRequest(email)) }.orThrow<Success>()
+    }
+
     /** Revokes every refresh-token family. The current access token stays valid until it expires. */
     suspend fun revokeAllSessions() {
         api.http.post("users/me/sessions/revoke-all").orThrow<Success>()

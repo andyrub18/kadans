@@ -215,7 +215,13 @@ installing on real devices second, hosting last.
       Found on the way: `StringsCatalog` hit the JVM's 255-parameter limit (compiles, then
       `ClassFormatError` at startup). New areas use nested string groups (`FocusStatsStrings`); a size
       guard test fails with instructions before the wall.
-- [ ] Email change and device list in Settings
+- [x] Settings → **Email**: the address with its confirmed / not confirmed state, "send the confirmation link
+      again", and an email change (a link goes to the new address; nothing changes until it is opened).
+      Settings → **Devices**: every install signed in to the account with platform, push on/off and last
+      seen, this device first; any other device can be removed. Building it exposed a dead server flow –
+      see the known-bugs table – now fixed: the emailed link opens an anonymous, localized page
+      (`GET /auth/confirm-email-change`), a second click is harmless, the token only works for the address
+      it was sent to, and the previous address is told about the change.
 - [x] Server error and validation texts speak en / fr / ht. The client sends its in-app language as
       `Accept-Language` on every call (so it works on the anonymous register and login screens too); the
       server words `detail` and every validation `message` in that language at the HTTP boundary, while
@@ -262,6 +268,7 @@ Nice-to-have hardening
 |-------|---------|
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
 | `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
-| `tools/smoke/identity_flows.py` | Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`) |
+| `tools/smoke/identity_flows.py` | ~~Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`)~~ fixed 2026-09-18: a fresh `alice<timestamp>` per run |
+| Identity: email change | ~~The emailed link pointed at `POST /users/me/email/confirm`, which needs a bearer token – no mail client or browser could ever complete it, so an email change could not be finished by a person. Unnoticed because the smoke script scraped the token from the log and called the API itself~~ fixed 2026-09-18: anonymous landing page, and the smoke script now opens the link like a browser |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

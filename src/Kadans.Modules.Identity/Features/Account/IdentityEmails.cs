@@ -54,7 +54,9 @@ internal sealed class IdentityEmails(
     public async Task SendEmailChangeAsync(ApplicationUser user, string newEmail, CancellationToken cancellationToken = default)
     {
         var token = Encode(await userManager.GenerateChangeEmailTokenAsync(user, newEmail));
-        var link = $"{BaseUrl}/users/me/email/confirm?newEmail={Uri.EscapeDataString(newEmail)}&token={token}";
+        // An anonymous page, like confirm-email: the person opens this from a mail client, where no
+        // session exists. (It used to point at the authenticated POST, which no browser can call.)
+        var link = $"{BaseUrl}/auth/confirm-email-change?userId={Uri.EscapeDataString(user.Id)}&newEmail={Uri.EscapeDataString(newEmail)}&token={token}";
         var texts = EmailTexts.For(user.PreferredLanguage);
 
         await SendAsync(
@@ -63,6 +65,13 @@ internal sealed class IdentityEmails(
             string.Format(texts.ChangeBody, Greeting(user), link),
             cancellationToken
         );
+    }
+
+    /// <summary>Tell the address that just lost the account: the owner's only alarm if this was not them.</summary>
+    public async Task SendEmailChangedNoticeAsync(ApplicationUser user, string oldEmail, string newEmail, CancellationToken cancellationToken = default)
+    {
+        var texts = EmailTexts.For(user.PreferredLanguage);
+        await SendAsync(oldEmail, texts.ChangedNoticeSubject, string.Format(texts.ChangedNoticeBody, Greeting(user), newEmail), cancellationToken);
     }
 
     public static string Encode(string token) => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));

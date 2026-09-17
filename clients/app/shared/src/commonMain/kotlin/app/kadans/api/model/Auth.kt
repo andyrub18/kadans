@@ -70,6 +70,12 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 data class ForgotPasswordRequest(val email: String)
 
 @Serializable
+data class ResendConfirmationRequest(val email: String)
+
+@Serializable
+data class ChangeEmailRequest(val newEmail: String)
+
+@Serializable
 data class ResetPasswordRequest(val email: String, val token: String, val newPassword: String)
 
 @Serializable

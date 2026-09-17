@@ -25,6 +25,9 @@ class DeviceRegistrar(private val api: KadansApi, private val settings: Settings
         }
     }
 
+    /** This install's id in the device list, once it has registered (null before the first sign-in). */
+    fun installationId(): String? = settings.getStringOrNull(KEY)
+
     private companion object {
         const val KEY = "kadans.installation"
     }

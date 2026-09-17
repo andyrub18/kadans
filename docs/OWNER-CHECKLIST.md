@@ -21,10 +21,17 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
 
 ## Google Sign-In
 
-- [x] Google Cloud project (`kadans-507716`) + **Desktop** OAuth client — registered as
-      `ExternalAuth:Google:ClientIds:0` in dev user-secrets. The desktop client is the right type
-      for the JVM app's future loopback sign-in; its "client secret" is non-confidential by
-      Google's definition for installed apps, but still keep the JSON out of git.
+- [ ] One Google Cloud project for everything: the Firebase project **`kadans-420a7`** (every Firebase
+      project is a Google Cloud project). The earlier standalone project `kadans-507716` was deleted
+      on purpose, and the Desktop OAuth client registered from it as `ExternalAuth:Google:ClientIds:0`
+      died with it – replace that secret once the clients below exist.
+- [ ] In `kadans-420a7`: APIs & Services → OAuth consent screen (Testing mode, your Google account as
+      test user), then Credentials → create the clients below and put every client id into
+      `ExternalAuth:Google:ClientIds` (the API only checks the ID token's audience; it never needs a
+      client secret).
+- [ ] **Desktop** OAuth client for the JVM app's loopback sign-in. Its "client secret" is
+      non-confidential by Google's definition for installed apps (it ships inside the app), but keep
+      the JSON out of git.
 - [ ] **Android** OAuth client: package `app.kadans`, plus the SHA-1 of your debug keystore
       (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`)
       and later the release keystore's SHA-1

@@ -168,21 +168,45 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       (income/expense/transfer with rate pre-fill, repeat switch on the recurrence engine),
       trilingual like everything else
 
-## Phase 8 – V1 release hardening (current)
+## Phase 8 – V1: screens first, then release hardening (current)
 
-Every feature phase is done. What separates the code from a V1 you can install and run for real
-(assessed 2026-09-16; order is the suggested order of work):
+Every feature phase is done. Order agreed 2026-09-17: what the owner sees and feels comes first,
+installing on real devices second, hosting last.
 
-Must-do before release
+1. Screens and feel
 
-- [ ] Client ViewModels outlive their nav entries (no ViewModelStore entry decorator on `NavDisplay`).
-      Known victim: `EditTodoViewModel.save()` never clears `isSaving` on success, so the second edit of
-      the same todo opens with a spinning, disabled Save button; the reused ViewModel also re-sends its
-      stale `pomodoroTemplateId`, silently reverting a cycle attached on the detail screen in between.
-      Lesser cousins: create-todo/register keep the previous form after success; Settings loads the profile
-      once. Fix the class (scope ViewModels to nav entries) rather than each flag, with a regression test
-      like `BudgetAddViewModelTests`.
+- [ ] Connect with Google in the clients (server already verifies ID tokens): Android via Credential
+      Manager (`androidx.credentials` + `googleid`, needs the Web client id as `serverClientId`), desktop
+      via the loopback OAuth flow with the Desktop client (PKCE, browser, local listener → ID token),
+      iOS later. All client ids go into `ExternalAuth:Google:ClientIds`. Owner first: recreate the OAuth
+      clients in the Firebase project (see OWNER-CHECKLIST – the original project was deleted).
+- [ ] Pomodoro notifications arrive a few seconds late. Causes: (1) a run nobody watches is only
+      stepped by `PomodoroAutoAdvanceJob`, floored at 5 s; (2) the advance request waits for the FCM
+      call inside `NotificationDispatcher` before answering, so the screen lags behind the OS alert;
+      (3) FCM itself adds 1–3 s on a phone. Plan: fire the OS notification locally on the client the
+      moment its own countdown hits zero (desktop now, Android exact alarm later) and dedupe the pushed
+      one; server side, take push off the request path and step overdue runs on a precise per-run
+      trigger (or a 1 s scan) instead of the 5 s poll. Note: after the ViewModel scoping fix a run is only
+      "watched" while its screen is open, so the server-side part matters more, not less.
+- [ ] Recurring "ends on": today a date at 23:59 in the user's zone. Add a time picker so hourly rules
+      can end at a precise time ("every 2 hours until Friday 18:00"); daily-and-slower keep end of day.
+- [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
+      only shows live snackbars / OS notifications today
+- [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
+- [ ] Email change and device list in Settings
+- [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
+- [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
+      Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
+
+2. Before installing on your own devices
+
 - [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
+- [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
+      `packageVersion 1.0.0`)
+- [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
+
+3. Before hosting
+
 - [ ] Production logging: `appsettings.json` has no `Serilog` section and Serilog reads only that section,
       so a production host logs nothing until sinks are configured
 - [ ] Migrations at deploy time: nothing applies them at startup and there are four contexts – migrate on
@@ -190,21 +214,6 @@ Must-do before release
 - [ ] Deploy story: Dockerfile/compose or host config, health endpoint, forwarded headers behind a reverse
       proxy (HTTPS redirection is on); domain, production Postgres, `Jwt:Key`, Resend domain, FCM service
       account are on `OWNER-CHECKLIST.md`
-- [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
-      `packageVersion 1.0.0`)
-- [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
-      Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
-
-Client gaps – the server already supports them; decide what makes the V1 cut
-
-- [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
-      only shows live snackbars / OS notifications today
-- [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
-- [ ] Google sign-in button + SDK (server verifies ID tokens; Android/web OAuth clients still to create);
-      Apple needs a Mac + developer account
-- [ ] Email change and device list in Settings
-- [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
-- [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
 
 Nice-to-have hardening
 

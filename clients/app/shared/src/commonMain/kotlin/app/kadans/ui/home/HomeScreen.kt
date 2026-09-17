@@ -45,6 +45,7 @@ fun HomeScreen(
     onOpenBudget: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenStats: () -> Unit,
     onOpenTodo: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -77,6 +78,7 @@ fun HomeScreen(
                     TextButton(onClick = onOpenCalendar) { Text(s.calendar) }
                     TextButton(onClick = onOpenBudget) { Text(s.budget) }
                     TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
+                    TextButton(onClick = onOpenStats) { Text(s.focusStats.homeButton) }
                     TextButton(onClick = onOpenNotifications) {
                         androidx.compose.material3.BadgedBox(
                             badge = {

@@ -81,7 +81,11 @@ Nothing applies migrations at startup – run the four `dotnet ef database updat
   goes in integration tests.
 - The app is trilingual (en/fr/ht). Every user-visible client string goes through
   `app.kadans.i18n.StringsCatalog` (add the key to the data class and all three instances —
-  the compiler enforces completeness); never hardcode UI text in composables. Server-rendered
+  the compiler enforces completeness); never hardcode UI text in composables. The flat catalog is
+  nearly full: the JVM allows 255 parameters per method and the data class's synthetic `copy$default`
+  is already at 246, beyond which the class compiles but fails to load and the app does not start.
+  Strings for a new feature area go in their own nested group (see `FocusStatsStrings`, used as
+  `s.focusStats.title`); `StringsCatalogSizeTest` fails with that advice before the limit is hit. Server-rendered
   texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
   `PreferredLanguage`.
 - Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,

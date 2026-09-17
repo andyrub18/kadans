@@ -208,7 +208,13 @@ installing on real devices second, hosting last.
       paged. Unread rows are highlighted; tapping one marks it read and opens its todo (`data.todoId`);
       "Mark all read" in one call. Reads are optimistic and resync from the server if the call fails;
       a notification arriving while the list is open lands on top, once.
-- [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
+- [x] Focus stats screen (Home → Stats): 7 / 30 / 90 days, tiles for focus and break time, sessions
+      completed and ended early, daily average (idle days included) and best day, then one bar per
+      calendar day in the account's time zone with idle days shown as gaps in the bars, not in the dates.
+      Todo detail lists the five latest focus sessions (status, laps, focus minutes actually completed).
+      Found on the way: `StringsCatalog` hit the JVM's 255-parameter limit (compiles, then
+      `ClassFormatError` at startup). New areas use nested string groups (`FocusStatsStrings`); a size
+      guard test fails with instructions before the wall.
 - [ ] Email change and device list in Settings
 - [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
 - [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the

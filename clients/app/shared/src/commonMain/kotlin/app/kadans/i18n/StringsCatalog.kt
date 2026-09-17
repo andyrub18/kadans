@@ -6,6 +6,47 @@ import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TaskStatus
 
 /**
+ * Strings of one feature area. The flat [StringsCatalog] is nearly full: the JVM allows 255
+ * parameter slots per method and a data class spends them on its constructor *and* on the wider
+ * synthetic `copy$default`. Past ~245 keys the class still compiles but fails to load
+ * (ClassFormatError) — on desktop and Android alike. New areas therefore get their own group,
+ * which keeps the guarantee that matters: a missing translation is a compile error.
+ */
+data class FocusStatsStrings(
+    val homeButton: String,
+    val title: String,
+    val last7Days: String,
+    val last30Days: String,
+    val last90Days: String,
+    val focusTime: String,
+    val breakTime: String,
+    val sessionsCompleted: String,
+    val sessionsCancelled: String,
+    val dailyAverage: String,
+    val bestDay: String,
+    val focusPerDay: String,
+    val noFocusYet: String,
+    val focusSessions: String,
+    val runActive: String,
+    val runPaused: String,
+    val runCompleted: String,
+    val runCancelled: String,
+) {
+    fun rangeName(range: app.kadans.ui.stats.StatsRange): String = when (range) {
+        app.kadans.ui.stats.StatsRange.Week -> last7Days
+        app.kadans.ui.stats.StatsRange.Month -> last30Days
+        app.kadans.ui.stats.StatsRange.Quarter -> last90Days
+    }
+
+    fun runStatusName(status: app.kadans.api.model.PomodoroRunStatus): String = when (status) {
+        app.kadans.api.model.PomodoroRunStatus.Active -> runActive
+        app.kadans.api.model.PomodoroRunStatus.Paused -> runPaused
+        app.kadans.api.model.PomodoroRunStatus.Completed -> runCompleted
+        app.kadans.api.model.PomodoroRunStatus.Cancelled -> runCancelled
+    }
+}
+
+/**
  * Every user-visible string. A data class so the compiler forces each language to provide
  * every key — a missing translation is a build error, not a runtime English leak.
  */
@@ -15,6 +56,7 @@ data class StringsCatalog(
     val usernameOrEmail: String,
     val password: String,
     val signIn: String,
+    val focusStats: FocusStatsStrings,
     val notificationsTitle: String,
     val markAllRead: String,
     val noNotificationsYet: String,

@@ -211,6 +211,17 @@ public class RecurrenceScheduleTests
     }
 
     [Test]
+    public async Task An_hourly_rule_can_end_at_a_precise_moment_of_the_day()
+    {
+        // "Every 2 hours until 13:00": the client sends the picked end time, not the end of the day.
+        var inclusive = Build(new RecurrenceSpec(Frequency.Hourly, Interval: 2, Until: Utc(2027, 1, 1, 13)), Utc(2027, 1, 1, 9));
+        var justBefore = Build(new RecurrenceSpec(Frequency.Hourly, Interval: 2, Until: Utc(2027, 1, 1, 12, 59)), Utc(2027, 1, 1, 9));
+
+        await Assert.That(inclusive.GetOccurrences(Utc(2027, 1, 1), Utc(2027, 1, 2)).Count).IsEqualTo(3); // 09, 11, 13
+        await Assert.That(justBefore.GetOccurrences(Utc(2027, 1, 1), Utc(2027, 1, 2)).Count).IsEqualTo(2); // 09, 11
+    }
+
+    [Test]
     public async Task Count_and_until_are_mutually_exclusive()
     {
         var result = RecurrenceSchedule.Create(

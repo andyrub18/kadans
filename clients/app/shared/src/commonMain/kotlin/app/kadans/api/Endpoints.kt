@@ -30,6 +30,15 @@ class AuthApi internal constructor(private val api: KadansApi) {
             .orThrow<LoginResponse>()
             .also { api.adopt(it) }
 
+    /** Desktop: the authorization code from Google's loopback redirect, plus its PKCE verifier. */
+    suspend fun loginGoogleCode(code: String, codeVerifier: String, redirectUri: String): LoginResponse =
+        api.http.post("auth/external/google/code") { setBody(GoogleCodeLoginRequest(code, codeVerifier, redirectUri)) }
+            .orThrow<LoginResponse>()
+            .also { api.adopt(it) }
+
+    /** Which external sign-ins the server is configured for (public client ids, never a secret). */
+    suspend fun providers(): AuthProvidersResponse = api.http.get("auth/providers").orThrow()
+
     suspend fun register(request: RegisterUserRequest): UserResponse =
         api.http.post("auth/register") { setBody(request) }.orThrow()
 

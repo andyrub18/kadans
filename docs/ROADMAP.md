@@ -35,7 +35,8 @@
       `kadans://` link handled on Android. Verified https App Links / Universal Links wait for the domain.
 
 Config: `Email:Provider` (`Resend`|`Log`), `Email:From`, `Email:LinkBaseUrl`, secret `Email:Resend:ApiKey`;
-`ExternalAuth:Google:ClientIds`, `ExternalAuth:Apple:ClientIds` (one per client platform).
+`ExternalAuth:Google:Desktop:ClientId` / `:ClientSecret`, `ExternalAuth:Google:WebClientId`,
+`ExternalAuth:Google:ClientIds` (extra audiences, e.g. iOS), `ExternalAuth:Apple:ClientIds`.
 Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the bearer handler rejects them;
 `User.RequireUniqueEmail = true`; the `IdentityFlows` migration drops all pre-existing refresh tokens.
 
@@ -78,6 +79,7 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] `PomodoroRun` is a domain state machine: `PhaseEndsAt` while active (clients count down to it),
       `PausedRemaining` while paused, resume re-anchors; pause after the deadline freezes zero
 - [x] Auto-advance opt-in per run (`POST …/pomodoro/start?autoAdvance=true`): `PomodoroAutoAdvanceJob`
+      (replaced in Phase 8 by `PomodoroDeadlineWatcher` + `PomodoroAutoAdvancer`, same stepping rules)
       steps overdue runs on their own schedule (not job time), broadcasts and sends a
       `pomodoro.phase.completed` notification ("Break — 5 min" / "Pomodoro complete")
 - [x] `GET /todos/{id}/pomodoro/runs` (history) and `GET /pomodoro/stats?from&to`
@@ -168,21 +170,59 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       (income/expense/transfer with rate pre-fill, repeat switch on the recurrence engine),
       trilingual like everything else
 
-## Phase 8 – V1 release hardening (current)
+## Phase 8 – V1: screens first, then release hardening (current)
 
-Every feature phase is done. What separates the code from a V1 you can install and run for real
-(assessed 2026-09-16; order is the suggested order of work):
+Every feature phase is done. Order agreed 2026-09-17: what the owner sees and feels comes first,
+installing on real devices second, hosting last.
 
-Must-do before release
+1. Screens and feel
 
-- [ ] Client ViewModels outlive their nav entries (no ViewModelStore entry decorator on `NavDisplay`).
-      Known victim: `EditTodoViewModel.save()` never clears `isSaving` on success, so the second edit of
-      the same todo opens with a spinning, disabled Save button; the reused ViewModel also re-sends its
-      stale `pomodoroTemplateId`, silently reverting a cycle attached on the detail screen in between.
-      Lesser cousins: create-todo/register keep the previous form after success; Settings loads the profile
-      once. Fix the class (scope ViewModels to nav entries) rather than each flag, with a regression test
-      like `BudgetAddViewModelTests`.
+- [x] Connect with Google in the clients. Android: Credential Manager (`GetSignInWithGoogleOption`, the
+      server's Web client id as `serverClientId`) → `POST /auth/external`. Desktop: loopback OAuth with
+      PKCE in the system browser → `POST /auth/external/google/code`, where the **server** trades the code
+      for the ID token, so the Desktop client's secret never ships in the app. `GET /auth/providers`
+      (anonymous, ids only) tells the clients what is configured; the button exists only when it can work
+      and re-asks when the server address changes. iOS deferred with the rest of iOS. New
+      `tests/Kadans.Identity.Tests` (first Identity unit tests). Code-complete and tested against fakes and
+      Google's real refusal of a junk code; the real end-to-end run waits for the owner's OAuth clients
+      (OWNER-CHECKLIST → Google Sign-In).
+- [x] Pomodoro notifications arrived a few seconds late – fixed server-side, measured by the smoke script:
+      phase change visible 59 ms after the deadline, notification created 26 ms after it (before: up to 5 s).
+      (1) `PomodoroDeadlineWatcher` (a hosted service) replaced the 5 s Quartz poll: it sleeps until the exact
+      moment the nearest hands-free phase ends and is pulsed awake whenever a run starts, resumes or advances;
+      `Tasks:PomodoroAutoAdvanceSeconds` is now only its longest sleep. (2) `PomodoroRun` got Postgres `xmin`
+      as row version: a watching client and the watcher both advance at the deadline, exactly one wins, so
+      there is one notification and a looping run never gets its lap appended twice (that race existed
+      before, the poll just made it rare). (3) Push left the request path: `NotificationDispatcher` stores,
+      publishes to the hub and queues; `PushWorker` calls FCM in the background.
+      Still there: FCM's own delivery delay to a phone (1–3 s, more in Doze).
+- [ ] Optional, only if the phone still feels late: schedule a local exact alarm on Android for the
+      current phase end, and dedupe the pushed notification.
+- [x] Recurring "ends on" is a date **and an optional time**: the create-todo form shows "Last time at"
+      next to the date, defaulting to "End of the day" (23:59 in the user's zone, what daily-and-slower
+      rules want); picking a time ends the rule at that exact, inclusive moment ("every 2 hours until
+      Friday 18:00"), and an end before the first occurrence is refused. No server change – `until` was
+      always an instant. Budget recurring rules keep a plain end date: money rules are day-granular.
+- [x] Notification centre: a 🔔 with an unread badge on Home (`/notifications/unread-count`, bumped live by
+      the hub) opens the list of everything the server sent (reminders, phase changes), newest first,
+      paged. Unread rows are highlighted; tapping one marks it read and opens its todo (`data.todoId`);
+      "Mark all read" in one call. Reads are optimistic and resync from the server if the call fails;
+      a notification arriving while the list is open lands on top, once.
+- [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
+- [ ] Email change and device list in Settings
+- [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
+- [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
+      Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
+
+2. Before installing on your own devices
+
 - [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
+- [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
+      `packageVersion 1.0.0`)
+- [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
+
+3. Before hosting
+
 - [ ] Production logging: `appsettings.json` has no `Serilog` section and Serilog reads only that section,
       so a production host logs nothing until sinks are configured
 - [ ] Migrations at deploy time: nothing applies them at startup and there are four contexts – migrate on
@@ -190,21 +230,6 @@ Must-do before release
 - [ ] Deploy story: Dockerfile/compose or host config, health endpoint, forwarded headers behind a reverse
       proxy (HTTPS redirection is on); domain, production Postgres, `Jwt:Key`, Resend domain, FCM service
       account are on `OWNER-CHECKLIST.md`
-- [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
-      `packageVersion 1.0.0`)
-- [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
-      Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
-
-Client gaps – the server already supports them; decide what makes the V1 cut
-
-- [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
-      only shows live snackbars / OS notifications today
-- [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
-- [ ] Google sign-in button + SDK (server verifies ID tokens; Android/web OAuth clients still to create);
-      Apple needs a Mac + developer account
-- [ ] Email change and device list in Settings
-- [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
-- [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
 
 Nice-to-have hardening
 
@@ -221,6 +246,8 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
-| `clients/app` `ui/todos/EditTodoViewModel.kt` | `save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId` (see Phase 8) |
+| `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
+| `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
+| `tools/smoke/identity_flows.py` | Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`) |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

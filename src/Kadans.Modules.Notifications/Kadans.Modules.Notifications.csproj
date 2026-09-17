@@ -18,4 +18,8 @@
     <PackageReference Include="OneOf" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kadans.Notifications.Tests" />
+  </ItemGroup>
+
 </Project>

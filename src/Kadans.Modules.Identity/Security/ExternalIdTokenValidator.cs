@@ -60,12 +60,12 @@ internal sealed class ExternalIdTokenValidator(
             );
         }
 
-        var clientIds = provider == Google ? options.Value.Google.ClientIds : options.Value.Apple.ClientIds;
+        var clientIds = provider == Google ? options.Value.Google.Audiences() : options.Value.Apple.Audiences();
         if (clientIds.Count == 0)
         {
             return new ApplicationError(
                 ErrorTypes.ExternalProviderNotConfigured,
-                $"No client ids configured for '{provider}' (ExternalAuth:{provider}:ClientIds)."
+                $"No client ids configured for '{provider}' (ExternalAuth:{provider}:…)."
             );
         }
 

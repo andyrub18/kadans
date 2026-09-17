@@ -16,7 +16,10 @@ internal sealed class TasksOptions
 
     public int ReminderIntervalSeconds { get; set; } = 60;
 
-    /// <summary>Catch-up cadence for hands-free runs nobody is watching; a watching client advances instantly itself.</summary>
+    /// <summary>
+    /// Longest the deadline watcher sleeps without re-checking. Phase changes themselves are not on this
+    /// grid: the watcher wakes exactly when the nearest hands-free phase ends.
+    /// </summary>
     public int PomodoroAutoAdvanceSeconds { get; set; } = 5;
 
     /// <summary>Reminders for occurrences already this far in the past are skipped instead of sent late.</summary>

@@ -62,7 +62,7 @@ public class PomodoroRunTests
         run.Advance(null, T0.AddMinutes(55));
 
         await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Completed);
-        await Assert.That(run.Loop).IsEqualTo(false);
+        await Assert.That(run.Loop).IsFalse();
     }
 
     private static PomodoroRun Start(bool autoAdvance = false) =>

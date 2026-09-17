@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 
 enum class TodoMode { OneTime, Recurring }
 
+internal val END_OF_DAY = LocalTime(23, 59)
+
 /** How a recurring todo ends — clients often know the last date, not the count (a treatment course). */
 enum class EndMode { Never, AfterCount, OnDate }
 
@@ -40,6 +42,8 @@ data class CreateTodoUiState(
     val count: Int? = null,
     val endMode: EndMode = EndMode.Never,
     val untilDate: LocalDate? = null,
+    /** Last moment on [untilDate]; null = the end of that day (what daily-and-slower rules want). */
+    val untilTime: LocalTime? = null,
     /** Extra wall-clock times for "N times a day" (Daily only); empty = the single [time]. */
     val times: List<LocalTime> = emptyList(),
     val isLoading: Boolean = false,
@@ -52,8 +56,13 @@ data class CreateTodoUiState(
         get() = when (endMode) {
             EndMode.Never -> true
             EndMode.AfterCount -> (count ?: 0) > 0
-            EndMode.OnDate -> untilDate != null && (date == null || untilDate >= date)
+            // The end is a moment, not a day: "every 2 hours until Friday 18:00". It cannot precede the first time.
+            EndMode.OnDate -> untilDate != null &&
+                (date == null || LocalDateTime(untilDate, untilClock) >= LocalDateTime(date, times.minOrNull() ?: time))
         }
+
+    /** The wall-clock time the rule ends at on [untilDate]. */
+    val untilClock: LocalTime get() = untilTime ?: END_OF_DAY
 
     val canSubmit: Boolean
         get() = title.isNotBlank() && date != null && interval >= 1 && timesShareMinute &&
@@ -123,9 +132,11 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                     byHour = if (daily) state.times.map { it.hour }.distinct().sorted() else null,
                     byMinute = if (daily) listOf(state.times.first().minute) else null,
                     count = if (state.endMode == EndMode.AfterCount) state.count else null,
-                    // Inclusive end of the picked day in the user's zone, so that day's occurrences count.
+                    // RRULE's UNTIL is inclusive. Without a picked time it is the end of that day in the
+                    // user's zone, so the whole last day counts; with one, an occurrence at exactly that
+                    // time is the last.
                     until = if (state.endMode == EndMode.OnDate)
-                        LocalDateTime(state.untilDate!!, LocalTime(23, 59)).toInstant(timeZone)
+                        LocalDateTime(state.untilDate!!, state.untilClock).toInstant(timeZone)
                     else null,
                     timeZone = timeZone.id,
                 ),

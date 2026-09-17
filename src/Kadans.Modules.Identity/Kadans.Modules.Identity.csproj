@@ -19,4 +19,8 @@
     <PackageReference Include="OneOf" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kadans.Identity.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -2,7 +2,7 @@
 """End-to-end check of reminders and the notification centre against a running API in
 Development (Push:Provider=Log, Tasks:ReminderIntervalSeconds=10).
 
-    python3 tools/smoke/notification_flows.py <api log> [base-url]
+    python3 tools/smoke/notification_flows.py <api log> [base-url] [username] [password]   # default user: smoke
 
 Registers a device for the admin, creates a one-time todo due in ~70 s with a 1-minute lead,
 waits for the reminder job, then checks GET /notifications, the push log line and mark-read.
@@ -10,6 +10,8 @@ Standard library only; takes ~30 s.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt, uuid, re
 LOG = sys.argv[1]; BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"
+USER = sys.argv[3] if len(sys.argv) > 3 else "smoke"
+PASSWORD = sys.argv[4] if len(sys.argv) > 4 else "Smoke123!"
 fails = 0
 
 def call(method, path, body=None, token=None):
@@ -33,7 +35,8 @@ def C(label, ok, extra=""):
 def iso(d): return d.strftime("%Y-%m-%dT%H:%M:%SZ")
 now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 
-s, tok = call("POST", "/auth/login", {"username": "admin", "password": "Admin123!"})
+s, tok = call("POST", "/auth/login", {"username": USER, "password": PASSWORD})
+assert s == 200 and tok.get("accessToken"), f"login as {USER} failed ({s}) - an account with MFA cannot run the smoke; pass [username] [password]"
 T = tok["accessToken"]
 call("PUT", "/notifications/read-all", token=T)
 inst = str(uuid.uuid4())
@@ -63,7 +66,8 @@ if found:
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
 C("silent todo produced no reminder", not any(n["data"]["todoId"] == quiet["id"] for n in items))
 log = open(LOG).read()
-C("push logged for the registered device", "PUSH (not sent) to 1 device(s) [Android]" in log)
+# Push:Provider=Log prints the message; Push:Provider=Fcm really calls Google, which rejects the fake token.
+C("push attempted for the registered device", "PUSH (not sent) to 1 device(s) [Android]" in log or "FCM: " in log)
 C("reminder job logged", "Reminder run: 1 reminder(s) sent" in log)
 s, hist = call("GET", f"/todos/{todo['id']}/occurrences", token=T)
 s, r = call("PUT", f"/notifications/{found['id']}/read", token=T) if found else (0, None)

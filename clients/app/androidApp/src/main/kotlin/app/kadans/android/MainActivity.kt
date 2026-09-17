@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import app.kadans.auth.AndroidActivityHolder
 import app.kadans.ui.App
 
 class MainActivity : ComponentActivity() {
@@ -17,6 +18,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        AndroidActivityHolder.attach(this) // Credential Manager (Google sign-in) needs an Activity
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -26,5 +28,10 @@ class MainActivity : ComponentActivity() {
 
         val deepLink = intent?.dataString
         setContent { App(deepLink = deepLink) }
+    }
+
+    override fun onDestroy() {
+        AndroidActivityHolder.detach(this)
+        super.onDestroy()
     }
 }

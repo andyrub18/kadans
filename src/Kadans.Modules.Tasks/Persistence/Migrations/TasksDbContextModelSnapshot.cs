@@ -90,6 +90,12 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
                         .HasColumnType("character varying(450)")
                         .HasColumnName("user_id");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_pomodoro_runs");
 

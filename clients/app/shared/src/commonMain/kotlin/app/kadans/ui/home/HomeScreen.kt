@@ -44,10 +44,12 @@ fun HomeScreen(
     onOpenCalendar: () -> Unit,
     onOpenBudget: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenNotifications: () -> Unit,
     onOpenTodo: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
+    val unread by viewModel.unread.collectAsState()
     val s = LocalStrings.current
     val language by languageController.language.collectAsState()
     val snackbar = remember { SnackbarHostState() }
@@ -75,6 +77,13 @@ fun HomeScreen(
                     TextButton(onClick = onOpenCalendar) { Text(s.calendar) }
                     TextButton(onClick = onOpenBudget) { Text(s.budget) }
                     TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
+                    TextButton(onClick = onOpenNotifications) {
+                        androidx.compose.material3.BadgedBox(
+                            badge = {
+                                if (unread > 0) androidx.compose.material3.Badge { Text(HomeViewModel.badgeText(unread)) }
+                            },
+                        ) { Text("🔔") }
+                    }
                     TextButton(onClick = onOpenSettings) { Text("⚙") }
                     TextButton(onClick = viewModel::logout) { Text(s.signOut) }
                 }

@@ -2,7 +2,9 @@ package app.kadans.di
 
 import app.kadans.api.KadansApi
 import app.kadans.api.TokenStore
+import app.kadans.auth.GoogleSignIn
 import app.kadans.auth.SettingsTokenStore
+import app.kadans.auth.platformGoogleSignIn
 import app.kadans.config.ServerAddress
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
@@ -17,6 +19,7 @@ import app.kadans.ui.budget.BudgetAddViewModel
 import app.kadans.ui.budget.BudgetViewModel
 import app.kadans.ui.calendar.CalendarViewModel
 import app.kadans.ui.home.HomeViewModel
+import app.kadans.ui.notifications.NotificationsViewModel
 import app.kadans.ui.settings.SettingsViewModel
 import app.kadans.ui.templates.TemplatesViewModel
 import app.kadans.ui.pomodoro.PomodoroViewModel
@@ -39,6 +42,11 @@ val appModule = org.koin.dsl.module {
     single { SystemAlerts(get()) }
     single { DeviceRegistrar(get(), get()) }
     single { LanguageController(get(), get()) }
+    single<GoogleSignIn> {
+        val language = get<LanguageController>()
+        // The desktop flow ends on a page in the user's browser; it speaks the app's language.
+        platformGoogleSignIn(returnToAppText = { language.language.value.catalog.googleReturnToApp })
+    }
 
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
@@ -46,6 +54,7 @@ val appModule = org.koin.dsl.module {
     factory { (email: String, token: String) -> ResetPasswordViewModel(get(), email, token) }
     viewModelOf(::HomeViewModel)
     viewModelOf(::TemplatesViewModel)
+    factory { NotificationsViewModel(get(), get<KadansRealtime>().events) }
     viewModelOf(::CalendarViewModel)
     viewModelOf(::BudgetViewModel)
     viewModelOf(::BudgetAddViewModel)

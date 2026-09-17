@@ -79,6 +79,7 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] `PomodoroRun` is a domain state machine: `PhaseEndsAt` while active (clients count down to it),
       `PausedRemaining` while paused, resume re-anchors; pause after the deadline freezes zero
 - [x] Auto-advance opt-in per run (`POST …/pomodoro/start?autoAdvance=true`): `PomodoroAutoAdvanceJob`
+      (replaced in Phase 8 by `PomodoroDeadlineWatcher` + `PomodoroAutoAdvancer`, same stepping rules)
       steps overdue runs on their own schedule (not job time), broadcasts and sends a
       `pomodoro.phase.completed` notification ("Break — 5 min" / "Pomodoro complete")
 - [x] `GET /todos/{id}/pomodoro/runs` (history) and `GET /pomodoro/stats?from&to`
@@ -185,14 +186,18 @@ installing on real devices second, hosting last.
       `tests/Kadans.Identity.Tests` (first Identity unit tests). Code-complete and tested against fakes and
       Google's real refusal of a junk code; the real end-to-end run waits for the owner's OAuth clients
       (OWNER-CHECKLIST → Google Sign-In).
-- [ ] Pomodoro notifications arrive a few seconds late. Causes: (1) a run nobody watches is only
-      stepped by `PomodoroAutoAdvanceJob`, floored at 5 s; (2) the advance request waits for the FCM
-      call inside `NotificationDispatcher` before answering, so the screen lags behind the OS alert;
-      (3) FCM itself adds 1–3 s on a phone. Plan: fire the OS notification locally on the client the
-      moment its own countdown hits zero (desktop now, Android exact alarm later) and dedupe the pushed
-      one; server side, take push off the request path and step overdue runs on a precise per-run
-      trigger (or a 1 s scan) instead of the 5 s poll. Note: after the ViewModel scoping fix a run is only
-      "watched" while its screen is open, so the server-side part matters more, not less.
+- [x] Pomodoro notifications arrived a few seconds late – fixed server-side, measured by the smoke script:
+      phase change visible 59 ms after the deadline, notification created 26 ms after it (before: up to 5 s).
+      (1) `PomodoroDeadlineWatcher` (a hosted service) replaced the 5 s Quartz poll: it sleeps until the exact
+      moment the nearest hands-free phase ends and is pulsed awake whenever a run starts, resumes or advances;
+      `Tasks:PomodoroAutoAdvanceSeconds` is now only its longest sleep. (2) `PomodoroRun` got Postgres `xmin`
+      as row version: a watching client and the watcher both advance at the deadline, exactly one wins, so
+      there is one notification and a looping run never gets its lap appended twice (that race existed
+      before, the poll just made it rare). (3) Push left the request path: `NotificationDispatcher` stores,
+      publishes to the hub and queues; `PushWorker` calls FCM in the background.
+      Still there: FCM's own delivery delay to a phone (1–3 s, more in Doze).
+- [ ] Optional, only if the phone still feels late: schedule a local exact alarm on Android for the
+      current phase end, and dedupe the pushed notification.
 - [ ] Recurring "ends on": today a date at 23:59 in the user's zone. Add a time picker so hourly rules
       can end at a precise time ("every 2 hours until Friday 18:00"); daily-and-slower keep end of day.
 - [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
@@ -236,6 +241,7 @@ Nice-to-have hardening
 | Where | Problem |
 |-------|---------|
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
+| `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
 | `tools/smoke/identity_flows.py` | Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`) |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

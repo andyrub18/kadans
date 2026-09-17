@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """End-to-end check of the pomodoro timing model against a running API in Development.
 
-    python3 tools/smoke/pomodoro_flows.py [base-url]
+    python3 tools/smoke/pomodoro_flows.py [base-url] [username] [password]   # default user: smoke
 
-The auto-advance part uses a 1-minute phase and waits ~70 s for the job
-(Tasks:PomodoroAutoAdvanceSeconds). Whole script ≈ 2 min. Standard library only.
+The auto-advance part uses a 1-minute phase, races a client against the deadline watcher and
+measures how late the phase change and its notification are (must be under a second). Whole script ≈ 2 min. Standard library only.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5199"
+USER = sys.argv[2] if len(sys.argv) > 2 else "smoke"
+PASSWORD = sys.argv[3] if len(sys.argv) > 3 else "Smoke123!"
 fails = 0
 
 def call(method, path, body=None, token=None):
@@ -32,7 +34,8 @@ def parse_ts(s): return dt.datetime.fromisoformat(s)
 def iso(d): return d.strftime("%Y-%m-%dT%H:%M:%SZ")
 now = dt.datetime.now(dt.timezone.utc)
 
-s, tok = call("POST", "/auth/login", {"username": "admin", "password": "Admin123!"})
+s, tok = call("POST", "/auth/login", {"username": USER, "password": PASSWORD})
+assert s == 200 and tok.get("accessToken"), f"login as {USER} failed ({s}) - an account with MFA cannot run the smoke; pass [username] [password]"
 T = tok["accessToken"]
 
 s, base = call("GET", "/pomodoro/stats", token=T)  # the dev DB accumulates; assert deltas
@@ -90,20 +93,42 @@ s, todo2 = call("POST", "/todos/one-time", {"title": "smoke: sprint", "descripti
 call("PUT", "/notifications/read-all", token=T)
 s, run2 = call("POST", f"/todos/{todo2['id']}/pomodoro/start?autoAdvance=true", token=T)
 C("auto-advance run started", s == 200 and run2["autoAdvance"], f"{s}")
-print("  ...  waiting ~75 s for the focus minute to elapse and the job to advance")
+deadline = parse_ts(run2["phaseEndsAt"])
+print("  ...  waiting for the focus minute to elapse; the deadline watcher must advance on the second")
+time.sleep(max(0, (deadline - dt.datetime.now(dt.timezone.utc)).total_seconds() - 0.3))
+# Play the watching client too: advance at the very instant the phase ends, racing the server.
+# Whoever loses must lose cleanly - one phase change, one notification.
+import threading
+race = {}
+def client_advance():
+    time.sleep(max(0, (deadline - dt.datetime.now(dt.timezone.utc)).total_seconds()))
+    race["status"], race["body"] = call("PUT", f"/pomodoro/runs/{run2['id']}/advance", {"expectedPhaseIndex": 0}, token=T)
+racer = threading.Thread(target=client_advance); racer.start()
 advanced = None
-for _ in range(19):
-    time.sleep(5)
+for _ in range(200):
     s, cur = call("GET", f"/todos/{todo2['id']}/pomodoro/active-run", token=T)
     if s == 200 and cur["currentPhaseIndex"] == 1:
-        advanced = cur; break
-C("server advanced the run to the break", advanced is not None, f"{cur if advanced is None else 'phase 1'}")
+        advanced = cur; seen_at = dt.datetime.now(dt.timezone.utc); break
+    time.sleep(0.05)
+racer.join()
+C("the run advanced to the break", advanced is not None, f"{cur if advanced is None else 'phase 1'}")
 if advanced:
+    late = (seen_at - deadline).total_seconds()
+    C("phase change visible within 1 s of the deadline (the old job: up to 5 s)", late < 1.0, f"{late*1000:.0f} ms after the deadline")
     left = (parse_ts(advanced["phaseEndsAt"]) - dt.datetime.now(dt.timezone.utc)).total_seconds()
-    C("break deadline anchored on the schedule, not on job time", 3*60 < left <= 5*60, f"{left:.0f}s left of 5 min")
+    C("break deadline anchored on the schedule, not on wake-up time", 3*60 < left <= 5*60, f"{left:.0f}s left of 5 min")
+    C("the racing client either won or was told to refresh (never a 5xx)", race.get("status") in (200, 400, 409), f"{race.get('status')}")
+time.sleep(0.5)
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
-phase_note = next((n for n in items if n["kind"] == "pomodoro.phase.completed"), None)
+notes = [n for n in items if n["kind"] == "pomodoro.phase.completed" and (n.get("data") or {}).get("runId") == run2["id"]]
+phase_note = notes[0] if notes else None
 C("phase-completed notification stored", phase_note is not None and "Break" in phase_note["body"], phase_note["body"] if phase_note else items)
+C("exactly one notification although client and server both advanced", len(notes) == 1, f"{len(notes)} notification(s)")
+if phase_note:
+    note_late = (parse_ts(phase_note["createdAt"]) - deadline).total_seconds()
+    C("notification created within 1 s of the deadline", note_late < 1.0, f"{note_late*1000:.0f} ms")
+s, runs2 = call("GET", f"/todos/{todo2['id']}/pomodoro/runs", token=T)
+C("no duplicated phases after the race", s == 200 and len(runs2[0]["phases"]) == 2, f"{len(runs2[0]['phases']) if s == 200 else s} phases")
 
 s, run2 = call("PUT", f"/pomodoro/runs/{run2['id']}/cancel", token=T)
 C("cancel auto run", s == 200 and run2["status"] == "Cancelled")

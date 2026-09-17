@@ -21,7 +21,7 @@ src/
                                  (migrations in Migrations/ at the module root)
   Kadans.Modules.Notifications/  notification log, SignalR hub, push (FCM), dispatcher
 tests/
-  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, Identity, SharedKernel today)
+  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, Identity, Notifications, SharedKernel)
   Kadans.Api.IntegrationTests/   planned: TUnit + Testcontainers (real Postgres); until then
                                  tools/smoke/*.py exercise the DB paths against a running API
 clients/
@@ -124,8 +124,14 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 - Implemented (Phase 5): absolute `PhaseEndsAt` while active, `PausedRemaining` while paused,
   resume re-anchors (`PhaseEndsAt = now + remaining`). Clients count down to a timestamp, which
   survives reconnects and multiple devices. `ExpectedPhaseIndex` optimistic concurrency stays.
-  Auto-advance is per-run opt-in: a Quartz job steps overdue runs phase by phase on their own
-  schedule and notifies through the normal pipeline.
+  Auto-advance is per-run opt-in: `PomodoroDeadlineWatcher` (a hosted service, not a polling job)
+  sleeps until the exact moment the nearest hands-free phase ends, then `PomodoroAutoAdvancer` steps
+  overdue runs phase by phase on their own schedule and notifies through the normal pipeline. Every
+  mutation pulses the watcher so it re-aims at the new nearest deadline; its fallback sleep
+  (`Tasks:PomodoroAutoAdvanceSeconds`) and the idempotent scan make restarts and missed pulses harmless.
+- A watching client advances its own run at the same instant, so `PomodoroRun` carries Postgres `xmin`
+  as an optimistic row version: exactly one writer wins, the loser gets "refresh and retry" (a request)
+  or silently skips (the watcher). One phase change, one notification, one appended lap.
 - Run state changes are broadcast over SignalR so phone and desktop stay in sync.
 
 ### Notifications
@@ -139,7 +145,10 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   scan, so nothing needs to survive a restart). Implemented in Phase 4: `OccurrenceReminderJob` scans
   `notify_at <= now AND notified_at IS NULL`, builds the message in the user's time zone
   (`IUserDirectory`) and hands it to `INotificationDispatcher`, which stores it, publishes it on the
-  hub and pushes it to the user's devices (`IDevicePushTargets` → `IPushSender`).
+  hub and queues the push. `PushWorker` drains that in-memory `PushQueue` in the background
+  (`IDevicePushTargets` → `IPushSender`, dead tokens retired): a provider call takes up to seconds and
+  no request or scheduler pass should wait for it; a push lost to a restart is a missed banner, the
+  notification itself is already stored.
 
 ### Budget (Phase 7, implemented)
 

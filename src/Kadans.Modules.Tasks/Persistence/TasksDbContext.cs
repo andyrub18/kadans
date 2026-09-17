@@ -184,7 +184,12 @@ internal sealed class TasksDbContext(
                 .HasForeignKey(x => x.PomodoroRunId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // What the auto-advance job scans.
+            // Postgres' xmin as row version: a watching client and the deadline watcher both try to
+            // advance a hands-free run the instant its phase ends – exactly one may win, or the phase
+            // change is announced twice (and a looping run gets its next lap appended twice).
+            r.Property<uint>("Version").IsRowVersion();
+
+            // What the deadline watcher scans.
             r.HasIndex(x => x.PhaseEndsAt)
                 .HasDatabaseName("ix_pomodoro_runs_auto_advance_due")
                 .HasFilter("status = 'Active' AND auto_advance");

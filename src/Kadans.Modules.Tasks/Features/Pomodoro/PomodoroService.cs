@@ -18,6 +18,7 @@ internal sealed class PomodoroService(
     IUserDirectory users,
     IRealtimePublisher realtime,
     INotificationDispatcher dispatcher,
+    PomodoroDeadlineSignal deadlines,
     ILogger<PomodoroService> logger
 )
 {
@@ -180,6 +181,7 @@ internal sealed class PomodoroService(
         context.PomodoroRuns.Add(run);
         await context.SaveChangesAsync();
         logger.LogInformation("Started pomodoro run {RunId} on todo {TodoId} (autoAdvance: {AutoAdvance})", run.Id, todoId, autoAdvance);
+        deadlines.Pulse(); // a new deadline exists: the watcher may have to wake up sooner
         return await PublishAsync(run);
     }
 
@@ -276,8 +278,9 @@ internal sealed class PomodoroService(
     public async Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request)
     {
         var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
-        // Hands-free phase changes notify every device, no matter who triggered the advance —
-        // the job only covers runs nobody is watching. Manual runs stay silent: the user did it.
+        // Hands-free phase changes notify every device, no matter who won the advance — this
+        // request or the deadline watcher; the row version guarantees it is exactly one of them.
+        // Manual runs stay silent: the user did it.
         if (result.IsT1 && result.AsT1.AutoAdvance)
             await NotifyPhaseChange(result.AsT1);
         return result;
@@ -295,14 +298,14 @@ internal sealed class PomodoroService(
                 .Select(t => t.Title)
                 .FirstOrDefaultAsync() ?? "Kadans";
             var phase = run.Phases[run.CurrentPhaseIndex];
-            var body = PomodoroAutoAdvanceJob.PhaseBody(
+            var body = PomodoroAutoAdvancer.PhaseBody(
                 texts, run.Status, phase.Type, phase.DurationMinutes,
                 run.CurrentPhaseIndex, run.CycleLength, run.Loop
             );
             await dispatcher.DispatchAsync(
                 userId,
                 new NotificationMessage(
-                    PomodoroAutoAdvanceJob.Kind,
+                    PomodoroAutoAdvancer.Kind,
                     title,
                     body,
                     new Dictionary<string, string>
@@ -345,7 +348,21 @@ internal sealed class PomodoroService(
             return result.AsT0;
 
         MarkNewPhasesAdded(context, run, existingPhaseIds);
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone else (the deadline watcher, another device) changed the run between our read and
+            // our write. Same answer as a stale expectedPhaseIndex: the client resyncs and sees where it is.
+            return new ApplicationError(
+                ErrorTypes.PomodoroRunInvalidState,
+                "The run changed at the same moment. Refresh run state and retry."
+            );
+        }
+
+        deadlines.Pulse(); // resume/advance moved the deadline; pause/finish/cancel removed it
         return await PublishAsync(run);
     }
 

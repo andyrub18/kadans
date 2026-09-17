@@ -39,15 +39,6 @@ public sealed class TasksModule : IModule
                     .WithSimpleSchedule(s => s.WithIntervalInMinutes(Math.Max(1, tasksOptions.HorizonRefreshMinutes)).RepeatForever())
             );
 
-            quartz.AddJob<PomodoroAutoAdvanceJob>(job => job.WithIdentity(PomodoroAutoAdvanceJob.Key));
-            quartz.AddTrigger(trigger =>
-                trigger
-                    .ForJob(PomodoroAutoAdvanceJob.Key)
-                    .WithIdentity("pomodoro-auto-advance-trigger", "tasks")
-                    .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Second))
-                    .WithSimpleSchedule(s => s.WithIntervalInSeconds(Math.Max(5, tasksOptions.PomodoroAutoAdvanceSeconds)).RepeatForever())
-            );
-
             quartz.AddJob<OccurrenceReminderJob>(job => job.WithIdentity(OccurrenceReminderJob.Key));
             quartz.AddTrigger(trigger =>
                 trigger
@@ -62,6 +53,9 @@ public sealed class TasksModule : IModule
         services.AddScoped<TodoUpdate>();
         services.AddScoped<GetTodos>();
         services.AddScoped<PomodoroService>();
+        services.AddScoped<PomodoroAutoAdvancer>();
+        services.AddSingleton<PomodoroDeadlineSignal>();
+        services.AddHostedService<PomodoroDeadlineWatcher>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

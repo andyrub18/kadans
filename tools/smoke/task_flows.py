@@ -2,12 +2,14 @@
 """End-to-end check of the Tasks module (occurrence materialization, overrides, rule changes,
 previews) against a running API in Development. Logs in as the seeded admin.
 
-    python3 tools/smoke/task_flows.py [base-url]
+    python3 tools/smoke/task_flows.py [base-url] [username] [password]   # default user: smoke
 
 Creates todos with titles prefixed `smoke:`; cancels them at the end. Standard library only.
 """
 import json, sys, urllib.request, urllib.error, datetime as dt
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5199"
+USER = sys.argv[2] if len(sys.argv) > 2 else "smoke"
+PASSWORD = sys.argv[3] if len(sys.argv) > 3 else "Smoke123!"
 fails = 0
 
 def call(method, path, body=None, token=None):
@@ -32,7 +34,8 @@ def iso(d): return d.strftime("%Y-%m-%dT%H:%M:%SZ")   # Z, never "+00:00": a plu
 now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 start = (now + dt.timedelta(days=1)).replace(hour=9, minute=0, second=0)
 
-s, tok = call("POST", "/auth/login", {"username": "admin", "password": "Admin123!"})
+s, tok = call("POST", "/auth/login", {"username": USER, "password": PASSWORD})
+assert s == 200 and tok.get("accessToken"), f"login as {USER} failed ({s}) - an account with MFA cannot run the smoke; pass [username] [password]"
 T = tok["accessToken"]
 def occ(todo_id): return call("GET", f"/todos/{todo_id}/occurrences?pageSize=5000", token=T)[1]
 

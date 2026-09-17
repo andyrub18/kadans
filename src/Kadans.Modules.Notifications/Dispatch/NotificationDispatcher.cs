@@ -5,20 +5,19 @@ using Kadans.Modules.Notifications.Persistence;
 using Kadans.Modules.Notifications.Push;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
-using Kadans.SharedKernel.Users;
 
 namespace Kadans.Modules.Notifications.Dispatch;
 
 /// <summary>
-/// Stores the notification, then fans out: live event to connected clients, push to registered
-/// devices. Channel failures are logged, never propagated – the caller has already decided the
+/// Stores the notification, then fans out: live event to connected clients now, push to registered
+/// devices from a background queue (the provider call is slow and nobody should wait for it).
+/// Channel failures are logged, never propagated – the caller has already decided the
 /// notification is due.
 /// </summary>
 internal sealed class NotificationDispatcher(
     NotificationsDbContext dbContext,
     IRealtimePublisher realtime,
-    IPushSender push,
-    IDevicePushTargets devices,
+    PushQueue pushQueue,
     ILogger<NotificationDispatcher> logger
 ) : INotificationDispatcher
 {
@@ -46,20 +45,7 @@ internal sealed class NotificationDispatcher(
             logger.LogError(ex, "Realtime publish failed for user {UserId}", userId);
         }
 
-        try
-        {
-            var targets = await devices.ForUserAsync(userId, cancellationToken);
-            if (targets.Count > 0)
-            {
-                var dead = await push.SendAsync(targets, message, cancellationToken);
-                foreach (var token in dead)
-                    await devices.InvalidateAsync(token, cancellationToken);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Push failed for user {UserId}", userId);
-        }
+        pushQueue.Enqueue(new PushRequest(userId, message));
     }
 }
 

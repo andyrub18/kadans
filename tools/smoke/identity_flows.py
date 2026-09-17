@@ -6,10 +6,11 @@
         dotnet run --project src/Kadans.Api --no-launch-profile > /tmp/kadans-api.log 2>&1 &
     python3 tools/smoke/identity_flows.py /tmp/kadans-api.log
 
-Creates and deletes a user named `alice`; needs the seeded admin (admin@kadans.local).
+Registers a fresh `alice<timestamp>` user on every run, so it is re-runnable; needs the seeded admin
+(admin@kadans.local) only as an address that is already taken.
 Uses only the standard library.
 """
-import json, re, sys, time, base64, hmac, hashlib, struct, urllib.request, urllib.error, urllib.parse
+import html, json, re, sys, time, base64, hmac, hashlib, struct, urllib.request, urllib.error, urllib.parse
 BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"; LOG = sys.argv[1]
 def call(method, path, body=None, token=None, raw=False):
     data = json.dumps(body).encode() if body is not None else None
@@ -33,12 +34,14 @@ def totp(key):
     c = int(time.time()) // 30; h = hmac.new(k, struct.pack(">Q", c), hashlib.sha1).digest(); o = h[-1] & 15
     return str((struct.unpack(">I", h[o:o+4])[0] & 0x7fffffff) % 1000000).zfill(6)
 fails = 0
+# A fresh user per run: the script is re-runnable against a database that keeps its history.
+USERNAME = f"alice{int(time.time())}"; EMAIL = f"{USERNAME}@example.com"; EMAIL2 = f"{USERNAME}.new@example.com"
 def C(label, ok, extra=""):
     global fails
     if not check(label, ok, extra): fails += 1
 
 # register + confirm
-s, r = call("POST", "/auth/register", {"username": "alice", "password": "Alice123!", "email": "alice@example.com", "displayName": "Alice", "timeZone": "America/Port-au-Prince", "language": "ht"})
+s, r = call("POST", "/auth/register", {"username": USERNAME, "password": "Alice123!", "email": EMAIL, "displayName": "Alice", "timeZone": "America/Port-au-Prince", "language": "ht"})
 C("register alice", s == 200 and r["emailConfirmed"] is False, f"{s}")
 m = link(r"/auth/confirm-email\?userId=([^&\s]+)&token=([^\s]+)")
 C("confirmation link logged", m is not None)
@@ -46,7 +49,7 @@ C("confirmation email is in Kreyòl", "Konfime imèl Kadans ou" in open(LOG).rea
 s, r = call("GET", f"/auth/confirm-email?userId={m[0]}&token={m[1]}", raw=True)
 # alice is ht, so the (now localized, HTML) landing page says it in Kreyòl
 C("GET confirm link", s == 200 and ("confirmed" in r or "konfime" in r), f"{s}")
-s, tok = call("POST", "/auth/login", {"username": "alice@example.com", "password": "Alice123!"})
+s, tok = call("POST", "/auth/login", {"username": EMAIL, "password": "Alice123!"})
 C("login with email as username", s == 200 and tok["accessToken"], f"{s}")
 s, me = call("GET", "/users/me", token=tok["accessToken"])
 C("GET /users/me emailConfirmed", s == 200 and me["emailConfirmed"] is True and me["twoFactorEnabled"] is False)
@@ -60,7 +63,7 @@ s, _ = call("POST", "/auth/refresh", {"refreshToken": pair2["refreshToken"]})
 C("whole family revoked after reuse", s == 401)
 
 # forgot / reset
-s, _ = call("POST", "/auth/forgot-password", {"email": "alice@example.com"})
+s, _ = call("POST", "/auth/forgot-password", {"email": EMAIL})
 C("forgot-password 200", s == 200)
 s, _ = call("POST", "/auth/forgot-password", {"email": "nobody@example.com"})
 C("forgot-password unknown email still 200", s == 200)
@@ -68,9 +71,9 @@ m = link(r"/auth/reset-password\?email=([^&\s]+)&token=([^\s]+)")
 C("reset link logged", m is not None)
 s, r = call("POST", "/auth/reset-password", {"email": urllib.parse.unquote(m[0]), "token": m[1], "newPassword": "Alice456!"})
 C("reset-password", s == 200, f"{s} {r}")
-s, r = call("POST", "/auth/reset-password", {"email": "alice@example.com", "token": m[1], "newPassword": "Alice789!"})
+s, r = call("POST", "/auth/reset-password", {"email": EMAIL, "token": m[1], "newPassword": "Alice789!"})
 C("reset token single-use", s == 400 and r["errorCode"] == "10033")
-s, tok = call("POST", "/auth/login", {"username": "alice", "password": "Alice456!"})
+s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice456!"})
 C("login with new password", s == 200)
 
 # change password
@@ -80,20 +83,26 @@ s, r = call("PUT", "/users/me/password", {"currentPassword": "Alice456!", "newPa
 C("change password", s == 200)
 s, _ = call("POST", "/auth/refresh", {"refreshToken": tok["refreshToken"]})
 C("sessions revoked after password change", s == 401)
-s, tok = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 at = tok["accessToken"]
 
 # email change
 s, r = call("POST", "/users/me/email", {"newEmail": "admin@kadans.local"}, token=at)
 C("email change to taken address -> 400", s == 400 and r["errorCode"] == "10038")
-s, r = call("POST", "/users/me/email", {"newEmail": "alice2@example.com"}, token=at)
+s, r = call("POST", "/users/me/email", {"newEmail": EMAIL2}, token=at)
 C("email change request", s == 200)
-m = link(r"/users/me/email/confirm\?newEmail=([^&\s]+)&token=([^\s]+)")
+m = link(r"/auth/confirm-email-change\?userId=([^&\s]+)&newEmail=([^&\s]+)&token=([^\s]+)")
 C("email-change link logged", m is not None)
-s, r = call("POST", "/users/me/email/confirm", {"newEmail": urllib.parse.unquote(m[0]), "token": m[1]}, token=at)
-C("email change confirmed", s == 200, f"{s} {r}")
+# Open the link the way a mail client does: a plain GET, no session.
+s, r = call("GET", f"/auth/confirm-email-change?userId={m[0]}&newEmail={m[1]}&token={m[2]}", raw=True)
+C("the emailed link answers with a page in the account's language", s == 200 and "Adrès imèl ou chanje" in html.unescape(r or ""), f"{s}")
+s, r = call("GET", f"/auth/confirm-email-change?userId={m[0]}&newEmail={m[1]}&token={m[2]}", raw=True)
+C("opening it twice is harmless", s == 200, f"{s}")
+s, r = call("GET", f"/auth/confirm-email-change?userId={m[0]}&newEmail=evil%40example.com&token={m[2]}", raw=True)
+C("the token only works for the address it was sent to", s == 400, f"{s}")
+C("the previous address is told about the change", "Adrès imèl kont Kadans ou chanje" in open(LOG).read())
 s, me = call("GET", "/users/me", token=at)
-C("new email visible + confirmed", me["email"] == "alice2@example.com" and me["emailConfirmed"] is True)
+C("new email visible + confirmed", me["email"] == EMAIL2 and me["emailConfirmed"] is True)
 
 # MFA
 s, enroll = call("POST", "/users/me/mfa/enroll", token=at)
@@ -102,7 +111,7 @@ s, r = call("POST", "/users/me/mfa/enable", {"code": "000000"}, token=at)
 C("mfa enable wrong code -> 401", s == 401)
 s, rc = call("POST", "/users/me/mfa/enable", {"code": totp(enroll["sharedKey"])}, token=at)
 C("mfa enable", s == 200 and len(rc["codes"]) == 8, f"{s} {rc}")
-s, chal = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, chal = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 C("login returns mfa challenge", s == 200 and chal["mfaRequired"] is True and chal["accessToken"] is None and chal["mfaToken"])
 s, _ = call("GET", "/users/me", token=chal["mfaToken"])
 C("mfa token is not a bearer token", s == 401)
@@ -110,15 +119,15 @@ s, r = call("POST", "/auth/mfa/verify", {"mfaToken": chal["mfaToken"], "code": "
 C("mfa verify wrong code -> 401", s == 401)
 s, tok = call("POST", "/auth/mfa/verify", {"mfaToken": chal["mfaToken"], "code": totp(enroll["sharedKey"])})
 C("mfa verify with TOTP", s == 200 and tok["accessToken"], f"{s}")
-s, chal = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, chal = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 s, tok2 = call("POST", "/auth/mfa/verify", {"mfaToken": chal["mfaToken"], "code": rc["codes"][0]})
 C("mfa verify with recovery code", s == 200 and tok2["accessToken"], f"{s}")
-s, chal = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, chal = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 s, r = call("POST", "/auth/mfa/verify", {"mfaToken": chal["mfaToken"], "code": rc["codes"][0]})
 C("recovery code single-use", s == 401)
 s, r = call("POST", "/users/me/mfa/disable", {"code": totp(enroll["sharedKey"])}, token=tok["accessToken"])
 C("mfa disable", s == 200, f"{s} {r}")
-s, tok = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 C("login without mfa after disable", s == 200 and tok["mfaRequired"] is False and tok["accessToken"])
 
 # devices
@@ -149,11 +158,11 @@ s, r = call("POST", "/auth/external/google/code", {"code": "junk", "codeVerifier
 C("google code exchange refuses a non-loopback redirect", s in (400, 401))
 
 # revoke-all + logout
-s, tok = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 s, _ = call("POST", "/users/me/sessions/revoke-all", token=tok["accessToken"])
 s, _ = call("POST", "/auth/refresh", {"refreshToken": tok["refreshToken"]})
 C("revoke-all kills refresh", s == 401)
-s, tok = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})
+s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 s, _ = call("POST", "/auth/revoke", {"refreshToken": tok["refreshToken"]})
 s, _ = call("POST", "/auth/refresh", {"refreshToken": tok["refreshToken"]})
 C("logout kills refresh", s == 401)

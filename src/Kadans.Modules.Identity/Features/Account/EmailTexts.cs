@@ -1,7 +1,7 @@
 namespace Kadans.Modules.Identity.Features.Account;
 
 /// <summary>
-/// Account email wording per language ({0} = greeting name, {1} = link).
+/// Account email wording per language ({0} = greeting name, {1} = link; in the changed-notice, {1} = the new address).
 /// Languages: en (default), fr, ht (Kreyòl Ayisyen).
 /// </summary>
 internal sealed record EmailTexts(
@@ -16,7 +16,10 @@ internal sealed record EmailTexts(
     string ResetPagePassword,
     string ResetPageButton,
     string ResetPageDone,
-    string OpenInApp
+    string OpenInApp,
+    string EmailChangedPage,
+    string ChangedNoticeSubject,
+    string ChangedNoticeBody
 )
 {
     public static EmailTexts For(string? language) =>
@@ -39,7 +42,10 @@ internal sealed record EmailTexts(
         "New password",
         "Reset password",
         "Password changed. You can sign in to Kadans now.",
-        "Open in the Kadans app"
+        "Open in the Kadans app",
+        "Your email address has been changed. You can go back to Kadans.",
+        "Your Kadans email address was changed",
+        "Hi {0}, the email address of your Kadans account was just changed to {1}.\n\nIf that was you, there is nothing to do. If it was not, sign in and change your password right away."
     );
 
     private static readonly EmailTexts French = new(
@@ -54,7 +60,10 @@ internal sealed record EmailTexts(
         "Nouveau mot de passe",
         "Réinitialiser le mot de passe",
         "Mot de passe changé. Vous pouvez maintenant vous connecter à Kadans.",
-        "Ouvrir dans l'application Kadans"
+        "Ouvrir dans l'application Kadans",
+        "Votre adresse e-mail a été modifiée. Vous pouvez retourner dans Kadans.",
+        "L'adresse e-mail de votre compte Kadans a changé",
+        "Bonjour {0}, l'adresse e-mail de votre compte Kadans vient d'être remplacée par {1}.\n\nSi c'était vous, il n'y a rien à faire. Sinon, connectez-vous et changez votre mot de passe sans attendre."
     );
 
     private static readonly EmailTexts Creole = new(
@@ -69,6 +78,9 @@ internal sealed record EmailTexts(
         "Nouvo modpas",
         "Reyinisyalize modpas la",
         "Modpas la chanje. Ou ka konekte nan Kadans kounye a.",
-        "Ouvri nan aplikasyon Kadans lan"
+        "Ouvri nan aplikasyon Kadans lan",
+        "Adrès imèl ou chanje. Ou ka retounen nan Kadans.",
+        "Adrès imèl kont Kadans ou chanje",
+        "Bonjou {0}, adrès imèl kont Kadans ou fèk chanje pou {1}.\n\nSi se ou menm ki fè sa, pa gen anyen pou fè. Si se pa ou menm, konekte epi chanje modpas ou touswit."
     );
 }

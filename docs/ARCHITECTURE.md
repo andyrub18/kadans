@@ -74,7 +74,11 @@ family. Password change/reset revokes all families. TOTP MFA is a two-step login
 returns a short-lived challenge JWT with audience `<Audience>:mfa` (never accepted as a bearer token),
 exchanged with a TOTP or recovery code. External login verifies Google/Apple ID tokens obtained natively
 by the client against the provider's JWKS (OIDC discovery) and links by verified email or creates the
-account. Google has one OAuth client per way of signing in: Android's Credential Manager returns an ID
+account. Every emailed link opens an anonymous page served by the API (confirm email, reset password,
+confirm a new email): a person clicks it in a mail client, where no session exists, so the token in the
+link is the proof – it is bound to the user and, for an email change, to the new address. After a change
+the previous address receives a notice, the owner's only alarm if it was not them.
+Google has one OAuth client per way of signing in: Android's Credential Manager returns an ID
 token whose audience is the *Web* client id; the desktop app runs the loopback flow with PKCE and sends
 the authorization code to `POST /auth/external/google/code`, where `GoogleCodeExchange` trades it for the
 ID token – the one place the API talks to Google with a secret, chosen so the Desktop client's secret

@@ -94,6 +94,23 @@ internal static class AuthRoutes
                 .WithSummary("Confirm an email address (link target)")
                 .ExcludeFromDescription();
 
+            // The email-change link lands here. A person in a mail client gets a page in both cases —
+            // never a JSON problem — worded in the account's language.
+            auth.MapGet("/confirm-email-change", async Task<ContentHttpResult> (string userId, string newEmail, string token, AccountSecurity service, UserManager<ApplicationUser> userManager) =>
+                {
+                    var language = (await userManager.FindByIdAsync(userId))?.PreferredLanguage;
+                    var result = await service.ConfirmEmailChangeByLink(userId, newEmail, token);
+                    return result.Match(
+                        error => TypedResults.Text(
+                            AuthPages.Message(Kadans.SharedKernel.Errors.ErrorTexts.Localize(error.ErrorType, error.ErrorMessage, language ?? "en")),
+                            "text/html",
+                            statusCode: error.ErrorType.HttpStatusCode),
+                        _ => TypedResults.Text(AuthPages.Message(EmailTexts.For(language).EmailChangedPage), "text/html"));
+                })
+                .WithName("AuthConfirmEmailChangeLink")
+                .WithSummary("Confirm a new email address (link target)")
+                .ExcludeFromDescription();
+
             // The reset email lands here: a self-contained form for any browser, plus the
             // kadans:// link for phones. Always renders — the POST judges the token, and a
             // missing account must look no different (no enumeration).

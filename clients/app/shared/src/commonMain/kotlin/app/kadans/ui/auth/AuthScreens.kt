@@ -24,7 +24,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.FilterChip
 import app.kadans.config.ServerAddress
-import app.kadans.config.defaultApiBaseUrl
 import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
@@ -157,7 +156,7 @@ private fun ServerAddressButton(onChanged: () -> Unit = {}) {
                         value = value,
                         onValueChange = { value = it },
                         singleLine = true,
-                        placeholder = { Text(defaultApiBaseUrl()) },
+                        placeholder = { Text(ServerAddress.builtInDefault()) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(s.serverHint, style = MaterialTheme.typography.bodySmall)

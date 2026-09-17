@@ -4,6 +4,7 @@ using Kadans.Modules.Notifications.Persistence;
 using Kadans.Modules.Notifications.Push;
 using Kadans.Modules.Notifications.Realtime;
 using Kadans.SharedKernel.Modules;
+using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,9 @@ public sealed class NotificationsModule : IModule
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<NotificationQueries>();
     }
+
+    public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken) =>
+        services.MigrateIfConfiguredAsync<NotificationsDbContext>(cancellationToken);
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {

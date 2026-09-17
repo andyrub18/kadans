@@ -1,0 +1,97 @@
+# Kadans on one machine: Caddy (automatic HTTPS) → API → Postgres, plus a nightly database dump.
+# Everything host-specific lives in .env (copy .env.example). Guide: docs/DEPLOYMENT.md
+#
+#   docker compose up -d --build        first start, and every update after `git pull`
+#   docker compose logs -f api
+name: kadans
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      KADANS_DOMAIN: ${KADANS_DOMAIN:?set KADANS_DOMAIN in .env, e.g. api.kadans.app}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificates: keep this volume, Let's Encrypt rate-limits re-issuing
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Exactly one instance, by design: the scheduler, the pomodoro deadline watcher, the push queue and
+    # SignalR all live in this process. Never scale this service.
+    environment:
+      ConnectionStrings__kadans: Host=db;Database=kadans;Username=kadans;Password=${POSTGRES_PASSWORD:?}
+      Jwt__Key: ${JWT_KEY:?}
+      Email__Provider: ${EMAIL_PROVIDER:-Resend}
+      Email__Resend__ApiKey: ${RESEND_API_KEY:-}
+      Email__From: ${EMAIL_FROM:?e.g. Kadans <no-reply@kadans.app>}
+      # Emailed links (confirm email, reset password, confirm a new email) open pages the API serves.
+      Email__LinkBaseUrl: https://${KADANS_DOMAIN}
+      Push__Provider: ${PUSH_PROVIDER:-Fcm}
+      Push__Firebase__CredentialsFile: /run/secrets/firebase-admin.json
+      ExternalAuth__Google__Desktop__ClientId: ${GOOGLE_DESKTOP_CLIENT_ID:-}
+      ExternalAuth__Google__Desktop__ClientSecret: ${GOOGLE_DESKTOP_CLIENT_SECRET:-}
+      ExternalAuth__Google__WebClientId: ${GOOGLE_WEB_CLIENT_ID:-}
+      InitialAdmin__Enabled: ${INITIAL_ADMIN_ENABLED:-false}
+      InitialAdmin__Username: ${INITIAL_ADMIN_USERNAME:-admin}
+      InitialAdmin__Email: ${INITIAL_ADMIN_EMAIL:-}
+      InitialAdmin__Password: ${INITIAL_ADMIN_PASSWORD:-}
+    volumes:
+      - ./secrets/firebase-admin.json:/run/secrets/firebase-admin.json:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kadans
+      POSTGRES_USER: kadans
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kadans -d kadans"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # No published port: only the API can reach the database.
+
+  backup:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    # One compressed dump a day, two weeks kept. --clean: a restore replaces what is there. A dump on the same disk survives a bad migration, not a
+    # dead server: copy ./backups somewhere else (docs/DEPLOYMENT.md → Backups).
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          file="/backups/kadans-$$(date -u +%Y%m%d-%H%M%S).sql.gz"
+          if pg_dump --clean --if-exists -h db -U kadans -d kadans | gzip > "$$file.tmp"; then mv "$$file.tmp" "$$file"; echo "backup written: $$file"; else rm -f "$$file.tmp"; echo "backup FAILED"; fi
+          find /backups -name 'kadans-*.sql.gz' -mtime +14 -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

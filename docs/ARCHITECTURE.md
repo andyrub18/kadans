@@ -85,6 +85,19 @@ never ships inside the app. `GET /auth/providers` publishes the client ids (neve
 only offer what the server can complete. On the client the platform flows sit behind one
 `GoogleSignIn` interface (`expect fun platformGoogleSignIn`), returning either an ID token or a code. Emails go through `Kadans.SharedKernel.Email.IEmailSender` (Resend in production, log in dev).
 
+### Deployment: one container, exactly one instance
+
+The scheduler (Quartz, RAM store), the pomodoro deadline watcher, the push queue and SignalR (no
+backplane) all live in the API process. That is deliberate – every job is an idempotent scan, so a
+restart loses nothing – and it fixes the deployment shape: **one always-on instance**, never scale-to-zero,
+never two replicas. Because of that, migrations run at startup in production
+(`Database:MigrateOnStartup`, set by the image) and a deploy is "start the new image". The image is
+host-neutral (environment variables only, port 8080 behind a TLS-terminating proxy whose forwarded
+headers it trusts); `deploy/` is the reference setup for a single VPS (Caddy, API, Postgres, nightly
+dump). Outside Development the process refuses to start on an incomplete configuration. If Kadans ever
+needs a second instance, the things to externalize are exactly that list: a persistent Quartz store,
+a Redis backplane for SignalR, and a real queue for push. Details: [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ### Errors: written once in English, worded per request
 
 Services return `ApplicationError(ErrorType, message)` with an English message next to the code that

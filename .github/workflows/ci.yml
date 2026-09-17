@@ -23,3 +23,12 @@ jobs:
       - run: dotnet build Kadans.slnx --no-restore --configuration Release
 
       - run: dotnet test --solution Kadans.slnx --no-build --configuration Release
+
+  image:
+    name: Build the container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Not pushed anywhere: this only proves the Dockerfile still builds what deploy/ will run.
+      - run: docker build --tag kadans-api:ci .

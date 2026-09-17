@@ -3,6 +3,7 @@ using Kadans.Modules.Tasks.Features.Todos;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Modules;
+using Kadans.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -57,6 +58,9 @@ public sealed class TasksModule : IModule
         services.AddSingleton<PomodoroDeadlineSignal>();
         services.AddHostedService<PomodoroDeadlineWatcher>();
     }
+
+    public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken) =>
+        services.MigrateIfConfiguredAsync<TasksDbContext>(cancellationToken);
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {

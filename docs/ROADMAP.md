@@ -242,15 +242,28 @@ installing on real devices second, hosting last.
       `packageVersion 1.0.0`)
 - [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
 
-3. Before hosting
+3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 
-- [ ] Production logging: `appsettings.json` has no `Serilog` section and Serilog reads only that section,
-      so a production host logs nothing until sinks are configured
-- [ ] Migrations at deploy time: nothing applies them at startup and there are four contexts – migrate on
-      startup or ship a migration bundle in the deploy script
-- [ ] Deploy story: Dockerfile/compose or host config, health endpoint, forwarded headers behind a reverse
-      proxy (HTTPS redirection is on); domain, production Postgres, `Jwt:Key`, Resend domain, FCM service
-      account are on `OWNER-CHECKLIST.md`
+- [x] Container image (`Dockerfile`, non-root, port 8080, trusts the proxy's forwarded headers) and
+      `deploy/`: Docker Compose with Caddy (automatic HTTPS), the API, Postgres 17 and a nightly dump
+      with two weeks kept. Verified by running the image against an empty throwaway database.
+- [x] Production logging: `appsettings.json` has a Serilog console sink (the file only had the
+      Microsoft `Logging` section, which Serilog ignores – production would have logged nothing).
+- [x] Production settings that only existed in the Development file: `Jwt:Issuer`, `Jwt:Audience` and the
+      token lifetimes (without them a production host issues tokens nobody can validate). Refresh tokens
+      last 30 days in production, 7 in dev.
+- [x] Migrations at deploy time: `Database:MigrateOnStartup` (on in the image, off in dev) applies every
+      module's pending migrations as the single instance starts, before the admin seeding.
+- [x] Fail fast: outside Development the API refuses to start on an incomplete configuration and lists
+      everything missing at once (`ProductionConfiguration`, unit-tested in `tests/Kadans.Api.Tests`).
+- [x] `/health/live` and `/health/ready` (Postgres round trip), anonymous.
+- [x] Release builds talk to production: `-Pkadans.apiBaseUrl=https://api.<domain>` is baked in at build
+      time (typed address → built-for address → dev default). No domain is hardcoded in the repo.
+- [x] CI builds the image on every backend change (not pushed anywhere).
+- [ ] Owner: domain, DNS `api.<domain>`, Resend domain verification, a server, `deploy/.env` – see
+      OWNER-CHECKLIST → Domain and hosting.
+- [ ] After the first deploy: `android:usesCleartextTraffic="false"` for release builds (dev needs http),
+      and https App Links / Universal Links for the emailed pages now that there is a domain.
 
 Nice-to-have hardening
 

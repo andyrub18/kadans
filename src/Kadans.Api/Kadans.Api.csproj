@@ -25,4 +25,8 @@
     <PackageReference Include="Serilog.AspNetCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Kadans.Api.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Humanizer;
+using Kadans.Api;
 using Kadans.Api.Documentation;
 using Kadans.Modules.Budget;
 using Kadans.Modules.Identity;
@@ -17,6 +18,11 @@ using Scalar.AspNetCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Outside Development a missing secret must stop the process with a sentence, not surface later as a
+// NullReferenceException in the JWT handler or as tokens nobody can validate.
+if (!builder.Environment.IsDevelopment())
+    ProductionConfiguration.ThrowIfIncomplete(builder.Configuration);
 
 // Modules own their services, persistence and endpoints; the host only wires them together.
 IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule(), new BudgetModule()];
@@ -84,6 +90,10 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter())
 );
 
+// /health/live: the process answers. /health/ready: it can also reach Postgres (what a proxy or an
+// uptime monitor should watch). Both anonymous, neither says anything about the data.
+builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tags: ["ready"]);
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IRequestLanguage, HttpRequestLanguage>(); // Accept-Language → en | fr | ht
@@ -120,5 +130,8 @@ app.UseHttpsRedirection();
 
 foreach (var module in modules)
     module.MapEndpoints(app);
+
+app.MapHealthChecks("/health/live", new() { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new() { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 
 app.Run();

@@ -19,11 +19,13 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
   summary, base currency + rates (`budget` schema).
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
-- `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.Identity.Tests`, `tests/Kadans.Notifications.Tests`,
+- `tests/Kadans.Api.Tests` (startup configuration guard), `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`,
+  `tests/Kadans.Identity.Tests`, `tests/Kadans.Notifications.Tests`,
   `tests/Kadans.SharedKernel.Tests` – TUnit unit tests (modules expose internals via `InternalsVisibleTo`). Identity
   (Google sign-in) and Notifications (push worker) are thin so far: the smoke scripts cover the rest.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
-- `docs/` – architecture, roadmap, decisions, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
+- `docs/` – architecture, roadmap, decisions, `DEPLOYMENT.md`, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
+- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (Caddy, API, Postgres, nightly dump).
 
 ## Commands
 
@@ -40,6 +42,7 @@ dotnet ef migrations add <Name> --project src/Kadans.Modules.Tasks --startup-pro
 dotnet ef migrations add <Name> --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext --output-dir Persistence/Migrations
 docker start kadans-postgres                # local Postgres 17 (created with POSTGRES_DB=kadans, password 'password')
 dotnet user-secrets list --project src/Kadans.Api
+docker build -t kadans-api .                # the production image (CI builds it too); deploy/ runs it
 ```
 
 Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`, and when needed
@@ -59,7 +62,10 @@ the task, notification, pomodoro and budget scripts log in as `smoke` / `Smoke12
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and
 recurring rules (restart the API right before: the recurring job's first pass runs ~15 s after boot).
-Nothing applies migrations at startup – run the four `dotnet ef database update` commands above first.
+In Development nothing applies migrations at startup – run the four `dotnet ef database update` commands above
+first. Production does (`Database:MigrateOnStartup`, set by the image): Kadans runs as exactly one instance.
+Anything a production host needs must be in `appsettings.json` or an environment variable, never only in
+`appsettings.Development.json`; add required values to `ProductionConfiguration` so a missing one stops startup.
 
 ## Conventions
 

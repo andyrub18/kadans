@@ -31,8 +31,8 @@
 - [x] TOTP MFA: enrol → enable (recovery codes) → login returns an MFA challenge → `/auth/mfa/verify`
 - [x] Device registration: `PUT /users/me/devices/{installationId}` (upsert push token), list, delete
 - [x] `tools/smoke/identity_flows.py` exercises all of the above against a running API
-- [ ] Deep links: the client must handle `/auth/confirm-email`, `/auth/reset-password`, `/users/me/email/confirm`
-      (App Links / Universal Links); until then `Email:LinkBaseUrl` points at the API and only confirm-email works from a browser
+- [x] Deep links (Phase 6): the API serves localized landing pages for the emailed links and offers a
+      `kadans://` link handled on Android. Verified https App Links / Universal Links wait for the domain.
 
 Config: `Email:Provider` (`Resend`|`Log`), `Email:From`, `Email:LinkBaseUrl`, secret `Email:Resend:ApiKey`;
 `ExternalAuth:Google:ClientIds`, `ExternalAuth:Apple:ClientIds` (one per client platform).
@@ -70,7 +70,8 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] Cross-module contracts in SharedKernel: `IUserDirectory`, `IDevicePushTargets` (implemented by Identity),
       `INotificationDispatcher`, `IRealtimePublisher` (implemented by Notifications)
 - [x] `tools/smoke/notification_flows.py`
-- [ ] Web Push / desktop OS notifications are the client's job (desktop stays on the hub connection)
+- [x] Desktop OS notifications done in Phase 6 (hub connection → notify-send / tray balloon); Web Push
+      only if a web client ever appears
 
 ## Phase 5 – Pomodoro model ✅ (2026-08-30)
 
@@ -143,7 +144,8 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] Password reset end-to-end: localized HTML landing pages for the emailed links (the reset
       link used to 404), in-app Forgot/Reset screens, and a kadans:// deep link on Android;
       client CI workflow (jvmTest + desktop + Android assemble) on clients/** changes
-- [ ] Client CI job (Gradle build) – backend CI ignores `clients/**`
+- [x] Client CI job: `.github/workflows/client.yml` (jvmTest + desktop + Android assemble) on `clients/**`;
+      backend CI (`ci.yml`) ignores `clients/**`
 
 ## Phase 7 – Budget module
 
@@ -166,15 +168,59 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       (income/expense/transfer with rate pre-fill, repeat switch on the recurrence engine),
       trilingual like everything else
 
+## Phase 8 – V1 release hardening (current)
+
+Every feature phase is done. What separates the code from a V1 you can install and run for real
+(assessed 2026-09-16; order is the suggested order of work):
+
+Must-do before release
+
+- [ ] Client ViewModels outlive their nav entries (no ViewModelStore entry decorator on `NavDisplay`).
+      Known victim: `EditTodoViewModel.save()` never clears `isSaving` on success, so the second edit of
+      the same todo opens with a spinning, disabled Save button; the reused ViewModel also re-sends its
+      stale `pomodoroTemplateId`, silently reverting a cycle attached on the detail screen in between.
+      Lesser cousins: create-todo/register keep the previous form after success; Settings loads the profile
+      once. Fix the class (scope ViewModels to nav entries) rather than each flag, with a regression test
+      like `BudgetAddViewModelTests`.
+- [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
+- [ ] Production logging: `appsettings.json` has no `Serilog` section and Serilog reads only that section,
+      so a production host logs nothing until sinks are configured
+- [ ] Migrations at deploy time: nothing applies them at startup and there are four contexts – migrate on
+      startup or ship a migration bundle in the deploy script
+- [ ] Deploy story: Dockerfile/compose or host config, health endpoint, forwarded headers behind a reverse
+      proxy (HTTPS redirection is on); domain, production Postgres, `Jwt:Key`, Resend domain, FCM service
+      account are on `OWNER-CHECKLIST.md`
+- [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
+      `packageVersion 1.0.0`)
+- [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
+      Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
+
+Client gaps – the server already supports them; decide what makes the V1 cut
+
+- [ ] Notification centre with unread badge (`GET /notifications`, `/unread-count`, mark read) – the client
+      only shows live snackbars / OS notifications today
+- [ ] Pomodoro stats and run history screens (`/pomodoro/stats`, `/todos/{id}/pomodoro/runs`)
+- [ ] Google sign-in button + SDK (server verifies ID tokens; Android/web OAuth clients still to create);
+      Apple needs a Mac + developer account
+- [ ] Email change and device list in Settings
+- [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
+- [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
+
+Nice-to-have hardening
+
+- [ ] Integration tests with Testcontainers (Phase 3 leftover); unit tests for Identity and Notifications
+- [ ] Rate limiting on `forgot-password` / `resend-confirmation` (lockout already covers login)
+
 ## Fixed along the way
 
 - Npgsql rejects any `DateTimeOffset` with a non-zero offset (`timestamp with time zone`), so a client sending
   `09:00-05:00` produced a 500. Every DbContext now applies `StoreDateTimeOffsetsAsUtc()` (SharedKernel) and
   `RecurrenceSchedule` normalizes start/exceptions to UTC. Found by the Phase 1 smoke test, 2026-08-30.
 
-## Known bugs in the current code (fix during Phases 1–3, most vanish with the redesign)
+## Known bugs in the current code
 
 | Where | Problem |
 |-------|---------|
+| `clients/app` `ui/todos/EditTodoViewModel.kt` | `save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId` (see Phase 8) |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

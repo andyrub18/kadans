@@ -1,8 +1,10 @@
 # Kadans
 
 Personal "life cadence" app: scheduled & recurring tasks with attached Pomodoro sessions,
-notifications, and (planned) a personal budget. Backend is ASP.NET Core (.NET 10) + Postgres;
-the client is a Compose Multiplatform app (Android, iOS, desktop) in `clients/app`.
+notifications, and a personal budget (multi-currency, HTG/USD first). Backend is ASP.NET Core
+(.NET 10) + Postgres; the client is a Compose Multiplatform app (Android, iOS, desktop) in
+`clients/app`. All feature phases are done; the project is in V1 release hardening (see
+`docs/ROADMAP.md`, Phase 8).
 
 Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular monolith) and
 `docs/ROADMAP.md` (phases, known bugs, what is next) before making structural changes.
@@ -13,9 +15,13 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `src/Kadans.Modules.Identity` – users, auth, tokens, profile (`identity` schema).
 - `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro, Quartz jobs (`tasks` schema).
 - `src/Kadans.Modules.Notifications` – notification log, SignalR hub `/hubs/kadans`, push (FCM) (`notifications` schema).
+- `src/Kadans.Modules.Budget` – accounts, categories, transactions/transfers, recurring money, monthly
+  summary, base currency + rates (`budget` schema). Its migrations live in `Migrations/` at the module
+  root (the other modules use `Persistence/Migrations/`) – pass that `--output-dir` when adding one.
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
-- `tests/Kadans.Tasks.Tests`, `tests/Kadans.SharedKernel.Tests` – TUnit unit tests (modules expose internals via `InternalsVisibleTo`).
+- `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.SharedKernel.Tests` – TUnit unit tests
+  (modules expose internals via `InternalsVisibleTo`). No Identity/Notifications unit tests yet: the smoke scripts cover them.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
 
@@ -29,7 +35,9 @@ dotnet run --project src/Kadans.Api         # Scalar UI at /scalar in Developmen
 dotnet ef database update --project src/Kadans.Modules.Identity --startup-project src/Kadans.Api --context IdentityModuleDbContext
 dotnet ef database update --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext
 dotnet ef database update --project src/Kadans.Modules.Notifications --startup-project src/Kadans.Api --context NotificationsDbContext
+dotnet ef database update --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext
 dotnet ef migrations add <Name> --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext --output-dir Persistence/Migrations
+dotnet ef migrations add <Name> --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext --output-dir Migrations
 docker start kadans-postgres                # local Postgres 17 (created with POSTGRES_DB=kadans, password 'password')
 dotnet user-secrets list --project src/Kadans.Api
 ```
@@ -43,7 +51,10 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end;
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
-`python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, auto-advance, stats).
+`python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, auto-advance, stats);
+`python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and
+recurring rules (restart the API right before: the recurring job's first pass runs ~15 s after boot).
+Nothing applies migrations at startup – run the four `dotnet ef database update` commands above first.
 
 ## Conventions
 

@@ -136,6 +136,47 @@ class KadansApiTests {
     }
 
     @Test
+    fun every_request_carries_the_current_language_even_before_sign_in() = runTest {
+        var language = "ht"
+        val seen = mutableListOf<String?>()
+        val api = KadansApi.create(
+            "http://test",
+            engine = MockEngine { request ->
+                seen += request.headers[HttpHeaders.AcceptLanguage]
+                respond("""{"google":null}""", HttpStatusCode.OK, jsonHeaders)
+            },
+            languageProvider = { language },
+        )
+
+        api.auth.providers() // anonymous: the server has no user to take a language from
+        language = "fr" // the user switched language on the Login screen
+        api.auth.providers()
+
+        assertEquals(listOf<String?>("ht", "fr"), seen)
+    }
+
+    @Test
+    fun the_servers_localized_validation_messages_reach_the_caller() = runTest {
+        val api = KadansApi.create(
+            "http://test",
+            engine = MockEngine { _ ->
+                respond(
+                    """{"title":"Validation error","status":400,"detail":"Gen kèk enfòmasyon ki pa valab.","errorCode":"10015",""" +
+                        """"errors":[{"code":"PasswordTooShort","message":"Modpas la dwe gen omwen 8 karaktè."}]}""",
+                    HttpStatusCode.BadRequest,
+                    jsonHeaders,
+                )
+            },
+            languageProvider = { "ht" },
+        )
+
+        val error = assertFailsWith<KadansApiException> { api.auth.providers() }
+
+        assertEquals("10015", error.errorCode)
+        assertEquals("Modpas la dwe gen omwen 8 karaktè.", error.problem?.errors?.single()?.message)
+    }
+
+    @Test
     fun occurrence_previews_decode_with_offset_instants() {
         val json = """{"id":null,"todoId":"t1","todoTitle":"Standup","scheduledAt":"2027-01-04T14:00:00+00:00","originalScheduledAt":"2027-01-04T14:00:00+00:00","status":"Pending","isRescheduled":false,"rescheduleReason":null,"completedAt":null,"cancelledAt":null,"cancellationReason":null,"remarks":null,"isPreview":true}"""
 

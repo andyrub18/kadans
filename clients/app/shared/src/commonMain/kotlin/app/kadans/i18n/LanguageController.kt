@@ -35,7 +35,11 @@ class LanguageController(private val settings: Settings, private val api: Kadans
 
     fun cycle() = set(Language.next(_language.value))
 
-    private companion object {
-        const val KEY = "kadans.language"
+    companion object {
+        private const val KEY = "kadans.language"
+
+        /** The tag to send as Accept-Language: the in-app choice, else the device language. */
+        fun currentTag(settings: Settings): String =
+            Language.fromTag(settings.getStringOrNull(KEY) ?: systemLanguageTag()).tag
     }
 }

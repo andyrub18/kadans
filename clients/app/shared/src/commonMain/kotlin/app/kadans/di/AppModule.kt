@@ -37,7 +37,11 @@ val appModule = org.koin.dsl.module {
     single<TokenStore> { SettingsTokenStore(get()) }
     single {
         val settings = get<Settings>()
-        KadansApi.create(tokenStore = get(), baseUrlProvider = { ServerAddress.current(settings) })
+        KadansApi.create(
+            tokenStore = get(),
+            baseUrlProvider = { ServerAddress.current(settings) },
+            languageProvider = { LanguageController.currentTag(settings) },
+        )
     }
     single { KadansRealtime(get()) }
     single { SystemAlerts(get()) }

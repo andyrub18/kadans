@@ -82,6 +82,25 @@ never ships inside the app. `GET /auth/providers` publishes the client ids (neve
 only offer what the server can complete. On the client the platform flows sit behind one
 `GoogleSignIn` interface (`expect fun platformGoogleSignIn`), returning either an ID token or a code. Emails go through `Kadans.SharedKernel.Email.IEmailSender` (Resend in production, log in dev).
 
+### Errors: written once in English, worded per request
+
+Services return `ApplicationError(ErrorType, message)` with an English message next to the code that
+detected the problem – about 150 call sites, none of which knows a language. The wording a user reads
+is chosen in one place, the HTTP boundary: `error.ToProblemDetails(context)` resolves the request's
+language from `Accept-Language` (`RequestLanguage`: en, fr or ht; anything else is English) and
+translates `detail` and every validation `message` through `ErrorTexts`. The header rather than the
+account's `PreferredLanguage`, because register and login have no account yet and because it is what
+the person is looking at right now. `errorCode` and validation `code`s never change with the language:
+clients branch on codes, people read sentences. Considered and rejected: `.resx` / `IStringLocalizer`
+(a missing translation silently falls back to English, and the rest of the server already uses typed
+texts), and translating by code on the client (every new rule would show English until a client
+release, and the parameters – "at least 6 characters" – live on the server).
+
+`ErrorTexts` tries the exact English sentence, then one sentence per error type (for messages carrying
+an id or a name), then English. ASP.NET Identity's messages carry numbers and names, so they are
+translated where the parameters are: `LocalizedIdentityErrorDescriber`. Emails and notifications keep
+using the account's language – there is no request to read a header from.
+
 ### Tests: TUnit on Microsoft.Testing.Platform
 
 Opt-in for `dotnet test` is `"test": { "runner": "Microsoft.Testing.Platform" }` in `global.json`.

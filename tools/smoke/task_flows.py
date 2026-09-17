@@ -12,10 +12,11 @@ USER = sys.argv[2] if len(sys.argv) > 2 else "smoke"
 PASSWORD = sys.argv[3] if len(sys.argv) > 3 else "Smoke123!"
 fails = 0
 
-def call(method, path, body=None, token=None):
+def call(method, path, body=None, token=None, lang=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(BASE + path, data=data, method=method)
     req.add_header("content-type", "application/json")
+    if lang: req.add_header("Accept-Language", lang)
     if token: req.add_header("Authorization", "Bearer " + token)
     def parse(b):
         if not b: return None
@@ -128,6 +129,18 @@ C("one-time reschedule keeps the same occurrence", s == 200 and r["id"] == oo[0]
 s, r = call("PUT", f"/occurrences/{oo[0]['id']}/complete", token=T)
 s, r = call("GET", f"/todos/{one['id']}", token=T)
 C("one-time completes the todo", r["status"] == "Completed", r["status"])
+
+# --- error texts follow Accept-Language; codes never change ---
+bad = {"title": "", "description": "", "notificationEnabled": False, "dueDate": "2020-01-01T00:00:00Z"}
+answers = {lang: call("POST", "/todos/one-time", bad, token=T, lang=lang)[1] for lang in (None, "fr-HT,fr;q=0.9", "ht")}
+messages = {lang: sorted(e["message"] for e in r["errors"]) for lang, r in answers.items()}
+C("validation stays English without Accept-Language", "Title is required." in messages[None], messages[None])
+C("validation is French for fr-HT", "Le titre est obligatoire." in messages["fr-HT,fr;q=0.9"], messages["fr-HT,fr;q=0.9"])
+C("validation is Kreyòl for ht", "Tit la obligatwa." in messages["ht"], messages["ht"])
+C("codes are identical in every language", len({tuple(sorted(e["code"] for e in r["errors"])) for r in answers.values()}) == 1
+  and len({r["errorCode"] for r in answers.values()}) == 1)
+s, r = call("GET", "/todos/00000000-0000-0000-0000-000000000001", token=T, lang="ht")
+C("a message carrying an id falls back to its error type's sentence", s == 404 and r["detail"] == "Nou pa jwenn travay la.", r.get("detail"))
 
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")
 sys.exit(1 if fails else 0)

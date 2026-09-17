@@ -66,7 +66,13 @@ Nothing applies migrations at startup – run the four `dotnet ef database updat
 
 - Tests use **TUnit** (not xUnit/NUnit). `[Test]` + `await Assert.That(...)`.
 - Services return `OneOf<ApplicationError, T>`; endpoints map errors with
-  `error.ToProblemDetails(path)` to RFC 9457 ProblemDetails. Error codes are `ErrorTypes` SmartEnums.
+  `error.ToProblemDetails(context)` (or `.ToHttp(context)`) to RFC 9457 ProblemDetails. Error codes are
+  `ErrorTypes` SmartEnums.
+- Error messages are written once, in English, where the error is created; never build per-language
+  strings in a service. Add the French and Kreyòl sentence to `SharedKernel/Errors/ErrorTexts.cs`
+  (`Sentences` for a static message, `ByType` for a new `ErrorTypes` entry) – `ErrorLocalizationTests`
+  scans `src/` and fails on a static message without a translation. The boundary picks the language from
+  `Accept-Language`; codes never change with it. Identity's own messages live in `LocalizedIdentityErrorDescriber`.
 - Minimal APIs, one `Map*Routes` extension per feature area, every endpoint has
   `WithName/WithSummary/Produces*` for OpenAPI.
 - Database names are snake_case via `ModelBuilder.UseSnakeCaseNames()`; timestamps are `DateTimeOffset` UTC.
@@ -87,7 +93,8 @@ Nothing applies migrations at startup – run the four `dotnet ef database updat
   Strings for a new feature area go in their own nested group (see `FocusStatsStrings`, used as
   `s.focusStats.title`); `StringsCatalogSizeTest` fails with that advice before the limit is hit. Server-rendered
   texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
-  `PreferredLanguage`.
+  `PreferredLanguage`; error responses follow the request's `Accept-Language`, which the client sets from
+  its in-app language on every call.
 - Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,
   and ask it for occurrences. Clients send a structured rule plus an IANA `TimeZone`.
 

@@ -49,6 +49,8 @@ public sealed class IdentityModule : IModule
                     lockout.GetValue<bool?>("AllowedForNewUsers") ?? true;
             })
             .AddEntityFrameworkStores<IdentityModuleDbContext>()
+            // Password and username rules in the request's language (codes unchanged).
+            .AddErrorDescriber<LocalizedIdentityErrorDescriber>()
             .AddDefaultTokenProviders();
 
         services.ConfigureOptions<JwtParameterOptionsSetup>();

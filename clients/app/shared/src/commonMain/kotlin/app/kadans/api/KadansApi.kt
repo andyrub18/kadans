@@ -54,6 +54,7 @@ class KadansApi internal constructor(
             tokenStore: TokenStore = InMemoryTokenStore(),
             engine: HttpClientEngine? = null,
             baseUrlProvider: (() -> String)? = null,
+            languageProvider: (() -> String)? = null,
         ): KadansApi {
             // The provider is consulted per request, so a settings change applies immediately.
             val provider = baseUrlProvider ?: { baseUrl }
@@ -65,6 +66,10 @@ class KadansApi internal constructor(
                 defaultRequest {
                     url.takeFrom(provider().trimEnd('/') + "/")
                     contentType(ContentType.Application.Json)
+                    // The server words its error details and validation messages in this language
+                    // (en / fr / ht). Read per request, so switching language applies at once — and it
+                    // works before sign-in, where the server knows no user to take a language from.
+                    languageProvider?.let { headers.append(io.ktor.http.HttpHeaders.AcceptLanguage, it()) }
                 }
                 install(Auth) {
                     bearer {

@@ -6,6 +6,7 @@ using Kadans.Modules.Identity;
 using Kadans.Modules.Notifications;
 using Kadans.Modules.Tasks;
 using Kadans.SharedKernel.Email;
+using Kadans.SharedKernel.Localization;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -85,6 +86,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IRequestLanguage, HttpRequestLanguage>(); // Accept-Language → en | fr | ht
 builder.Services.AddKadansEmail(builder.Configuration);
 
 // Quartz runs the modules' scheduled jobs (each module adds its own via AddQuartz, which is additive).

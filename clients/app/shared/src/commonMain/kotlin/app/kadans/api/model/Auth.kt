@@ -33,6 +33,18 @@ data class MfaVerifyRequest(val mfaToken: String, val code: String)
 @Serializable
 data class ExternalLoginRequest(val provider: String, val idToken: String)
 
+/** Desktop loopback flow: the server trades the code for an ID token (it holds the client secret). */
+@Serializable
+data class GoogleCodeLoginRequest(val code: String, val codeVerifier: String, val redirectUri: String)
+
+/** `google == null` ⇔ the server cannot complete a Google sign-in: hide the button. */
+@Serializable
+data class AuthProvidersResponse(val google: GoogleProviderResponse? = null)
+
+/** Public OAuth client ids; a null id means that platform's flow is not set up on the server. */
+@Serializable
+data class GoogleProviderResponse(val desktopClientId: String? = null, val webClientId: String? = null)
+
 @Serializable
 data class RegisterUserRequest(
     val username: String,

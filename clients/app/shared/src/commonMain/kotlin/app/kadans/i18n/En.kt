@@ -3,6 +3,8 @@ package app.kadans.i18n
 val EnglishStrings = StringsCatalog(
     signInTitle = "Sign in", usernameOrEmail = "Username or email", password = "Password",
     signIn = "Sign in", createAccount = "Create an account", twoFactorTitle = "Two-factor code",
+    continueWithGoogle = "Continue with Google", googleWaiting = "Finish signing in in your browser…",
+    googleReturnToApp = "You are signed in. You can close this tab and return to Kadans.",
     mfaCodeLabel = "Code from your authenticator (or a recovery code)", verify = "Verify", back = "Back",
     registerTitle = "Create your account", username = "Username", email = "Email",
     displayNameOptional = "Display name (optional)", register = "Create account", backToSignIn = "Back to sign in",
@@ -89,6 +91,8 @@ val EnglishStrings = StringsCatalog(
     resetDone = "Password changed — sign in with the new one.",
     serverLabel = "Server",
     serverHint = "API address — on a phone, your computer's Wi-Fi IP, e.g. http://192.168.1.10:5199. Empty = default.",
+    errExternalLogin = "Google sign-in did not complete. Try again.",
+    errExternalNotConfigured = "Google sign-in is not set up on this server.",
     errNetwork = "Could not reach the server.", errInvalidTimeZone = "That time zone is not recognized.",
     errInvalidCredentials = "Invalid username or password.",
     errUserInactive = "This account is deactivated.", errInvalidToken = "This link or code is invalid or expired.",

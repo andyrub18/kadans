@@ -20,8 +20,9 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
   root (the other modules use `Persistence/Migrations/`) – pass that `--output-dir` when adding one.
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
-- `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.SharedKernel.Tests` – TUnit unit tests
-  (modules expose internals via `InternalsVisibleTo`). No Identity/Notifications unit tests yet: the smoke scripts cover them.
+- `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.Identity.Tests`, `tests/Kadans.SharedKernel.Tests` –
+  TUnit unit tests (modules expose internals via `InternalsVisibleTo`). Identity has only its Google sign-in
+  tests so far and Notifications none: the smoke scripts cover the rest.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
 
@@ -43,12 +44,14 @@ dotnet user-secrets list --project src/Kadans.Api
 ```
 
 Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`, and when needed
-`Email:Resend:ApiKey`, `ExternalAuth:Google:ClientIds:0`) live in `dotnet user-secrets`, never in
+`Email:Resend:ApiKey`, `ExternalAuth:Google:Desktop:ClientId` / `:ClientSecret`, `ExternalAuth:Google:WebClientId`)
+live in `dotnet user-secrets`, never in
 `appsettings*.json`. Development uses `Email:Provider=Log`: emails (with their links) go to the log.
 
 Running the API by hand for a smoke test: start it in the background, and stop it with `pkill -x Kadans.Api`
 (the apphost's process name) – killing the `dotnet run` parent leaves the server alive on its port.
-`python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end;
+`python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end (not re-runnable:
+it fails at step one if an earlier run left the user `alice` in the database);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
 `python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, auto-advance, stats);

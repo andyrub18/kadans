@@ -15,6 +15,9 @@ data class StringsCatalog(
     val usernameOrEmail: String,
     val password: String,
     val signIn: String,
+    val continueWithGoogle: String,
+    val googleWaiting: String,
+    val googleReturnToApp: String,
     val createAccount: String,
     val twoFactorTitle: String,
     val mfaCodeLabel: String,
@@ -230,6 +233,8 @@ data class StringsCatalog(
     val serverHint: String,
     // errors
     val errNetwork: String,
+    val errExternalLogin: String,
+    val errExternalNotConfigured: String,
     val errInvalidTimeZone: String,
     val errInvalidCredentials: String,
     val errUserInactive: String,
@@ -302,6 +307,8 @@ data class StringsCatalog(
         "10032" -> errInvalidTimeZone
         "10033" -> errInvalidToken
         "10034" -> errMfaCode
+        "10035", "google" -> errExternalLogin
+        "10036" -> errExternalNotConfigured
         "10005" -> errAlreadyCompleted
         "10020" -> errAlreadyCancelled
         "10019", "10021", "10028", "10043", "10044", "10045", "10046" -> errNotFound

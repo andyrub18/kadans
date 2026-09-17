@@ -40,6 +40,19 @@ internal static class AuthRoutes
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status401Unauthorized);
 
+            auth.MapPost("/external/google/code", async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> (GoogleCodeLoginRequest request, ExternalAuthentication service, HttpContext context, CancellationToken cancellationToken) =>
+                    (await service.SignInWithGoogleCode(request, cancellationToken)).ToHttp(context))
+                .WithName("AuthExternalGoogleCode")
+                .WithSummary("Desktop Google sign-in: exchange the loopback authorization code")
+                .WithDescription("The desktop app runs Google's loopback flow with PKCE and sends the code here; the API holds the Desktop client's secret, trades the code for an ID token and signs in exactly like /auth/external.")
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+            auth.MapGet("/providers", Ok<AuthProvidersResponse> (ExternalAuthentication service) => TypedResults.Ok(service.Providers()))
+                .WithName("AuthProviders")
+                .WithSummary("External sign-ins this server is configured for")
+                .WithDescription("Public OAuth client ids per platform, so clients only show a button that can work. Never contains a secret.");
+
             auth.MapPost("/refresh", async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> (RefreshTokenRequest request, Authentication service, HttpContext context) =>
                     (await service.RefreshToken(request)).ToHttp(context))
                 .WithName("AuthRefresh")

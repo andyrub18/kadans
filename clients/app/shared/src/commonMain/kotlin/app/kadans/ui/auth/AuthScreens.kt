@@ -108,11 +108,24 @@ fun LoginScreen(
         Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
             if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.signIn)
         }
+        if (state.googleAvailable) {
+            androidx.compose.material3.OutlinedButton(
+                onClick = viewModel::signInWithGoogle,
+                enabled = !state.isLoading && !state.isGoogleLoading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (state.isGoogleLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.continueWithGoogle)
+            }
+            if (state.isGoogleLoading) {
+                Text(s.googleWaiting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = viewModel::cancelGoogle) { Text(s.cancel) }
+            }
+        }
         Row {
             TextButton(onClick = onRegister) { Text(s.createAccount) }
             TextButton(onClick = onForgotPassword) { Text(s.forgotPassword) }
         }
-        ServerAddressButton()
+        ServerAddressButton(onChanged = viewModel::refreshProviders)
     }
 }
 
@@ -121,7 +134,7 @@ fun LoginScreen(
  * it can sign in at all. Applies immediately (the API reads the address per request).
  */
 @Composable
-private fun ServerAddressButton() {
+private fun ServerAddressButton(onChanged: () -> Unit = {}) {
     val s = LocalStrings.current
     val settings = org.koin.compose.koinInject<com.russhwolf.settings.Settings>()
     var editing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -155,6 +168,7 @@ private fun ServerAddressButton() {
                     ServerAddress.setOverride(settings, value)
                     shown = ServerAddress.current(settings)
                     editing = false
+                    onChanged() // another server may offer other sign-ins
                 }) { Text(s.ok) }
             },
             dismissButton = { TextButton(onClick = { editing = false }) { Text(s.cancel) } },

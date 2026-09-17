@@ -35,7 +35,8 @@
       `kadans://` link handled on Android. Verified https App Links / Universal Links wait for the domain.
 
 Config: `Email:Provider` (`Resend`|`Log`), `Email:From`, `Email:LinkBaseUrl`, secret `Email:Resend:ApiKey`;
-`ExternalAuth:Google:ClientIds`, `ExternalAuth:Apple:ClientIds` (one per client platform).
+`ExternalAuth:Google:Desktop:ClientId` / `:ClientSecret`, `ExternalAuth:Google:WebClientId`,
+`ExternalAuth:Google:ClientIds` (extra audiences, e.g. iOS), `ExternalAuth:Apple:ClientIds`.
 Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the bearer handler rejects them;
 `User.RequireUniqueEmail = true`; the `IdentityFlows` migration drops all pre-existing refresh tokens.
 
@@ -175,11 +176,15 @@ installing on real devices second, hosting last.
 
 1. Screens and feel
 
-- [ ] Connect with Google in the clients (server already verifies ID tokens): Android via Credential
-      Manager (`androidx.credentials` + `googleid`, needs the Web client id as `serverClientId`), desktop
-      via the loopback OAuth flow with the Desktop client (PKCE, browser, local listener → ID token),
-      iOS later. All client ids go into `ExternalAuth:Google:ClientIds`. Owner first: recreate the OAuth
-      clients in the Firebase project (see OWNER-CHECKLIST – the original project was deleted).
+- [x] Connect with Google in the clients. Android: Credential Manager (`GetSignInWithGoogleOption`, the
+      server's Web client id as `serverClientId`) → `POST /auth/external`. Desktop: loopback OAuth with
+      PKCE in the system browser → `POST /auth/external/google/code`, where the **server** trades the code
+      for the ID token, so the Desktop client's secret never ships in the app. `GET /auth/providers`
+      (anonymous, ids only) tells the clients what is configured; the button exists only when it can work
+      and re-asks when the server address changes. iOS deferred with the rest of iOS. New
+      `tests/Kadans.Identity.Tests` (first Identity unit tests). Code-complete and tested against fakes and
+      Google's real refusal of a junk code; the real end-to-end run waits for the owner's OAuth clients
+      (OWNER-CHECKLIST → Google Sign-In).
 - [ ] Pomodoro notifications arrive a few seconds late. Causes: (1) a run nobody watches is only
       stepped by `PomodoroAutoAdvanceJob`, floored at 5 s; (2) the advance request waits for the FCM
       call inside `NotificationDispatcher` before answering, so the screen lags behind the OS alert;
@@ -230,6 +235,7 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
-| `clients/app` `ui/todos/EditTodoViewModel.kt` | `save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId` (see Phase 8) |
+| `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
+| `tools/smoke/identity_flows.py` | Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`) |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

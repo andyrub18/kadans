@@ -21,7 +21,7 @@ src/
                                  (migrations in Migrations/ at the module root)
   Kadans.Modules.Notifications/  notification log, SignalR hub, push (FCM), dispatcher
 tests/
-  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, SharedKernel today)
+  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, Identity, SharedKernel today)
   Kadans.Api.IntegrationTests/   planned: TUnit + Testcontainers (real Postgres); until then
                                  tools/smoke/*.py exercise the DB paths against a running API
 clients/
@@ -74,7 +74,13 @@ family. Password change/reset revokes all families. TOTP MFA is a two-step login
 returns a short-lived challenge JWT with audience `<Audience>:mfa` (never accepted as a bearer token),
 exchanged with a TOTP or recovery code. External login verifies Google/Apple ID tokens obtained natively
 by the client against the provider's JWKS (OIDC discovery) and links by verified email or creates the
-account. Emails go through `Kadans.SharedKernel.Email.IEmailSender` (Resend in production, log in dev).
+account. Google has one OAuth client per way of signing in: Android's Credential Manager returns an ID
+token whose audience is the *Web* client id; the desktop app runs the loopback flow with PKCE and sends
+the authorization code to `POST /auth/external/google/code`, where `GoogleCodeExchange` trades it for the
+ID token – the one place the API talks to Google with a secret, chosen so the Desktop client's secret
+never ships inside the app. `GET /auth/providers` publishes the client ids (never the secret) so clients
+only offer what the server can complete. On the client the platform flows sit behind one
+`GoogleSignIn` interface (`expect fun platformGoogleSignIn`), returning either an ID token or a code. Emails go through `Kadans.SharedKernel.Email.IEmailSender` (Resend in production, log in dev).
 
 ### Tests: TUnit on Microsoft.Testing.Platform
 

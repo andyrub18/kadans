@@ -140,6 +140,13 @@ s, r = call("POST", "/auth/external", {"provider": "google", "idToken": "junk"})
 C("external google rejects junk", (s, r.get("errorCode")) in ((400, "10036"), (401, "10035")), f"{s} {r.get('errorCode') if r else r}")
 s, r = call("POST", "/auth/external", {"provider": "facebook", "idToken": "junk"})
 C("external unknown provider -> 400", s == 400)
+s, r = call("GET", "/auth/providers")
+C("providers is public and never leaks a secret", s == 200 and "google" in r and "secret" not in json.dumps(r).lower(), f"{s} {r}")
+s, r = call("POST", "/auth/external/google/code", {"code": "junk", "codeVerifier": "v", "redirectUri": "http://127.0.0.1:49152"})
+# no Desktop client configured -> 400/10036; configured -> Google refuses the junk code -> 401/10035
+C("google code exchange rejects junk", (s, r.get("errorCode")) in ((400, "10036"), (401, "10035")), f"{s} {r.get('errorCode') if r else r}")
+s, r = call("POST", "/auth/external/google/code", {"code": "junk", "codeVerifier": "v", "redirectUri": "https://evil.example/cb"})
+C("google code exchange refuses a non-loopback redirect", s in (400, 401))
 
 # revoke-all + logout
 s, tok = call("POST", "/auth/login", {"username": "alice", "password": "Alice999!"})

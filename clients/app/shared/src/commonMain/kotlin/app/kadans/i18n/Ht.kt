@@ -3,6 +3,8 @@ package app.kadans.i18n
 val CreoleStrings = StringsCatalog(
     signInTitle = "Konekte", usernameOrEmail = "Non itilizatè oswa imèl", password = "Modpas",
     signIn = "Konekte", createAccount = "Kreye yon kont", twoFactorTitle = "Kòd verifikasyon",
+    continueWithGoogle = "Kontinye ak Google", googleWaiting = "Fini koneksyon an nan navigatè ou a…",
+    googleReturnToApp = "Ou konekte. Ou ka fèmen onglè sa a epi retounen nan Kadans.",
     mfaCodeLabel = "Kòd aplikasyon otantifikasyon ou (oswa yon kòd rekiperasyon)", verify = "Verifye", back = "Retounen",
     registerTitle = "Kreye kont ou", username = "Non itilizatè", email = "Imèl",
     displayNameOptional = "Non pou afiche (si ou vle)", register = "Kreye kont lan", backToSignIn = "Retounen nan koneksyon",
@@ -89,6 +91,8 @@ val CreoleStrings = StringsCatalog(
     resetDone = "Modpas la chanje — konekte ak nouvo a.",
     serverLabel = "Sèvè",
     serverHint = "Adrès API a — sou yon telefòn, IP Wi-Fi òdinatè w la, pa egzanp http://192.168.1.10:5199. Vid = valè otomatik.",
+    errExternalLogin = "Koneksyon ak Google la pa fin fèt. Eseye ankò.",
+    errExternalNotConfigured = "Koneksyon ak Google pa konfigire sou sèvè sa a.",
     errNetwork = "Nou pa ka jwenn sèvè a.", errInvalidTimeZone = "Nou pa rekonèt zòn lè sa a.",
     errInvalidCredentials = "Non itilizatè oswa modpas la pa bon.",
     errUserInactive = "Kont sa a dezaktive.", errInvalidToken = "Lyen sa a oswa kòd sa a pa valab oswa li ekspire.",

@@ -3,6 +3,8 @@ package app.kadans.i18n
 val FrenchStrings = StringsCatalog(
     signInTitle = "Connexion", usernameOrEmail = "Nom d'utilisateur ou e-mail", password = "Mot de passe",
     signIn = "Se connecter", createAccount = "Créer un compte", twoFactorTitle = "Code de vérification",
+    continueWithGoogle = "Continuer avec Google", googleWaiting = "Terminez la connexion dans votre navigateur…",
+    googleReturnToApp = "Vous êtes connecté. Vous pouvez fermer cet onglet et revenir à Kadans.",
     mfaCodeLabel = "Code de votre application (ou un code de récupération)", verify = "Vérifier", back = "Retour",
     registerTitle = "Créez votre compte", username = "Nom d'utilisateur", email = "E-mail",
     displayNameOptional = "Nom affiché (facultatif)", register = "Créer le compte", backToSignIn = "Retour à la connexion",
@@ -89,6 +91,8 @@ val FrenchStrings = StringsCatalog(
     resetDone = "Mot de passe changé — connectez-vous avec le nouveau.",
     serverLabel = "Serveur",
     serverHint = "Adresse de l'API — sur un téléphone, l'IP Wi-Fi de votre ordinateur, p. ex. http://192.168.1.10:5199. Vide = valeur par défaut.",
+    errExternalLogin = "La connexion avec Google n'a pas abouti. Réessayez.",
+    errExternalNotConfigured = "La connexion avec Google n'est pas configurée sur ce serveur.",
     errNetwork = "Impossible de joindre le serveur.", errInvalidTimeZone = "Ce fuseau horaire n'est pas reconnu.",
     errInvalidCredentials = "Nom d'utilisateur ou mot de passe invalide.",
     errUserInactive = "Ce compte est désactivé.", errInvalidToken = "Ce lien ou ce code est invalide ou expiré.",

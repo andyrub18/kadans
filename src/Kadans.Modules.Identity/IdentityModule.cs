@@ -87,6 +87,7 @@ public sealed class IdentityModule : IModule
             });
 
         services.AddSingleton<ExternalIdTokenValidator>();
+        services.AddHttpClient<GoogleCodeExchange>(client => client.Timeout = TimeSpan.FromSeconds(15));
         services.AddScoped<JwtProvider>();
         services.AddScoped<Authentication>();
         services.AddScoped<ExternalAuthentication>();

@@ -2,7 +2,9 @@ package app.kadans.di
 
 import app.kadans.api.KadansApi
 import app.kadans.api.TokenStore
+import app.kadans.auth.GoogleSignIn
 import app.kadans.auth.SettingsTokenStore
+import app.kadans.auth.platformGoogleSignIn
 import app.kadans.config.ServerAddress
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
@@ -39,6 +41,11 @@ val appModule = org.koin.dsl.module {
     single { SystemAlerts(get()) }
     single { DeviceRegistrar(get(), get()) }
     single { LanguageController(get(), get()) }
+    single<GoogleSignIn> {
+        val language = get<LanguageController>()
+        // The desktop flow ends on a page in the user's browser; it speaks the app's language.
+        platformGoogleSignIn(returnToAppText = { language.language.value.catalog.googleReturnToApp })
+    }
 
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)

@@ -6,7 +6,7 @@ One deployable API, one Postgres database, hard module boundaries inside the cod
 Not microservices, and not a four-layer "clean architecture" per module – vertical slices inside
 modules are enough.
 
-### Layout (Identity and Tasks exist; Budget and Notifications are planned)
+### Layout (all four modules exist)
 
 ```
 src/
@@ -16,13 +16,18 @@ src/
                                  recurrence engine (shared by Tasks and Budget)
   Kadans.Modules.Identity/       users, auth, tokens, external logins, profile, devices
   Kadans.Modules.Tasks/          todos, occurrences, pomodoro
-  Kadans.Modules.Budget/         accounts, categories, transactions, budgets
-  Kadans.Modules.Notifications/  scheduler jobs, push/SignalR dispatch, hub (Phase 4)
+  Kadans.Modules.Budget/         accounts, categories, transactions/transfers, category limits,
+                                 recurring money, monthly summary, base currency + rates
+                                 (migrations in Migrations/ at the module root)
+  Kadans.Modules.Notifications/  notification log, SignalR hub, push (FCM), dispatcher
 tests/
-  Kadans.<Module>.Tests/         TUnit unit tests
-  Kadans.Api.IntegrationTests/   TUnit + Testcontainers (real Postgres)
+  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, SharedKernel today)
+  Kadans.Api.IntegrationTests/   planned: TUnit + Testcontainers (real Postgres); until then
+                                 tools/smoke/*.py exercise the DB paths against a running API
 clients/
   app/                           Compose Multiplatform (Android, iOS, desktop JVM)
+tools/
+  smoke/                         end-to-end smoke scripts, one per module/feature area
 ```
 
 Inside a module:
@@ -42,8 +47,9 @@ Kadans.Modules.Tasks/
    `notifications`). Each module owns its migrations.
 2. **No cross-module foreign keys or navigation properties.** `Todo.UserId` is a plain string.
    Endpoints never return entities that could drag another module's data along.
-3. **Modules depend only on SharedKernel.** They communicate through SharedKernel abstractions
-   or in-process domain events (e.g. Tasks raises `OccurrenceDue`, Notifications handles it).
+3. **Modules depend only on SharedKernel.** They communicate through SharedKernel abstractions:
+   `IUserDirectory` and `IDevicePushTargets` (implemented by Identity), `INotificationDispatcher`
+   and `IRealtimePublisher` (implemented by Notifications). Tasks and Budget only consume them.
 4. **Everything is `internal`** except `Contracts` and the `IModule` implementation.
 5. **Per-user isolation via EF global query filters** on `UserId == ICurrentUserService.UserId`.
 6. **Endpoints return DTOs**, never EF entities (the old code returned `Todo`/`PomodoroRun`
@@ -73,8 +79,9 @@ account. Emails go through `Kadans.SharedKernel.Email.IEmailSender` (Resend in p
 ### Tests: TUnit on Microsoft.Testing.Platform
 
 Opt-in for `dotnet test` is `"test": { "runner": "Microsoft.Testing.Platform" }` in `global.json`.
-Integration tests use Testcontainers against real Postgres – recurrence and query filters must be
-tested on the real provider.
+Domain rules are unit-tested as pure code. Integration tests with Testcontainers against real Postgres
+are still to come (recurrence and query filters must be tested on the real provider); the smoke
+scripts in `tools/smoke/` cover those paths against a running Development API for now.
 
 ### Client: Compose Multiplatform
 
@@ -128,9 +135,16 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   (`IUserDirectory`) and hands it to `INotificationDispatcher`, which stores it, publishes it on the
   hub and pushes it to the user's devices (`IDevicePushTargets` → `IPushSender`).
 
-### Budget (later)
+### Budget (Phase 7, implemented)
 
-Accounts, Categories, Transactions, Budgets (category × period). `Money = (decimal Amount,
-string Currency)` in SharedKernel from day one – HTG and USD coexist. Budget periods and recurring
-bills reuse the recurrence engine; a "pay rent" task and a recurring transaction are the same
-cadence seen from two modules.
+Accounts (computed balances), income/expense categories with monthly limits, transactions incl.
+transfers, recurring rules, `/budget/summary` per month in the user's time zone. `Money` is a value
+object inside the module: currencies never mix implicitly (HTG, USD, EUR, CAD, DOP, MXN). A
+cross-currency transfer carries the received amount – that pair *is* the rate for that date.
+The user has a base currency and indicative per-currency rates (1 unit = X base, refreshable
+daily) used for estimates and transfer pre-fill only; stored amounts never move, and the combined
+estimate reports currencies without a rate instead of guessing. Recurring transactions run on the
+shared recurrence engine: `RecurringTransactionJob` (Quartz, `Budget:RecurringIntervalMinutes`,
+15 by default) materializes due rules into real transactions, so salary lands on the 1st with no
+client running; exhausted rules self-deactivate. A "pay rent" task and a recurring transaction are
+the same cadence seen from two modules.

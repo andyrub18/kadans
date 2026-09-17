@@ -13,7 +13,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import app.kadans.api.TokenStore
 import app.kadans.i18n.LanguageController
@@ -96,6 +98,15 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
     NavDisplay(
         backStack = backStack,
         onBack = { backStack.removeLastOrNull() },
+        // Scope ViewModels to their nav entry: a screen gets a fresh ViewModel on every visit and the
+        // old one is cleared when the entry is popped. Without this decorator every ViewModel lived in
+        // the window/activity store and outlived its screen — a busy flag left set after a successful
+        // save came back as a stuck spinner on the next visit, `init` blocks never re-ran (stale
+        // forms, stale todo snapshots), and a re-login reused the previous session's ViewModels.
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
         entryProvider = { key ->
             when (key) {
                 is LoginRoute -> NavEntry(key) {

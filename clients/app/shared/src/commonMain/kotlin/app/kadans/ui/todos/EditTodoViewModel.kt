@@ -77,6 +77,8 @@ class EditTodoViewModel(private val api: KadansApi, private val todoId: String) 
                         notifyBeforeInMinutes = current.notifyBefore,
                     ),
                 )
+                // Clear the flag before leaving: even a reused ViewModel must never keep the button stuck.
+                _state.value = _state.value.copy(isSaving = false)
                 _saved.emit(Unit)
             } catch (e: KadansApiException) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message, errorCode = e.errorCode)

@@ -7,10 +7,10 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Kadans.Api/Kadans.Api.csproj" />
-    <Project Path="src/Kadans.Modules.Budget/Kadans.Modules.Budget.csproj" />
     <Project Path="src/Kadans.SharedKernel/Kadans.SharedKernel.csproj" />
   </Folder>
   <Folder Name="/src/modules/">
+    <Project Path="src/Kadans.Modules.Budget/Kadans.Modules.Budget.csproj" />
     <Project Path="src/Kadans.Modules.Identity/Kadans.Modules.Identity.csproj" />
     <Project Path="src/Kadans.Modules.Notifications/Kadans.Modules.Notifications.csproj" />
     <Project Path="src/Kadans.Modules.Tasks/Kadans.Modules.Tasks.csproj" />

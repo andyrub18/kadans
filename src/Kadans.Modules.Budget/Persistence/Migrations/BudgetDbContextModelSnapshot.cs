@@ -3,20 +3,17 @@ using System;
 using Kadans.Modules.Budget.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Kadans.Modules.Budget.Migrations
+namespace Kadans.Modules.Budget.Persistence.Migrations
 {
     [DbContext(typeof(BudgetDbContext))]
-    [Migration("20260908002229_BudgetMultiCurrency")]
-    partial class BudgetMultiCurrency
+    partial class BudgetDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

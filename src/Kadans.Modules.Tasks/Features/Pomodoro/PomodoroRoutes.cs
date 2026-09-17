@@ -26,7 +26,7 @@ internal static class PomodoroRoutes
                         var result = await service.CreateTemplate(request);
                         return result.Match<Results<Ok<PomodoroTemplateResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             template => TypedResults.Ok(template)
                         );
                     }
@@ -50,7 +50,7 @@ internal static class PomodoroRoutes
                         var result = await service.GetTemplates();
                         return result.Match<Results<Ok<List<PomodoroTemplateResponse>>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             templates => TypedResults.Ok(templates)
                         );
                     }
@@ -74,7 +74,7 @@ internal static class PomodoroRoutes
                         var result = await service.UpdateTemplate(id, request);
                         return result.Match<Results<Ok<PomodoroTemplateResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             template => TypedResults.Ok(template)
                         );
                     }
@@ -98,7 +98,7 @@ internal static class PomodoroRoutes
                         var result = await service.DeleteTemplate(id);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -125,7 +125,7 @@ internal static class PomodoroRoutes
                         );
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -151,7 +151,7 @@ internal static class PomodoroRoutes
                         var result = await service.StartRun(id, autoAdvance, loop);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }
@@ -177,7 +177,7 @@ internal static class PomodoroRoutes
                         var result = await service.GetRunHistory(id, page, pageSize);
                         return result.Match<Results<Ok<List<PomodoroRunResponse>>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             runs => TypedResults.Ok(runs)
                         );
                     }
@@ -200,7 +200,7 @@ internal static class PomodoroRoutes
                         var result = await service.GetStats(from, to);
                         return result.Match<Results<Ok<PomodoroStatsResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             stats => TypedResults.Ok(stats)
                         );
                     }
@@ -223,7 +223,7 @@ internal static class PomodoroRoutes
                         var result = await service.GetActiveRun(id);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }
@@ -246,7 +246,7 @@ internal static class PomodoroRoutes
                         var result = await service.PauseRun(runId);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }
@@ -270,7 +270,7 @@ internal static class PomodoroRoutes
                         var result = await service.ResumeRun(runId);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }
@@ -295,7 +295,7 @@ internal static class PomodoroRoutes
                         var result = await service.AdvanceRun(runId, request);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }
@@ -319,7 +319,7 @@ internal static class PomodoroRoutes
                         var result = await service.FinishRun(runId);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }
@@ -343,7 +343,7 @@ internal static class PomodoroRoutes
                         var result = await service.CancelRun(runId);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             run => TypedResults.Ok(run)
                         );
                     }

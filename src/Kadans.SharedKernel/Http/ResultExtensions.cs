@@ -14,7 +14,7 @@ public static class ResultExtensions
         HttpContext context
     ) =>
         result.Match<Results<Ok<T>, ProblemHttpResult>>(
-            error => TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+            error => TypedResults.Problem(error.ToProblemDetails(context)),
             value => TypedResults.Ok(value)
         );
 

@@ -87,7 +87,7 @@ internal static class AuthRoutes
                     var language = (await userManager.FindByIdAsync(userId))?.PreferredLanguage;
                     var result = await service.ConfirmEmail(new ConfirmEmailRequest(userId, token));
                     return result.Match<Results<ContentHttpResult, ProblemHttpResult>>(
-                        error => TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                        error => TypedResults.Problem(error.ToProblemDetails(context)),
                         _ => TypedResults.Text(AuthPages.Confirmed(EmailTexts.For(language)), "text/html"));
                 })
                 .WithName("AuthConfirmEmailLink")

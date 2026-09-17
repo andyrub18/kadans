@@ -63,7 +63,7 @@ internal static class TodoRoutes
                         var result = await service.GetAllTodos(page, pageSize, status);
                         return result.Match<Results<Ok<List<TodoResponse>>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             list => TypedResults.Ok(list)
                         );
                     }
@@ -86,7 +86,7 @@ internal static class TodoRoutes
                         var result = await service.GetTodoById(id);
                         return result.Match<Results<Ok<TodoResponse>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             todo => TypedResults.Ok(todo)
                         );
                     }
@@ -112,7 +112,7 @@ internal static class TodoRoutes
                             Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
                         >(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             list => TypedResults.Ok(list)
                         );
                     }
@@ -137,7 +137,7 @@ internal static class TodoRoutes
                             Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
                         >(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             list => TypedResults.Ok(list)
                         );
                     }
@@ -197,7 +197,7 @@ internal static class TodoRoutes
                         var result = await service.CancelTodo(id, request.Reason);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -221,7 +221,7 @@ internal static class TodoRoutes
                         var result = await service.AddRemark(id, request.Remark);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -244,7 +244,7 @@ internal static class TodoRoutes
                         var result = await service.UpdateAllTodosRemarks(id, request.Remarks);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -276,7 +276,7 @@ internal static class TodoRoutes
                             Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
                         >(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             list => TypedResults.Ok(list)
                         );
                     }
@@ -316,7 +316,7 @@ internal static class TodoRoutes
                         var result = await service.CompleteOccurrence(id);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -340,7 +340,7 @@ internal static class TodoRoutes
                         var result = await service.CancelOccurrence(id, request.Reason);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }
@@ -364,7 +364,7 @@ internal static class TodoRoutes
                         var result = await service.AddRemarkToOccurrence(id, request.Remark);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
-                                TypedResults.Problem(error.ToProblemDetails(context.Request.Path)),
+                                TypedResults.Problem(error.ToProblemDetails(context)),
                             _ => TypedResults.Ok(new Success())
                         );
                     }

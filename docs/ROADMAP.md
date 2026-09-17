@@ -127,7 +127,7 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       button), persisted, first run follows the device language; API errors localized by
       `errorCode` with server-detail fallback. Server: `PreferredLanguage` on the user (synced on
       switch) drives localized emails and localized reminder/pomodoro notifications.
-      Still English: server-side validation detail texts (later pass).
+      Server-side error and validation texts followed in Phase 8.
 - [x] Occurrence calendar (month grid, Monday-first, dots for pending/planned/done, day detail);
       edit-todo & move-occurrence UI; settings screen (profile, language, password, TOTP MFA
       enrol/disable/recovery codes, sign out everywhere)
@@ -216,7 +216,15 @@ installing on real devices second, hosting last.
       `ClassFormatError` at startup). New areas use nested string groups (`FocusStatsStrings`); a size
       guard test fails with instructions before the wall.
 - [ ] Email change and device list in Settings
-- [ ] Server-side validation detail texts are English only (client localizes by `errorCode` first)
+- [x] Server error and validation texts speak en / fr / ht. The client sends its in-app language as
+      `Accept-Language` on every call (so it works on the anonymous register and login screens too); the
+      server words `detail` and every validation `message` in that language at the HTTP boundary, while
+      `errorCode` and each entry's `code` stay the contract. Three layers in `ErrorTexts`: the exact English
+      sentence, else one sentence per error type (for messages that carry an id), else English. ASP.NET
+      Identity's password and username rules go through `LocalizedIdentityErrorDescriber`, which keeps their
+      numbers and names. Guards: every error type must have its sentence, every Identity message must be
+      translated, and a scan of `src/` fails the build on a static message without a translation (97 today).
+      The Kreyòl wording is a first pass and wants the owner's native review.
 - [ ] Layout nits: Budget migrations live in `Migrations/` (others: `Persistence/Migrations/`) and the
       Budget project sits outside the `src/modules` solution folder in `Kadans.slnx`
 

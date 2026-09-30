@@ -36,6 +36,7 @@ internal static class UserRoutes
             me.MapPut("/password", async Task<Results<Ok<Success>, ProblemHttpResult>> (ChangePasswordRequest request, AccountSecurity service, HttpContext context) =>
                     (await service.ChangePassword(request)).ToHttp(context))
                 .WithName("UsersChangePassword")
+                .RequireRateLimiting(RateLimitPolicies.Credentials)
                 .WithSummary("Change password")
                 .WithDescription("Requires the current password. All sessions are revoked afterwards.")
                 .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -49,6 +50,7 @@ internal static class UserRoutes
             me.MapPost("/email", async Task<Results<Ok<Success>, ProblemHttpResult>> (ChangeEmailRequest request, AccountSecurity service, HttpContext context, CancellationToken cancellationToken) =>
                     (await service.RequestEmailChange(request, cancellationToken)).ToHttp(context))
                 .WithName("UsersRequestEmailChange")
+                .RequireRateLimiting(RateLimitPolicies.Email)
                 .WithSummary("Start an email change")
                 .WithDescription("Sends a confirmation link to the new address; the change applies once confirmed.")
                 .ProducesProblem(StatusCodes.Status400BadRequest);
@@ -59,7 +61,8 @@ internal static class UserRoutes
                 .WithSummary("Confirm a new email address")
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
-            var mfa = me.MapGroup("/mfa");
+            // Every MFA call checks a code: guessing is the risk.
+            var mfa = me.MapGroup("/mfa").RequireRateLimiting(RateLimitPolicies.Credentials);
 
             mfa.MapPost("/enroll", async Task<Results<Ok<MfaEnrollResponse>, ProblemHttpResult>> (AccountSecurity service, HttpContext context) =>
                     (await service.MfaEnroll()).ToHttp(context))

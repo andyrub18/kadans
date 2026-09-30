@@ -85,6 +85,10 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `Accept-Language`; codes never change with it. Identity's own messages live in `LocalizedIdentityErrorDescriber`.
 - Minimal APIs, one `Map*Routes` extension per feature area, every endpoint has
   `WithName/WithSummary/Produces*` for OpenAPI.
+- An endpoint that mails an address the caller chooses gets `.RequireRateLimiting(RateLimitPolicies.Email)`.
+  One that checks a password or a code gets `RateLimitPolicies.Credentials`. Everything else is under the
+  host's global per-client limit. Development's limits are generous (`appsettings.Development.json`), so
+  the smoke scripts never hit them.
 - Database names are snake_case via `ModelBuilder.UseSnakeCaseNames()`; timestamps are `DateTimeOffset` UTC.
 - Per-user data isolation is done with EF global query filters on `UserId == ICurrentUserService.UserId`.
   Keep that pattern; do not add manual `Where(UserId == ...)` checks instead of it.

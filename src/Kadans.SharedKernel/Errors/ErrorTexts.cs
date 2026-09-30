@@ -102,6 +102,7 @@ public static class ErrorTexts
         ["10050"] = new("Cette catégorie ne correspond pas à ce type de mouvement.", "Kategori sa a pa mache ak kalite mouvman sa a."),
         ["10051"] = new("Ce compte est archivé.", "Kont sa a achive."),
         ["10052"] = new("Le délai du rappel n'est pas valide.", "Delè rapèl la pa valab."),
+        ["10053"] = new("Trop de tentatives. Réessayez dans un moment.", "Twòp tantativ. Tann yon ti moman epi eseye ankò."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
@@ -161,6 +162,7 @@ public static class ErrorTexts
         ["Template name is required."] = new("Le nom du cycle est obligatoire.", "Non sik la obligatwa."),
         ["This todo has no Pomodoro template attached."] = new("Cette tâche n'a pas de cycle Pomodoro.", "Travay sa a pa gen sik Pomodoro."),
         // --- identity ---
+        ["Too many attempts. Try again in a moment."] = new("Trop de tentatives. Réessayez dans un moment.", "Twòp tantativ. Tann yon ti moman epi eseye ankò."),
         ["Invalid username or password"] = new("Nom d'utilisateur ou mot de passe invalide.", "Non itilizatè oswa modpas la pa bon."),
         ["Invalid refresh token"] = new("Votre session a expiré. Reconnectez-vous.", "Sesyon ou an ekspire. Konekte ankò."),
         ["The current password is not correct."] = new("Le mot de passe actuel n'est pas correct.", "Modpas aktyèl la pa bon."),

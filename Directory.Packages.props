@@ -33,6 +33,8 @@
   </ItemGroup>
 
   <ItemGroup Label="Testing">
+    <!-- An in-process host for middleware tests (rate limiting), no server or port needed. -->
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
     <!-- In-process integration tests on an in-memory database (Identity flows), no Postgres needed in CI. -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
     <!-- Native SQLite under the provider: 2.1.11 and older ship a SQLite with GHSA-2m69-gcr7-jv3q. -->

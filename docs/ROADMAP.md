@@ -258,10 +258,15 @@ installing on real devices second, hosting last.
       everything missing at once (`ProductionConfiguration`, unit-tested in `tests/Kadans.Api.Tests`).
 - [x] `/health/live` and `/health/ready` (Postgres round trip), anonymous.
 - [x] Release builds talk to production: `-Pkadans.apiBaseUrl=https://api.<domain>` is baked in at build
-      time (typed address → built-for address → dev default). No domain is hardcoded in the repo.
+      time (typed address → built-for address → dev default). The client code hardcodes no domain.
 - [x] CI builds the image on every backend change (not pushed anywhere).
-- [ ] Owner: domain, DNS `api.<domain>`, Resend domain verification, a server, `deploy/.env` – see
-      OWNER-CHECKLIST → Domain and hosting.
+- [x] Owner: domain `kadansplanning.com`, Resend domain verified, a server, DNS `api` → it.
+- [x] `deploy/.env.example` filled in for `api.kadansplanning.com` (domain, sender, public Google ids);
+      DEPLOYMENT.md creates `.env` with secrets generated on the server and covers Cloudflare DNS (the
+      `api` record must be DNS only). The config guard also refuses a Firebase key path that is not a
+      file (Docker mounts a missing file as an empty directory).
+- [ ] Owner: `api` record DNS only, `deploy/.env` on the server, first start – see OWNER-CHECKLIST →
+      Domain and hosting.
 - [ ] After the first deploy: `android:usesCleartextTraffic="false"` for release builds (dev needs http),
       and https App Links / Universal Links for the emailed pages now that there is a domain.
 

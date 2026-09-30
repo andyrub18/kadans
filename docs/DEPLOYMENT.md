@@ -43,6 +43,22 @@ to about ten a month.
 - Resend: verify the domain in Resend and add the DNS records it shows (SPF/DKIM, optionally DMARC);
   then `EMAIL_FROM` can be `Kadans <no-reply@<domain>>`.
 
+Kadans lives at **`api.kadansplanning.com`** (`deploy/.env.example` is filled in for it).
+
+### DNS on Cloudflare: the `api` record is "DNS only"
+
+Cloudflare creates records **proxied** (orange cloud) by default: the name then resolves to Cloudflare's
+addresses, not the server's, and Cloudflare answers in front of it. Caddy expects to be reached directly
+to obtain and renew its certificate, so set the `api` record to **DNS only** (grey cloud) – then the name
+resolves to the server itself (`getent hosts api.<domain>` shows the server's address).
+
+- A `521` with `Server: cloudflare` means Cloudflare cannot reach the server: the stack is not running
+  yet, or ports 80/443 are closed. It is not a Kadans error.
+- Nothing in Kadans needs the proxy. To add it later anyway: SSL/TLS mode **Full (strict)**, set only
+  after Caddy has its certificate. Never "Flexible" – Cloudflare would talk plain HTTP to Caddy, which
+  redirects to HTTPS, an endless loop. Behind the proxy the API logs Cloudflare's addresses instead of
+  the users'.
+
 ## First deployment (VPS)
 
 On a fresh Ubuntu LTS server, as a non-root user with sudo:
@@ -53,21 +69,29 @@ curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker "$USER" && newgrp docker
 sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable
 
-# 2. The code and its configuration
+# 2. The code and its configuration. deploy/.env is not in the repository (it holds the secrets):
+#    it is made here from the template, with random secrets generated on the server itself.
 git clone https://github.com/andyrub18/kadans.git && cd kadans/deploy
-cp .env.example .env
-nano .env                       # KADANS_DOMAIN, POSTGRES_PASSWORD and JWT_KEY (openssl rand -hex 32), Resend, Google ids
+sed -e "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 32)/" \
+    -e "s/^JWT_KEY=.*/JWT_KEY=$(openssl rand -hex 32)/" .env.example > .env
+nano .env                       # RESEND_API_KEY, GOOGLE_DESKTOP_CLIENT_SECRET (domain and ids are filled in)
 mkdir -p secrets backups
-nano secrets/firebase-admin.json   # paste the Firebase service-account JSON (or `{}` with PUSH_PROVIDER=Log)
+#    The Firebase service-account key – the same file as ~/.kadans/firebase-admin.json in dev. From your
+#    computer:  scp ~/.kadans/firebase-admin.json <user>@<server>:kadans/deploy/secrets/
+#    (or `echo '{}' > secrets/firebase-admin.json` and PUSH_PROVIDER=Log to start without push).
+#    It must exist before step 3: Docker turns a missing file into an empty directory.
 chmod 600 .env secrets/firebase-admin.json
 
-# 3. Start. The DNS record must already point here: Caddy fetches the certificate on first start.
+# 3. Start. The DNS record must already point here (DNS only on Cloudflare): Caddy fetches the
+#    certificate on first start.
 docker compose up -d --build
 docker compose logs -f api      # "applying N migration(s)" on the first start, then "Now listening on"
 ```
 
 The API refuses to start with an incomplete configuration and lists **everything** that is missing in
-one message, so there is no restart-per-mistake loop.
+one message (including a Firebase key path that is not a file), so there is no restart-per-mistake loop.
+If `secrets/firebase-admin.json` did turn into a directory, `sudo rm -r secrets/firebase-admin.json`,
+put the file there, and `docker compose up -d` again.
 
 First start only: set `INITIAL_ADMIN_ENABLED=true` with an email and a strong password, start, sign in,
 turn on two-factor authentication, then set it back to `false` and `docker compose up -d`.

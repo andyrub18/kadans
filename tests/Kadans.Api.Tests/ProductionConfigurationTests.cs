@@ -5,6 +5,15 @@ namespace Kadans.Api.Tests;
 
 public class ProductionConfigurationTests
 {
+    private static readonly string FirebaseKey = CreateFirebaseKey();
+
+    private static string CreateFirebaseKey()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"kadans-firebase-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, "{}");
+        return path;
+    }
+
     private static Dictionary<string, string?> Complete() =>
         new()
         {
@@ -16,7 +25,7 @@ public class ProductionConfigurationTests
             ["Email:Resend:ApiKey"] = "re_123",
             ["Email:LinkBaseUrl"] = "https://api.kadans.app",
             ["Push:Provider"] = "Fcm",
-            ["Push:Firebase:CredentialsFile"] = "/run/secrets/firebase-admin.json",
+            ["Push:Firebase:CredentialsFile"] = FirebaseKey,
         };
 
     private static IReadOnlyList<string> Problems(Action<Dictionary<string, string?>> change)
@@ -53,6 +62,17 @@ public class ProductionConfigurationTests
     {
         await Assert.That(Problems(v => v["Jwt:Key"] = "too-short").Single()).Contains("32");
         await Assert.That(Problems(v => v["Email:LinkBaseUrl"] = "http://api.kadans.app").Single()).Contains("https");
+    }
+
+    [Test]
+    public async Task A_firebase_key_path_that_is_not_a_file_is_refused()
+    {
+        // What Docker leaves behind when the file is missing on the first `docker compose up`.
+        var directory = Directory.CreateTempSubdirectory("firebase-admin.json").FullName;
+
+        await Assert.That(Problems(v => v["Push:Firebase:CredentialsFile"] = directory).Single()).Contains("not a file");
+        await Assert.That(Problems(v => v["Push:Firebase:CredentialsFile"] = directory + "-missing").Single()).Contains("not a file");
+        await Assert.That(Problems(v => v["Push:Firebase:CredentialsJson"] = "{}")).IsEmpty();
     }
 
     [Test]

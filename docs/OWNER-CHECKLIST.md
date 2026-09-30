@@ -12,8 +12,8 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
 ## Email – Resend
 
 - [x] API key → `Email:Resend:ApiKey` (done, dev)
-- [ ] Verify a sending domain in Resend (DNS records), then set `Email:From` to an address on it,
-      e.g. `Kadans <no-reply@kadans.app>` (`appsettings.json` has a placeholder)
+- [x] Verify a sending domain in Resend: `kadansplanning.com` (done). `Email:From` defaults to
+      `Kadans <no-reply@kadansplanning.com>` in `appsettings.json`; production sets `EMAIL_FROM`.
 - [ ] To send real mail from dev: `Email:Provider` = `Resend` (dev defaults to `Log`, which prints the
       email – including its link – to the API log)
 - [ ] `Email:LinkBaseUrl` = the public URL the emailed links should open (API URL until the client
@@ -59,7 +59,7 @@ dotnet user-secrets remove "ExternalAuth:Google:ClientIds:0" --project src/Kadan
 ```
 
 - Accepted ID-token audiences = `ClientIds` + `Desktop:ClientId` + `WebClientId`.
-- At public launch: switch the consent screen to Production and add `kadans.app` as an authorized
+- At public launch: switch the consent screen to Production and add `kadansplanning.com` as an authorized
       domain plus homepage/privacy-policy URLs (verification needs them). Testing mode's 7-day limit
       applies to Google refresh tokens, which Kadans never uses — sign-in consumes fresh ID tokens only.
 - To test: desktop → **Continue with Google** opens the browser and the app signs in when you come back;
@@ -110,15 +110,18 @@ If nothing arrives: check the API log for `FCM: 1 sent` lines, and that the phon
 
 The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). What only you can do:
 
-- [ ] Buy the domain. Plan on **`api.<domain>`** for the backend (what the apps and emailed links use) and
-      keep the bare domain free for a website later.
-- [ ] Resend → Domains → add the domain, create the DNS records it shows (SPF/DKIM), wait for "verified",
-      then `EMAIL_FROM=Kadans <no-reply@<domain>>` and a production API key as `RESEND_API_KEY`.
-- [ ] A server: a small VPS in the eastern US (Miami if offered) – reasoning and alternatives in
-      DEPLOYMENT.md → Where to host it. DNS `A` record `api` → its address.
-- [ ] On the server: `deploy/.env` from `.env.example` (`POSTGRES_PASSWORD` and `JWT_KEY` from
-      `openssl rand -hex 32`), `deploy/secrets/firebase-admin.json` (the same service-account key as
-      `~/.kadans/firebase-admin.json`), then `docker compose up -d --build`.
+- [x] Buy the domain: **`kadansplanning.com`**. The backend is **`https://api.kadansplanning.com`** (what
+      the apps and emailed links use); the bare domain stays free for a website later.
+- [x] Resend → Domains → `kadansplanning.com` verified. Still to do: a production API key as
+      `RESEND_API_KEY` in `deploy/.env` (`EMAIL_FROM` is already filled in).
+- [x] A server, with DNS `api` → its address.
+- [ ] Cloudflare → DNS: the `api` record must be **DNS only** (grey cloud), not proxied – otherwise Caddy
+      cannot get its certificate (DEPLOYMENT.md → DNS on Cloudflare).
+- [ ] On the server: `deploy/.env` – it is not in the repository; step 2 of DEPLOYMENT.md → First
+      deployment creates it from `.env.example` with generated `POSTGRES_PASSWORD` and `JWT_KEY` – then
+      `RESEND_API_KEY` and `GOOGLE_DESKTOP_CLIENT_SECRET` in it, `deploy/secrets/firebase-admin.json` (the
+      same service-account key as `~/.kadans/firebase-admin.json`, copied there before the first start),
+      then `docker compose up -d --build`.
 - [ ] First start with `INITIAL_ADMIN_ENABLED=true`, sign in, enable two-factor, set it back to `false`.
 - [ ] Google Cloud → OAuth consent screen: add `<domain>` as an authorized domain when you leave Testing
       mode. No redirect URIs are needed for any of the three clients.

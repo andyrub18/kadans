@@ -44,6 +44,9 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
         }
 
         var recurrence = request.Recurrence;
+        if (RecurringTransaction.CheckNewSchedule(recurrence.Frequency, recurrence.StartDate, DateTimeOffset.UtcNow) is { } scheduleError)
+            return scheduleError;
+
         var schedule = RecurrenceSchedule.Create(
             new RecurrenceSpec(
                 recurrence.Frequency,
@@ -153,7 +156,8 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
         var created = 0;
         foreach (var rule in due)
         {
-            foreach (var occurredAt in rule.DueOccurrences(now))
+            var occurrences = rule.DueOccurrences(now);
+            foreach (var occurredAt in occurrences)
             {
                 dbContext.Transactions.Add(new Transaction
                 {
@@ -169,9 +173,7 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
                 });
                 created++;
             }
-            rule.GeneratedThrough = now;
-            if (rule.IsExhaustedAfter(now))
-                rule.IsActive = false;
+            rule.Advance(occurrences, now);
         }
 
         if (created > 0)

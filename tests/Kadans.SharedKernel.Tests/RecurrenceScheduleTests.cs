@@ -129,7 +129,7 @@ public class RecurrenceScheduleTests
         var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2027, 12, 31));
 
         await Assert.That(occurrences).IsEquivalentTo([Utc(2027, 1, 1, 9), Utc(2027, 1, 3, 9)]);
-        await Assert.That(schedule.GetLastOccurrence()).IsEqualTo(Utc(2027, 1, 3, 9));
+        await Assert.That(schedule.GetNextOccurrence(Utc(2027, 1, 3, 9))).IsNull();
     }
 
     [Test]
@@ -170,12 +170,12 @@ public class RecurrenceScheduleTests
     }
 
     [Test]
-    public async Task Indefinite_rule_has_no_last_occurrence()
+    public async Task Indefinite_rule_always_has_a_next_occurrence()
     {
         var schedule = Build(new RecurrenceSpec(Frequency.Hourly), Utc(2027, 1, 1));
 
         await Assert.That(schedule.IsIndefinite).IsTrue();
-        await Assert.That(schedule.GetLastOccurrence()).IsNull();
+        await Assert.That(schedule.GetNextOccurrence(Utc(2027, 2, 1))).IsEqualTo(Utc(2027, 2, 1, 1));
     }
 
     [Test]
@@ -243,5 +243,124 @@ public class RecurrenceScheduleTests
         await Assert.That(hour.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidHour);
         await Assert.That(monthDay.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidDayOfMonth);
         await Assert.That(setPosAlone.AsT0.ErrorType).IsEqualTo(ErrorTypes.PossibleInvalidSetPos);
+    }
+
+    // Walked in local time, Ical.Net 5.2.3 never returns from an hourly or minute rule that crosses an autumn DST
+    // change. A regression would hang rather than fail, so the expansion runs against a clock.
+    private static async Task<IReadOnlyList<DateTimeOffset>> Expanded(RecurrenceSchedule schedule, DateTimeOffset from, DateTimeOffset to)
+    {
+        var expansion = Task.Run(() => schedule.GetOccurrences(from, to));
+        if (await Task.WhenAny(expansion, Task.Delay(TimeSpan.FromSeconds(10))) != expansion)
+            throw new TimeoutException($"{schedule.Rrule} in {schedule.TimeZoneId} did not return: the autumn DST hang is back.");
+        return await expansion;
+    }
+
+    [Test]
+    [Arguments("America/Port-au-Prince", 11, 1)] // 02:00 EDT falls back to 01:00 EST (06:00Z)
+    [Arguments("Europe/Paris", 10, 25)] // 03:00 CEST falls back to 02:00 CET (01:00Z)
+    public async Task Hourly_rule_crosses_the_autumn_change_one_hour_apart(string zone, int month, int day)
+    {
+        var start = Utc(2026, month, day).AddHours(-12);
+        var schedule = Build(new RecurrenceSpec(Frequency.Hourly), start, zone);
+
+        var occurrences = await Expanded(schedule, start, start.AddHours(36));
+
+        await Assert.That(occurrences.Count).IsEqualTo(37);
+        await Assert.That(occurrences.Zip(occurrences.Skip(1), (a, b) => b - a).Distinct()).IsEquivalentTo([TimeSpan.FromHours(1)]);
+    }
+
+    [Test]
+    public async Task Minute_rule_crosses_the_autumn_change()
+    {
+        var start = Utc(2026, 10, 31, 12);
+        var schedule = Build(new RecurrenceSpec(Frequency.Minutely, Interval: 30), start, "America/Port-au-Prince");
+
+        var occurrences = await Expanded(schedule, start, start.AddDays(2));
+
+        await Assert.That(occurrences.Count).IsEqualTo(97);
+    }
+
+    [Test]
+    public async Task Hourly_rule_counts_elapsed_hours_across_the_spring_change()
+    {
+        // US DST starts 2027-03-14 at 02:00 (07:00Z): local 01:00 is followed by 03:00, one hour later.
+        var start = Utc(2027, 3, 14, 4);
+        var schedule = Build(new RecurrenceSpec(Frequency.Hourly), start, NewYork);
+
+        var occurrences = await Expanded(schedule, start, start.AddHours(6));
+
+        await Assert.That(occurrences).IsEquivalentTo([.. Enumerable.Range(0, 7).Select(h => start.AddHours(h))]);
+    }
+
+    [Test]
+    [Arguments(5)] // 01:30 EDT, the first 01:30 of the night
+    [Arguments(6)] // 01:30 EST, the second: local time alone names the first, which used to lose this one
+    public async Task One_time_rule_in_the_repeated_hour_fires_at_its_own_instant(int utcHour)
+    {
+        var at = Utc(2026, 11, 1, utcHour, 30);
+        var schedule = RecurrenceSchedule.OneTime(at, "America/Port-au-Prince").AsT1;
+
+        await Assert.That(schedule.GetOccurrences(Utc(2026, 10, 31), Utc(2026, 11, 2))).IsEquivalentTo([at]);
+    }
+
+    [Test]
+    public async Task A_new_rule_repeats_at_most_5000_times()
+    {
+        var atLimit = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, Count: RecurrenceSchedule.MaxCount), Utc(2027, 1, 1));
+        var beyond = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, Count: RecurrenceSchedule.MaxCount + 1), Utc(2027, 1, 1));
+
+        await Assert.That(atLimit.IsT1).IsTrue();
+        await Assert.That(beyond.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidRecurrenceRule);
+    }
+
+    [Test]
+    public async Task A_new_rule_ends_within_ten_years()
+    {
+        var start = Utc(2027, 1, 1, 9);
+        var atLimit = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, Until: start.AddYears(10)), start);
+        var beyond = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, Until: start.AddYears(10).AddDays(1)), start);
+
+        await Assert.That(atLimit.IsT1).IsTrue();
+        await Assert.That(beyond.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidRecurrenceRule);
+    }
+
+    [Test]
+    public async Task A_new_rule_fires_at_most_every_five_minutes()
+    {
+        var start = Utc(2027, 1, 1);
+        List<int> allHours = [.. Enumerable.Range(0, 24)];
+        var everyFour = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Minutely, Interval: 4), start);
+        var everyFive = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Minutely, Interval: 5), start);
+        // "N times a day" is hours × minutes: 24 × 12 is every 5 minutes, 24 × 13 is more.
+        var daily288 = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, ByHour: allHours, ByMinute: [.. Enumerable.Range(0, 12).Select(i => i * 5)]), start);
+        var daily312 = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, ByHour: allHours, ByMinute: [.. Enumerable.Range(0, 13)]), start);
+
+        await Assert.That(everyFour.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidInterval);
+        await Assert.That(everyFive.IsT1).IsTrue();
+        await Assert.That(daily288.IsT1).IsTrue();
+        await Assert.That(daily312.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidRecurrenceRule);
+    }
+
+    [Test]
+    public async Task Hourly_and_minute_rules_take_no_hour_day_or_month_parts()
+    {
+        // Expanded in UTC, such parts would mean UTC hours and days, not the user's.
+        var byHour = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Hourly, ByHour: [9, 10]), Utc(2027, 1, 1));
+        var byDay = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Minutely, Interval: 15, ByDay: [DayOfWeek.Monday]), Utc(2027, 1, 1));
+
+        await Assert.That(byHour.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidRecurrenceRule);
+        await Assert.That(byDay.AsT0.ErrorType).IsEqualTo(ErrorTypes.InvalidRecurrenceRule);
+    }
+
+    [Test]
+    public async Task Expansion_stops_at_the_limit_whatever_the_window()
+    {
+        var schedule = Build(new RecurrenceSpec(Frequency.Minutely, Interval: 5), Utc(2027, 1, 1));
+
+        var asked = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2127, 1, 1), limit: 10);
+        var ceiling = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2127, 1, 1), limit: int.MaxValue);
+
+        await Assert.That(asked.Count).IsEqualTo(10);
+        await Assert.That(ceiling.Count).IsEqualTo(RecurrenceSchedule.MaxOccurrences);
     }
 }

@@ -17,6 +17,16 @@ public sealed class RecurrenceSchedule
 {
     public const string DefaultTimeZoneId = "UTC";
 
+    /// <summary>The most instants one <see cref="GetOccurrences"/> call returns; callers ask for what they keep.</summary>
+    public const int MaxOccurrences = 10_000;
+
+    // What a new rule may describe (stored rules are trusted as they are). The densest rule, every 5 minutes,
+    // fills a 30-day occurrence horizon with 8,640 instants: under MaxOccurrences.
+    public const int MaxCount = 5_000;
+    public const int MaxYears = 10;
+    public const int MinMinuteInterval = 5;
+    public const int MaxPerDay = 24 * 60 / MinMinuteInterval;
+
     private readonly RecurrencePattern pattern;
     private readonly HashSet<DateTimeOffset> exceptions;
 
@@ -104,6 +114,9 @@ public sealed class RecurrenceSchedule
             );
         }
 
+        if (OutOfLimits(spec, start) is { } limitError)
+            return limitError;
+
         var pattern = new RecurrencePattern(ToFrequencyType(spec.Frequency), spec.Interval)
         {
             Count = spec.Count,
@@ -137,13 +150,17 @@ public sealed class RecurrenceSchedule
         IEnumerable<DateTimeOffset>? exceptions = null
     ) => new(new RecurrencePattern(rrule), timeZoneId, start, exceptions ?? []);
 
-    /// <summary>Occurrences with <c>from &lt;= occurrence &lt;= to</c>, ascending.</summary>
-    public IReadOnlyList<DateTimeOffset> GetOccurrences(DateTimeOffset from, DateTimeOffset to)
+    /// <summary>
+    /// Occurrences with <c>from &lt;= occurrence &lt;= to</c>, ascending, at most <paramref name="limit"/> of them
+    /// (never more than <see cref="MaxOccurrences"/>). Expansion stops at the limit, so a wide window over a dense
+    /// rule costs what the caller keeps, not what the window holds.
+    /// </summary>
+    public IReadOnlyList<DateTimeOffset> GetOccurrences(DateTimeOffset from, DateTimeOffset to, int limit = MaxOccurrences)
     {
-        if (to < from)
+        if (to < from || limit < 1)
             return [];
 
-        return [.. Expand(from).TakeWhile(d => d <= to)];
+        return [.. Expand(from).TakeWhile(d => d <= to).Take(Math.Min(limit, MaxOccurrences))];
     }
 
     /// <summary>The first occurrence strictly after <paramref name="after"/>, if any.</summary>
@@ -159,29 +176,21 @@ public sealed class RecurrenceSchedule
     }
 
     /// <summary>
-    /// The last occurrence of a bounded rule (COUNT or UNTIL), or <c>null</c> for an
-    /// indefinite one.
+    /// Hourly and minute rules count elapsed time, so they are expanded from their start in UTC. Across a spring
+    /// DST change that yields the instants Ical.Net computes in local time anyway; across an autumn one (the hour
+    /// that happens twice) Ical.Net 5.2.3 never returns from local time. A one-time rule is exactly its start
+    /// instant, which local time cannot always name (01:30 twice on a fall-back night).
     /// </summary>
-    public DateTimeOffset? GetLastOccurrence()
-    {
-        if (IsIndefinite)
-            return null;
-
-        DateTimeOffset? last = null;
-        foreach (var occurrence in Expand(Start))
-            last = occurrence;
-
-        return last;
-    }
+    private bool ExpandsInUtc =>
+        pattern.Frequency is FrequencyType.Minutely or FrequencyType.Hourly or FrequencyType.Secondly || pattern.Count == 1;
 
     private IEnumerable<DateTimeOffset> Expand(DateTimeOffset from)
     {
-        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
-        var startWallClock = TimeZoneInfo.ConvertTime(Start, timeZone).DateTime;
-
         var calendarEvent = new CalendarEvent
         {
-            Start = new CalDateTime(startWallClock, TimeZoneId),
+            Start = ExpandsInUtc
+                ? new CalDateTime(Start.UtcDateTime, "UTC")
+                : new CalDateTime(TimeZoneInfo.ConvertTime(Start, TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId)).DateTime, TimeZoneId),
             RecurrenceRule = pattern,
         };
 
@@ -223,6 +232,36 @@ public sealed class RecurrenceSchedule
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// At most <see cref="MaxCount"/> repeats, an end within <see cref="MaxYears"/> years, and no more than
+    /// <see cref="MaxPerDay"/> instants a day. Hourly and minute rules take no hour, day or month parts: they are
+    /// expanded in UTC (<see cref="ExpandsInUtc"/>), where those parts would mean UTC hours and days, not the user's.
+    /// </summary>
+    private static ApplicationError? OutOfLimits(RecurrenceSpec spec, DateTimeOffset start)
+    {
+        if (spec.Count > MaxCount)
+            return new ApplicationError(ErrorTypes.InvalidRecurrenceRule, "A rule can repeat at most 5,000 times.");
+
+        if (spec.Until > start.AddYears(MaxYears))
+            return new ApplicationError(ErrorTypes.InvalidRecurrenceRule, "A rule can run for at most 10 years.");
+
+        if (spec.Frequency is Frequency.Minutely or Frequency.Hourly)
+        {
+            if (spec.Frequency == Frequency.Minutely && spec.Interval < MinMinuteInterval)
+                return new ApplicationError(ErrorTypes.InvalidInterval, "A rule can repeat at most every 5 minutes.");
+
+            int?[] parts = [spec.ByHour?.Count, spec.ByMinute?.Count, spec.ByDay?.Count, spec.ByMonthDay?.Count, spec.ByMonth?.Count, spec.BySetPos?.Count];
+            return parts.Any(count => count > 0)
+                ? new ApplicationError(ErrorTypes.InvalidRecurrenceRule, "An hourly or minute rule cannot be limited to certain hours, days or months.")
+                : null;
+        }
+
+        var perDay = (spec.ByHour?.Distinct().Count() ?? 1) * (spec.ByMinute?.Distinct().Count() ?? 1);
+        return perDay > MaxPerDay
+            ? new ApplicationError(ErrorTypes.InvalidRecurrenceRule, "A rule can fire at most 288 times a day.")
+            : null;
     }
 
     private static FrequencyType ToFrequencyType(Frequency frequency) =>

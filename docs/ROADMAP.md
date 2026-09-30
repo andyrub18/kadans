@@ -287,8 +287,14 @@ installing on real devices second, hosting last.
       lead read "in 14 min" and an hour "in 59 min"; it now rounds up to the minute. A lead is at most
       30 days (a huge one was a 500), and an update can no longer blank the title. Measured after: the
       reminder 2–6 s after its notify time, reading "in 1 min", "in 15 min", "in 1 h".
-- [ ] Recurrence limits: rule end, repeat count and calendar window are bounded, and the engine never
-      expands more than it returns (Tasks and Budget).
+- [x] Recurrence limits. A new rule repeats at most 5,000 times, ends within 10 years and fires at most
+      every 5 minutes; hourly and minute rules take no hour, day or month parts. A calendar request
+      covers at most a year. The engine stops expanding at what a caller keeps, and no longer walks a
+      bounded rule to its last instance to learn whether it is finished. Budget rules repeat daily at most
+      and start at most a year back. Measured: creating an hourly rule that ends in 10 years went from
+      0.43 s to 0.05 s, and a year-wide calendar request takes 0.06 s. Found on the way, both in the
+      known-bugs table: hourly and minute rules hung the server across an autumn DST change, and Budget
+      skipped the backlog of rules backdated by more than 100 occurrences.
 - [ ] Google sign-in: linking rules for an account that already uses the same email.
 - [ ] Rate limiting on the anonymous and email-sending endpoints (moved up from nice-to-have).
 - [ ] The profile follows the device: time zone and language are sent at sign-up and synced after every
@@ -325,6 +331,9 @@ Nice-to-have hardening
 | Tasks: reminder timing | ~~Production reminders came up to 60 s late: only `appsettings.Development.json` set `Tasks:ReminderIntervalSeconds` (10), and the code default was 60~~ fixed 2026-09-30: the default is 10 s |
 | Tasks: reminder text | ~~A 15-minute lead read "in 14 min" and an hour "in 59 min": the time left was rounded down, and a pass always lands a few seconds after the notify time~~ fixed 2026-09-30: rounded up to the minute |
 | Tasks: `PUT /todos/{id}` | ~~`notifyBeforeInMinutes` had no upper bound (a huge value overflowed the date arithmetic into a 500), and an update could blank the title~~ fixed 2026-09-30: a lead is at most 30 days (code 10052, create and update), and the title is required |
+| SharedKernel: `RecurrenceSchedule` | ~~Ical.Net 5.2.3 never returns when it expands an hourly or minute rule across an autumn DST change in local time (Port-au-Prince 2026-11-01, Paris 2026-10-25; spring changes and daily rules are fine). The horizon job, creating such a todo, or a calendar spanning the change would hang with a CPU core spinning, and the 30-day horizon would have reached 1 November on 2 October~~ fixed 2026-09-30: hourly, minute and one-time rules are expanded in UTC; the smoke script checks the next fall-back |
+| SharedKernel: `RecurrenceSchedule` | ~~A one-time todo at the second 01:30 of a fall-back night (01:30 EST, after 01:30 EDT) never materialized: local time named the first 01:30, an hour before the start, and it was filtered out~~ fixed 2026-09-30: a one-time rule is its own instant |
+| Budget: `RecurringTransactionJob` | ~~A pass created at most 100 transactions per rule, then moved the marker to now: a rule backdated by more than 100 occurrences (the app's date picker allows past dates) silently lost the rest~~ fixed 2026-09-30: the next pass resumes after the last one created, and exhaustion is judged from there |
 | Identity: email change | ~~The emailed link pointed at `POST /users/me/email/confirm`, which needs a bearer token – no mail client or browser could ever complete it, so an email change could not be finished by a person. Unnoticed because the smoke script scraped the token from the log and called the API itself~~ fixed 2026-09-18: anonymous landing page, and the smoke script now opens the link like a browser |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

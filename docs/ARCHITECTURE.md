@@ -146,6 +146,19 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   short months (use `-1` for "last day"); `COUNT` bounds the generated set and exceptions
   remove from it; `UNTIL` is stored in UTC. Wall-clock times are interpreted in the rule's
   time zone, so "09:00 daily" crosses DST correctly.
+- **Hourly, minute and one-time rules are expanded in UTC.** Hourly and minute rules count elapsed
+  time, and Ical.Net gives those instants in local time too, except across an autumn DST change
+  (the hour that happens twice), where 5.2.3 never returns. A one-time rule is exactly its start
+  instant, which local time cannot always name (01:30 twice on a fall-back night). Daily and slower
+  rules stay in local time. So hourly and minute rules take no hour, day or month parts; the app's
+  "N times a day" is a daily rule with an hour list.
+- **Limits.** A new rule repeats at most 5,000 times, ends within 10 years, and fires at most 288
+  times a day (every 5 minutes). Stored rules are trusted as they are. `GetOccurrences` stops at a
+  limit (the caller passes what it keeps, never above 10,000), so a wide window costs what it
+  returns. Whether a bounded rule is finished is "no instance after the horizon", never a walk to
+  its last instance. A calendar request covers at most a year. Ical.Net replays hourly and minute
+  rules from their start (about 0.5 ms per day of age at every 5 minutes) but fast-forwards daily
+  and slower ones. If dense rules ever become common, re-anchor their start.
 - **Materialized occurrences with a rolling horizon**: a scheduled job guarantees every active
   rule has occurrences generated through `now + 30 days`. Past and near future = table (truth);
   far future = computed preview only.
@@ -205,5 +218,6 @@ daily) used for estimates and transfer pre-fill only; stored amounts never move,
 estimate reports currencies without a rate instead of guessing. Recurring transactions run on the
 shared recurrence engine: `RecurringTransactionJob` (Quartz, `Budget:RecurringIntervalMinutes`,
 15 by default) materializes due rules into real transactions, so salary lands on the 1st with no
-client running; exhausted rules self-deactivate. A "pay rent" task and a recurring transaction are
-the same cadence seen from two modules.
+client running; exhausted rules self-deactivate. Money rules repeat daily at most and start at most
+a year back. A pass creates up to 100 transactions per rule; a longer backlog resumes on the next
+pass. A "pay rent" task and a recurring transaction are the same cadence seen from two modules.

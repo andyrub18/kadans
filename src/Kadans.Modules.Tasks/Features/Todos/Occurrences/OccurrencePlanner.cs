@@ -26,7 +26,9 @@ internal static class OccurrencePlanner
         var taken = new List<DateTimeOffset>();
         var truncated = false;
 
-        foreach (var instance in schedule.GetOccurrences(from, horizon))
+        // Enough for a full batch, plus the instance at generatedThrough (skipped) and one more to tell a
+        // truncated window from one that just fits.
+        foreach (var instance in schedule.GetOccurrences(from, horizon, limit: maxBatch + 2))
         {
             // Continue strictly after the previous pass.
             if (generatedThrough is not null && instance <= generatedThrough.Value)
@@ -54,13 +56,10 @@ internal static class OccurrencePlanner
         return new Plan(toInsert, newGeneratedThrough);
     }
 
-    /// <summary>A bounded rule whose last instance is within the horizon has nothing left to generate.</summary>
-    private static bool IsExhaustedBy(RecurrenceSchedule schedule, DateTimeOffset horizon)
-    {
-        if (schedule.IsIndefinite)
-            return false;
-
-        var last = schedule.GetLastOccurrence();
-        return last is null || last.Value <= horizon;
-    }
+    /// <summary>
+    /// A bounded rule with nothing after the horizon has nothing left to generate. Asking for the next instance
+    /// costs the same whether the rule ends next month or in ten years; walking to its last one did not.
+    /// </summary>
+    private static bool IsExhaustedBy(RecurrenceSchedule schedule, DateTimeOffset horizon) =>
+        !schedule.IsIndefinite && schedule.GetNextOccurrence(horizon) is null;
 }

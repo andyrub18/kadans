@@ -1,4 +1,5 @@
 using Kadans.Modules.Budget.Domain;
+using Kadans.SharedKernel.Errors;
 using Kadans.SharedKernel.Recurrence;
 
 namespace Kadans.Budget.Tests;
@@ -73,5 +74,79 @@ public class RecurringTransactionTests
         await Assert.That(bounded.DueOccurrences(Start.AddDays(10)).Count).IsEqualTo(2);
         await Assert.That(bounded.IsExhaustedAfter(Start.AddDays(10))).IsTrue();
         await Assert.That(bounded.IsExhaustedAfter(Start)).IsFalse();
+    }
+
+    [Test]
+    [Arguments(Frequency.Minutely)]
+    [Arguments(Frequency.Hourly)]
+    public async Task Money_rules_repeat_at_most_daily(Frequency frequency)
+    {
+        await Assert.That(RecurringTransaction.CheckNewSchedule(frequency, Start, Start)!.ErrorType).IsEqualTo(ErrorTypes.InvalidFrequency);
+        await Assert.That(RecurringTransaction.CheckNewSchedule(Frequency.Daily, Start, Start)).IsNull();
+    }
+
+    [Test]
+    public async Task A_money_rule_starts_at_most_a_year_back()
+    {
+        await Assert.That(RecurringTransaction.CheckNewSchedule(Frequency.Monthly, Start.AddMonths(-11), Start)).IsNull();
+        await Assert.That(RecurringTransaction.CheckNewSchedule(Frequency.Monthly, Start.AddYears(-1).AddDays(-1), Start)!.ErrorType)
+            .IsEqualTo(ErrorTypes.InvalidStartDate);
+    }
+
+    [Test]
+    public async Task A_backlog_longer_than_one_pass_resumes_on_the_next_pass()
+    {
+        // Daily for 250 days before now: 251 instances over three passes of 100, 100 and 51. Before, the first
+        // pass moved the marker to now and the other 151 were never created.
+        var rule = Daily(Start.AddDays(-250));
+        var materialized = new List<DateTimeOffset>();
+
+        for (var pass = 0; pass < 4; pass++)
+        {
+            var due = rule.DueOccurrences(Start);
+            materialized.AddRange(due);
+            rule.Advance(due, Start);
+        }
+
+        await Assert.That(materialized.Count).IsEqualTo(251);
+        await Assert.That(materialized.Distinct().Count()).IsEqualTo(251);
+        await Assert.That(rule.GeneratedThrough).IsEqualTo(Start);
+    }
+
+    [Test]
+    public async Task A_bounded_rule_stays_active_until_its_backlog_is_done()
+    {
+        // Ended ten days ago, but 241 instances are still owed: exhaustion is judged where materialization stopped.
+        var rule = Daily(Start.AddDays(-250), until: Start.AddDays(-10));
+
+        var first = rule.DueOccurrences(Start);
+        rule.Advance(first, Start);
+        var activeAfterFirstPass = rule.IsActive;
+        var total = first.Count;
+        while (rule.IsActive && rule.DueOccurrences(Start) is { Count: > 0 } due)
+        {
+            total += due.Count;
+            rule.Advance(due, Start);
+        }
+
+        await Assert.That(activeAfterFirstPass).IsTrue();
+        await Assert.That(total).IsEqualTo(241);
+        await Assert.That(rule.IsActive).IsFalse();
+    }
+
+    private static RecurringTransaction Daily(DateTimeOffset start, DateTimeOffset? until = null)
+    {
+        var schedule = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, Until: until), start).AsT1;
+        return new RecurringTransaction
+        {
+            UserId = "u1",
+            AccountId = Guid.CreateVersion7(),
+            Kind = TransactionKind.Expense,
+            Amount = 250m,
+            Currency = Currency.Htg,
+            Rrule = schedule.Rrule,
+            TimeZoneId = schedule.TimeZoneId,
+            StartDate = schedule.Start,
+        };
     }
 }

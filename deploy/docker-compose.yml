@@ -30,7 +30,9 @@ services:
     # Exactly one instance, by design: the scheduler, the pomodoro deadline watcher, the push queue and
     # SignalR all live in this process. Never scale this service.
     environment:
-      ConnectionStrings__kadans: Host=db;Database=kadans;Username=kadans;Password=${POSTGRES_PASSWORD:?}
+      # GSS Encryption Mode=Disable: the database is on the private compose network; without it Npgsql probes
+      # for Kerberos and logs "Cannot load library libgssapi_krb5.so.2" (harmless, but it looks like an error).
+      ConnectionStrings__kadans: Host=db;Database=kadans;Username=kadans;Password=${POSTGRES_PASSWORD:?};GSS Encryption Mode=Disable
       Jwt__Key: ${JWT_KEY:?}
       Email__Provider: ${EMAIL_PROVIDER:-Resend}
       Email__Resend__ApiKey: ${RESEND_API_KEY:-}

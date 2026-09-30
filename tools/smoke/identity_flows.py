@@ -46,6 +46,8 @@ C("register alice", s == 200 and r["emailConfirmed"] is False, f"{s}")
 m = link(r"/auth/confirm-email\?userId=([^&\s]+)&token=([^\s]+)")
 C("confirmation link logged", m is not None)
 C("confirmation email is in Kreyòl", "Konfime imèl Kadans ou" in open(LOG).read())
+s, r = call("GET", f"/auth/confirm-email?userId={m[0]}&token=broken{m[1]}", raw=True)
+C("a broken confirm link gets a page, not JSON", s == 400 and "<html" in (r or "").lower() and "errorCode" not in (r or ""), f"{s}")
 s, r = call("GET", f"/auth/confirm-email?userId={m[0]}&token={m[1]}", raw=True)
 # alice is ht, so the (now localized, HTML) landing page says it in Kreyòl
 C("GET confirm link", s == 200 and ("confirmed" in r or "konfime" in r), f"{s}")

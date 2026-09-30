@@ -82,7 +82,10 @@ mkdir -p secrets backups
 #      scp ~/.kadans/firebase-admin.json <user>@<server>:kadans/deploy/secrets/firebase-admin.json
 #    (or `echo '{}' > secrets/firebase-admin.json` and PUSH_PROVIDER=Log to start without push).
 #    It must exist before step 3: Docker turns a missing file into an empty directory.
-chmod 600 .env secrets/firebase-admin.json
+chmod 600 .env
+#    The API runs as uid/gid 1654 inside the container, not as you: give that group read access
+#    (600 locks it out – "Access to the path '/run/secrets/firebase-admin.json' is denied").
+sudo chown "$USER":1654 secrets/firebase-admin.json && chmod 640 secrets/firebase-admin.json
 
 # 3. Start. The DNS record must already point here (DNS only on Cloudflare): Caddy fetches the
 #    certificate on first start.
@@ -91,9 +94,13 @@ docker compose logs -f api      # "applying N migration(s)" on the first start, 
 ```
 
 The API refuses to start with an incomplete configuration and lists **everything** that is missing in
-one message (including a Firebase key path that is not a file), so there is no restart-per-mistake loop.
-If `secrets/firebase-admin.json` did turn into a directory, `sudo rm -r secrets/firebase-admin.json`,
-put the file there, and `docker compose up -d` again.
+one message (including a Firebase key path that is not a file, or a key the container cannot read), so
+there is no restart-per-mistake loop. If `secrets/firebase-admin.json` did turn into a directory,
+`sudo rm -r secrets/firebase-admin.json`, put the file there, and `docker compose up -d` again.
+
+On the very first start only, each module logs `[ERR] Failed executing DbCommand … __ef_migrations_history`
+twice before "applying N migration(s)": EF Core looks for its history table before creating it. Expected,
+not an error; it does not come back once the schema exists.
 
 First start only: set `INITIAL_ADMIN_ENABLED=true` with an email and a strong password, start, sign in,
 turn on two-factor authentication, then set it back to `false` and `docker compose up -d`.
@@ -155,8 +162,11 @@ whole restore applies or nothing changes. Test a restore once before you need on
 - OS updates: `sudo apt update && sudo apt upgrade`, and `unattended-upgrades` for security patches.
 - Certificates: Caddy renews them; keep the `caddy_data` volume.
 - Secrets live only in `deploy/.env` and `deploy/secrets/` on the server (both git-ignored). Changing
-  `JWT_KEY` signs everyone out; changing `POSTGRES_PASSWORD` in `.env` does not change the password
-  already stored in the database volume.
+  `JWT_KEY` signs everyone out and invalidates emailed links not yet opened; changing `POSTGRES_PASSWORD`
+  in `.env` does not change the password already stored in the database volume.
+- Emailed links (confirm email, reset password, confirm a new email) carry tokens protected by ASP.NET
+  Core Data Protection. Its key ring is in the database (`identity.data_protection_keys`), encrypted with
+  a key derived from `JWT_KEY`: links survive updates, and a database dump alone cannot forge them.
 
 ## Other hosts
 
@@ -164,7 +174,9 @@ Any platform that runs a container works with the same `Dockerfile`. Requirement
 
 - one instance, always on, no scale-to-zero; WebSockets allowed;
 - the platform terminates TLS and forwards to port `8080` (the image already trusts `X-Forwarded-*`);
-- a Postgres 16+ database, its connection string in `ConnectionStrings__kadans`;
+- a Postgres 16+ database, its connection string in `ConnectionStrings__kadans` (append
+  `;GSS Encryption Mode=Disable` unless the database uses Kerberos – otherwise Npgsql logs
+  "Cannot load library libgssapi_krb5.so.2" at start, harmless but alarming);
 - the variables listed in `deploy/docker-compose.yml` under `api.environment` (double underscore = `:`);
 - the Firebase key as `Push__Firebase__CredentialsJson` (the whole JSON in one secret) when mounting a
   file is not possible;

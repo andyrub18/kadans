@@ -76,6 +76,27 @@ public class ProductionConfigurationTests
     }
 
     [Test]
+    public async Task A_firebase_key_the_process_cannot_read_is_refused()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+        var locked = Path.Combine(Path.GetTempPath(), $"kadans-firebase-locked-{Guid.NewGuid():N}.json");
+        File.WriteAllText(locked, "{}");
+        File.SetUnixFileMode(locked, UnixFileMode.None);
+        try
+        {
+            // root reads anything: nothing to prove there.
+            if (Environment.UserName == "root")
+                return;
+            await Assert.That(Problems(v => v["Push:Firebase:CredentialsFile"] = locked).Single()).Contains("cannot read");
+        }
+        finally
+        {
+            File.Delete(locked);
+        }
+    }
+
+    [Test]
     public async Task Log_providers_need_no_keys_so_a_first_start_without_email_or_push_is_possible()
     {
         var problems = Problems(values =>

@@ -11,6 +11,8 @@ using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +55,18 @@ public sealed class IdentityModule : IModule
             // Password and username rules in the request's language (codes unchanged).
             .AddErrorDescriber<LocalizedIdentityErrorDescriber>()
             .AddDefaultTokenProviders();
+        // The default token providers protect emailed-link tokens with Data Protection. Its default key store is
+        // a folder inside the container, lost on every rebuild (and every link sent before it with it), so the
+        // keys live in this module's schema instead – encrypted, since they end up in the backups too.
+        services
+            .AddDataProtection()
+            .SetApplicationName("Kadans")
+            .PersistKeysToDbContext<IdentityModuleDbContext>();
+        services
+            .AddOptions<KeyManagementOptions>()
+            .Configure<IConfiguration>((options, config) =>
+                options.XmlEncryptor = new KeyRingXmlEncryptor(KeyRingEncryption.DeriveKey(config))
+            );
 
         services.ConfigureOptions<JwtParameterOptionsSetup>();
         services.Configure<ExternalAuthOptions>(configuration.GetSection(ExternalAuthOptions.SectionName));

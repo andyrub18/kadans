@@ -128,6 +128,18 @@ s, rules = call("GET", "/budget/recurring/", token=T)
 mine = next((x for x in rules if x["id"] == rule["id"]), None)
 C("exhausted rule deactivated", mine is not None and mine["isActive"] is False, f"{mine and mine['isActive']}")
 
+# --- recurring limits: money moves by the day, and a rule backdates a year at most ---
+s, r = call("POST", "/budget/recurring/", {
+    "accountId": bank["id"], "kind": "Expense", "amount": 5, "note": "smoke hourly",
+    "recurrence": {"frequency": "Hourly", "startDate": iso(now)},
+}, T)
+C("an hourly money rule is refused (10011)", s == 400 and code(r) == "10011", f"{s} {r}")
+s, r = call("POST", "/budget/recurring/", {
+    "accountId": bank["id"], "kind": "Expense", "amount": 5, "note": "smoke backdated",
+    "recurrence": {"frequency": "Monthly", "startDate": iso(now - dt.timedelta(days=400))},
+}, T)
+C("a money rule backdated over a year is refused (10012)", s == 400 and code(r) == "10012", f"{s} {r}")
+
 # --- settings: base currency + indicative per-currency rates (estimates only) ---
 s, r = call("GET", "/budget/settings/", token=T)
 C("settings default to HTG base", s == 200 and r["baseCurrency"] == "Htg", f"{r}")

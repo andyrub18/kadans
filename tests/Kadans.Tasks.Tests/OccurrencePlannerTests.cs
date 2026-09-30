@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
 using Kadans.SharedKernel.Recurrence;
 
@@ -81,5 +82,21 @@ public class OccurrencePlannerTests
 
         await Assert.That(plan.ToInsert).IsEquivalentTo([Utc(2027, 3, 1, 15)]);
         await Assert.That(plan.GeneratedThrough).IsEqualTo(DateTimeOffset.MaxValue);
+    }
+
+    [Test]
+    public async Task A_rule_ending_centuries_away_is_not_walked_to_its_end()
+    {
+        // Stored rules are trusted as they are. Knowing this one is not exhausted at the horizon used to mean
+        // walking all of its ~4.4 million hours; asking for the next instance after the horizon takes one step.
+        var start = Utc(2027, 1, 1);
+        var schedule = RecurrenceSchedule.FromStored("FREQ=HOURLY;UNTIL=25270101T000000Z", "UTC", start);
+
+        var watch = Stopwatch.StartNew();
+        var plan = OccurrencePlanner.Next(schedule, null, horizon: start.AddDays(30), new HashSet<DateTimeOffset>(), maxBatch: 1000);
+
+        await Assert.That(plan.ToInsert.Count).IsEqualTo(30 * 24 + 1);
+        await Assert.That(plan.GeneratedThrough).IsEqualTo(start.AddDays(30));
+        await Assert.That(watch.Elapsed).IsLessThan(TimeSpan.FromSeconds(2));
     }
 }

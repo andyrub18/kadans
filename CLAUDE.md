@@ -101,7 +101,11 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `PreferredLanguage`; error responses follow the request's `Accept-Language`, which the client sets from
   its in-app language on every call.
 - Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,
-  and ask it for occurrences. Clients send a structured rule plus an IANA `TimeZone`.
+  and ask it for occurrences. Clients send a structured rule plus an IANA `TimeZone`. Pass
+  `GetOccurrences` the number you will keep (it never returns more than 10,000). To learn whether a
+  bounded rule is finished, ask for the next occurrence after the point that matters; never walk it to
+  its end. New rules have limits (`RecurrenceSchedule.MaxCount`, `MaxYears`, `MaxPerDay`), and hourly
+  and minute rules are expanded in UTC (Ical.Net hangs on them across an autumn DST change).
 
 ## Client
 

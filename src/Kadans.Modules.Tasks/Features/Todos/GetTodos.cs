@@ -55,14 +55,20 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         return occurrences.ConvertAll(o => o.ToResponse());
     }
 
+    /// <summary>The widest window one calendar request may ask for; the app asks for six weeks at a time.</summary>
+    internal static readonly TimeSpan MaxWindow = TimeSpan.FromDays(366);
+
     /// <summary>
-    /// Pending occurrences across all todos in a window. Past the materialization horizon the
-    /// window is filled with computed previews so calendars can look arbitrarily far ahead.
+    /// Pending occurrences across all todos in a window of up to a year. Past the materialization
+    /// horizon the window is filled with computed previews, so calendars can page far ahead.
     /// </summary>
     public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetOccurrencesByDateRange(DateTimeOffset from, DateTimeOffset to)
     {
         if (from > to)
             return new ApplicationError(ErrorTypes.InvalidInterval, "Start date must be earlier than end date.");
+
+        if (to - from > MaxWindow)
+            return new ApplicationError(ErrorTypes.InvalidInterval, "The calendar range can be at most a year.");
 
         var materialized = await dbContext
             .TodoOccurrences.Include(o => o.Todo)
@@ -81,8 +87,9 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
             var generatedThrough = todo.OccurrencesGeneratedThrough;
             var previewFrom = generatedThrough is null || generatedThrough < from ? from : generatedThrough.Value;
 
+            // One more than kept: the instance at generatedThrough (already a row) comes back first and is dropped.
             var previews = todo
-                .RecurrenceRule.GetOccurrences(previewFrom, to)
+                .RecurrenceRule.GetOccurrences(previewFrom, to, limit: options.Value.MaxPreviewPerTodo + 1)
                 .Where(at => generatedThrough is null || at > generatedThrough.Value)
                 .Take(options.Value.MaxPreviewPerTodo)
                 .Select(todo.PreviewOccurrence);

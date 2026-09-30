@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end check of the Tasks module (occurrence materialization, overrides, rule changes,
-previews) against a running API in Development. Logs in as the seeded admin.
+previews, reminder leads, recurrence limits, the next autumn DST change in Port-au-Prince) against
+a running API in Development.
 
     python3 tools/smoke/task_flows.py [base-url] [username] [password]   # default user: smoke
 
@@ -23,7 +24,8 @@ def call(method, path, body=None, token=None, lang=None):
         try: return json.loads(b)
         except json.JSONDecodeError: return {"_raw": b[:200]}
     try:
-        with urllib.request.urlopen(req) as r: return r.status, parse(r.read().decode())
+        # A request the server never answers (the old autumn-DST expansion hang) fails the run instead of freezing it.
+        with urllib.request.urlopen(req, timeout=30) as r: return r.status, parse(r.read().decode())
     except urllib.error.HTTPError as e: return e.code, parse(e.read().decode())
 
 def C(label, ok, extra=""):
@@ -77,10 +79,10 @@ s, th = call("POST", "/todos/recurring", {"title": "smoke: hourly", "description
              "recurrenceRule": {"frequency": "Hourly", "startDate": iso(start), "timeZone": "UTC"}}, token=T)
 oh = occ(th["id"])
 C("hourly: materialized up to the horizon (~30d*24 ≈ 700)", 650 <= len(oh) <= 720, f"{len(oh)}")
-s, tm = call("POST", "/todos/recurring", {"title": "smoke: minutely", "description": "", "notificationEnabled": False,
-             "recurrenceRule": {"frequency": "Minutely", "startDate": iso(start), "timeZone": "UTC"}}, token=T)
+s, tm = call("POST", "/todos/recurring", {"title": "smoke: every 5 minutes", "description": "", "notificationEnabled": False,
+             "recurrenceRule": {"frequency": "Minutely", "interval": 5, "startDate": iso(start), "timeZone": "UTC"}}, token=T)
 om = occ(tm["id"])
-C("minutely: capped at 1000 per pass", len(om) == 1000, f"{len(om)}")
+C("every 5 minutes (8,640 in the horizon): capped at 1000 per pass", len(om) == 1000, f"{len(om)}")
 far_from, far_to = start + dt.timedelta(days=40), start + dt.timedelta(days=40, hours=3)
 s, rng = call("GET", f"/occurrences?from={iso(far_from)}&to={iso(far_to)}", token=T)
 previews = [o for o in rng if o["isPreview"] and o["todoId"] == th["id"]]
@@ -143,6 +145,41 @@ s, r = call("PUT", f"/todos/{lead['id']}", {"title": "smoke: lead", "description
 C("a huge lead on update is a 400 in the caller's language (was a 500)",
   s == 400 and r["errors"][0]["code"] == "10052" and r["errors"][0]["message"].startswith("Un rappel"), f"{s} {r}")
 call("PUT", f"/todos/{lead['id']}/cancel", {"reason": "cleanup"}, token=T)
+
+# --- recurrence limits: 5,000 repeats, 10 years, every 5 minutes at most; a calendar asks a year at most ---
+HAITI = "America/Port-au-Prince"
+def recurring(title, rule):
+    return call("POST", "/todos/recurring", {"title": title, "description": "", "notificationEnabled": False,
+                                             "recurrenceRule": {"startDate": iso(start), "timeZone": HAITI, **rule}}, token=T)
+s, r = recurring("smoke: count", {"frequency": "Daily", "count": 5001})
+C("more than 5,000 repeats is refused (10013)", s == 400 and r["errorCode"] == "10013", f"{s} {r.get('detail')}")
+s, r = recurring("smoke: until", {"frequency": "Daily", "until": iso(start + dt.timedelta(days=3700))})
+C("an end more than 10 years out is refused (10013)", s == 400 and r["errorCode"] == "10013", f"{s} {r.get('detail')}")
+s, r = recurring("smoke: every minute", {"frequency": "Minutely", "interval": 1})
+C("every minute is refused, every 5 minutes at most (10010)", s == 400 and r["errorCode"] == "10010", f"{s} {r.get('detail')}")
+s, r = recurring("smoke: hourly 9-10", {"frequency": "Hourly", "byHour": [9, 10]})
+C("an hourly rule limited to certain hours is refused (10013)", s == 400 and r["errorCode"] == "10013", f"{s} {r.get('detail')}")
+s, dense = recurring("smoke: every 5 minutes", {"frequency": "Minutely", "interval": 5})
+C("every 5 minutes is accepted", s == 200, f"{s}")
+s, r = call("GET", f"/occurrences?from={iso(start)}&to={iso(start + dt.timedelta(days=400))}", token=T)
+C("a calendar window over a year is refused (10010)", s == 400 and r["errorCode"] == "10010", f"{s}")
+call("PUT", f"/todos/{dense['id']}/cancel", {"reason": "cleanup"}, token=T)
+
+# --- the next autumn DST change in Port-au-Prince: expanding an hourly rule across it used to hang the server ---
+from zoneinfo import ZoneInfo
+zone = ZoneInfo(HAITI)
+fall_back = next(t for t in (now + dt.timedelta(hours=h) for h in range(1, 400 * 24))
+                 if t.astimezone(zone).utcoffset() < (t - dt.timedelta(hours=1)).astimezone(zone).utcoffset())
+before, after = fall_back - dt.timedelta(hours=12), fall_back + dt.timedelta(hours=24)
+try:
+    s, hourly = call("POST", "/todos/recurring", {"title": "smoke: hourly across DST", "description": "", "notificationEnabled": False,
+                     "recurrenceRule": {"frequency": "Hourly", "startDate": iso(before), "timeZone": HAITI}}, token=T)
+    s, window = call("GET", f"/occurrences?from={iso(before)}&to={iso(after)}", token=T)
+    mine = [o for o in window if o["todoId"] == hourly["id"]] if s == 200 else []
+    C(f"calendar across the {fall_back:%Y-%m-%d} fall-back answers, one per hour (used to hang)", s == 200 and len(mine) == 37, f"{s}, {len(mine)}")
+    call("PUT", f"/todos/{hourly['id']}/cancel", {"reason": "cleanup"}, token=T)
+except OSError as e:  # the request timed out: the server is stuck in the expansion
+    C("calendar across the fall-back answers (used to hang)", False, repr(e))
 
 # --- error texts follow Accept-Language; codes never change ---
 bad = {"title": "", "description": "", "notificationEnabled": False, "dueDate": "2020-01-01T00:00:00Z"}

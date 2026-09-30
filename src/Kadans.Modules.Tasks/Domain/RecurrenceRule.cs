@@ -116,14 +116,11 @@ internal sealed class RecurrenceRule
         schedule = null;
     }
 
-    public IReadOnlyList<DateTimeOffset> GetOccurrences(DateTimeOffset from, DateTimeOffset to) =>
-        Schedule.GetOccurrences(from, to);
+    public IReadOnlyList<DateTimeOffset> GetOccurrences(DateTimeOffset from, DateTimeOffset to, int limit = RecurrenceSchedule.MaxOccurrences) =>
+        Schedule.GetOccurrences(from, to, limit);
 
     public DateTimeOffset? GetNextOccurrence() => GetNextOccurrence(DateTimeOffset.UtcNow);
 
     public DateTimeOffset? GetNextOccurrence(DateTimeOffset after) =>
         Schedule.GetNextOccurrence(after);
-
-    /// <summary>UNTIL when set, otherwise the last occurrence of a COUNT-bounded rule.</summary>
-    public DateTimeOffset? GetEffectiveEndDate() => Until ?? Schedule.GetLastOccurrence();
 }

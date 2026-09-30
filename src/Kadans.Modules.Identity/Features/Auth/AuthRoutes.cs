@@ -81,13 +81,17 @@ internal static class AuthRoutes
                 .WithSummary("Confirm an email address")
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
-            // The link in the email is a GET so it also works from a plain browser click.
-            auth.MapGet("/confirm-email", async Task<Results<ContentHttpResult, ProblemHttpResult>> (string userId, string token, AccountSecurity service, UserManager<ApplicationUser> userManager, HttpContext context) =>
+            // The link in the email is a GET so it also works from a plain browser click – and, like the
+            // email-change link, it answers with a page in both cases, never a JSON problem.
+            auth.MapGet("/confirm-email", async Task<ContentHttpResult> (string userId, string token, AccountSecurity service, UserManager<ApplicationUser> userManager) =>
                 {
                     var language = (await userManager.FindByIdAsync(userId))?.PreferredLanguage;
                     var result = await service.ConfirmEmail(new ConfirmEmailRequest(userId, token));
-                    return result.Match<Results<ContentHttpResult, ProblemHttpResult>>(
-                        error => TypedResults.Problem(error.ToProblemDetails(context)),
+                    return result.Match(
+                        error => TypedResults.Text(
+                            AuthPages.Message(Kadans.SharedKernel.Errors.ErrorTexts.Localize(error.ErrorType, error.ErrorMessage, language ?? "en")),
+                            "text/html",
+                            statusCode: error.ErrorType.HttpStatusCode),
                         _ => TypedResults.Text(AuthPages.Confirmed(EmailTexts.For(language)), "text/html"));
                 })
                 .WithName("AuthConfirmEmailLink")

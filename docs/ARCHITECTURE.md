@@ -94,7 +94,11 @@ never two replicas. Because of that, migrations run at startup in production
 (`Database:MigrateOnStartup`, set by the image) and a deploy is "start the new image". The image is
 host-neutral (environment variables only, port 8080 behind a TLS-terminating proxy whose forwarded
 headers it trusts); `deploy/` is the reference setup for a single VPS (Caddy, API, Postgres, nightly
-dump). Outside Development the process refuses to start on an incomplete configuration. If Kadans ever
+dump). Outside Development the process refuses to start on an incomplete configuration. The only state
+besides Postgres would have been ASP.NET Core's Data Protection key ring (it protects the tokens in emailed
+links, and its default home is a folder inside the container, lost on every update); it lives in the
+Identity schema instead (`data_protection_keys`), encrypted with AES-GCM under a key derived from `Jwt:Key`
+(`KeyRingEncryption`), so it is in the backups without making a backup enough to forge a link. If Kadans ever
 needs a second instance, the things to externalize are exactly that list: a persistent Quartz store,
 a Redis backplane for SignalR, and a real queue for push. Details: [DEPLOYMENT.md](DEPLOYMENT.md).
 

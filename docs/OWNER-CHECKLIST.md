@@ -120,8 +120,9 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [ ] On the server: `deploy/.env` – it is not in the repository; step 2 of DEPLOYMENT.md → First
       deployment creates it from `.env.example` with generated `POSTGRES_PASSWORD` and `JWT_KEY` – then
       `RESEND_API_KEY` and `GOOGLE_DESKTOP_CLIENT_SECRET` in it, `deploy/secrets/firebase-admin.json` (the
-      same service-account key as `~/.kadans/firebase-admin.json`, copied there before the first start),
-      then `docker compose up -d --build`.
+      same service-account key as `~/.kadans/firebase-admin.json`, copied there before the first start,
+      readable by the container: `sudo chown "$USER":1654 … && chmod 640 …`), then
+      `docker compose up -d --build`.
 - [ ] First start with `INITIAL_ADMIN_ENABLED=true`, sign in, enable two-factor, set it back to `false`.
 - [ ] Google Cloud → OAuth consent screen: add `<domain>` as an authorized domain when you leave Testing
       mode. No redirect URIs are needed for any of the three clients.

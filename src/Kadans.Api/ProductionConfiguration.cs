@@ -38,9 +38,25 @@ internal static class ProductionConfiguration
             // Docker mounts a missing host file as an empty directory, so "set but absent" is the likely mistake.
             else if (!File.Exists(file))
                 problems.Add($"Push:Firebase:CredentialsFile is {file}, which is not a file – with Docker Compose, put the key at deploy/secrets/firebase-admin.json before the first start.");
+            // In the image the API runs as uid/gid 1654, not as the server's user who copied the key there.
+            else if (!CanRead(file))
+                problems.Add($"Push:Firebase:CredentialsFile {file} exists but this process cannot read it – on the server: sudo chown $USER:1654 deploy/secrets/firebase-admin.json && chmod 640 deploy/secrets/firebase-admin.json");
         }
 
         return problems;
+    }
+
+    private static bool CanRead(string path)
+    {
+        try
+        {
+            using var _ = File.OpenRead(path);
+            return true;
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or IOException)
+        {
+            return false;
+        }
     }
 
     public static void ThrowIfIncomplete(IConfiguration configuration)

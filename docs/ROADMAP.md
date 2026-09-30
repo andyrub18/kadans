@@ -265,6 +265,13 @@ installing on real devices second, hosting last.
       DEPLOYMENT.md creates `.env` with secrets generated on the server and covers Cloudflare DNS (the
       `api` record must be DNS only). The config guard also refuses a Firebase key path that is not a
       file (Docker mounts a missing file as an empty directory).
+- [x] First start on the server surfaced three problems, all fixed: the guide's `chmod 600` locked the API
+      (uid/gid 1654) out of the Firebase key – now `chown $USER:1654` + `640`, and the config guard names an
+      unreadable key; Data Protection keys lived inside the container, so every update would have broken
+      the emailed links already sent – now in `identity.data_protection_keys`, encrypted under a key derived
+      from `Jwt:Key`; Npgsql's Kerberos probe logged a scary `libgssapi_krb5` line – `GSS Encryption
+      Mode=Disable` in the compose connection string. Rehearsed on a local copy of the server setup: a
+      confirmation link sent before a container rebuild still works after it.
 - [ ] Owner: `api` record DNS only, `deploy/.env` on the server, first start – see OWNER-CHECKLIST →
       Domain and hosting.
 - [ ] After the first deploy: `android:usesCleartextTraffic="false"` for release builds (dev needs http),
@@ -288,6 +295,8 @@ Nice-to-have hardening
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
 | `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
 | `tools/smoke/identity_flows.py` | ~~Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`)~~ fixed 2026-09-18: a fresh `alice<timestamp>` per run |
+| Identity: emailed-link keys | ~~ASP.NET Core Data Protection kept its key ring in the container's home folder: every `docker compose up -d --build` would have generated new keys and made every confirmation, reset and email-change link already sent invalid~~ fixed 2026-09-30: keys in `identity.data_protection_keys`, encrypted (`KeyRingEncryption`) |
+| Identity: `GET /auth/confirm-email` | ~~A broken or expired confirmation link answered with a JSON problem – what a person clicking it in a mail client saw~~ fixed 2026-09-30: a page in the account's language, like the email-change link |
 | Identity: email change | ~~The emailed link pointed at `POST /users/me/email/confirm`, which needs a bearer token – no mail client or browser could ever complete it, so an email change could not be finished by a person. Unnoticed because the smoke script scraped the token from the log and called the API itself~~ fixed 2026-09-18: anonymous landing page, and the smoke script now opens the link like a browser |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

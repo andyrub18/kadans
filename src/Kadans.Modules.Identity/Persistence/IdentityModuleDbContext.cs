@@ -1,17 +1,24 @@
 using Kadans.Modules.Identity.Domain;
 using Kadans.SharedKernel.Persistence;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kadans.Modules.Identity.Persistence;
 
 internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbContext> options)
-    : IdentityDbContext<ApplicationUser>(options)
+    : IdentityDbContext<ApplicationUser>(options), IDataProtectionKeyContext
 {
     public const string Schema = "identity";
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Device> Devices => Set<Device>();
+
+    /// <summary>
+    /// The ASP.NET Core Data Protection key ring. It protects the tokens in emailed links (confirm email,
+    /// reset password, confirm a new email); kept here, it survives container rebuilds and is in the backups.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

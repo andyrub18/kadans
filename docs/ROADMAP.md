@@ -295,7 +295,13 @@ installing on real devices second, hosting last.
       0.43 s to 0.05 s, and a year-wide calendar request takes 0.06 s. Found on the way, both in the
       known-bugs table: hourly and minute rules hung the server across an autumn DST change, and Budget
       skipped the backlog of rules backdated by more than 100 occurrences.
-- [ ] Google sign-in: linking rules for an account that already uses the same email.
+- [x] Google sign-in: linking rules for an account that already uses the same email. A sign-in lands on
+      an existing account only through a verified address. An account whose address was never confirmed is
+      taken over by the verified owner. Everything the unproven registrant set up (password, 2FA and
+      recovery codes, other logins, sessions, devices, any lockout) goes first, in one transaction with
+      the link. A sign-in without a verified address links and creates nothing. The first in-process
+      integration tests run these flows on the real `UserManager` over in-memory SQLite (native SQLite
+      pinned past GHSA-2m69-gcr7-jv3q), and `dotnet list package --vulnerable` is clean for every project.
 - [ ] Rate limiting on the anonymous and email-sending endpoints (moved up from nice-to-have).
 - [ ] The profile follows the device: time zone and language are sent at sign-up and synced after every
       sign-in, and the reminder lead can be chosen when creating a todo (see the known-bugs table).
@@ -334,6 +340,7 @@ Nice-to-have hardening
 | SharedKernel: `RecurrenceSchedule` | ~~Ical.Net 5.2.3 never returns when it expands an hourly or minute rule across an autumn DST change in local time (Port-au-Prince 2026-11-01, Paris 2026-10-25; spring changes and daily rules are fine). The horizon job, creating such a todo, or a calendar spanning the change would hang with a CPU core spinning, and the 30-day horizon would have reached 1 November on 2 October~~ fixed 2026-09-30: hourly, minute and one-time rules are expanded in UTC; the smoke script checks the next fall-back |
 | SharedKernel: `RecurrenceSchedule` | ~~A one-time todo at the second 01:30 of a fall-back night (01:30 EST, after 01:30 EDT) never materialized: local time named the first 01:30, an hour before the start, and it was filtered out~~ fixed 2026-09-30: a one-time rule is its own instant |
 | Budget: `RecurringTransactionJob` | ~~A pass created at most 100 transactions per rule, then moved the marker to now: a rule backdated by more than 100 occurrences (the app's date picker allows past dates) silently lost the rest~~ fixed 2026-09-30: the next pass resumes after the last one created, and exhaustion is judged from there |
+| Identity: external sign-in | ~~Account takeover prepared in advance. A Google sign-in with a verified address was linked to any account with that address, even one whose address was never confirmed, and password login does not require confirmation. So someone could register a victim's address with their own password, wait for the victim's first Google sign-in, and keep reading the victim's data with the password (2FA, devices and sessions they had set up stayed too). A sign-in with an unverified address was also stored on a new account, squatting that address~~ fixed 2026-09-30: the verified owner takes the unconfirmed account over after everything the registrant set up is removed; without a verified address nothing is linked or created |
 | Identity: email change | ~~The emailed link pointed at `POST /users/me/email/confirm`, which needs a bearer token – no mail client or browser could ever complete it, so an email change could not be finished by a person. Unnoticed because the smoke script scraped the token from the log and called the API itself~~ fixed 2026-09-18: anonymous landing page, and the smoke script now opens the link like a browser |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

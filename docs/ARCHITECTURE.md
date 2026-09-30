@@ -72,8 +72,13 @@ SHA-256 hashes; refreshing rotates inside the family and replaying a rotated tok
 family. Password change/reset revokes all families. TOTP MFA is a two-step login: the password step
 returns a short-lived challenge JWT with audience `<Audience>:mfa` (never accepted as a bearer token),
 exchanged with a TOTP or recovery code. External login verifies Google/Apple ID tokens obtained natively
-by the client against the provider's JWKS (OIDC discovery) and links by verified email or creates the
-account. Every emailed link opens an anonymous page served by the API (confirm email, reset password,
+by the client against the provider's JWKS (OIDC discovery). A login already linked signs straight in.
+Otherwise only a **verified** address counts: without one, nothing is linked or created. With one, the
+login is linked to a confirmed account with that address, or a new account is created. An account whose
+address was never confirmed is taken over by the verified owner. Anyone can register someone else's
+address and set a password, so the takeover first removes everything that unproven registrant set up:
+password, 2FA and recovery codes, other logins, sessions, devices and any lockout. It runs in one
+transaction with the link. 2FA still applies to external sign-in. Every emailed link opens an anonymous page served by the API (confirm email, reset password,
 confirm a new email): a person clicks it in a mail client, where no session exists, so the token in the
 link is the proof – it is bound to the user and, for an email change, to the new address. After a change
 the previous address receives a notice, the owner's only alarm if it was not them.
@@ -124,9 +129,11 @@ using the account's language – there is no request to read a header from.
 ### Tests: TUnit on Microsoft.Testing.Platform
 
 Opt-in for `dotnet test` is `"test": { "runner": "Microsoft.Testing.Platform" }` in `global.json`.
-Domain rules are unit-tested as pure code. Integration tests with Testcontainers against real Postgres
-are still to come (recurrence and query filters must be tested on the real provider); the smoke
-scripts in `tools/smoke/` cover those paths against a running Development API for now.
+Domain rules are unit-tested as pure code. Where a rule lives in ASP.NET Identity itself (which account an
+external sign-in lands in, what a takeover removes), `tests/Kadans.Identity.Tests` runs the real `UserManager`
+and token providers on an in-memory SQLite database, so CI needs no Postgres. Integration tests with
+Testcontainers against real Postgres are still to come (recurrence and query filters must be tested on the
+real provider); the smoke scripts in `tools/smoke/` cover those paths against a running Development API for now.
 
 ### Client: Compose Multiplatform
 

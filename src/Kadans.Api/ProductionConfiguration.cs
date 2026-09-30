@@ -30,9 +30,15 @@ internal static class ProductionConfiguration
             problems.Add("Email:LinkBaseUrl must be the public https URL of this API – emailed links open pages it serves.");
 
         if (string.Equals(configuration["Push:Provider"], "Fcm", StringComparison.OrdinalIgnoreCase)
-            && string.IsNullOrWhiteSpace(configuration["Push:Firebase:CredentialsJson"])
-            && string.IsNullOrWhiteSpace(configuration["Push:Firebase:CredentialsFile"]))
-            problems.Add("Push:Provider is Fcm but neither Push:Firebase:CredentialsJson nor Push:Firebase:CredentialsFile is set.");
+            && string.IsNullOrWhiteSpace(configuration["Push:Firebase:CredentialsJson"]))
+        {
+            var file = configuration["Push:Firebase:CredentialsFile"];
+            if (string.IsNullOrWhiteSpace(file))
+                problems.Add("Push:Provider is Fcm but neither Push:Firebase:CredentialsJson nor Push:Firebase:CredentialsFile is set.");
+            // Docker mounts a missing host file as an empty directory, so "set but absent" is the likely mistake.
+            else if (!File.Exists(file))
+                problems.Add($"Push:Firebase:CredentialsFile is {file}, which is not a file – with Docker Compose, put the key at deploy/secrets/firebase-admin.json before the first start.");
+        }
 
         return problems;
     }

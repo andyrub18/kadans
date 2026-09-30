@@ -14,7 +14,7 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      KADANS_DOMAIN: ${KADANS_DOMAIN:?set KADANS_DOMAIN in .env, e.g. api.kadans.app}
+      KADANS_DOMAIN: ${KADANS_DOMAIN:?set KADANS_DOMAIN in .env, e.g. api.kadansplanning.com}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data # certificates: keep this volume, Let's Encrypt rate-limits re-issuing
@@ -34,7 +34,7 @@ services:
       Jwt__Key: ${JWT_KEY:?}
       Email__Provider: ${EMAIL_PROVIDER:-Resend}
       Email__Resend__ApiKey: ${RESEND_API_KEY:-}
-      Email__From: ${EMAIL_FROM:?e.g. Kadans <no-reply@kadans.app>}
+      Email__From: ${EMAIL_FROM:?e.g. Kadans <no-reply@kadansplanning.com>}
       # Emailed links (confirm email, reset password, confirm a new email) open pages the API serves.
       Email__LinkBaseUrl: https://${KADANS_DOMAIN}
       Push__Provider: ${PUSH_PROVIDER:-Fcm}
@@ -47,6 +47,8 @@ services:
       InitialAdmin__Email: ${INITIAL_ADMIN_EMAIL:-}
       InitialAdmin__Password: ${INITIAL_ADMIN_PASSWORD:-}
     volumes:
+      # Must exist before the first `up`: Docker turns a missing file into an empty directory (the API then
+      # refuses to start and says so).
       - ./secrets/firebase-admin.json:/run/secrets/firebase-admin.json:ro
     depends_on:
       db:

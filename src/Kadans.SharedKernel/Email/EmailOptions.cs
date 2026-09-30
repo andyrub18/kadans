@@ -7,7 +7,7 @@ public sealed class EmailOptions
     /// <summary>"Resend" sends real mail; anything else logs the message instead (development).</summary>
     public string Provider { get; set; } = "Log";
 
-    /// <summary>Sender, e.g. <c>Kadans &lt;no-reply@kadans.app&gt;</c>. Must be a Resend-verified domain in production.</summary>
+    /// <summary>Sender, e.g. <c>Kadans &lt;no-reply@kadansplanning.com&gt;</c>. Must be a Resend-verified domain in production.</summary>
     public string From { get; set; } = "Kadans <no-reply@kadans.local>";
 
     /// <summary>Base URL used to build links in emails (confirm, reset). Points at whatever handles the deep link.</summary>

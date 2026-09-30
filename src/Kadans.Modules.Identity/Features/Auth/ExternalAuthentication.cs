@@ -1,8 +1,10 @@
 using Kadans.Modules.Identity.Contracts;
 using Kadans.Modules.Identity.Domain;
+using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Errors;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OneOf;
 
@@ -15,6 +17,7 @@ internal sealed class ExternalAuthentication(
     IOptions<ExternalAuthOptions> options,
     UserManager<ApplicationUser> userManager,
     Authentication authentication,
+    IdentityModuleDbContext dbContext,
     ILogger<ExternalAuthentication> logger
 )
 {
@@ -27,12 +30,16 @@ internal sealed class ExternalAuthentication(
         if (validation.IsT0)
             return validation.AsT0;
 
-        var external = validation.AsT1;
+        return await SignInAsync(validation.AsT1, cancellationToken);
+    }
 
+    /// <summary>After the provider's ID token checked out: find, link or create the account, then hand out tokens.</summary>
+    internal async Task<OneOf<ApplicationError, LoginResponse>> SignInAsync(ExternalIdentity external, CancellationToken cancellationToken)
+    {
         var user = await userManager.FindByLoginAsync(external.Provider, external.Subject);
         if (user is null)
         {
-            var linkResult = await LinkOrCreateAsync(external);
+            var linkResult = await LinkOrCreateAsync(external, cancellationToken);
             if (linkResult.IsT0)
                 return linkResult.AsT0;
             user = linkResult.AsT1;
@@ -68,21 +75,28 @@ internal sealed class ExternalAuthentication(
         );
     }
 
-    private async Task<OneOf<ApplicationError, ApplicationUser>> LinkOrCreateAsync(ExternalIdentity external)
+    private async Task<OneOf<ApplicationError, ApplicationUser>> LinkOrCreateAsync(ExternalIdentity external, CancellationToken cancellationToken)
     {
-        ApplicationUser? user = null;
+        // A verified address is what proves who an account belongs to. Without one there is nothing safe to link
+        // to, and an account created on an unproven address would squat it. (Already-linked logins never get here.)
+        if (!external.EmailVerified || string.IsNullOrWhiteSpace(external.Email))
+            return new ApplicationError(ErrorTypes.ExternalLoginFailed, "This sign-in did not come with a verified email address.");
+        var email = external.Email.Trim();
 
-        // Same verified email as an existing account: attach the login to it instead of creating a duplicate.
-        if (external.EmailVerified && !string.IsNullOrWhiteSpace(external.Email))
-            user = await userManager.FindByEmailAsync(external.Email);
+        // Claiming, creating and linking land together or not at all.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is { EmailConfirmed: false } && !await ClaimUnconfirmedAsync(user, external, cancellationToken))
+            return new ApplicationError(ErrorTypes.ExternalLoginFailed, "Could not link this login to the account.");
 
         if (user is null)
         {
             user = new ApplicationUser
             {
-                UserName = await PickUsernameAsync(external),
-                Email = external.Email,
-                EmailConfirmed = external.EmailVerified,
+                UserName = await PickUsernameAsync(external, email),
+                Email = email,
+                EmailConfirmed = true,
                 DisplayName = external.DisplayName,
                 LockoutEnabled = true,
             };
@@ -104,13 +118,62 @@ internal sealed class ExternalAuthentication(
             return new ApplicationError(ErrorTypes.ExternalLoginFailed, "Could not link this login to the account.");
         }
 
+        await transaction.CommitAsync(cancellationToken);
         return user;
     }
 
-    private async Task<string> PickUsernameAsync(ExternalIdentity external)
+    /// <summary>
+    /// Anyone can register with an address they do not own and set a password; the confirmation link then goes
+    /// to the real owner, who ignores it. When that owner signs in with a provider that verified the address, the
+    /// account is theirs, and everything the unproven registrant set up goes first: password, 2FA and recovery
+    /// codes, other sign-ins, sessions, devices (so no push reaches their phone), and any lockout or deactivation
+    /// meant to keep the owner out. Otherwise the registrant would keep reading the owner's data with the password.
+    /// </summary>
+    private async Task<bool> ClaimUnconfirmedAsync(ApplicationUser user, ExternalIdentity external, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(external.Email) && await userManager.FindByNameAsync(external.Email) is null)
-            return external.Email;
+        async Task<bool> Step(Task<IdentityResult> step, string what)
+        {
+            var result = await step;
+            if (!result.Succeeded)
+                logger.LogError("Claiming unconfirmed user {UserId}: {What} failed: {Errors}", user.Id, what, string.Join("; ", result.Errors.Select(e => e.Code)));
+            return result.Succeeded;
+        }
+
+        if (await userManager.HasPasswordAsync(user) && !await Step(userManager.RemovePasswordAsync(user), "remove password"))
+            return false;
+
+        foreach (var login in await userManager.GetLoginsAsync(user))
+        {
+            if (!await Step(userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey), "remove login"))
+                return false;
+        }
+
+        if (!await Step(userManager.SetTwoFactorEnabledAsync(user, false), "disable 2FA")
+            || !await Step(userManager.ResetAuthenticatorKeyAsync(user), "reset authenticator key")
+            || await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 0) is null
+            || (await userManager.IsLockedOutAsync(user) && !await Step(userManager.SetLockoutEndDateAsync(user, null), "clear lockout"))
+            || !await Step(userManager.ResetAccessFailedCountAsync(user), "reset failed attempts"))
+            return false;
+
+        user.EmailConfirmed = true;
+        if (!await Step(userManager.UpdateSecurityStampAsync(user), "confirm email"))
+            return false;
+
+        var sessions = await authentication.RevokeAllSessionsAsync(user.Id, "account claimed by a verified sign-in");
+        var devices = await dbContext.Devices.Where(d => d.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+
+        logger.LogWarning(
+            "Unconfirmed user {UserId} claimed by a verified {Provider} sign-in: password, 2FA and other logins removed, {Sessions} session(s) revoked, {Devices} device(s) removed",
+            user.Id, external.Provider, sessions, devices
+        );
+        return true;
+    }
+
+    /// <summary>The verified address when it is free as a username, else one derived from the provider's subject.</summary>
+    private async Task<string> PickUsernameAsync(ExternalIdentity external, string email)
+    {
+        if (await userManager.FindByNameAsync(email) is null)
+            return email;
 
         return $"{external.Provider}_{external.Subject}";
     }

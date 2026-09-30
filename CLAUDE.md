@@ -22,7 +22,8 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `tests/Kadans.Api.Tests` (startup configuration guard), `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`,
   `tests/Kadans.Identity.Tests`, `tests/Kadans.Notifications.Tests`,
   `tests/Kadans.SharedKernel.Tests` – TUnit unit tests (modules expose internals via `InternalsVisibleTo`). Identity
-  (Google sign-in) and Notifications (push worker) are thin so far: the smoke scripts cover the rest.
+  also runs external sign-in against the real `UserManager` on in-memory SQLite (`ExternalSignInTests`); Identity and
+  Notifications are otherwise thin: the smoke scripts cover the rest.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions, `DEPLOYMENT.md`, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
 - `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (Caddy, API, Postgres, nightly dump).

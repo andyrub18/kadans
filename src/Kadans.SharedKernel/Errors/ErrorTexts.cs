@@ -188,6 +188,7 @@ public static class ErrorTexts
         ["An authorization code, its PKCE verifier and a loopback redirect URI are required."] = new("La connexion avec Google n'a pas abouti. Réessayez.", "Koneksyon ak Google la pa fin fèt. Eseye ankò."),
         ["Could not create an account from this login."] = new("Impossible de créer un compte à partir de cette connexion.", "Nou pa rive kreye yon kont ak koneksyon sa a."),
         ["Could not link this login to the account."] = new("Impossible d'associer cette connexion au compte.", "Nou pa rive mare koneksyon sa a ak kont lan."),
+        ["This sign-in did not come with a verified email address."] = new("Cette connexion n'a pas fourni d'adresse e-mail vérifiée.", "Koneksyon sa a pa bay okenn adrès imèl ki verifye."),
         ["Could not reach Google to complete the sign-in."] = new("Impossible de joindre Google pour terminer la connexion.", "Nou pa rive jwenn Google pou fini koneksyon an."),
         ["Google did not accept the sign-in code."] = new("Google n'a pas accepté la connexion. Réessayez.", "Google pa aksepte koneksyon an. Eseye ankò."),
         ["Google returned no ID token."] = new("La connexion avec Google n'a pas abouti. Réessayez.", "Koneksyon ak Google la pa fin fèt. Eseye ankò."),

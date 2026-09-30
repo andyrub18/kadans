@@ -33,6 +33,10 @@
   </ItemGroup>
 
   <ItemGroup Label="Testing">
+    <!-- In-process integration tests on an in-memory database (Identity flows), no Postgres needed in CI. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+    <!-- Native SQLite under the provider: 2.1.11 and older ship a SQLite with GHSA-2m69-gcr7-jv3q. -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
     <PackageVersion Include="TUnit" Version="1.65.68" />
   </ItemGroup>
 

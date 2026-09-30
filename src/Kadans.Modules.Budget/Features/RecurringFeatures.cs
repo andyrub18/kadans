@@ -142,6 +142,11 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
         var due = await dbContext.RecurringTransactions
             .IgnoreQueryFilters()
             .Where(r => r.IsActive && (r.GeneratedThrough == null || r.GeneratedThrough < now))
+            // Least recently materialized first (never-materialized rules before all): every active rule is due
+            // on every pass, so without an order a backlog over the Take could skip the same rules each time.
+            .OrderBy(r => r.GeneratedThrough != null)
+            .ThenBy(r => r.GeneratedThrough)
+            .ThenBy(r => r.Id)
             .Take(500)
             .ToListAsync(jobContext.CancellationToken);
 

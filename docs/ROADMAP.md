@@ -312,6 +312,10 @@ installing on real devices second, hosting last.
 - [ ] Pomodoro: hands-free by default, a "time's up" notification for manual runs, and the server's
       clock decides when a phase has ended.
 - [ ] Delete my account, in the app and from a web page (Google Play requires both).
+- [x] Out of the review, decided 2026-09-30: a dependency with a known high or critical vulnerability,
+      even a transitive one, fails the restore (NuGet audit; NU1903/NU1904 as errors), in CI, in the
+      image build and locally. Proven with the vulnerable SQLite library step 3 had to pin: restore fails
+      on 2.1.11 and passes on 2.1.13.
 
 Nice-to-have hardening
 

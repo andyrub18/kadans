@@ -7,11 +7,16 @@ using Microsoft.Extensions.Options;
 
 namespace Kadans.Modules.Identity.Features.Account;
 
-/// <summary>Builds and sends the account emails. Tokens are Base64Url-encoded so they survive links.</summary>
+/// <summary>
+/// Builds and sends the account emails. Tokens are Base64Url-encoded so they survive links. Mails anyone can
+/// trigger for an address (confirmation, reset, email change) go out at most once per address every two
+/// minutes (<see cref="EmailThrottle"/>); the caller's answer does not change, so this reveals nothing.
+/// </summary>
 internal sealed class IdentityEmails(
     IEmailSender sender,
     IOptions<EmailOptions> options,
     UserManager<ApplicationUser> userManager,
+    EmailThrottle throttle,
     ILogger<IdentityEmails> logger
 )
 {
@@ -19,7 +24,7 @@ internal sealed class IdentityEmails(
 
     public async Task SendConfirmationAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(user.Email))
+        if (string.IsNullOrWhiteSpace(user.Email) || HeldBack("confirm", user.Email, user))
             return;
 
         var token = Encode(await userManager.GenerateEmailConfirmationTokenAsync(user));
@@ -36,7 +41,7 @@ internal sealed class IdentityEmails(
 
     public async Task SendPasswordResetAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(user.Email))
+        if (string.IsNullOrWhiteSpace(user.Email) || HeldBack("reset", user.Email, user))
             return;
 
         var token = Encode(await userManager.GeneratePasswordResetTokenAsync(user));
@@ -53,6 +58,9 @@ internal sealed class IdentityEmails(
 
     public async Task SendEmailChangeAsync(ApplicationUser user, string newEmail, CancellationToken cancellationToken = default)
     {
+        if (HeldBack("change", newEmail, user))
+            return;
+
         var token = Encode(await userManager.GenerateChangeEmailTokenAsync(user, newEmail));
         // An anonymous page, like confirm-email: the person opens this from a mail client, where no
         // session exists. (It used to point at the authenticated POST, which no browser can call.)
@@ -86,6 +94,16 @@ internal sealed class IdentityEmails(
         {
             return null;
         }
+    }
+
+    /// <summary>True when the same kind of mail went to this address less than <see cref="EmailThrottle.Window"/> ago.</summary>
+    private bool HeldBack(string kind, string address, ApplicationUser user)
+    {
+        if (throttle.TryAcquire(kind, address))
+            return false;
+
+        logger.LogWarning("Held back a {Kind} mail for user {UserId}: the last one to that address went out less than {Window} ago", kind, user.Id, EmailThrottle.Window);
+        return true;
     }
 
     private static string Greeting(ApplicationUser user) => user.DisplayName ?? user.UserName ?? "there";

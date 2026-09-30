@@ -5,10 +5,19 @@
 #   docker compose logs -f api
 name: kadans
 
+# Docker keeps container logs forever by default. Capped at 5 × 10 MB per service, a flood of requests (and the
+# rate limiter's warnings about it) cannot fill the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    logging: *logging
     ports:
       - "80:80"
       - "443:443"
@@ -27,6 +36,7 @@ services:
       context: ..
       dockerfile: Dockerfile
     restart: unless-stopped
+    logging: *logging
     # Exactly one instance, by design: the scheduler, the pomodoro deadline watcher, the push queue and
     # SignalR all live in this process. Never scale this service.
     environment:
@@ -59,6 +69,7 @@ services:
   db:
     image: postgres:17
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_DB: kadans
       POSTGRES_USER: kadans
@@ -75,6 +86,7 @@ services:
   backup:
     image: postgres:17
     restart: unless-stopped
+    logging: *logging
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
     volumes:

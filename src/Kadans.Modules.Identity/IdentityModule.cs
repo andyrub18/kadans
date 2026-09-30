@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Kadans.Modules.Identity;
@@ -110,6 +111,8 @@ public sealed class IdentityModule : IModule
         services.AddScoped<ExternalAuthentication>();
         services.AddScoped<AccountSecurity>();
         services.AddScoped<IdentityEmails>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<EmailThrottle>();
         services.AddScoped<DeviceService>();
         services.AddScoped<IDevicePushTargets, DevicePushTargets>();
         services.AddScoped<IUserDirectory, UserDirectory>();

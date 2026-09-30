@@ -57,7 +57,8 @@ resolves to the server itself (`getent hosts api.<domain>` shows the server's ad
 - Nothing in Kadans needs the proxy. To add it later anyway: SSL/TLS mode **Full (strict)**, set only
   after Caddy has its certificate. Never "Flexible" – Cloudflare would talk plain HTTP to Caddy, which
   redirects to HTTPS, an endless loop. Behind the proxy the API logs Cloudflare's addresses instead of
-  the users'.
+  the users', and its per-client rate limits would count every user behind the same Cloudflare address as
+  one client. So stay DNS only, or first teach the API Cloudflare's client-address header.
 
 ## First deployment (VPS)
 
@@ -158,7 +159,15 @@ whole restore applies or nothing changes. Test a restore once before you need on
 
 ## Operating
 
-- Logs: `docker compose logs -f api` (Serilog writes to the console; Docker keeps and rotates it).
+- Logs: `docker compose logs -f api` (Serilog writes to the console). Docker keeps 5 × 10 MB per service
+  (`x-logging` in the compose file), so a flood of requests cannot fill the disk.
+- Rate limits, per client address (the real one: Caddy sets `X-Forwarded-For` itself; IPv6 counts per /64).
+  Sign-up, forgot password, resend confirmation and email change: 5 per 15 minutes. Sign-in, 2FA codes and
+  password change: 20 a minute. Everything else: 300 a minute. Health checks are never limited. On top of
+  that, one confirmation, reset or email-change mail per address every 2 minutes. Over a limit the API answers
+  429 with `Retry-After` and logs `Rate limit reached by <client> on <request>`
+  (`docker compose logs api | grep "Rate limit"`). To change a number, add it to the `api` service's
+  `environment` in the compose file, e.g. `RateLimiting__CredentialsPerMinute: "40"`.
 - OS updates: `sudo apt update && sudo apt upgrade`, and `unattended-upgrades` for security patches.
 - Certificates: Caddy renews them; keep the `caddy_data` volume.
 - Secrets live only in `deploy/.env` and `deploy/secrets/` on the server (both git-ignored). Changing

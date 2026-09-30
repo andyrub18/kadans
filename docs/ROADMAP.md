@@ -302,7 +302,18 @@ installing on real devices second, hosting last.
       the link. A sign-in without a verified address links and creates nothing. The first in-process
       integration tests run these flows on the real `UserManager` over in-memory SQLite (native SQLite
       pinned past GHSA-2m69-gcr7-jv3q), and `dotnet list package --vulnerable` is clean for every project.
-- [ ] Rate limiting on the anonymous and email-sending endpoints (moved up from nice-to-have).
+- [x] Rate limiting on the anonymous and email-sending endpoints (moved up from nice-to-have). ASP.NET
+      Core's limiter, per client address (IPv6 per /64), set in `RateLimiting`:
+      - mail to a chosen address (sign-up, forgot password, resend confirmation, email change): 5 per
+        15 minutes;
+      - passwords and codes (sign-in, 2FA, Google, password change, 2FA settings): 20 a minute;
+      - everything else: 300 a minute; health checks never.
+
+      Rejections are a translated 429 (code 10053) with `Retry-After`. On top of the limits, one account
+      mail per address every 2 minutes. The compose file now caps container logs at 5 × 10 MB per service;
+      Docker kept them forever. Measured with production limits: the 6th mail request is refused with
+      `Retry-After: 180`, the 21st sign-in attempt too, 50 health checks pass, and a second reset mail to
+      the same address within 2 minutes is held back.
 - [ ] The profile follows the device: time zone and language are sent at sign-up and synced after every
       sign-in, and the reminder lead can be chosen when creating a todo (see the known-bugs table).
 - [ ] Sign-out and sessions: a signed-out device stops receiving pushes, and a refresh that fails for

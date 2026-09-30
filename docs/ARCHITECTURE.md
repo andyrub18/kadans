@@ -92,8 +92,8 @@ only offer what the server can complete. On the client the platform flows sit be
 
 ### Deployment: one container, exactly one instance
 
-The scheduler (Quartz, RAM store), the pomodoro deadline watcher, the push queue and SignalR (no
-backplane) all live in the API process. That is deliberate – every job is an idempotent scan, so a
+The scheduler (Quartz, RAM store), the pomodoro deadline watcher, the push queue, SignalR (no
+backplane) and the rate-limit counters all live in the API process. That is deliberate – every job is an idempotent scan, so a
 restart loses nothing – and it fixes the deployment shape: **one always-on instance**, never scale-to-zero,
 never two replicas. Because of that, migrations run at startup in production
 (`Database:MigrateOnStartup`, set by the image) and a deploy is "start the new image". The image is
@@ -105,7 +105,15 @@ links, and its default home is a folder inside the container, lost on every upda
 Identity schema instead (`data_protection_keys`), encrypted with AES-GCM under a key derived from `Jwt:Key`
 (`KeyRingEncryption`), so it is in the backups without making a backup enough to forge a link. If Kadans ever
 needs a second instance, the things to externalize are exactly that list: a persistent Quartz store,
-a Redis backplane for SignalR, and a real queue for push. Details: [DEPLOYMENT.md](DEPLOYMENT.md).
+a Redis backplane for SignalR, a real queue for push, and shared rate-limit counters.
+
+Rate limiting is the host's (ASP.NET Core's limiter, per client address: IPv4, or the IPv6 /64). There
+is a global limit, plus two named policies modules put on endpoints (`RateLimitPolicies`). **Email** covers
+endpoints that mail an address the caller chooses; **Credentials** covers those that check a password or a
+code. Both are token buckets, so a rejection says when to retry. The numbers are configuration
+(`RateLimiting`), generous in Development for the smoke scripts. Behind them, `EmailThrottle` sends one
+confirmation, reset or email-change mail per address every 2 minutes, so many senders cannot bury one
+inbox either. Token refresh is only under the global limit: a refresh token has nothing to guess. Details: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Errors: written once in English, worded per request
 

@@ -316,6 +316,12 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         StatusCodes.Status400BadRequest,
         ""
     );
+    public static readonly ErrorTypes TooManyRequests = new(
+        "10053",
+        "Too many requests",
+        StatusCodes.Status429TooManyRequests,
+        ""
+    );
 
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;

@@ -103,6 +103,9 @@ builder.Services.AddKadansEmail(builder.Configuration);
 builder.Services.AddQuartz();
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
+// Per-client limits: a global one, plus the email and credentials policies modules put on their endpoints.
+builder.Services.AddKadansRateLimiting(builder.Configuration);
+
 // Every endpoint requires an authenticated user unless it explicitly opts out.
 builder
     .Services.AddAuthorizationBuilder()
@@ -122,6 +125,8 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference().AllowAnonymous();
 }
 
+// Before authentication: a flood is turned away before any token or password work.
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

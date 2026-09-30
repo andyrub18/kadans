@@ -71,6 +71,10 @@ Anything a production host needs must be in `appsettings.json` or an environment
 ## Conventions
 
 - Tests use **TUnit** (not xUnit/NUnit). `[Test]` + `await Assert.That(...)`.
+- A package with a known high or critical vulnerability, even a transitive one, fails `dotnet restore`
+  (NuGet audit, NU1903/NU1904 as errors in `Directory.Build.props`), locally as in CI and the image build.
+  Update it, or pin the vulnerable transitive package in `Directory.Packages.props` with a comment saying why.
+  Never silence the warning.
 - Services return `OneOf<ApplicationError, T>`; endpoints map errors with
   `error.ToProblemDetails(context)` (or `.ToHttp(context)`) to RFC 9457 ProblemDetails. Error codes are
   `ErrorTypes` SmartEnums.

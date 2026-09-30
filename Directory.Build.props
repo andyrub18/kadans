@@ -9,6 +9,17 @@
     <RootNamespace>$(MSBuildProjectName)</RootNamespace>
   </PropertyGroup>
 
+  <!--
+    A dependency, direct or transitive, with a known high (NU1903) or critical (NU1904) vulnerability fails the
+    restore: on a developer machine, in CI and in the image build alike. Low and moderate ones stay warnings.
+    Fix by updating the package, or by pinning the vulnerable transitive one in Directory.Packages.props.
+  -->
+  <PropertyGroup>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+  </PropertyGroup>
+
   <!-- Class libraries that host ASP.NET Core code get the same implicit usings as the Web SDK. -->
   <ItemGroup Condition="$(MSBuildProjectName.StartsWith('Kadans.Modules.')) Or '$(MSBuildProjectName)' == 'Kadans.SharedKernel'">
     <Using Include="Microsoft.AspNetCore.Builder" />

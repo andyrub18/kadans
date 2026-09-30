@@ -76,8 +76,10 @@ sed -e "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 32)/" \
     -e "s/^JWT_KEY=.*/JWT_KEY=$(openssl rand -hex 32)/" .env.example > .env
 nano .env                       # RESEND_API_KEY, GOOGLE_DESKTOP_CLIENT_SECRET (domain and ids are filled in)
 mkdir -p secrets backups
-#    The Firebase service-account key – the same file as ~/.kadans/firebase-admin.json in dev. From your
-#    computer:  scp ~/.kadans/firebase-admin.json <user>@<server>:kadans/deploy/secrets/
+#    The Firebase service-account key – the same file as ~/.kadans/firebase-admin.json in dev. Firebase
+#    names the download kadans-420a7-firebase-adminsdk-….json; on the server it must be named exactly
+#    firebase-admin.json (the compose file mounts that name). From your computer:
+#      scp ~/.kadans/firebase-admin.json <user>@<server>:kadans/deploy/secrets/firebase-admin.json
 #    (or `echo '{}' > secrets/firebase-admin.json` and PUSH_PROVIDER=Log to start without push).
 #    It must exist before step 3: Docker turns a missing file into an empty directory.
 chmod 600 .env secrets/firebase-admin.json

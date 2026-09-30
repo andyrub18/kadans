@@ -18,6 +18,10 @@ internal sealed class TodoUpdate(
 {
     public async Task<OneOf<ApplicationError, TodoResponse>> UpdateTodo(Guid id, UpdateTodo update)
     {
+        var fields = await new UpdateTodoRulesValidator().ValidateAsync(update);
+        if (!fields.IsValid)
+            return fields.ToValidationError("Validation failed for updating todo.");
+
         var todo = await dbContext
             .Todos.Include(t => t.RecurrenceRule)
             .Include(t => t.Remarks)

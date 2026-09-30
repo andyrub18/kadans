@@ -188,6 +188,11 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   (`IDevicePushTargets` → `IPushSender`, dead tokens retired): a provider call takes up to seconds and
   no request or scheduler pass should wait for it; a push lost to a restart is a missed banner, the
   notification itself is already stored.
+- Reminder timing: the job runs every 10 s (`Tasks:ReminderIntervalSeconds`, a code default, so
+  production and Development agree), which bounds how late a reminder can be. The scan reads a filtered
+  index, so the short interval is cheap. Because a pass lands a few seconds after the notify time, the
+  "in 15 min" text rounds the time left up to the minute. A lead is at most 30 days
+  (`Todo.MaxNotifyBeforeMinutes`): occurrences only exist 30 days ahead.
 
 ### Budget (Phase 7, implemented)
 

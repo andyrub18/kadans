@@ -101,6 +101,7 @@ public static class ErrorTexts
         ["10049"] = new("Un transfert nécessite deux comptes différents.", "Yon transfè bezwen de kont diferan."),
         ["10050"] = new("Cette catégorie ne correspond pas à ce type de mouvement.", "Kategori sa a pa mache ak kalite mouvman sa a."),
         ["10051"] = new("Ce compte est archivé.", "Kont sa a achive."),
+        ["10052"] = new("Le délai du rappel n'est pas valide.", "Delè rapèl la pa valab."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
@@ -136,6 +137,7 @@ public static class ErrorTexts
         ["Either Count or Until can be specified, but not both."] = new("Choisissez un nombre de fois ou une date de fin, pas les deux.", "Chwazi yon kantite fwa oswa yon dat fen, pa toude."),
         ["Cannot specify both 'until' and 'count'. They are mutually exclusive."] = new("Choisissez un nombre de fois ou une date de fin, pas les deux.", "Chwazi yon kantite fwa oswa yon dat fen, pa toude."),
         ["Failed to create todo."] = new("La tâche n'a pas pu être créée. Réessayez.", "Nou pa rive kreye travay la. Eseye ankò."),
+        ["A reminder can come at most 30 days before the start."] = new("Un rappel peut arriver au plus 30 jours avant le début.", "Yon rapèl ka vini 30 jou anvan kòmansman an pou pi plis."),
         // --- pomodoro ---
         ["Only active or paused runs can be cancelled."] = new("Seule une session en cours ou en pause peut être arrêtée.", "Se sèlman yon sesyon k ap fèt oswa ki an poz ou ka kanpe."),
         ["Only active or paused runs can be finished."] = new("Seule une session en cours ou en pause peut être terminée.", "Se sèlman yon sesyon k ap fèt oswa ki an poz ou ka fini."),

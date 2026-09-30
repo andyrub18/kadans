@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """End-to-end check of reminders and the notification centre against a running API in
-Development (Push:Provider=Log, Tasks:ReminderIntervalSeconds=10).
+Development (Push:Provider=Log). The reminder job runs every 10 s, as in production.
 
     python3 tools/smoke/notification_flows.py <api log> [base-url] [username] [password]   # default user: smoke
 
-Registers a device for the admin, creates a one-time todo due in ~70 s with a 1-minute lead,
-waits for the reminder job, then checks GET /notifications, the push log line and mark-read.
-Standard library only; takes ~30 s.
+Registers a device for the user, creates a one-time todo due in ~75 s with a 1-minute lead,
+waits for the reminder job, then checks the reminder's timing and wording, GET /notifications,
+the push log line and mark-read. Standard library only; takes ~45 s.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt, uuid, re
 LOG = sys.argv[1]; BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"
@@ -63,6 +63,10 @@ if found:
     C("title is the todo title", found["title"] == "smoke: reminder")
     C("data carries occurrenceId and scheduledAt", "occurrenceId" in found["data"] and found["data"]["scheduledAt"].startswith(iso(due)[:16]))
     C("body mentions the start time", re.search(r"\d\d:\d\d", found["body"]) is not None, found["body"])
+    # The pass runs a few seconds after the notify time; the text still names the whole lead.
+    C("body counts the whole 1-minute lead", "1 min" in found["body"], found["body"])
+    late = (dt.datetime.fromisoformat(found["createdAt"]) - (due - dt.timedelta(minutes=1))).total_seconds()
+    C("reminder sent within one job interval of its notify time", 0 <= late <= 12, f"{late:.1f} s after")
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
 C("silent todo produced no reminder", not any(n["data"]["todoId"] == quiet["id"] for n in items))
 log = open(LOG).read()

@@ -14,7 +14,11 @@ internal sealed class TasksOptions
 
     public int MaxPreviewPerTodo { get; set; } = 500;
 
-    public int ReminderIntervalSeconds { get; set; } = 60;
+    /// <summary>
+    /// How often the reminder job looks for due reminders, which is also the most a reminder can be late. The
+    /// scan reads a filtered index (pending, not yet notified), which keeps a short interval cheap.
+    /// </summary>
+    public int ReminderIntervalSeconds { get; set; } = 10;
 
     /// <summary>
     /// Longest the deadline watcher sleeps without re-checking. Phase changes themselves are not on this

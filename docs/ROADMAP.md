@@ -277,10 +277,33 @@ installing on real devices second, hosting last.
 - [ ] After the first deploy: `android:usesCleartextTraffic="false"` for release builds (dev needs http),
       and https App Links / Universal Links for the emailed pages now that there is a domain.
 
+4. Before opening sign-up to others. These come from the pre-launch review of 2026-09-30 and ship one
+   pull request per step, in this order. Steps 1–4 are server-only and go live as each merges; 5–7 ship
+   with the next app build.
+
+- [x] Reminders on time and worded right. Production checked for due reminders every 60 s: only the
+      Development file set 10 s, so a reminder came up to a minute late (measured: 48.7 s). The job now
+      runs every 10 s everywhere, as the code default. The text rounded the time left down, so a 15-minute
+      lead read "in 14 min" and an hour "in 59 min"; it now rounds up to the minute. A lead is at most
+      30 days (a huge one was a 500), and an update can no longer blank the title. Measured after: the
+      reminder 2–6 s after its notify time, reading "in 1 min", "in 15 min", "in 1 h".
+- [ ] Recurrence limits: rule end, repeat count and calendar window are bounded, and the engine never
+      expands more than it returns (Tasks and Budget).
+- [ ] Google sign-in: linking rules for an account that already uses the same email.
+- [ ] Rate limiting on the anonymous and email-sending endpoints (moved up from nice-to-have).
+- [ ] The profile follows the device: time zone and language are sent at sign-up and synced after every
+      sign-in, and the reminder lead can be chosen when creating a todo (see the known-bugs table).
+- [ ] Sign-out and sessions: a signed-out device stops receiving pushes, and a refresh that fails for
+      any reason except a rejected token keeps the session (so a deploy restart signs nobody out).
+- [ ] Account hardening: email change confirms the password, rules for `@` in usernames, 2FA attempt
+      counting, 8-character passwords, hub connections end with their token, bounded paging.
+- [ ] Pomodoro: hands-free by default, a "time's up" notification for manual runs, and the server's
+      clock decides when a phase has ended.
+- [ ] Delete my account, in the app and from a web page (Google Play requires both).
+
 Nice-to-have hardening
 
 - [ ] Integration tests with Testcontainers (Phase 3 leftover); unit tests for Identity and Notifications
-- [ ] Rate limiting on `forgot-password` / `resend-confirmation` (lockout already covers login)
 
 ## Fixed along the way
 
@@ -292,12 +315,16 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
+| `clients/app`: sign-up and profile | Sign-up sends neither the device time zone nor the app language, and nothing syncs them later (Google-created accounts included), so the account stays on UTC and English. Reminders show the start in UTC ("Starts at 01:28" for a 21:28 start in Port-au-Prince), server texts and emails are English until the language is picked again, and focus-stats days and Budget month boundaries follow UTC. Workaround: set both in Settings. Fix: Phase 8 → 4, "The profile follows the device" |
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
 | `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
 | `tools/smoke/identity_flows.py` | ~~Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`)~~ fixed 2026-09-18: a fresh `alice<timestamp>` per run |
 | Budget: `RecurringTransactionJob` | ~~Took 500 due rules per pass with no order (EF warned "row limiting operator without an 'OrderBy'" in the production log). Every active rule is due on every pass, so past 500 rules the same ones could be skipped each time~~ fixed 2026-09-30: least recently materialized first, never-materialized before all |
 | Identity: emailed-link keys | ~~ASP.NET Core Data Protection kept its key ring in the container's home folder: every `docker compose up -d --build` would have generated new keys and made every confirmation, reset and email-change link already sent invalid~~ fixed 2026-09-30: keys in `identity.data_protection_keys`, encrypted (`KeyRingEncryption`) |
 | Identity: `GET /auth/confirm-email` | ~~A broken or expired confirmation link answered with a JSON problem – what a person clicking it in a mail client saw~~ fixed 2026-09-30: a page in the account's language, like the email-change link |
+| Tasks: reminder timing | ~~Production reminders came up to 60 s late: only `appsettings.Development.json` set `Tasks:ReminderIntervalSeconds` (10), and the code default was 60~~ fixed 2026-09-30: the default is 10 s |
+| Tasks: reminder text | ~~A 15-minute lead read "in 14 min" and an hour "in 59 min": the time left was rounded down, and a pass always lands a few seconds after the notify time~~ fixed 2026-09-30: rounded up to the minute |
+| Tasks: `PUT /todos/{id}` | ~~`notifyBeforeInMinutes` had no upper bound (a huge value overflowed the date arithmetic into a 500), and an update could blank the title~~ fixed 2026-09-30: a lead is at most 30 days (code 10052, create and update), and the title is required |
 | Identity: email change | ~~The emailed link pointed at `POST /users/me/email/confirm`, which needs a bearer token – no mail client or browser could ever complete it, so an email change could not be finished by a person. Unnoticed because the smoke script scraped the token from the log and called the API itself~~ fixed 2026-09-18: anonymous landing page, and the smoke script now opens the link like a browser |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |
 | `Models/RecurrenceRule.cs` `CreateOneTimeRule` | ~~NRE in `GetOccurrences` (no ByHour/ByMinute)~~ fixed in Phase 0 |

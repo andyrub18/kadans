@@ -19,6 +19,12 @@ internal sealed class TodoRemark
 
 internal sealed class Todo
 {
+    /// <summary>
+    /// Longest reminder lead. Occurrences are materialized 30 days ahead, so a longer lead could never fire on
+    /// time, and a huge one used to overflow the date arithmetic into a 500.
+    /// </summary>
+    public const uint MaxNotifyBeforeMinutes = 30 * 24 * 60;
+
     public Guid Id { get; init; } = Guid.CreateVersion7();
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

@@ -130,6 +130,20 @@ s, r = call("PUT", f"/occurrences/{oo[0]['id']}/complete", token=T)
 s, r = call("GET", f"/todos/{one['id']}", token=T)
 C("one-time completes the todo", r["status"] == "Completed", r["status"])
 
+# --- reminder lead: at most 30 days (occurrences exist 30 days ahead), on create and on update ---
+month = 30 * 24 * 60
+s, r = call("POST", "/todos/one-time", {"title": "smoke: lead", "description": "", "notificationEnabled": True,
+            "notifyBeforeInMinutes": month + 1, "dueDate": iso(start + dt.timedelta(days=3))}, token=T)
+C("a lead over 30 days is refused on create", s == 400 and [e["code"] for e in r["errors"]] == ["10052"], f"{s} {r}")
+s, lead = call("POST", "/todos/one-time", {"title": "smoke: lead", "description": "", "notificationEnabled": True,
+               "notifyBeforeInMinutes": month, "dueDate": iso(start + dt.timedelta(days=3))}, token=T)
+C("a 30-day lead is accepted", s == 200 and lead["notifyBeforeInMinutes"] == month, f"{s}")
+s, r = call("PUT", f"/todos/{lead['id']}", {"title": "smoke: lead", "description": "", "notificationEnabled": True,
+            "notifyBeforeInMinutes": 4294967295}, token=T, lang="fr")
+C("a huge lead on update is a 400 in the caller's language (was a 500)",
+  s == 400 and r["errors"][0]["code"] == "10052" and r["errors"][0]["message"].startswith("Un rappel"), f"{s} {r}")
+call("PUT", f"/todos/{lead['id']}/cancel", {"reason": "cleanup"}, token=T)
+
 # --- error texts follow Accept-Language; codes never change ---
 bad = {"title": "", "description": "", "notificationEnabled": False, "dueDate": "2020-01-01T00:00:00Z"}
 answers = {lang: call("POST", "/todos/one-time", bad, token=T, lang=lang)[1] for lang in (None, "fr-HT,fr;q=0.9", "ht")}

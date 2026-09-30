@@ -83,20 +83,25 @@ internal sealed class OccurrenceReminderJob(
         logger.LogInformation("Reminder run: {Count} reminder(s) sent", due.Count);
     }
 
-    /// <summary>"15 min", "2 h 05 min", "3 d 4 h" — unit words from the user's language.</summary>
+    /// <summary>
+    /// "15 min", "2 h 05 min", "3 d 4 h" — unit words from the user's language. Rounded up to the minute: the job
+    /// runs a few seconds after the notify time, when a 15-minute lead is 14 min 5x s away, and must still read
+    /// "15 min" (and an hour "1 h", not "59 min").
+    /// </summary>
     internal static string Describe(TimeSpan span, ReminderTexts texts)
     {
-        if (span.TotalMinutes < 1)
-            return texts.LessThanAMinute;
-        if (span.TotalHours < 1)
-            return $"{(int)span.TotalMinutes} {texts.MinuteAbbrev}";
-        if (span.TotalDays < 1)
-            return span.Minutes == 0
-                ? $"{(int)span.TotalHours} {texts.HourAbbrev}"
-                : $"{(int)span.TotalHours} {texts.HourAbbrev} {span.Minutes:00} {texts.MinuteAbbrev}";
-        return span.Hours == 0
-            ? $"{(int)span.TotalDays} {texts.DayAbbrev}"
-            : $"{(int)span.TotalDays} {texts.DayAbbrev} {span.Hours} {texts.HourAbbrev}";
+        const long minutesPerDay = 24 * 60;
+        var minutes = Math.Max(1L, (long)Math.Ceiling(span.TotalMinutes));
+        if (minutes < 60)
+            return $"{minutes} {texts.MinuteAbbrev}";
+        if (minutes < minutesPerDay)
+            return minutes % 60 == 0
+                ? $"{minutes / 60} {texts.HourAbbrev}"
+                : $"{minutes / 60} {texts.HourAbbrev} {minutes % 60:00} {texts.MinuteAbbrev}";
+        var hours = minutes % minutesPerDay / 60;
+        return hours == 0
+            ? $"{minutes / minutesPerDay} {texts.DayAbbrev}"
+            : $"{minutes / minutesPerDay} {texts.DayAbbrev} {hours} {texts.HourAbbrev}";
     }
 
     private async Task<(TimeZoneInfo, string)> UserContextAsync(string userId, Dictionary<string, (TimeZoneInfo, string)> cache, CancellationToken cancellationToken)

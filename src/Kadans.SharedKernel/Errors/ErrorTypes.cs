@@ -310,6 +310,12 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         StatusCodes.Status400BadRequest,
         ""
     );
+    public static readonly ErrorTypes InvalidNotifyBefore = new(
+        "10052",
+        "Invalid reminder lead time",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
 
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;

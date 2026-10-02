@@ -22,6 +22,7 @@ val FrenchStrings = StringsCatalog(
         pushOff = "notifications désactivées",
         lastSeen = "Vu pour la dernière fois",
         removeDevice = "Retirer",
+        sessionEndedNotice = "Votre session a pris fin. Reconnectez-vous pour continuer.",
     ),
     timeZone = TimeZoneStrings(
         section = "Fuseau horaire",

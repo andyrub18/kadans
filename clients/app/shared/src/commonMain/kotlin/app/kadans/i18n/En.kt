@@ -22,6 +22,7 @@ val EnglishStrings = StringsCatalog(
         pushOff = "push off",
         lastSeen = "Last seen",
         removeDevice = "Remove",
+        sessionEndedNotice = "You were signed out. Sign in again to continue.",
     ),
     timeZone = TimeZoneStrings(
         section = "Time zone",

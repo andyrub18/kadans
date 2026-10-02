@@ -17,7 +17,7 @@ The image is host-neutral. Configuration is environment variables only; nothing 
 ## Where to host it
 
 Recommendation: **a small VPS in the eastern US (Miami if offered, else Virginia / New York) running
-`deploy/docker-compose.yml`**. Roughly 2 GB RAM is comfortable for the API plus Postgres.
+`deploy/docker-compose.yml`**. Roughly 2 GB RAM is comfortable for the API plus Postgres; production runs on 2 vCPU and 4 GB.
 
 | Option | Fits Kadans? | Trade-off |
 |---|---|---|

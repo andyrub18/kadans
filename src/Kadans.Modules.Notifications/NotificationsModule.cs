@@ -7,6 +7,7 @@ using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
+using Kadans.SharedKernel.Users;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 
@@ -29,6 +30,8 @@ public sealed class NotificationsModule : IModule
             json.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter())
         );
         services.AddSingleton<IRealtimePublisher, SignalRRealtimePublisher>();
+        services.AddSingleton<HubConnections>();
+        services.AddSingleton<ISessionEndListener>(provider => provider.GetRequiredService<HubConnections>());
 
         var pushSection = configuration.GetSection(PushOptions.SectionName);
         services.Configure<PushOptions>(pushSection);

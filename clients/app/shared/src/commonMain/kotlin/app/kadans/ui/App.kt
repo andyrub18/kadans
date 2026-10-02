@@ -17,9 +17,11 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import app.kadans.api.KadansApi
 import app.kadans.api.TokenStore
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
+import app.kadans.realtime.KadansRealtime
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import app.kadans.ui.auth.ForgotPasswordScreen
@@ -99,6 +101,19 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
         backStack.add(route)
     }
 
+    // The server refused this device's session (signed out elsewhere, password changed, deactivated): back to
+    // sign-in from wherever the person is, with a word about why.
+    val api = koinInject<KadansApi>()
+    val realtime = koinInject<KadansRealtime>()
+    var sessionEnded by remember { mutableStateOf(false) }
+    LaunchedEffect(api) {
+        api.sessionEnded.collect {
+            realtime.stop()
+            sessionEnded = true
+            resetTo(LoginRoute)
+        }
+    }
+
     NavDisplay(
         backStack = backStack,
         onBack = { backStack.removeLastOrNull() },
@@ -116,10 +131,14 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is LoginRoute -> NavEntry(key) {
                     LoginScreen(
                         languageController = languageController,
-                        onLoggedIn = { resetTo(HomeRoute) },
+                        onLoggedIn = {
+                            sessionEnded = false
+                            resetTo(HomeRoute)
+                        },
                         onMfaRequired = { mfaToken -> backStack.add(MfaRoute(mfaToken)) },
                         onRegister = { backStack.add(RegisterRoute) },
                         onForgotPassword = { backStack.add(ForgotPasswordRoute) },
+                        sessionEnded = sessionEnded,
                     )
                 }
                 is ForgotPasswordRoute -> NavEntry(key) {
@@ -136,7 +155,10 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is MfaRoute -> NavEntry(key) {
                     MfaScreen(
                         mfaToken = key.mfaToken,
-                        onVerified = { resetTo(HomeRoute) },
+                        onVerified = {
+                            sessionEnded = false
+                            resetTo(HomeRoute)
+                        },
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

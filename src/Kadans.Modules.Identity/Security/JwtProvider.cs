@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Persistence;
+using Kadans.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -20,7 +21,8 @@ internal sealed class JwtProvider(IOptions<JwtParameter> options, IdentityModule
 
     private readonly JwtParameter parameter = options.Value;
 
-    public async Task<string> CreateToken(ApplicationUser user)
+    /// <param name="sessionId">The refresh-token family the token belongs to (<see cref="SessionClaim"/>).</param>
+    public async Task<string> CreateToken(ApplicationUser user, Guid sessionId)
     {
         var roleNames = await dbContext
             .UserRoles.Where(ur => ur.UserId == user.Id)
@@ -31,6 +33,7 @@ internal sealed class JwtProvider(IOptions<JwtParameter> options, IdentityModule
         [
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Name, user.UserName ?? string.Empty),
+            new Claim(SessionClaim.Type, sessionId.ToString()),
             .. roleNames
                 .Where(rn => !string.IsNullOrEmpty(rn))
                 .Select(rn => new Claim(ClaimTypes.Role, rn!)),

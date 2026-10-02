@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Account;
@@ -9,6 +10,7 @@ using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Realtime;
+using Kadans.SharedKernel.Security;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -101,12 +103,25 @@ public sealed class IdentityModule : IModule
                             context.Token = accessToken;
                         return Task.CompletedTask;
                     },
+                    // A token is only as good as its session: signed out, signed out everywhere, password changed,
+                    // deactivated – refused from the next request, not when the token expires. The client then
+                    // refreshes, which fails the same way, and lands on sign-in. A token without a session (issued
+                    // before sessions were stamped) is refused too; a refresh replaces it.
+                    OnTokenValidated = async context =>
+                    {
+                        var registry = context.HttpContext.RequestServices.GetRequiredService<SessionRegistry>();
+                        if (!Guid.TryParse(context.Principal?.FindFirstValue(SessionClaim.Type), out var sessionId)
+                            || !await registry.IsOnAsync(sessionId, context.HttpContext.RequestAborted))
+                            context.Fail("The session has ended.");
+                    },
                 };
             });
 
         services.AddSingleton<ExternalIdTokenValidator>();
         services.AddHttpClient<GoogleCodeExchange>(client => client.Timeout = TimeSpan.FromSeconds(15));
         services.AddScoped<JwtProvider>();
+        services.AddSingleton<SessionRegistry>();
+        services.AddScoped<Sessions>();
         services.AddScoped<Authentication>();
         services.AddScoped<ExternalAuthentication>();
         services.AddScoped<AccountSecurity>();

@@ -21,14 +21,19 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import app.kadans.api.model.LoginResponse
 import app.kadans.api.model.RefreshTokenRequest
 import app.kadans.profile.deviceTimeZone
 
 /**
  * Typed client for the Kadans API. Bearer tokens come from [tokenStore]; on a 401 the client
- * rotates the refresh token at `/auth/refresh` and retries once. A refresh failure clears the
- * session (the family was revoked server-side; the user signs in again).
+ * rotates the refresh token at `/auth/refresh` and retries once. Only a refused refresh ends the
+ * session ([sessionEnded]): the server said it is over (signed out elsewhere, password changed,
+ * deactivated). A server that cannot answer (a deploy restart, no network) keeps it, and the call
+ * fails with [ServerUnavailableException] or the network error.
  */
 class KadansApi internal constructor(
     internal val http: HttpClient,
@@ -51,12 +56,25 @@ class KadansApi internal constructor(
     val budget: BudgetApi = BudgetApi(this)
     val notifications: NotificationsApi = NotificationsApi(this)
 
+    private val _sessionEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** The server refused this device's session: the local one is gone, and the person signs in again. */
+    val sessionEnded: SharedFlow<Unit> = _sessionEnded.asSharedFlow()
+
+    internal suspend fun endSession() {
+        tokenStore.save(null)
+        _sessionEnded.tryEmit(Unit)
+    }
+
     /** Drop Ktor's cached bearer so the next request re-reads [tokenStore]. */
     internal fun invalidateTokenCache() {
         http.authProvider<BearerAuthProvider>()?.clearToken()
     }
 
     companion object {
+        /** The answers that mean "this session is over"; anything else is the server failing to answer. */
+        internal val REFRESH_REFUSED = setOf(400, 401, 403)
+
         fun create(
             baseUrl: String = "",
             tokenStore: TokenStore = InMemoryTokenStore(),
@@ -93,7 +111,8 @@ class KadansApi internal constructor(
                                 setBody(RefreshTokenRequest(current.refreshToken))
                             }
                             if (!response.status.isSuccess()) {
-                                tokenStore.save(null)
+                                if (response.status.value !in REFRESH_REFUSED) throw ServerUnavailableException(response.status.value)
+                                api.endSession()
                                 return@refreshTokens null
                             }
                             val login = response.body<LoginResponse>()

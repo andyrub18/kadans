@@ -16,7 +16,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.IOException
 
 class KadansApiTests {
 
@@ -100,21 +103,64 @@ class KadansApiTests {
         assertEquals(AuthTokens("fresh-acc", "fresh-ref"), store.load())
     }
 
-    @Test
-    fun failed_refresh_clears_the_session() = runTest {
-        val engine = MockEngine { request ->
-            when (request.url.encodedPath) {
-                "/auth/refresh" ->
-                    respond("""{"title":"Invalid credentials","status":401,"errorCode":"10024"}""", HttpStatusCode.Unauthorized, jsonHeaders)
-                else ->
-                    respond("""{"title":"Unauthorized","status":401}""", HttpStatusCode.Unauthorized, jsonHeaders)
-            }
+    /** Every call is refused for its token, and the refresh answers [refresh]. */
+    private fun refreshAnswering(refresh: HttpStatusCode) = MockEngine { request ->
+        when (request.url.encodedPath) {
+            "/auth/refresh" ->
+                respond("""{"title":"Refresh","status":${refresh.value},"errorCode":"10024"}""", refresh, jsonHeaders)
+            else ->
+                respond("""{"title":"Unauthorized","status":401}""", HttpStatusCode.Unauthorized, jsonHeaders)
         }
-        val store = InMemoryTokenStore(AuthTokens("stale", "revoked"))
+    }
+
+    @Test
+    fun a_refused_refresh_ends_the_session() = runTest {
+        // 401: signed out elsewhere or password changed; 403: deactivated; 400: a malformed token.
+        for (refused in listOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.BadRequest)) {
+            val store = InMemoryTokenStore(AuthTokens("stale", "revoked"))
+            val api = KadansApi.create("http://test", store, refreshAnswering(refused))
+            var ended = 0
+            val watcher = launch(start = CoroutineStart.UNDISPATCHED) { api.sessionEnded.collect { ended++ } }
+
+            assertFailsWith<KadansApiException> { api.account.me() }
+            testScheduler.advanceUntilIdle()
+
+            assertNull(store.load(), "$refused")
+            assertEquals(1, ended, "$refused")
+            watcher.cancel()
+        }
+    }
+
+    @Test
+    fun a_server_that_cannot_answer_keeps_the_session() = runTest {
+        // A deploy restart (the proxy answers 502/503), a rate limit, a server error: nobody is signed out.
+        for (failure in listOf(HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable, HttpStatusCode.TooManyRequests, HttpStatusCode.InternalServerError)) {
+            val store = InMemoryTokenStore(AuthTokens("stale", "still-good"))
+            val api = KadansApi.create("http://test", store, refreshAnswering(failure))
+            var ended = false
+            val watcher = launch(start = CoroutineStart.UNDISPATCHED) { api.sessionEnded.collect { ended = true } }
+
+            val error = assertFailsWith<ServerUnavailableException> { api.account.me() }
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(failure.value, error.httpStatus)
+            assertEquals(AuthTokens("stale", "still-good"), store.load(), "$failure")
+            assertFalse(ended, "$failure")
+            watcher.cancel()
+        }
+    }
+
+    @Test
+    fun no_network_during_a_refresh_keeps_the_session() = runTest {
+        val engine = MockEngine { request ->
+            if (request.url.encodedPath == "/auth/refresh") throw IOException("network is unreachable")
+            respond("""{"title":"Unauthorized","status":401}""", HttpStatusCode.Unauthorized, jsonHeaders)
+        }
+        val store = InMemoryTokenStore(AuthTokens("stale", "still-good"))
         val api = KadansApi.create("http://test", store, engine)
 
-        assertFailsWith<KadansApiException> { api.account.me() }
-        assertNull(store.load())
+        assertFailsWith<IOException> { api.account.me() }
+        assertEquals(AuthTokens("stale", "still-good"), store.load())
     }
 
     @Test

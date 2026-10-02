@@ -57,9 +57,11 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
+`python3 tools/smoke/session_flows.py` for sessions (a signed-out token is refused at once, its device and live
+connection go, a push token moves to the next account on the phone);
 `python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, stats, and the hands-free
 deadline: it races a client against the server and fails if the phase change is more than 1 s late);
-the task, notification, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
+the task, notification, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and
 recurring rules (restart the API right before: the recurring job's first pass runs ~15 s after boot).

@@ -66,6 +66,10 @@ internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbC
             d.Property(x => x.Platform).HasConversion<string>();
 
             d.HasIndex(x => new { x.UserId, x.InstallationId }).IsUnique();
+            d.HasIndex(x => x.SessionId);
+            // Tokens are looked up by equality only (moving one to a new account, retiring a dead one), and may be
+            // longer than a b-tree entry allows.
+            d.HasIndex(x => x.PushToken).HasMethod("hash");
             d.HasOne<ApplicationUser>()
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

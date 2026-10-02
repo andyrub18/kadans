@@ -63,6 +63,8 @@ fun LoginScreen(
     onMfaRequired: (String) -> Unit,
     onRegister: () -> Unit,
     onForgotPassword: () -> Unit,
+    /** The server ended this device's session (signed out elsewhere, password changed): say so. */
+    sessionEnded: Boolean = false,
     viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -79,6 +81,9 @@ fun LoginScreen(
     val s = LocalStrings.current
     val currentLanguage by languageController.language.collectAsState()
     AuthScaffold(title = s.signInTitle) {
+        if (sessionEnded) {
+            Text(s.account.sessionEndedNotice, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Language.entries.forEach { lang ->
                 FilterChip(

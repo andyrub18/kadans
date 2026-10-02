@@ -17,10 +17,14 @@ internal sealed class Authentication(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     IdentityModuleDbContext dbContext,
+    Sessions sessions,
     IOptions<JwtParameter> jwtParameterOptions
 )
 {
     private readonly JwtParameter jwtParameter = jwtParameterOptions.Value;
+
+    /// <summary>Why a token replaced by a refresh is inactive; presenting one again means someone copied it.</summary>
+    private const string RotatedReason = "rotated";
 
     public async Task<OneOf<ApplicationError, LoginResponse>> Login(LoginRequest request)
     {
@@ -91,13 +95,17 @@ internal sealed class Authentication(
 
         if (!token.IsActive)
         {
+            // Signed out, or ended some other way: nothing more to do.
+            if (token.RevokedReason != RotatedReason)
+                return new ApplicationError(ErrorTypes.InvalidCredentials, "Invalid refresh token");
+
             // An already-rotated token is being replayed: someone else holds a copy of this session.
             logger.LogWarning(
                 "Refresh token reuse detected for user {UserId}, family {FamilyId}; revoking family",
                 token.UserId,
                 token.FamilyId
             );
-            await RevokeFamilyAsync(token.FamilyId, "reuse detected");
+            await sessions.EndAsync(token.UserId, token.FamilyId, "reuse detected");
             return new ApplicationError(ErrorTypes.InvalidCredentials, "Invalid refresh token");
         }
 
@@ -110,15 +118,15 @@ internal sealed class Authentication(
 
         if (await userManager.IsLockedOutAsync(token.User))
         {
-            await RevokeFamilyAsync(token.FamilyId, "user deactivated");
+            await sessions.EndAsync(token.UserId, token.FamilyId, "user deactivated");
             return new ApplicationError(ErrorTypes.UserInactive, "User is deactivated");
         }
 
-        token.Revoke("rotated");
+        token.Revoke(RotatedReason);
         return await IssueTokensAsync(token.User, token.FamilyId);
     }
 
-    /// <summary>Logs the session out: revokes the token's whole family.</summary>
+    /// <summary>Signs this session out: its tokens, its access from the next request on, and the device it registered.</summary>
     public async Task RevokeRefreshToken(string refreshToken)
     {
         var hash = JwtProvider.HashRefreshToken(refreshToken);
@@ -129,17 +137,8 @@ internal sealed class Authentication(
             return;
         }
 
-        await RevokeFamilyAsync(token.FamilyId, "logout");
+        await sessions.EndAsync(token.UserId, token.FamilyId, "logout");
     }
-
-    public Task<int> RevokeAllSessionsAsync(string userId, string reason) =>
-        dbContext
-            .RefreshTokens.Where(rt => rt.UserId == userId && rt.IsActive)
-            .ExecuteUpdateAsync(s =>
-                s.SetProperty(rt => rt.IsActive, false)
-                    .SetProperty(rt => rt.RevokedAtUtc, DateTimeOffset.UtcNow)
-                    .SetProperty(rt => rt.RevokedReason, reason)
-            );
 
     /// <summary>Password/external step done: hand out tokens, or an MFA challenge when enabled.</summary>
     public async Task<LoginResponse> IssueTokensOrChallengeAsync(ApplicationUser user)
@@ -163,16 +162,18 @@ internal sealed class Authentication(
         return redeemed.Succeeded;
     }
 
+    /// <param name="familyId">The session to continue (a refresh); null starts a new one (a sign-in).</param>
     private async Task<LoginResponse> IssueTokensAsync(ApplicationUser user, Guid? familyId = null)
     {
-        var accessToken = await jwtProvider.CreateToken(user);
+        var sessionId = familyId ?? Guid.CreateVersion7();
+        var accessToken = await jwtProvider.CreateToken(user, sessionId);
         var rawRefreshToken = JwtProvider.GenerateRefreshToken();
         var now = DateTimeOffset.UtcNow;
 
         var entity = new RefreshToken
         {
             TokenHash = JwtProvider.HashRefreshToken(rawRefreshToken),
-            FamilyId = familyId ?? Guid.CreateVersion7(),
+            FamilyId = sessionId,
             CreatedAtUtc = now,
             ExpireAtUtc = now.AddDays(jwtParameter.RefreshTokenExpirationInDays),
             IsActive = true,
@@ -190,13 +191,4 @@ internal sealed class Authentication(
             RefreshTokenExpireAt: entity.ExpireAtUtc
         );
     }
-
-    private Task<int> RevokeFamilyAsync(Guid familyId, string reason) =>
-        dbContext
-            .RefreshTokens.Where(rt => rt.FamilyId == familyId && rt.IsActive)
-            .ExecuteUpdateAsync(s =>
-                s.SetProperty(rt => rt.IsActive, false)
-                    .SetProperty(rt => rt.RevokedAtUtc, DateTimeOffset.UtcNow)
-                    .SetProperty(rt => rt.RevokedReason, reason)
-            );
 }

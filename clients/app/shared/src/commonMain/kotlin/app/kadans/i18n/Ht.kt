@@ -22,6 +22,7 @@ val CreoleStrings = StringsCatalog(
         pushOff = "notifikasyon dezaktive",
         lastSeen = "Dènye fwa nou wè l",
         removeDevice = "Retire",
+        sessionEndedNotice = "Ou te dekonekte. Konekte ankò pou w kontinye.",
     ),
     timeZone = TimeZoneStrings(
         section = "Zòn lè",

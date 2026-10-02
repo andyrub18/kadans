@@ -71,6 +71,8 @@ data class AccountStrings(
     val pushOff: String,
     val lastSeen: String,
     val removeDevice: String,
+    /** On the sign-in screen after the server ended this device's session. */
+    val sessionEndedNotice: String,
 ) {
     fun emailChangeSent(address: String): String = emailChangeSentFormat.replace("%s", address)
 }

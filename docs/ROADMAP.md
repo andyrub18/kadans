@@ -328,10 +328,25 @@ installing on real devices second, hosting last.
         create and edit. An older custom lead stays selectable.
       - **Recurrence limits.** The form keeps within step 2's limits: every 5 minutes at the least, at most
         5,000 repeats (said under the field), and an end date within 10 years in the date picker.
-- [ ] Sign-out and sessions: a signed-out device stops receiving pushes, and a refresh that fails for
-      any reason except a rejected token keeps the session (so a deploy restart signs nobody out).
+- [x] Sign-out and sessions (design: ARCHITECTURE → "A session ends everywhere at once"):
+      - **Access ends with the session.** Access tokens name their session, and a token whose session has
+        ended is refused on its next request. Before, it worked until it expired, up to 60 minutes: after
+        a sign-out, a password change or a takeover. The check reads memory; measured, a request takes
+        1.8 ms at the median.
+      - **Every ending goes through one place.** That covers sign-out, sign out everywhere, a password
+        change or reset, deactivation, a withdrawn role and a replayed refresh token. Each removes the
+        device the session registered (no more pushes to a signed-out phone) and closes its live
+        connections (0.04 s after "sign out everywhere").
+      - **One account per phone.** An installation or push token belongs to one account at a time, so a
+        phone signed into another account stops getting the first one's reminders.
+      - **A deploy signs nobody out.** The app signs out only when the server refuses a refresh (400,
+        401, 403). A restart, a rate limit or no network keeps the session. When the server does end it
+        (signed out elsewhere), the app goes to sign-in from any screen and says why.
+      - **Found on the way.** Refreshing with a token that was already signed out was logged as token
+        theft. Now only a replayed rotated token counts as theft.
 - [ ] Account hardening: email change confirms the password, rules for `@` in usernames, 2FA attempt
-      counting, 8-character passwords, hub connections end with their token, bounded paging.
+      counting, 8-character passwords, hub connections end when their token expires (a session that ends
+      already closes them), bounded paging.
 - [ ] Pomodoro: hands-free by default, a "time's up" notification for manual runs, and the server's
       clock decides when a phase has ended.
 - [ ] Data retention. Nothing is deleted today; one reminder every 5 minutes alone writes about 210,000
@@ -352,7 +367,7 @@ installing on real devices second, hosting last.
       single todo (today a todo can only be cancelled).
 - [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,
-      and 20,000 reminders due in the same minute, on the production server size). Pass when every
+      and 20,000 reminders due in the same minute, on the production server: 2 vCPU, 4 GB RAM). Pass when every
       reminder of that peak is stored and handed to push within a minute with none dropped, the main
       screens answer in under 200 ms at the 95th percentile, every job pass fits its interval, and no hot
       query scans a whole table. The seeding script and the measurements stay in the repo. Already

@@ -1,3 +1,4 @@
+using Kadans.Modules.Identity.Features.Auth;
 using Kadans.SharedKernel.Security;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Contracts;
@@ -17,7 +18,8 @@ internal sealed class UserManagement(
     RoleManager<IdentityRole> roleManager,
     ICurrentUserService currentUserService,
     IHttpContextAccessor httpContextAccessor,
-    IdentityEmails emails
+    IdentityEmails emails,
+    Sessions sessions
 )
 {
     private const string AdminRoleName = "Admin";
@@ -206,6 +208,7 @@ internal sealed class UserManagement(
         }
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        EndedSessions? ended = null;
 
         if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.UserName)
         {
@@ -276,7 +279,7 @@ internal sealed class UserManagement(
                 );
             }
 
-            await RevokeActiveRefreshTokensAsync(user.Id);
+            ended = await sessions.EndAllAsync(user.Id, "password set by an admin");
         }
 
         if (request.Roles is not null)
@@ -302,6 +305,9 @@ internal sealed class UserManagement(
                         "Validation failed for updating user."
                     );
                 }
+
+                // Access tokens carry the roles: a withdrawn role must not keep working until they expire.
+                ended ??= await sessions.EndAllAsync(user.Id, "roles withdrawn");
             }
 
             if (rolesToAdd.Length > 0)
@@ -317,6 +323,8 @@ internal sealed class UserManagement(
         }
 
         await transaction.CommitAsync();
+        if (ended is not null)
+            sessions.Announce(ended);
 
         logger.LogInformation("User {UserId} updated", userId);
         return await BuildUserResponseAsync(user);
@@ -392,8 +400,9 @@ internal sealed class UserManagement(
             );
         }
 
-        await RevokeActiveRefreshTokensAsync(user.Id);
+        var ended = await sessions.EndAllAsync(user.Id, "deactivated");
         await transaction.CommitAsync();
+        sessions.Announce(ended);
 
         logger.LogInformation("User {UserId} deactivated", userId);
         return await BuildUserResponseAsync(user);
@@ -449,18 +458,6 @@ internal sealed class UserManagement(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray()
         ?? [];
-
-    private Task<int> RevokeActiveRefreshTokensAsync(string userId) =>
-        dbContext
-            .RefreshTokens.Where(refreshToken =>
-                refreshToken.UserId == userId && refreshToken.IsActive
-            )
-            .ExecuteUpdateAsync(setters =>
-                setters
-                    .SetProperty(refreshToken => refreshToken.IsActive, false)
-                    .SetProperty(refreshToken => refreshToken.RevokedAtUtc, DateTimeOffset.UtcNow)
-                    .SetProperty(refreshToken => refreshToken.RevokedReason, "admin action")
-            );
 
     private static bool IsValidTimeZone(string timeZoneId) =>
         TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out _);

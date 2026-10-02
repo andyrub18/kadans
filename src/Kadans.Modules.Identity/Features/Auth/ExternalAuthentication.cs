@@ -18,6 +18,7 @@ internal sealed class ExternalAuthentication(
     IOptions<ExternalAuthOptions> options,
     UserManager<ApplicationUser> userManager,
     Authentication authentication,
+    Sessions sessions,
     IdentityModuleDbContext dbContext,
     ILogger<ExternalAuthentication> logger
 )
@@ -102,7 +103,8 @@ internal sealed class ExternalAuthentication(
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         var user = await userManager.FindByEmailAsync(email);
-        if (user is { EmailConfirmed: false } && !await ClaimUnconfirmedAsync(user, external, cancellationToken))
+        EndedSessions? claimed = null;
+        if (user is { EmailConfirmed: false } && (claimed = await ClaimUnconfirmedAsync(user, external, cancellationToken)) is null)
             return new ApplicationError(ErrorTypes.ExternalLoginFailed, "Could not link this login to the account.");
 
         if (user is null)
@@ -139,6 +141,8 @@ internal sealed class ExternalAuthentication(
         }
 
         await transaction.CommitAsync(cancellationToken);
+        if (claimed is not null)
+            sessions.Announce(claimed);
         return user;
     }
 
@@ -149,7 +153,8 @@ internal sealed class ExternalAuthentication(
     /// codes, other sign-ins, sessions, devices (so no push reaches their phone), and any lockout or deactivation
     /// meant to keep the owner out. Otherwise the registrant would keep reading the owner's data with the password.
     /// </summary>
-    private async Task<bool> ClaimUnconfirmedAsync(ApplicationUser user, ExternalIdentity external, CancellationToken cancellationToken)
+    /// <returns>The registrant's ended sessions, to announce again once the claim commits; null when a step failed.</returns>
+    private async Task<EndedSessions?> ClaimUnconfirmedAsync(ApplicationUser user, ExternalIdentity external, CancellationToken cancellationToken)
     {
         async Task<bool> Step(Task<IdentityResult> step, string what)
         {
@@ -160,12 +165,12 @@ internal sealed class ExternalAuthentication(
         }
 
         if (await userManager.HasPasswordAsync(user) && !await Step(userManager.RemovePasswordAsync(user), "remove password"))
-            return false;
+            return null;
 
         foreach (var login in await userManager.GetLoginsAsync(user))
         {
             if (!await Step(userManager.RemoveLoginAsync(user, login.LoginProvider, login.ProviderKey), "remove login"))
-                return false;
+                return null;
         }
 
         if (!await Step(userManager.SetTwoFactorEnabledAsync(user, false), "disable 2FA")
@@ -173,20 +178,19 @@ internal sealed class ExternalAuthentication(
             || await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 0) is null
             || (await userManager.IsLockedOutAsync(user) && !await Step(userManager.SetLockoutEndDateAsync(user, null), "clear lockout"))
             || !await Step(userManager.ResetAccessFailedCountAsync(user), "reset failed attempts"))
-            return false;
+            return null;
 
         user.EmailConfirmed = true;
         if (!await Step(userManager.UpdateSecurityStampAsync(user), "confirm email"))
-            return false;
+            return null;
 
-        var sessions = await authentication.RevokeAllSessionsAsync(user.Id, "account claimed by a verified sign-in");
-        var devices = await dbContext.Devices.Where(d => d.UserId == user.Id).ExecuteDeleteAsync(cancellationToken);
+        var ended = await sessions.EndAllAsync(user.Id, "account claimed by a verified sign-in", cancellationToken);
 
         logger.LogWarning(
             "Unconfirmed user {UserId} claimed by a verified {Provider} sign-in: password, 2FA and other logins removed, {Sessions} session(s) revoked, {Devices} device(s) removed",
-            user.Id, external.Provider, sessions, devices
+            user.Id, external.Provider, ended.SessionIds.Count, ended.Devices
         );
-        return true;
+        return ended;
     }
 
     /// <summary>The verified address when it is free as a username, else one derived from the provider's subject.</summary>

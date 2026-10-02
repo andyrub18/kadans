@@ -16,6 +16,7 @@ internal sealed class AccountSecurity(
     ICurrentUserService currentUser,
     IdentityEmails emails,
     Authentication authentication,
+    Sessions sessions,
     ILogger<AccountSecurity> logger
 )
 {
@@ -39,7 +40,7 @@ internal sealed class AccountSecurity(
             return result.ToValidationError("Validation failed for changing password.");
         }
 
-        await authentication.RevokeAllSessionsAsync(user.Id, "password changed");
+        await sessions.EndAllAsync(user.Id, "password changed");
         logger.LogInformation("User {UserId} changed their password", user.Id);
         return new Success();
     }
@@ -72,7 +73,7 @@ internal sealed class AccountSecurity(
             return result.ToValidationError("Validation failed for resetting password.");
         }
 
-        await authentication.RevokeAllSessionsAsync(user.Id, "password reset");
+        await sessions.EndAllAsync(user.Id, "password reset");
         logger.LogInformation("User {UserId} reset their password", user.Id);
         return new Success();
     }
@@ -83,7 +84,7 @@ internal sealed class AccountSecurity(
         if (user is null)
             return Unauthorized();
 
-        await authentication.RevokeAllSessionsAsync(user.Id, "revoked by user");
+        await sessions.EndAllAsync(user.Id, "revoked by user");
         return new Success();
     }
 

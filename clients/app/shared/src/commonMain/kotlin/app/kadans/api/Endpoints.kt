@@ -56,7 +56,7 @@ class AuthApi internal constructor(private val api: KadansApi) {
         api.http.post("auth/reset-password") { setBody(request) }.orThrow<Success>()
     }
 
-    /** Revokes this session's family server-side and forgets the local session. */
+    /** Ends this session on the server (its access, and this device's push) and forgets it here. */
     suspend fun logout() {
         val tokens = api.tokenStore.load()
         if (tokens != null) {
@@ -94,7 +94,7 @@ class AccountApi internal constructor(private val api: KadansApi) {
         api.http.post("auth/resend-confirmation") { setBody(ResendConfirmationRequest(email)) }.orThrow<Success>()
     }
 
-    /** Revokes every refresh-token family. The current access token stays valid until it expires. */
+    /** Ends every session of the account, this one included: each device signs in again. */
     suspend fun revokeAllSessions() {
         api.http.post("users/me/sessions/revoke-all").orThrow<Success>()
     }

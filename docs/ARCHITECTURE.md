@@ -48,7 +48,8 @@ Kadans.Modules.Tasks/
    Endpoints never return entities that could drag another module's data along.
 3. **Modules depend only on SharedKernel.** They communicate through SharedKernel abstractions:
    `IUserDirectory` and `IDevicePushTargets` (implemented by Identity), `INotificationDispatcher`
-   and `IRealtimePublisher` (implemented by Notifications). Tasks and Budget only consume them.
+   and `IRealtimePublisher` (implemented by Notifications), and `ISessionEndListener` (called by Identity
+   when sessions end; Notifications closes their live connections). Tasks and Budget only consume them.
 4. **Everything is `internal`** except `Contracts` and the `IModule` implementation.
 5. **Per-user isolation via EF global query filters** on `UserId == ICurrentUserService.UserId`.
 6. **Endpoints return DTOs**, never EF entities (the old code returned `Todo`/`PomodoroRun`
@@ -78,7 +79,25 @@ login is linked to a confirmed account with that address, or a new account is cr
 address was never confirmed is taken over by the verified owner. Anyone can register someone else's
 address and set a password, so the takeover first removes everything that unproven registrant set up:
 password, 2FA and recovery codes, other logins, sessions, devices and any lockout. It runs in one
-transaction with the link. 2FA still applies to external sign-in. Every emailed link opens an anonymous page served by the API (confirm email, reset password,
+transaction with the link. 2FA still applies to external sign-in.
+
+**A session ends everywhere at once** (Phase 8). Every access token names its session (the family id, in the
+`sid` claim) and the bearer handler refuses a token whose session is over, so a sign-out cuts access on the
+next request instead of when the token expires (up to 60 minutes later). The check is in memory
+(`SessionRegistry`): a session is read from the database at most once a minute, and one that ends is dropped
+the moment it does. That is exact only because Kadans runs as one instance; a second instance would need the
+endings shared. Every way a session ends goes through `Sessions`: sign-out, sign out everywhere, a password
+change or reset (by the person or an admin), deactivation, a withdrawn role (roles ride in the token), a
+replayed rotated refresh token, and the takeover above. Ending one also removes the device that session
+registered, so a signed-out phone gets no more reminders, and tells the other modules
+(`ISessionEndListener`): the hub closes that session's live connections. A device, and its push token, belong
+to one account at a time: the next account to register the same installation or token takes it. Considered
+and rejected: very short access tokens (every device would refresh every few minutes, and a sign-out would still
+lag), and a database read on every request (the in-memory answer is as exact with one instance). The app signs
+out only when the server refuses a refresh (400, 401, 403). A server that cannot answer (a deploy restart
+behind the proxy, a rate limit, no network) keeps the session and fails just that call.
+
+Every emailed link opens an anonymous page served by the API (confirm email, reset password,
 confirm a new email): a person clicks it in a mail client, where no session exists, so the token in the
 link is the proof – it is bound to the user and, for an email change, to the new address. After a change
 the previous address receives a notice, the owner's only alarm if it was not them.
@@ -225,7 +244,8 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 
 ### Notifications
 
-- `Device` (user, platform, push token) registered from the client.
+- `Device` (user, platform, push token, the session that registered it) registered from the client after
+  each sign-in; it goes when that session ends.
 - Scheduled job selects occurrences where `scheduled_at - lead_time <= now AND notified_at IS NULL`,
   dispatches, stamps `notified_at` (idempotent).
 - Channels: FCM (Android/iOS), SignalR for connected clients (desktop is long-running, so the

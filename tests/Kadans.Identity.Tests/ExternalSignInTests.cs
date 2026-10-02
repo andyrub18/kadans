@@ -29,30 +29,7 @@ public sealed class ExternalSignInTests : IAsyncDisposable
     public ExternalSignInTests()
     {
         connection.Open();
-        var collection = new ServiceCollection();
-        collection.AddLogging();
-        collection.AddDbContext<IdentityModuleDbContext>(options => options.UseSqlite(connection));
-        collection
-            .AddIdentity<ApplicationUser, IdentityRole>(options => options.User.RequireUniqueEmail = true)
-            .AddEntityFrameworkStores<IdentityModuleDbContext>()
-            .AddDefaultTokenProviders();
-        collection.AddDataProtection().UseEphemeralDataProtectionProvider();
-        collection.Configure<JwtParameter>(jwt =>
-        {
-            jwt.Key = new string('k', 64);
-            jwt.Issuer = "Kadans";
-            jwt.Audience = "Kadans.Clients";
-            jwt.ExpirationInMinutes = 60;
-        });
-        collection.AddScoped<JwtProvider>();
-        collection.AddScoped<Authentication>();
-        collection.AddSingleton<ExternalIdTokenValidator>();
-        collection.AddHttpClient<GoogleCodeExchange>();
-        collection.AddScoped<ExternalAuthentication>();
-        services = collection.BuildServiceProvider();
-
-        using var scope = services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<IdentityModuleDbContext>().Database.EnsureCreated();
+        services = IdentityTestServices.Build(connection);
     }
 
     public async ValueTask DisposeAsync()

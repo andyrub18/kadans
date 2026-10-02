@@ -19,6 +19,13 @@ internal sealed class Device
     public DevicePlatform Platform { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? PushToken { get; set; }
+
+    /// <summary>
+    /// The sign-in session that registered this device (the access token's session). Ending that session removes
+    /// the device, so a signed-out phone stops getting reminders. Null for a device registered before sessions
+    /// were recorded; it gets one at its next registration.
+    /// </summary>
+    public Guid? SessionId { get; set; }
     public string? AppVersion { get; set; }
     public DateTimeOffset RegisteredAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;

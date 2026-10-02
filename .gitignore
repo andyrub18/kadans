@@ -9,6 +9,7 @@ TestResults/
 
 # Runtime output
 logs/
+__pycache__/
 
 # IDE / OS
 .idea/

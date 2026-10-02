@@ -16,9 +16,10 @@ internal sealed class TasksOptions
 
     /// <summary>
     /// How often the reminder job looks for due reminders, which is also the most a reminder can be late. The
-    /// scan reads a filtered index (pending, not yet notified), which keeps a short interval cheap.
+    /// scan reads a filtered index (pending, not yet notified), which keeps a short interval cheap. 5 s is also
+    /// the floor the scheduler accepts.
     /// </summary>
-    public int ReminderIntervalSeconds { get; set; } = 10;
+    public int ReminderIntervalSeconds { get; set; } = 5;
 
     /// <summary>
     /// Longest the deadline watcher sleeps without re-checking. Phase changes themselves are not on this

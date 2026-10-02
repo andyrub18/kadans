@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """End-to-end check of reminders and the notification centre against a running API in
-Development (Push:Provider=Log). The reminder job runs every 10 s, as in production.
+Development (Push:Provider=Log). The reminder job runs every 5 s, as in production.
 
     python3 tools/smoke/notification_flows.py <api log> [base-url] [username] [password]   # default user: smoke
 
@@ -51,7 +51,7 @@ s, quiet = call("POST", "/todos/one-time", {"title": "smoke: silent", "descripti
 s, before = call("GET", "/notifications/unread-count", token=T)
 C("unread count is 0 before the reminder", before["unread"] == 0, str(before))
 
-print("  ...  waiting for the reminder job (notify_at = due - 1 min ≈ +15 s; job every 10 s)")
+print("  ...  waiting for the reminder job (notify_at = due - 1 min ≈ +15 s; job every 5 s)")
 found = None
 for _ in range(9):
     time.sleep(5)
@@ -66,7 +66,7 @@ if found:
     # The pass runs a few seconds after the notify time; the text still names the whole lead.
     C("body counts the whole 1-minute lead", "1 min" in found["body"], found["body"])
     late = (dt.datetime.fromisoformat(found["createdAt"]) - (due - dt.timedelta(minutes=1))).total_seconds()
-    C("reminder sent within one job interval of its notify time", 0 <= late <= 12, f"{late:.1f} s after")
+    C("reminder sent within one job interval of its notify time", 0 <= late <= 7, f"{late:.1f} s after")
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
 C("silent todo produced no reminder", not any(n["data"]["todoId"] == quiet["id"] for n in items))
 log = open(LOG).read()

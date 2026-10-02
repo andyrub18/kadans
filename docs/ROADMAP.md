@@ -334,7 +334,40 @@ installing on real devices second, hosting last.
       counting, 8-character passwords, hub connections end with their token, bounded paging.
 - [ ] Pomodoro: hands-free by default, a "time's up" notification for manual runs, and the server's
       clock decides when a phase has ended.
-- [ ] Delete my account, in the app and from a web page (Google Play requires both).
+- [ ] Data retention. Nothing is deleted today; one reminder every 5 minutes alone writes about 210,000
+      rows a year (occurrences plus notifications). One nightly job per module, deleting in small batches,
+      with the day counts in configuration and each run logging what it removed:
+      - past occurrences nobody acted on (still pending, no remark): after 90 days;
+      - occurrences someone completed, cancelled or annotated: kept as history;
+      - the future occurrences of a cancelled todo: deleted at the cancel, they never happened;
+      - the notification centre: after 30 days;
+      - sign-in tokens: 7 days after they expire;
+      - devices not seen for 180 days;
+      - todos, Pomodoro history and every Budget record: kept until the person deletes them (never
+        automatic for money).
+
+      The policy goes in ARCHITECTURE and in the privacy policy (Google Play's data-safety form asks).
+      Deleted data leaves the nightly backups within their 14 days.
+- [ ] Delete my account, in the app and from a web page (Google Play requires both). With it, deleting a
+      single todo (today a todo can only be cancelled).
+- [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
+      target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,
+      and 20,000 reminders due in the same minute, on the production server size). Pass when every
+      reminder of that peak is stored and handed to push within a minute with none dropped, the main
+      screens answer in under 200 ms at the 95th percentile, every job pass fits its interval, and no hot
+      query scans a whole table. The seeding script and the measurements stay in the repo. Already
+      visible in the code:
+      - push goes out one user at a time and its queue drops the oldest beyond 1,000, so a peak loses
+        pushes (Firebase accepts 500 messages per call);
+      - a reminder pass sends at most 500 and then waits for the next pass;
+      - the horizon job revisits every endless todo every hour to add at most a few rows;
+      - the Budget job reads every active rule on every pass, 500 at a time, so with many rules a salary
+        can be booked days late;
+      - the calendar reads occurrences by todo and start instant, but the index is on the original
+        instant.
+- [x] Decided 2026-10-01: reminders every 5 s (was 10 s). Measured before the change with a 5-minute lead:
+      one-time, daily and lead-edited todos were reminded 0.5 to 5.5 s after their moment, and a todo
+      created inside its lead within one pass.
 - [x] Out of the review, decided 2026-09-30: a dependency with a known high or critical vulnerability,
       even a transitive one, fails the restore (NuGet audit; NU1903/NU1904 as errors), in CI, in the
       image build and locally. Proven with the vulnerable SQLite library step 3 had to pin: restore fails

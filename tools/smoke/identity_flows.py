@@ -41,6 +41,10 @@ def C(label, ok, extra=""):
     if not check(label, ok, extra): fails += 1
 
 # register + confirm
+s, r = call("POST", "/auth/register", {"username": USERNAME, "password": "Ali123!", "email": EMAIL})
+C("a 7-character password is refused", s == 400 and "PasswordTooShort" in json.dumps(r), f"{s}")
+s, r = call("POST", "/auth/register", {"username": "admin@kadans.local", "password": "Alice123!", "email": EMAIL})
+C("a username posing as someone's address is refused", s == 400 and "InvalidUserName" in json.dumps(r), f"{s}")
 s, r = call("POST", "/auth/register", {"username": USERNAME, "password": "Alice123!", "email": EMAIL, "displayName": "Alice", "timeZone": "America/Port-au-Prince", "language": "ht"})
 C("register alice", s == 200 and r["emailConfirmed"] is False, f"{s}")
 m = link(r"/auth/confirm-email\?userId=([^&\s]+)&token=([^\s]+)")
@@ -88,10 +92,14 @@ C("sessions revoked after password change", s == 401)
 s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice999!"})
 at = tok["accessToken"]
 
-# email change
-s, r = call("POST", "/users/me/email", {"newEmail": "admin@kadans.local"}, token=at)
-C("email change to taken address -> 400", s == 400 and r["errorCode"] == "10038")
+# email change: the address is where reset links go, so it takes the password too
 s, r = call("POST", "/users/me/email", {"newEmail": EMAIL2}, token=at)
+C("email change without the password -> 400", s == 400 and "CurrentPasswordRequired" in json.dumps(r), f"{s}")
+s, r = call("POST", "/users/me/email", {"newEmail": EMAIL2, "currentPassword": "wrong-one"}, token=at)
+C("email change with a wrong password -> 401", s == 401 and r["errorCode"] == "10024", f"{s}")
+s, r = call("POST", "/users/me/email", {"newEmail": "admin@kadans.local", "currentPassword": "Alice999!"}, token=at)
+C("email change to taken address -> 400", s == 400 and r["errorCode"] == "10038")
+s, r = call("POST", "/users/me/email", {"newEmail": EMAIL2, "currentPassword": "Alice999!"}, token=at)
 C("email change request", s == 200)
 m = link(r"/auth/confirm-email-change\?userId=([^&\s]+)&newEmail=([^&\s]+)&token=([^\s]+)")
 C("email-change link logged", m is not None)
@@ -168,5 +176,25 @@ s, tok = call("POST", "/auth/login", {"username": USERNAME, "password": "Alice99
 s, _ = call("POST", "/auth/revoke", {"refreshToken": tok["refreshToken"]})
 s, _ = call("POST", "/auth/refresh", {"refreshToken": tok["refreshToken"]})
 C("logout kills refresh", s == 401)
+
+# wrong passwords lock for a while: not a deactivation, sessions survive, the reset link lifts it
+BOB = f"bob{int(time.time())}"; BOB_EMAIL = f"{BOB}@example.com"
+s, _ = call("POST", "/auth/register", {"username": BOB, "password": "Bob12345!", "email": BOB_EMAIL})
+s, bob = call("POST", "/auth/login", {"username": BOB, "password": "Bob12345!"})
+answers = [call("POST", "/auth/login", {"username": BOB, "password": f"guess{i}"}) for i in range(5)]
+C("the fifth wrong password locks the account (429, not 'deactivated')", [a[0] for a in answers] == [401] * 4 + [429] and answers[4][1]["errorCode"] == "10054",
+  str([(a[0], (a[1] or {}).get("errorCode")) for a in answers]))
+s, r = call("POST", "/auth/login", {"username": BOB, "password": "Bob12345!"})
+C("even the right password waits", s == 429 and r["errorCode"] == "10054", f"{s}")
+s, bob2 = call("POST", "/auth/refresh", {"refreshToken": bob["refreshToken"]})
+C("the owner's existing session survives the lock", s == 200 and call("GET", "/users/me", token=bob2["accessToken"])[0] == 200, f"{s}")
+s, me = call("GET", "/users/me", token=bob2["accessToken"])
+C("a locked account is still active (not deactivated)", me["isActive"] is True and me["hasPassword"] is True)
+s, _ = call("POST", "/auth/forgot-password", {"email": BOB_EMAIL})
+m = link(r"/auth/reset-password\?email=([^&\s]+)&token=([^\s]+)")
+C("the reset email still goes out", m is not None and urllib.parse.unquote(m[0]) == BOB_EMAIL)
+s, _ = call("POST", "/auth/reset-password", {"email": BOB_EMAIL, "token": m[1], "newPassword": "Bob67890!"}) if m else (0, None)
+s, r = call("POST", "/auth/login", {"username": BOB, "password": "Bob67890!"})
+C("the reset lifts the lock", s == 200 and r["accessToken"], f"{s}")
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")
 sys.exit(1 if fails else 0)

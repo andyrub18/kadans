@@ -46,6 +46,8 @@ public sealed class IdentityModule : IModule
             .AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.User.RequireUniqueEmail = true;
+                // Length is what makes a password hard to guess; the complexity rules stay Identity's defaults.
+                options.Password.RequiredLength = 8;
                 options.Lockout.MaxFailedAccessAttempts =
                     lockout.GetValue<int?>("MaxFailedAccessAttempts") ?? 5;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(

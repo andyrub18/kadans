@@ -86,7 +86,8 @@ Anything a production host needs must be in `appsettings.json` or an environment
   scans `src/` and fails on a static message without a translation. The boundary picks the language from
   `Accept-Language`; codes never change with it. Identity's own messages live in `LocalizedIdentityErrorDescriber`.
 - Minimal APIs, one `Map*Routes` extension per feature area, every endpoint has
-  `WithName/WithSummary/Produces*` for OpenAPI.
+  `WithName/WithSummary/Produces*` for OpenAPI. A paged list checks `Paging.Check(page, pageSize)` first
+  (pages from 1, at most 100 a page).
 - An endpoint that mails an address the caller chooses gets `.RequireRateLimiting(RateLimitPolicies.Email)`.
   One that checks a password or a code gets `RateLimitPolicies.Credentials`. Everything else is under the
   host's global per-client limit. Development's limits are generous (`appsettings.Development.json`), so

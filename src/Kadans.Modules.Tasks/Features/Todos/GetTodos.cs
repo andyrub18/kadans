@@ -1,6 +1,7 @@
 using Kadans.Modules.Tasks.Contracts;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OneOf;
@@ -12,6 +13,9 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
 {
     public async Task<OneOf<ApplicationError, List<TodoResponse>>> GetAllTodos(int page, int pageSize, TaskStatus? status)
     {
+        if (Paging.Check(page, pageSize) is { } pagingError)
+            return pagingError;
+
         var todos = await dbContext
             .Todos.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
             .Include(t => t.RecurrenceRule)
@@ -42,6 +46,9 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
     /// <summary>Pending occurrences of one todo, soonest first.</summary>
     public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetOccurrencesByTodoId(Guid todoId, int page = 1, int pageSize = 20)
     {
+        if (Paging.Check(page, pageSize) is { } pagingError)
+            return pagingError;
+
         // The Todo navigation carries the active-todos filter; a finished todo must still list its rows.
         var occurrences = await dbContext
             .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
@@ -104,6 +111,9 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
     /// <summary>Every occurrence of a todo, any status, newest first.</summary>
     public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetTodoHistory(Guid todoId, int page = 1, int pageSize = 20)
     {
+        if (Paging.Check(page, pageSize) is { } pagingError)
+            return pagingError;
+
         var occurrences = await dbContext
             .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_OCCURRENCES_FILTER, TasksDbContext.ACTIVE_TODOS_FILTER])
             .Include(o => o.Todo)

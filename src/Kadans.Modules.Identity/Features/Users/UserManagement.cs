@@ -5,6 +5,7 @@ using Kadans.Modules.Identity.Contracts;
 using Kadans.SharedKernel.Errors;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Account;
+using Kadans.Modules.Identity.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OneOf;
@@ -85,6 +86,9 @@ internal sealed class UserManagement(
         var roleValidationError = await ValidateRolesAsync(request.Roles);
         if (roleValidationError is not null)
             return roleValidationError;
+
+        if (UsernameError(request.Username, request.Email, "Validation failed for creating user.") is { } usernameError)
+            return usernameError;
 
         if (request.TimeZone is not null && !IsValidTimeZone(request.TimeZone))
             return InvalidTimeZoneError(request.TimeZone);
@@ -206,6 +210,10 @@ internal sealed class UserManagement(
             if (roleValidationError is not null)
                 return roleValidationError;
         }
+
+        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.UserName
+            && UsernameError(request.Username, string.IsNullOrWhiteSpace(request.Email) ? user.Email : request.Email, "Validation failed for updating user.") is { } usernameError)
+            return usernameError;
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         EndedSessions? ended = null;
@@ -411,8 +419,6 @@ internal sealed class UserManagement(
     private async Task<UserResponse> BuildUserResponseAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
-        var lockoutEndDate = await userManager.GetLockoutEndDateAsync(user);
-        var isActive = !lockoutEndDate.HasValue || lockoutEndDate.Value <= DateTimeOffset.UtcNow;
 
         return new UserResponse(
             user.Id,
@@ -423,8 +429,10 @@ internal sealed class UserManagement(
             user.TimeZoneId,
             user.PreferredLanguage,
             user.TwoFactorEnabled,
-            isActive,
-            [.. roles]
+            // Deactivated, not merely locked for a few minutes after wrong passwords.
+            !AccountLock.IsDeactivated(user),
+            [.. roles],
+            await userManager.HasPasswordAsync(user)
         );
     }
 
@@ -458,6 +466,15 @@ internal sealed class UserManagement(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray()
         ?? [];
+
+    /// <summary>
+    /// "@" is how sign-in tells an address from a username, so a username holds one only when it is the account's
+    /// own address (accounts created by Google sign-in use theirs). Anything else could pose as someone's email.
+    /// </summary>
+    private static ValidationError? UsernameError(string? username, string? email, string failure) =>
+        username is not null && username.Contains('@') && !string.Equals(username.Trim(), email?.Trim(), StringComparison.OrdinalIgnoreCase)
+            ? new ValidationError(ErrorTypes.ValidationError, failure, [("InvalidUserName", "A username can contain @ only when it is the account's email address.")])
+            : null;
 
     private static bool IsValidTimeZone(string timeZoneId) =>
         TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out _);

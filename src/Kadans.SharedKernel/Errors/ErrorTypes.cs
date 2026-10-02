@@ -323,6 +323,14 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    /// <summary>Locked for a while after too many wrong passwords or codes; not a deactivation.</summary>
+    public static readonly ErrorTypes AccountLockedOut = new(
+        "10054",
+        "Account temporarily locked",
+        StatusCodes.Status429TooManyRequests,
+        ""
+    );
+
     public int HttpStatusCode { get; } = httpStatusCode;
     public string RfcType { get; } = rfcType;
 }

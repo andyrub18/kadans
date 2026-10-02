@@ -344,9 +344,23 @@ installing on real devices second, hosting last.
         (signed out elsewhere), the app goes to sign-in from any screen and says why.
       - **Found on the way.** Refreshing with a token that was already signed out was logged as token
         theft. Now only a replayed rotated token counts as theft.
-- [ ] Account hardening: email change confirms the password, rules for `@` in usernames, 2FA attempt
-      counting, 8-character passwords, hub connections end when their token expires (a session that ends
-      already closes them), bounded paging.
+- [x] Account hardening (design: ARCHITECTURE → "Locks, and proving it is you again"):
+      - **Email changes take the password.** Changing the email asks for the current password; accounts
+        that only use Google have none to give.
+      - **Wrong guesses count everywhere.** Wrong passwords and 2FA codes count toward the lock wherever
+        they are typed: sign-in, changing the password or email, turning 2FA off, new recovery codes.
+      - **Usernames and `@`.** Sign-in looks up an `@` as an address first. A username holds an `@` only
+        when it is the account's own address, and follows it when it changes.
+      - **Smaller changes.** Passwords need 8 characters. Lists answer 400 for page 0 or more than 100 a
+        page (page 0 was a 500).
+      - **Live connections end with their token.** A hub connection closes when its token expires
+        (measured 0.5 s after, with 1-minute tokens). The app catches up on the notifications that arrived
+        while it reconnected, so the desktop no longer loses a reminder pop-up to any gap: the hourly
+        expiry, a deploy, or a network blip.
+      - **Found on the way.** The lock after 5 wrong passwords was handled as a deactivation. Anyone
+        typing wrong passwords against a username could sign its owner out of every device, block
+        their Google sign-in and their reset email, and get them told the account was "deactivated".
+        Now that lock only guards sign-in for 15 minutes (429 / 10054), and the reset link lifts it.
 - [ ] Pomodoro: hands-free by default, a "time's up" notification for manual runs, and the server's
       clock decides when a phase has ended.
 - [ ] Data retention. Nothing is deleted today; one reminder every 5 minutes alone writes about 210,000
@@ -415,6 +429,7 @@ Nice-to-have hardening
 | SharedKernel: `RecurrenceSchedule` | ~~Ical.Net 5.2.3 never returns when it expands an hourly or minute rule across an autumn DST change in local time (Port-au-Prince 2026-11-01, Paris 2026-10-25; spring changes and daily rules are fine). The horizon job, creating such a todo, or a calendar spanning the change would hang with a CPU core spinning, and the 30-day horizon would have reached 1 November on 2 October~~ fixed 2026-09-30: hourly, minute and one-time rules are expanded in UTC; the smoke script checks the next fall-back |
 | SharedKernel: `RecurrenceSchedule` | ~~A one-time todo at the second 01:30 of a fall-back night (01:30 EST, after 01:30 EDT) never materialized: local time named the first 01:30, an hour before the start, and it was filtered out~~ fixed 2026-09-30: a one-time rule is its own instant |
 | Budget: `RecurringTransactionJob` | ~~A pass created at most 100 transactions per rule, then moved the marker to now: a rule backdated by more than 100 occurrences (the app's date picker allows past dates) silently lost the rest~~ fixed 2026-09-30: the next pass resumes after the last one created, and exhaustion is judged from there |
+| Identity: lockout | ~~The 15-minute lock after 5 wrong passwords was handled as a deactivation: the next refresh of each of the owner's sessions ended it, Google sign-in and the reset email were refused, and the owner was told the account was deactivated. Anyone who knew a username could sign its owner out of every device that way~~ fixed 2026-10-02: that lock only guards sign-in (429 / 10054), and the reset link lifts it |
 | Identity: external sign-in | ~~Account takeover prepared in advance. A Google sign-in with a verified address was linked to any account with that address, even one whose address was never confirmed, and password login does not require confirmation. So someone could register a victim's address with their own password, wait for the victim's first Google sign-in, and keep reading the victim's data with the password (2FA, devices and sessions they had set up stayed too). A sign-in with an unverified address was also stored on a new account, squatting that address~~ fixed 2026-09-30: the verified owner takes the unconfirmed account over after everything the registrant set up is removed; without a verified address nothing is linked or created |
 | Identity: email change | ~~The emailed link pointed at `POST /users/me/email/confirm`, which needs a bearer token – no mail client or browser could ever complete it, so an email change could not be finished by a person. Unnoticed because the smoke script scraped the token from the log and called the API itself~~ fixed 2026-09-18: anonymous landing page, and the smoke script now opens the link like a browser |
 | `Models/RecurrenceRule.cs` (old engine) | ~~Wrong hour for non-UTC offsets, DST not representable, `Interval > 1` misaligned~~ replaced by `RecurrenceSchedule` (Ical.Net) in Phase 0 |

@@ -85,7 +85,11 @@ data class ForgotPasswordRequest(val email: String)
 data class ResendConfirmationRequest(val email: String)
 
 @Serializable
-data class ChangeEmailRequest(val newEmail: String)
+data class ChangeEmailRequest(
+    val newEmail: String,
+    /** Asked when the account has a password ([UserResponse.hasPassword]). */
+    val currentPassword: String? = null,
+)
 
 @Serializable
 data class ResetPasswordRequest(val email: String, val token: String, val newPassword: String)
@@ -102,6 +106,8 @@ data class UserResponse(
     val twoFactorEnabled: Boolean = false,
     val isActive: Boolean = true,
     val roles: List<String> = emptyList(),
+    /** False for an account that only signs in with Google: an email change asks for no password then. */
+    val hasPassword: Boolean = true,
 )
 
 /** TOTP enrollment: nothing is enforced until the code is confirmed via `mfa/enable`. */

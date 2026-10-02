@@ -85,8 +85,8 @@ class AccountApi internal constructor(private val api: KadansApi) {
     }
 
     /** Sends a confirmation link to [newEmail]; the address changes once that link is opened. */
-    suspend fun requestEmailChange(newEmail: String) {
-        api.http.post("users/me/email") { setBody(ChangeEmailRequest(newEmail)) }.orThrow<Success>()
+    suspend fun requestEmailChange(newEmail: String, currentPassword: String? = null) {
+        api.http.post("users/me/email") { setBody(ChangeEmailRequest(newEmail, currentPassword)) }.orThrow<Success>()
     }
 
     /** Sends the "confirm your email" link again (always answers OK, whether or not the address exists). */

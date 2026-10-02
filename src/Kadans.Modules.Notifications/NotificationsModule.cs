@@ -52,6 +52,8 @@ public sealed class NotificationsModule : IModule
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         endpoints.MapNotificationRoutes();
-        endpoints.MapHub<KadansHub>(RealtimeHub.Path).RequireAuthorization();
+        // A connection is authorized once, when it opens: it closes when that token expires (and at once when its
+        // session ends, see HubConnections). The app reconnects with a fresh token and catches up on what it missed.
+        endpoints.MapHub<KadansHub>(RealtimeHub.Path, options => options.CloseOnAuthenticationExpiration = true).RequireAuthorization();
     }
 }

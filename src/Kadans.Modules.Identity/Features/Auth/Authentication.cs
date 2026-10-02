@@ -28,9 +28,11 @@ internal sealed class Authentication(
 
     public async Task<OneOf<ApplicationError, LoginResponse>> Login(LoginRequest request)
     {
-        var user =
-            await userManager.FindByNameAsync(request.Username)
-            ?? (request.Username.Contains('@') ? await userManager.FindByEmailAsync(request.Username) : null);
+        // An address is looked up as an address first: a username that happens to be someone else's address
+        // (from before usernames had to avoid that) cannot shadow the real owner's sign-in.
+        var user = request.Username.Contains('@')
+            ? await userManager.FindByEmailAsync(request.Username) ?? await userManager.FindByNameAsync(request.Username)
+            : await userManager.FindByNameAsync(request.Username);
 
         if (user is null)
         {
@@ -41,7 +43,7 @@ internal sealed class Authentication(
         if (await userManager.IsLockedOutAsync(user))
         {
             logger.LogWarning("Locked-out user {UserId} attempted to sign in", user.Id);
-            return new ApplicationError(ErrorTypes.UserInactive, "User is deactivated");
+            return AccountLock.Refusal(user);
         }
 
         var signInResult = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
@@ -49,7 +51,7 @@ internal sealed class Authentication(
         if (signInResult.IsLockedOut)
         {
             logger.LogWarning("User {UserId} is locked out", user.Id);
-            return new ApplicationError(ErrorTypes.UserInactive, "User is deactivated");
+            return AccountLock.Refusal(user);
         }
 
         if (!signInResult.Succeeded)
@@ -68,8 +70,10 @@ internal sealed class Authentication(
             return new ApplicationError(ErrorTypes.InvalidToken, "The MFA token is invalid or expired.");
 
         var user = await userManager.FindByIdAsync(userId);
-        if (user is null || await userManager.IsLockedOutAsync(user))
-            return new ApplicationError(ErrorTypes.UserInactive, "User is deactivated");
+        if (user is null)
+            return AccountLock.Deactivated();
+        if (await userManager.IsLockedOutAsync(user))
+            return AccountLock.Refusal(user);
 
         if (!await VerifyAuthenticatorOrRecoveryCodeAsync(user, request.Code))
         {
@@ -116,10 +120,11 @@ internal sealed class Authentication(
             return new ApplicationError(ErrorTypes.InvalidCredentials, "Invalid refresh token");
         }
 
-        if (await userManager.IsLockedOutAsync(token.User))
+        // Only deactivation ends a session here; a lock after wrong passwords guards sign-in, not sessions.
+        if (AccountLock.IsDeactivated(token.User))
         {
             await sessions.EndAsync(token.UserId, token.FamilyId, "user deactivated");
-            return new ApplicationError(ErrorTypes.UserInactive, "User is deactivated");
+            return AccountLock.Deactivated();
         }
 
         token.Revoke(RotatedReason);

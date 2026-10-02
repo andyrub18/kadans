@@ -136,6 +136,16 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (state.user?.hasPassword == true) {
+                OutlinedTextField(
+                    value = state.emailPassword,
+                    onValueChange = { v -> viewModel.update { it.copy(emailPassword = v) } },
+                    label = { Text(s.currentPassword) },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             Text(a.emailChangeHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedButton(onClick = viewModel::requestEmailChange, enabled = state.canRequestEmailChange, modifier = Modifier.fillMaxWidth()) {
                 Text(a.sendEmailChangeLink)

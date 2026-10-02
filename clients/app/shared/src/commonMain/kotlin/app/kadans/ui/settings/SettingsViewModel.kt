@@ -37,6 +37,8 @@ data class SettingsUiState(
     val timeZoneSaved: Boolean = false,
     // email
     val newEmail: String = "",
+    /** The password, asked again for an email change (not for accounts that only use Google). */
+    val emailPassword: String = "",
     /** The address a change link was just sent to; the change itself happens when that link is opened. */
     val emailChangeSentTo: String? = null,
     val confirmationResent: Boolean = false,
@@ -56,7 +58,8 @@ data class SettingsUiState(
     val errorCode: String? = null,
 ) {
     val canRequestEmailChange: Boolean
-        get() = !isBusy && newEmail.trim().let { it.contains('@') && !it.equals(user?.email, ignoreCase = true) }
+        get() = !isBusy && newEmail.trim().let { it.contains('@') && !it.equals(user?.email, ignoreCase = true) } &&
+            (user?.hasPassword != true || emailPassword.isNotEmpty())
 
     /** Following needs a device zone worth following; otherwise the list is the only way. */
     val followingDevice: Boolean get() = followDevice && deviceZone != null
@@ -159,8 +162,9 @@ class SettingsViewModel(
     /** Nothing changes yet: the server mails a link to the new address and applies the change when it is opened. */
     fun requestEmailChange() = busy {
         val target = _state.value.newEmail.trim()
-        api.account.requestEmailChange(target)
-        _state.value = _state.value.copy(newEmail = "", emailChangeSentTo = target, confirmationResent = false)
+        val password = _state.value.emailPassword.takeIf { _state.value.user?.hasPassword == true }
+        api.account.requestEmailChange(target, password)
+        _state.value = _state.value.copy(newEmail = "", emailPassword = "", emailChangeSentTo = target, confirmationResent = false)
     }
 
     fun resendConfirmation() = busy {

@@ -54,4 +54,13 @@ public class PomodoroDeadlineWatcherTests
 
         await Assert.That(DateTimeOffset.UtcNow - started).IsGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(40));
     }
+
+    [Test]
+    public async Task The_watcher_wakes_for_whichever_comes_first_a_phase_change_or_a_times_up()
+    {
+        await Assert.That(PomodoroDeadlineWatcher.Earliest(Now.AddMinutes(5), Now.AddMinutes(1))).IsEqualTo(Now.AddMinutes(1));
+        await Assert.That(PomodoroDeadlineWatcher.Earliest(null, Now.AddMinutes(1))).IsEqualTo(Now.AddMinutes(1));
+        await Assert.That(PomodoroDeadlineWatcher.Earliest(Now.AddMinutes(5), null)).IsEqualTo(Now.AddMinutes(5));
+        await Assert.That(PomodoroDeadlineWatcher.Earliest(null, null)).IsNull();
+    }
 }

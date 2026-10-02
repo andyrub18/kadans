@@ -24,7 +24,11 @@ data class CreatePomodoroTemplate(val name: String, val phases: List<CreatePomod
 data class UpdateTodoPomodoro(val pomodoroTemplateId: String? = null)
 
 @Serializable
-data class AdvancePomodoroRun(val expectedPhaseIndex: Int? = null)
+data class AdvancePomodoroRun(
+    val expectedPhaseIndex: Int? = null,
+    /** "This hands-free phase ran out here": the server advances only if its own clock agrees. */
+    val onlyIfEnded: Boolean = false,
+)
 
 @Serializable
 data class PomodoroPhaseResponse(

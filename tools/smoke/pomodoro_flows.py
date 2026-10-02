@@ -4,7 +4,9 @@
     python3 tools/smoke/pomodoro_flows.py [base-url] [username] [password]   # default user: smoke
 
 The auto-advance part uses a 1-minute phase, races a client against the deadline watcher and
-measures how late the phase change and its notification are (must be under a second). Whole script ≈ 2 min. Standard library only.
+measures how late the phase change and its notification are (must be under a second). A manual run
+started alongside must get exactly one "time's up" at its phase end, and stay where it is. An app
+that asks too early ("ran out" by its own clock) changes nothing. Whole script ≈ 2 min. Standard library only.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5199"
@@ -94,6 +96,16 @@ call("PUT", "/notifications/read-all", token=T)
 s, run2 = call("POST", f"/todos/{todo2['id']}/pomodoro/start?autoAdvance=true", token=T)
 C("auto-advance run started", s == 200 and run2["autoAdvance"], f"{s}")
 deadline = parse_ts(run2["phaseEndsAt"])
+# An app whose clock runs fast says the phase ran out: the server's clock decides, nothing changes.
+s, early = call("PUT", f"/pomodoro/runs/{run2['id']}/advance", {"expectedPhaseIndex": 0, "onlyIfEnded": True}, token=T)
+# (the database keeps microseconds: compare instants, not strings)
+C("an early 'ran out' leaves the run as it is", s == 200 and early["currentPhaseIndex"] == 0
+  and abs((parse_ts(early["phaseEndsAt"]) - deadline).total_seconds()) < 0.001, f"{s}")
+# A manual run on the same 1-minute template, ending at about the same moment: one time's up, no advance.
+s, todo4 = call("POST", "/todos/one-time", {"title": "smoke: manual sprint", "description": "", "notificationEnabled": False,
+               "dueDate": iso(now + dt.timedelta(days=1)), "pomodoroTemplateId": tpl2["id"]}, token=T)
+s, run4 = call("POST", f"/todos/{todo4['id']}/pomodoro/start", token=T)
+manual_deadline = parse_ts(run4["phaseEndsAt"])
 print("  ...  waiting for the focus minute to elapse; the deadline watcher must advance on the second")
 time.sleep(max(0, (deadline - dt.datetime.now(dt.timezone.utc)).total_seconds() - 0.3))
 # Play the watching client too: advance at the very instant the phase ends, racing the server.
@@ -102,7 +114,7 @@ import threading
 race = {}
 def client_advance():
     time.sleep(max(0, (deadline - dt.datetime.now(dt.timezone.utc)).total_seconds()))
-    race["status"], race["body"] = call("PUT", f"/pomodoro/runs/{run2['id']}/advance", {"expectedPhaseIndex": 0}, token=T)
+    race["status"], race["body"] = call("PUT", f"/pomodoro/runs/{run2['id']}/advance", {"expectedPhaseIndex": 0, "onlyIfEnded": True}, token=T)
 racer = threading.Thread(target=client_advance); racer.start()
 advanced = None
 for _ in range(200):
@@ -129,6 +141,29 @@ if phase_note:
     C("notification created within 1 s of the deadline", note_late < 1.0, f"{note_late*1000:.0f} ms")
 s, runs2 = call("GET", f"/todos/{todo2['id']}/pomodoro/runs", token=T)
 C("no duplicated phases after the race", s == 200 and len(runs2[0]["phases"]) == 2, f"{len(runs2[0]['phases']) if s == 200 else s} phases")
+C("no notification for the early ask", len(notes) <= 1)
+
+# the manual run: time's up once, and it waits for the person
+time.sleep(max(0, (manual_deadline - dt.datetime.now(dt.timezone.utc)).total_seconds() + 1.0))
+def times_up():
+    s, items = call("GET", "/notifications?unreadOnly=true", token=T)
+    return [n for n in items if n["kind"] == "pomodoro.phase.ended" and (n.get("data") or {}).get("runId") == run4["id"]]
+ups = times_up()
+C("the manual run said time's up, naming the break", len(ups) == 1 and "5" in ups[0]["body"], ups[0]["body"] if ups else "none")
+if ups:
+    up_late = (parse_ts(ups[0]["createdAt"]) - manual_deadline).total_seconds()
+    C("time's up within 1 s of the phase end", up_late < 1.0, f"{up_late*1000:.0f} ms")
+s, cur4 = call("GET", f"/todos/{todo4['id']}/pomodoro/active-run", token=T)
+C("the manual run waits at the end of the focus", s == 200 and cur4["currentPhaseIndex"] == 0 and cur4["status"] == "Active", f"{s}")
+s, _ = call("PUT", f"/pomodoro/runs/{run4['id']}/advance", {"expectedPhaseIndex": 0, "onlyIfEnded": True}, token=T)
+s, cur4 = call("GET", f"/todos/{todo4['id']}/pomodoro/active-run", token=T)
+C("a 'ran out' from the app does not advance a manual run", cur4["currentPhaseIndex"] == 0, str(cur4["currentPhaseIndex"]))
+call("PUT", f"/pomodoro/runs/{run4['id']}/pause", token=T); call("PUT", f"/pomodoro/runs/{run4['id']}/resume", token=T)
+time.sleep(1.5)
+C("pausing and resuming at 0:00 does not say it again", len(times_up()) == 1, f"{len(times_up())}")
+s, run4 = call("PUT", f"/pomodoro/runs/{run4['id']}/advance", {"expectedPhaseIndex": 0}, token=T)
+C("'Next phase' moves on", s == 200 and run4["currentPhaseIndex"] == 1, f"{s}")
+call("PUT", f"/pomodoro/runs/{run4['id']}/cancel", token=T)
 
 s, run2 = call("PUT", f"/pomodoro/runs/{run2['id']}/cancel", token=T)
 C("cancel auto run", s == 200 and run2["status"] == "Cancelled")
@@ -147,7 +182,7 @@ C("finish ends the loop as Completed", s == 200 and run3["status"] == "Completed
 s, stats = call("GET", "/pomodoro/stats", token=T)
 C("finished loop counts as a completed run", stats["completedRuns"] - base["completedRuns"] >= 2, str(stats["completedRuns"]))
 call("PUT", f"/todos/{todo3['id']}/cancel", {"reason": "cleanup"}, token=T)
-for t in (todo, todo2):
+for t in (todo, todo2, todo4):
     call("PUT", f"/todos/{t['id']}/cancel", {"reason": "cleanup"}, token=T)
 
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")

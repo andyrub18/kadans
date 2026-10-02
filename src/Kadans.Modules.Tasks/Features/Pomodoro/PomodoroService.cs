@@ -281,6 +281,16 @@ internal sealed class PomodoroService(
 
     public async Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request)
     {
+        // The app's "this phase ran out" counts only when the server's clock agrees. Too early (a device clock
+        // running fast), or a manual run, which waits for the person: nothing changes, nobody is notified, and the
+        // app keeps showing the run as it is. A run that is no longer active falls through to the usual error.
+        if (request.OnlyIfEnded)
+        {
+            var current = await context.PomodoroRuns.AsNoTracking().Include(r => r.Phases).FirstOrDefaultAsync(r => r.Id == runId);
+            if (current is { Status: PomodoroRunStatus.Active } && !current.DeadlineReached(DateTimeOffset.UtcNow))
+                return current.ToResponse();
+        }
+
         var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
         // Hands-free phase changes notify every device, no matter who won the advance — this
         // request or the deadline watcher; the row version guarantees it is exactly one of them.

@@ -129,6 +129,37 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [ ] An uptime monitor on `https://api.<domain>/health/ready`, and an off-server copy of `deploy/backups/`.
 - [ ] Build the apps for production: `-Pkadans.apiBaseUrl=https://api.<domain>` (DEPLOYMENT.md → Building the apps).
 
+## Subscriptions – Google Play and App Store
+
+The mobile apps need a subscription (USD 0.99 a month); the desktop app is free (ROADMAP → Phase 8 →
+Subscriptions). The exact setting names and notification URLs come with that step; the accounts take
+days to approve, so they can start now.
+
+Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account, paid out in USD):
+- [ ] Play Console developer account, then a payments profile (merchant account) with tax and bank details.
+- [ ] Monetize → Subscriptions: one product (for example `kadans_mobile`) with a monthly base plan at USD 0.99,
+      and a free-trial offer if you want one.
+- [ ] Real-time developer notifications: a Pub/Sub topic in `kadans-420a7`, publish rights for
+      `google-play-developer-notifications@system.gserviceaccount.com`, and a push subscription to the
+      API's Google notification URL.
+- [ ] A service account invited in Play Console → Users and permissions, allowed to view financial data and
+      manage orders and subscriptions; its JSON key goes to the server as a secret.
+- [ ] Setup → License testing: your Google accounts, to buy test subscriptions without paying.
+
+Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts where Apple is):
+- [ ] Apple Developer Program membership (USD 99 a year). Check first that you can enroll and be paid from
+      where you are, or through a company and bank account in a country Apple pays to.
+- [ ] App Store Connect → Agreements, Tax and Banking: the Paid Applications agreement.
+- [ ] A subscription group with one monthly product at USD 0.99, and the storefronts it is sold in.
+- [ ] App Store Server Notifications (version 2): the API's Apple notification URL, production and sandbox.
+- [ ] Users and Access → Integrations → In-App Purchase key; the key, its id and the issuer id go to the
+      server as secrets.
+- [ ] Sandbox testers, to buy test subscriptions without paying.
+
+Both:
+- [ ] Terms of Use (with the subscription terms) and a Privacy Policy at public URLs. The paywall and both
+      store listings link to them.
+
 ## Client (Compose Multiplatform)
 
 - [ ] Google Play / App Store developer accounts when it is time to ship

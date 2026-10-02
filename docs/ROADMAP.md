@@ -364,7 +364,32 @@ installing on real devices second, hosting last.
       The policy goes in ARCHITECTURE and in the privacy policy (Google Play's data-safety form asks).
       Deleted data leaves the nightly backups within their 14 days.
 - [ ] Delete my account, in the app and from a web page (Google Play requires both). With it, deleting a
-      single todo (today a todo can only be cancelled).
+      single todo (today a todo can only be cancelled). An account with a live subscription is told to cancel it
+      in the store: the store bills, not Kadans, and deleting the account does not stop it.
+- [ ] Subscriptions, decided 2026-10-02: the Android and iPhone apps need a subscription (USD 0.99 a month);
+      the desktop app stays free. Both stores allow this: an app may be free to download and need a
+      subscription bought in it, and a subscription bought on one platform may be used on another as long as
+      it is also sold in the app there.
+      - **A `Billing` module** (`billing` schema) keeps one subscription state per account, fed only by the
+        stores. The app's word is never enough: it hands over the purchase, and the server asks the store.
+        Google: the Play Developer API, plus real-time notifications through Pub/Sub. Apple: the App Store
+        Server API, plus signed server notifications checked against Apple's root certificate.
+      - **Tied to the account.** Purchases carry the account (Google's obfuscated account id, Apple's app
+        account token), so the subscription follows the person to a new phone, or from Android to iPhone.
+      - **Mobile apps.** A paywall after sign-in until the account is subscribed, showing what both stores
+        require: price, period, renewal terms, Terms and Privacy links, Restore purchases, and Manage
+        subscription. The desktop app never shows it.
+      - **On the server.** Reminders are pushed to phones only for subscribed accounts. The paywall alone
+        could be patched out of an app package; the reminders are what a phone subscription buys. The
+        desktop app and the live connection are unaffected.
+      - **When it lapses.** The stores' grace period and account hold are honoured. After them, phones show
+        the paywall again. No data is deleted, and the desktop app keeps working.
+      - **Stores and Haiti.** Google Play sells in Haiti, both to buyers and from a Haitian seller account
+        paid in USD. Haitian buyers probably need an international card, which is a conversion risk to
+        measure. Apple has no App Store in Haiti: iPhone users there use another country's store, so the
+        iPhone subscription is sold where Apple is (the diaspora's stores: United States, Canada, France).
+      - **Decisions when the step starts.** Free-trial length, prices per country, Apple Family Sharing.
+        Owner setup: OWNER-CHECKLIST → Subscriptions.
 - [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,
       and 20,000 reminders due in the same minute, on the production server: 2 vCPU, 4 GB RAM). Pass when every

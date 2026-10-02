@@ -62,6 +62,12 @@ internal sealed class PomodoroRun
     /// <summary>When true, the server advances phases as they run out (and notifies); otherwise the client calls advance.</summary>
     public bool AutoAdvance { get; private set; }
 
+    /// <summary>
+    /// Manual runs: the last phase whose "time's up" was sent. A manual run waits at the end of each phase for the
+    /// person to move on, and says so once per phase (pausing and resuming at 0:00 does not say it again).
+    /// </summary>
+    public int? TimeUpPhaseIndex { get; private set; }
+
     /// <summary>A pomodoro proper: after the last phase the cycle starts over (a new lap) until <see cref="Finish"/>.</summary>
     public bool Loop { get; private set; }
 
@@ -74,6 +80,21 @@ internal sealed class PomodoroRun
     public DateTimeOffset UpdatedAt { get; private set; } = DateTimeOffset.UtcNow;
 
     public bool IsRunning => Status is PomodoroRunStatus.Active or PomodoroRunStatus.Paused;
+
+    /// <summary>
+    /// Whether a watching app's "this phase ran out" may advance the run: only a hands-free run, and only once the
+    /// server's clock agrees. A device whose clock runs fast would otherwise cut every phase short.
+    /// </summary>
+    public bool DeadlineReached(DateTimeOffset now) =>
+        Status == PomodoroRunStatus.Active && AutoAdvance && PhaseEndsAt is { } end && end <= now;
+
+    /// <summary>A manual run whose current phase has run out and has not said so yet.</summary>
+    public bool TimeUpDue(DateTimeOffset now) =>
+        Status == PomodoroRunStatus.Active && !AutoAdvance && PhaseEndsAt is { } end && end <= now
+        && (TimeUpPhaseIndex is null || TimeUpPhaseIndex < CurrentPhaseIndex);
+
+    /// <summary>The current phase's "time's up" went out. Not a change the person sees: <see cref="UpdatedAt"/> stays.</summary>
+    public void TimeUpSent() => TimeUpPhaseIndex = CurrentPhaseIndex;
     public PomodoroRunPhase CurrentPhase => Phases.OrderBy(p => p.Order).ElementAt(CurrentPhaseIndex);
 
     private PomodoroRun() { }

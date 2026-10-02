@@ -11,6 +11,7 @@ import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
 import app.kadans.profile.ProfileSync
 import app.kadans.profile.TimeZonePreference
+import app.kadans.ui.pomodoro.PomodoroPreference
 import app.kadans.realtime.SystemAlerts
 import app.kadans.ui.auth.ForgotPasswordViewModel
 import app.kadans.ui.auth.LoginViewModel
@@ -51,6 +52,7 @@ val appModule = org.koin.dsl.module {
     single { DeviceRegistrar(get(), get()) }
     single { LanguageController(get(), get()) }
     single { TimeZonePreference(get()) }
+    single { PomodoroPreference(get()) }
     single { ProfileSync(get(), get(), get()) }
     single<GoogleSignIn> {
         val language = get<LanguageController>()

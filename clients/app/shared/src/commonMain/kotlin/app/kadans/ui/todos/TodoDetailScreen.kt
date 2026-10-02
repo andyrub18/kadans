@@ -26,8 +26,10 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.pomodoro.PomodoroPreference
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -65,7 +67,8 @@ private fun Detail(
 ) {
     val s = LocalStrings.current
     var loop by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-    var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val pomodoroPreference = koinInject<PomodoroPreference>()
+    var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(pomodoroPreference.handsFree) }
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     LazyColumn(
@@ -116,7 +119,13 @@ private fun Detail(
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(s.handsFree, style = MaterialTheme.typography.bodyMedium)
-                    androidx.compose.material3.Switch(checked = handsFree, onCheckedChange = { handsFree = it })
+                    androidx.compose.material3.Switch(
+                        checked = handsFree,
+                        onCheckedChange = {
+                            handsFree = it
+                            pomodoroPreference.handsFree = it // the next session on this device starts the same way
+                        },
+                    )
                 }
             }
         }

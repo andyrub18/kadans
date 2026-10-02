@@ -35,6 +35,7 @@ internal sealed class PomodoroDeadlineSignal
 /// <summary>
 /// Hands-free runs change phase on the second, not on a polling grid: the watcher sleeps until the
 /// exact moment the nearest phase ends, steps what is due, and sleeps towards the next deadline.
+/// Manual runs' phase ends wake it too, for their one "time's up" (<see cref="PomodoroTimeUp"/>).
 /// It replaced a Quartz job that scanned every 5 s (a phase change could be announced up to 5 s late).
 /// <c>Tasks:PomodoroAutoAdvanceSeconds</c> is only the longest it sleeps without re-checking – the net
 /// under a missed pulse; everything it does is an idempotent scan, so a restart loses nothing.
@@ -55,9 +56,13 @@ internal sealed class PomodoroDeadlineWatcher(
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                next = await scope.ServiceProvider
+                var nextAdvance = await scope.ServiceProvider
                     .GetRequiredService<PomodoroAutoAdvancer>()
                     .StepDueRunsAsync(DateTimeOffset.UtcNow, stoppingToken);
+                var nextTimeUp = await scope.ServiceProvider
+                    .GetRequiredService<PomodoroTimeUp>()
+                    .NotifyDueRunsAsync(DateTimeOffset.UtcNow, stoppingToken);
+                next = Earliest(nextAdvance, nextTimeUp);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -78,6 +83,9 @@ internal sealed class PomodoroDeadlineWatcher(
             }
         }
     }
+
+    internal static DateTimeOffset? Earliest(DateTimeOffset? a, DateTimeOffset? b) =>
+        a is null ? b : b is null ? a : a < b ? a : b;
 
     /// <summary>Until the next deadline, never longer than the fallback, never a busy loop.</summary>
     internal static TimeSpan NextDelay(DateTimeOffset now, DateTimeOffset? nextDeadline, TimeSpan fallback)

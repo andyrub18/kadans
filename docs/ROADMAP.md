@@ -361,8 +361,17 @@ installing on real devices second, hosting last.
         typing wrong passwords against a username could sign its owner out of every device, block
         their Google sign-in and their reset email, and get them told the account was "deactivated".
         Now that lock only guards sign-in for 15 minutes (429 / 10054), and the reset link lifts it.
-- [ ] Pomodoro: hands-free by default, a "time's up" notification for manual runs, and the server's
-      clock decides when a phase has ended.
+- [x] Pomodoro choices:
+      - **Hands-free by default.** New sessions are hands-free by default, and each device remembers the
+        last choice.
+      - **Time's up.** Manual runs get one "time's up" notification at the end of each phase, naming
+        what comes next ("Next: a 5-minute break, when you're ready"), and keep waiting for the person.
+        Measured: 17 ms after the phase end. A phase that ended more than 15 minutes earlier is marked
+        silently: the server was down, or the run was left at 0:00.
+      - **The server's clock decides.** The app's "this phase ran out" (`onlyIfEnded`) advances a
+        hands-free run only once the server's clock agrees. Asked early, the run comes back unchanged
+        with no notification, so a phone whose clock runs fast no longer shortens phases. "Next phase"
+        still skips at once.
 - [ ] Data retention. Nothing is deleted today; one reminder every 5 minutes alone writes about 210,000
       rows a year (occurrences plus notifications). One nightly job per module, deleting in small batches,
       with the day counts in configuration and each run logging what it removed:

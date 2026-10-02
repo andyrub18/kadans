@@ -158,10 +158,12 @@ class PomodoroViewModel(
     private var overdueAttemptInFlight = false
 
     /**
-     * The watching client advances a hands-free phase itself the moment it runs out — no
-     * waiting on the server job. The domain steps on the schedule (not request time) and
-     * `expectedPhaseIndex` makes the race with the job safe: whoever loses just resyncs.
-     * Manual runs sit at 0:00 on purpose — the user advances those.
+     * The watching client asks for a hands-free phase change the moment it runs out on this
+     * device — `onlyIfEnded`: the server's clock decides, so a clock running fast cannot cut a
+     * phase short (the run comes back unchanged and the next tick asks again). The domain steps
+     * on the schedule and `expectedPhaseIndex` makes the race with the server's own watcher safe:
+     * whoever loses just resyncs. Manual runs sit at 0:00 on purpose — the user advances those,
+     * after one "time's up" notification from the server.
      */
     private fun maybeResyncOverdue(run: PomodoroRunResponse, now: kotlin.time.Instant) {
         val endsAt = run.phaseEndsAt ?: return
@@ -171,7 +173,7 @@ class PomodoroViewModel(
         overdueAttemptInFlight = true
         viewModelScope.launch {
             try {
-                adopt(api.pomodoro.advance(run.id, run.currentPhaseIndex))
+                adopt(api.pomodoro.advance(run.id, run.currentPhaseIndex, onlyIfEnded = true))
             } catch (e: KadansApiException) {
                 resync() // someone else advanced (or the run ended) — show where it really is
             } catch (_: Exception) {

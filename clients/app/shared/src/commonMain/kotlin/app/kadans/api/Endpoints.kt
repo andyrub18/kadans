@@ -226,8 +226,9 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
     suspend fun resume(runId: String): PomodoroRunResponse =
         api.http.put("pomodoro/runs/$runId/resume").orThrow()
 
-    suspend fun advance(runId: String, expectedPhaseIndex: Int? = null): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/advance") { setBody(AdvancePomodoroRun(expectedPhaseIndex)) }
+    /** [onlyIfEnded]: the phase ran out on this device's clock; false is "Next phase", which skips at once. */
+    suspend fun advance(runId: String, expectedPhaseIndex: Int? = null, onlyIfEnded: Boolean = false): PomodoroRunResponse =
+        api.http.put("pomodoro/runs/$runId/advance") { setBody(AdvancePomodoroRun(expectedPhaseIndex, onlyIfEnded)) }
             .orThrow()
 
     suspend fun cancel(runId: String): PomodoroRunResponse =

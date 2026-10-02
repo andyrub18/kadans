@@ -189,10 +189,12 @@ internal sealed class TasksDbContext(
             // change is announced twice (and a looping run gets its next lap appended twice).
             r.Property<uint>("Version").IsRowVersion();
 
-            // What the deadline watcher scans.
+            // What the deadline watcher scans: hands-free runs to advance, manual runs to tell their time is up.
             r.HasIndex(x => x.PhaseEndsAt)
                 .HasDatabaseName("ix_pomodoro_runs_auto_advance_due")
                 .HasFilter("status = 'Active' AND auto_advance");
+            r.HasIndex(x => x.PhaseEndsAt, "ix_pomodoro_runs_manual_due")
+                .HasFilter("status = 'Active' AND NOT auto_advance");
 
             r.HasIndex(x => new { x.TodoId, x.StartedAt })
                 .HasDatabaseName("ix_pomodoro_runs_todo_id_started_at_desc")

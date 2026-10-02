@@ -252,6 +252,16 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 - A watching client advances its own run at the same instant, so `PomodoroRun` carries Postgres `xmin`
   as an optimistic row version: exactly one writer wins, the loser gets "refresh and retry" (a request)
   or silently skips (the watcher). One phase change, one notification, one appended lap.
+- The server's clock decides when a phase has ended (Phase 8). The app's "this phase ran out" is an advance
+  with `onlyIfEnded`: it counts only for a hands-free run whose deadline the server has also reached, and
+  otherwise the run comes back unchanged, unsaved and unannounced. A device whose clock runs fast cannot cut
+  phases short. "Next phase" is a plain advance and skips at once.
+- Manual runs wait at the end of each phase for the person, and say so once: the watcher also wakes at
+  their phase ends, and `PomodoroTimeUp` sends a "time's up" naming what comes next.
+  `TimeUpPhaseIndex` makes it once per phase, so pausing and resuming at 0:00 does not repeat it. A phase
+  that ran out more than 15 minutes earlier is marked without a notification: the server was down, or the
+  run was left at 0:00.
+- Hands-free is the default for a new session, and each device remembers the last choice.
 - Run state changes are broadcast over SignalR so phone and desktop stay in sync.
 
 ### Notifications

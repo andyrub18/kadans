@@ -366,10 +366,15 @@ installing on real devices second, hosting last.
 - [ ] Delete my account, in the app and from a web page (Google Play requires both). With it, deleting a
       single todo (today a todo can only be cancelled). An account with a live subscription is told to cancel it
       in the store: the store bills, not Kadans, and deleting the account does not stop it.
-- [ ] Subscriptions, decided 2026-10-02: the Android and iPhone apps need a subscription (USD 0.99 a month);
-      the desktop app stays free. Both stores allow this: an app may be free to download and need a
-      subscription bought in it, and a subscription bought on one platform may be used on another as long as
-      it is also sold in the app there.
+- [ ] Subscriptions, decided 2026-10-02: the Android and iPhone apps are free to download and need a
+      subscription, USD 0.99 a month after a 14-day free trial (the stores' own trial offer); the desktop app
+      stays free. Not a paid download: it would charge twice for the same thing, allow no trial, and put the
+      card problem at the door. A hard paywall (free download, subscription required) converts about 12% of
+      downloads against about 2% for freemium (RevenueCat, 2025). Fallback if card friction blocks trials:
+      freemium phones, free to use with the subscription unlocking phone reminders, which the server already
+      gates. Both stores allow this model: an app may be free to download and need a subscription bought in
+      it, and a subscription bought on one platform may be used on another as long as it is also sold in the
+      app there.
       - **A `Billing` module** (`billing` schema) keeps one subscription state per account, fed only by the
         stores. The app's word is never enough: it hands over the purchase, and the server asks the store.
         Google: the Play Developer API, plus real-time notifications through Pub/Sub. Apple: the App Store
@@ -388,7 +393,8 @@ installing on real devices second, hosting last.
         paid in USD. Haitian buyers probably need an international card, which is a conversion risk to
         measure. Apple has no App Store in Haiti: iPhone users there use another country's store, so the
         iPhone subscription is sold where Apple is (the diaspora's stores: United States, Canada, France).
-      - **Decisions when the step starts.** Free-trial length, prices per country, Apple Family Sharing.
+      - **Decisions when the step starts.** Prices per country and Apple Family Sharing. Store trials ask
+        for a card at the start and bill when the trial ends, so the Haiti card risk moves to the trial start.
         Owner setup: OWNER-CHECKLIST → Subscriptions.
 - [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,

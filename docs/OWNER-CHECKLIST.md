@@ -131,14 +131,14 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 
 ## Subscriptions – Google Play and App Store
 
-The mobile apps need a subscription (USD 0.99 a month); the desktop app is free (ROADMAP → Phase 8 →
-Subscriptions). The exact setting names and notification URLs come with that step; the accounts take
+The mobile apps are free to download and need a subscription (USD 0.99 a month after a 14-day free trial);
+the desktop app is free (ROADMAP → Phase 8 → Subscriptions). The exact setting names and notification URLs come with that step; the accounts take
 days to approve, so they can start now.
 
 Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account, paid out in USD):
 - [ ] Play Console developer account, then a payments profile (merchant account) with tax and bank details.
-- [ ] Monetize → Subscriptions: one product (for example `kadans_mobile`) with a monthly base plan at USD 0.99,
-      and a free-trial offer if you want one.
+- [ ] Monetize → Subscriptions: one product (for example `kadans_mobile`) with a monthly base plan at USD 0.99
+      and a 14-day free-trial offer for new subscribers.
 - [ ] Real-time developer notifications: a Pub/Sub topic in `kadans-420a7`, publish rights for
       `google-play-developer-notifications@system.gserviceaccount.com`, and a push subscription to the
       API's Google notification URL.
@@ -150,7 +150,8 @@ Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts
 - [ ] Apple Developer Program membership (USD 99 a year). Check first that you can enroll and be paid from
       where you are, or through a company and bank account in a country Apple pays to.
 - [ ] App Store Connect → Agreements, Tax and Banking: the Paid Applications agreement.
-- [ ] A subscription group with one monthly product at USD 0.99, and the storefronts it is sold in.
+- [ ] A subscription group with one monthly product at USD 0.99, a 14-day free-trial introductory offer, and
+      the storefronts it is sold in.
 - [ ] App Store Server Notifications (version 2): the API's Apple notification URL, production and sandbox.
 - [ ] Users and Access → Integrations → In-App Purchase key; the key, its id and the issuer id go to the
       server as secrets.

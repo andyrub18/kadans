@@ -21,10 +21,11 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 public sealed record RevokeRefreshTokenRequest(string RefreshToken);
 
-public sealed record ExternalLoginRequest(string Provider, string IdToken);
+/// <summary><c>TimeZone</c> and <c>Language</c> are the device's; they seed the account only if this sign-in creates it.</summary>
+public sealed record ExternalLoginRequest(string Provider, string IdToken, string? TimeZone = null, string? Language = null);
 
 /// <summary>Desktop loopback flow: the code Google redirected to the app, plus its PKCE verifier.</summary>
-public sealed record GoogleCodeLoginRequest(string Code, string CodeVerifier, string RedirectUri);
+public sealed record GoogleCodeLoginRequest(string Code, string CodeVerifier, string RedirectUri, string? TimeZone = null, string? Language = null);
 
 /// <summary>Which external sign-ins this server can complete; a null provider means "hide the button".</summary>
 public sealed record AuthProvidersResponse(GoogleProviderResponse? Google);

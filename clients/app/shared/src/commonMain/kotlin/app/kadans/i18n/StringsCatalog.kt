@@ -75,6 +75,41 @@ data class AccountStrings(
     fun emailChangeSent(address: String): String = emailChangeSentFormat.replace("%s", address)
 }
 
+/** Settings → time zone: followed from the device, or picked from a list. A feature group (the flat catalog is full). */
+data class TimeZoneStrings(
+    val section: String,
+    val followDevice: String,
+    val followDeviceHint: String,
+    val manualHint: String,
+    val deviceZoneUnusable: String,
+    val choose: String,
+    val searchHint: String,
+    val noMatch: String,
+    val saved: String,
+)
+
+/** Create and edit todo: how long before the start to remind, and the rule limits. A feature group. */
+data class TodoFormStrings(
+    val reminderWhen: String,
+    val atStart: String,
+    /** `%d` = minutes. */
+    val minutesBeforeFormat: String,
+    /** `%d` = hours. */
+    val hoursBeforeFormat: String,
+    val oneDayBefore: String,
+    /** `%d` = days. */
+    val daysBeforeFormat: String,
+    val countLimit: String,
+) {
+    /** "At the start", "15 min before", "1 h before", "1 day before", "2 days before". */
+    fun reminderLead(minutes: Int): String = when {
+        minutes <= 0 -> atStart
+        minutes % (24 * 60) == 0 -> (minutes / (24 * 60)).let { if (it == 1) oneDayBefore else daysBeforeFormat.replace("%d", "$it") }
+        minutes % 60 == 0 -> hoursBeforeFormat.replace("%d", "${minutes / 60}")
+        else -> minutesBeforeFormat.replace("%d", "$minutes")
+    }
+}
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -83,6 +118,8 @@ data class StringsCatalog(
     val signIn: String,
     val focusStats: FocusStatsStrings,
     val account: AccountStrings,
+    val timeZone: TimeZoneStrings,
+    val todoForm: TodoFormStrings,
     val notificationsTitle: String,
     val markAllRead: String,
     val noNotificationsYet: String,
@@ -223,11 +260,9 @@ data class StringsCatalog(
     val move: String,
     val rescheduleTitle: String,
     val reasonOptional: String,
-    val notifyBeforeMinutes: String,
     // settings
     val settings: String,
     val profileSection: String,
-    val timeZoneLabel: String,
     val languageLabel: String,
     val saveProfile: String,
     val profileSaved: String,

@@ -164,6 +164,44 @@ public sealed class ExternalSignInTests : IAsyncDisposable
         await Assert.That(await manager.Users.CountAsync()).IsEqualTo(1);
     }
 
+    [Test]
+    public async Task A_new_account_takes_the_devices_time_zone_and_language()
+    {
+        await using var scope = services.CreateAsyncScope();
+        var external = scope.ServiceProvider.GetRequiredService<ExternalAuthentication>();
+        await external.SignInAsync(Google("haiti@gmail.com", subject: "haiti-sub"), CancellationToken.None, new NewAccountProfile("America/Port-au-Prince", "HT"));
+        await external.SignInAsync(Google("odd@gmail.com", subject: "odd-sub"), CancellationToken.None, new NewAccountProfile("Mars/Olympus_Mons", "de"));
+
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var haiti = (await users.FindByLoginAsync("google", "haiti-sub"))!;
+        var odd = (await users.FindByLoginAsync("google", "odd-sub"))!;
+        await Assert.That(haiti.TimeZoneId).IsEqualTo("America/Port-au-Prince");
+        await Assert.That(haiti.PreferredLanguage).IsEqualTo("ht");
+        await Assert.That(odd.TimeZoneId).IsEqualTo("UTC"); // unknown zone and language fall back, as at registration
+        await Assert.That(odd.PreferredLanguage).IsEqualTo("en");
+    }
+
+    [Test]
+    public async Task Linking_an_existing_account_leaves_its_profile_alone()
+    {
+        string ownerId;
+        await using (var scope = services.CreateAsyncScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var owner = new ApplicationUser { UserName = "owner", Email = OwnerEmail, EmailConfirmed = true, LockoutEnabled = true, TimeZoneId = "Europe/Paris", PreferredLanguage = "fr" };
+            await users.CreateAsync(owner, "Owner123!");
+            ownerId = owner.Id;
+        }
+
+        await using var check = services.CreateAsyncScope();
+        await check.ServiceProvider.GetRequiredService<ExternalAuthentication>()
+            .SignInAsync(Google(OwnerEmail), CancellationToken.None, new NewAccountProfile("America/Port-au-Prince", "ht"));
+
+        var linked = (await check.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>().FindByIdAsync(ownerId))!;
+        await Assert.That(linked.TimeZoneId).IsEqualTo("Europe/Paris");
+        await Assert.That(linked.PreferredLanguage).IsEqualTo("fr");
+    }
+
     private static ExternalIdentity Google(string email, bool verified = true, string subject = "owner-sub") =>
         new(ExternalIdTokenValidator.Google, subject, email, verified, "Owner");
 

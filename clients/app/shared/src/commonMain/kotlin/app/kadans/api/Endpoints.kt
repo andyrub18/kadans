@@ -26,21 +26,27 @@ class AuthApi internal constructor(private val api: KadansApi) {
             .also { api.adopt(it) }
 
     suspend fun loginExternal(provider: String, idToken: String): LoginResponse =
-        api.http.post("auth/external") { setBody(ExternalLoginRequest(provider, idToken)) }
+        // Zone and language only matter if this sign-in creates the account.
+        api.http.post("auth/external") { setBody(ExternalLoginRequest(provider, idToken, api.newAccountTimeZone(), api.newAccountLanguage())) }
             .orThrow<LoginResponse>()
             .also { api.adopt(it) }
 
     /** Desktop: the authorization code from Google's loopback redirect, plus its PKCE verifier. */
     suspend fun loginGoogleCode(code: String, codeVerifier: String, redirectUri: String): LoginResponse =
-        api.http.post("auth/external/google/code") { setBody(GoogleCodeLoginRequest(code, codeVerifier, redirectUri)) }
+        api.http.post("auth/external/google/code") {
+            setBody(GoogleCodeLoginRequest(code, codeVerifier, redirectUri, api.newAccountTimeZone(), api.newAccountLanguage()))
+        }
             .orThrow<LoginResponse>()
             .also { api.adopt(it) }
 
     /** Which external sign-ins the server is configured for (public client ids, never a secret). */
     suspend fun providers(): AuthProvidersResponse = api.http.get("auth/providers").orThrow()
 
+    /** The account starts with this device's time zone and language, unless the request names them. */
     suspend fun register(request: RegisterUserRequest): UserResponse =
-        api.http.post("auth/register") { setBody(request) }.orThrow()
+        api.http.post("auth/register") {
+            setBody(request.copy(timeZone = request.timeZone ?: api.newAccountTimeZone(), language = request.language ?: api.newAccountLanguage()))
+        }.orThrow()
 
     suspend fun forgotPassword(email: String) {
         api.http.post("auth/forgot-password") { setBody(ForgotPasswordRequest(email)) }.orThrow<Success>()

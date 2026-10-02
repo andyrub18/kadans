@@ -77,12 +77,9 @@ fun EditTodoScreen(
                 Switch(checked = state.notify, onCheckedChange = { v -> viewModel.update { it.copy(notify = v) } })
             }
             if (state.notify) {
-                OutlinedTextField(
-                    value = state.notifyBefore?.toString() ?: "",
-                    onValueChange = { v -> viewModel.update { it.copy(notifyBefore = v.toIntOrNull()) } },
-                    label = { Text(s.notifyBeforeMinutes) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                ReminderLeadChooser(
+                    selected = state.notifyBefore ?: ReminderLeads.DEFAULT,
+                    onSelect = { v -> viewModel.update { it.copy(notifyBefore = v) } },
                 )
             }
 

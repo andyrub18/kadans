@@ -54,7 +54,8 @@ public sealed record ResetPasswordRequest(string Email, string Token, string New
 
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
-public sealed record ChangeEmailRequest(string NewEmail);
+/// <param name="CurrentPassword">Required when the account has a password (not for accounts that only use Google).</param>
+public sealed record ChangeEmailRequest(string NewEmail, string? CurrentPassword = null);
 
 public sealed record ConfirmEmailChangeRequest(string NewEmail, string Token);
 
@@ -117,5 +118,7 @@ public sealed record UserResponse(
     string Language,
     bool TwoFactorEnabled,
     bool IsActive,
-    IReadOnlyCollection<string> Roles
+    IReadOnlyCollection<string> Roles,
+    /// <summary>False for an account that only signs in with Google: nothing to confirm a change with.</summary>
+    bool HasPassword = true
 );

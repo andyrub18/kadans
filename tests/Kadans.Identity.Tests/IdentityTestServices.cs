@@ -1,4 +1,7 @@
 using Kadans.Modules.Identity.Domain;
+using Kadans.Modules.Identity.Features.Account;
+using Kadans.Modules.Identity.Features.Users;
+using Kadans.SharedKernel.Email;
 using Kadans.Modules.Identity.Features.Auth;
 using Kadans.Modules.Identity.Features.Devices;
 using Kadans.Modules.Identity.Persistence;
@@ -53,6 +56,13 @@ internal static class IdentityTestServices
         collection.AddSingleton<ExternalIdTokenValidator>();
         collection.AddHttpClient<GoogleCodeExchange>();
         collection.AddScoped<ExternalAuthentication>();
+        collection.AddSingleton<RecordingEmailSender>();
+        collection.AddSingleton<IEmailSender>(provider => provider.GetRequiredService<RecordingEmailSender>());
+        collection.Configure<EmailOptions>(email => email.LinkBaseUrl = "https://api.example.com");
+        collection.AddSingleton<EmailThrottle>();
+        collection.AddScoped<IdentityEmails>();
+        collection.AddScoped<AccountSecurity>();
+        collection.AddScoped<UserManagement>();
         var services = collection.BuildServiceProvider();
 
         using var scope = services.CreateScope();
@@ -85,4 +95,16 @@ internal sealed class TestCurrentUser : ICurrentUserService
     public string? UserId { get; set; }
 
     public string? SessionId { get; set; }
+}
+
+/// <summary>Every email the services sent, instead of sending it.</summary>
+internal sealed class RecordingEmailSender : IEmailSender
+{
+    public List<OutgoingEmail> Sent { get; } = [];
+
+    public Task SendAsync(OutgoingEmail email, CancellationToken cancellationToken = default)
+    {
+        Sent.Add(email);
+        return Task.CompletedTask;
+    }
 }

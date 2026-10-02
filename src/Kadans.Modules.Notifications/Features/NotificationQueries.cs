@@ -2,6 +2,7 @@ using Kadans.Modules.Notifications.Contracts;
 using Kadans.Modules.Notifications.Dispatch;
 using Kadans.Modules.Notifications.Persistence;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Http;
 using Kadans.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 using OneOf;
@@ -15,6 +16,8 @@ internal sealed class NotificationQueries(NotificationsDbContext dbContext, ICur
     {
         if (currentUser.UserId is null)
             return Unauthorized();
+        if (Paging.Check(page, pageSize) is { } pagingError)
+            return pagingError;
 
         var items = await dbContext
             .Notifications.Where(n => n.UserId == currentUser.UserId && (!unreadOnly || n.ReadAt == null))

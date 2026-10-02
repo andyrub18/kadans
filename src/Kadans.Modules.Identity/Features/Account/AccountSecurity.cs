@@ -2,6 +2,7 @@ using Kadans.Modules.Identity.Contracts;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Auth;
 using Kadans.Modules.Identity.Features.Users;
+using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Errors;
 using Kadans.SharedKernel.Security;
 using Microsoft.AspNetCore.Identity;
@@ -30,6 +31,8 @@ internal sealed class AccountSecurity(
         var user = await CurrentUserAsync();
         if (user is null)
             return Unauthorized();
+        if (await CheckCurrentPasswordAsync(user, request.CurrentPassword) is { } wrongPassword)
+            return wrongPassword;
 
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
@@ -48,8 +51,9 @@ internal sealed class AccountSecurity(
     /// <summary>Always succeeds from the caller's point of view so that emails cannot be enumerated.</summary>
     public async Task<Success> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
+        // A lock after wrong passwords does not withhold the reset: the mailbox is how the owner gets back in.
         var user = await userManager.FindByEmailAsync(request.Email);
-        if (user is not null && !await userManager.IsLockedOutAsync(user))
+        if (user is not null && !AccountLock.IsDeactivated(user))
             await emails.SendPasswordResetAsync(user, cancellationToken);
         else
             logger.LogInformation("Password reset requested for unknown or inactive email");
@@ -72,6 +76,11 @@ internal sealed class AccountSecurity(
 
             return result.ToValidationError("Validation failed for resetting password.");
         }
+
+        // The link proved the mailbox: a lock after wrong passwords is lifted along with the old password.
+        await userManager.ResetAccessFailedCountAsync(user);
+        if (!AccountLock.IsDeactivated(user))
+            await userManager.SetLockoutEndDateAsync(user, null);
 
         await sessions.EndAllAsync(user.Id, "password reset");
         logger.LogInformation("User {UserId} reset their password", user.Id);
@@ -122,6 +131,16 @@ internal sealed class AccountSecurity(
         var user = await CurrentUserAsync();
         if (user is null)
             return Unauthorized();
+
+        // The address is where reset links go: changing it takes the password too, so a session left open on
+        // someone else's screen is not enough to take the account. Accounts that only sign in with Google have none.
+        if (await userManager.HasPasswordAsync(user))
+        {
+            if (string.IsNullOrEmpty(request.CurrentPassword))
+                return new ValidationError(ErrorTypes.ValidationError, "Validation failed for changing email.", [("CurrentPasswordRequired", "Enter your current password.")]);
+            if (await CheckCurrentPasswordAsync(user, request.CurrentPassword) is { } wrongPassword)
+                return wrongPassword;
+        }
 
         var newEmail = request.NewEmail.Trim();
         if (string.Equals(newEmail, user.Email, StringComparison.OrdinalIgnoreCase))
@@ -177,6 +196,17 @@ internal sealed class AccountSecurity(
         }
 
         logger.LogInformation("User {UserId} changed their email", user.Id);
+
+        // A username that was the old address (accounts created by Google sign-in) follows it: an "@" in a username
+        // only ever names the account's own address.
+        if (oldEmail is not null && string.Equals(user.UserName, oldEmail, StringComparison.OrdinalIgnoreCase)
+            && await userManager.FindByNameAsync(newEmail) is null)
+        {
+            var renamed = await userManager.SetUserNameAsync(user, newEmail);
+            if (!renamed.Succeeded)
+                logger.LogWarning("User {UserId} keeps the old address as username: {Errors}", user.Id, string.Join("; ", renamed.Errors.Select(e => e.Code)));
+        }
+
         if (!string.IsNullOrWhiteSpace(oldEmail))
         {
             try
@@ -241,8 +271,8 @@ internal sealed class AccountSecurity(
         if (!user.TwoFactorEnabled)
             return new ApplicationError(ErrorTypes.MfaNotEnabled, "Two-factor authentication is not enabled.");
 
-        if (!await authentication.VerifyAuthenticatorOrRecoveryCodeAsync(user, request.Code))
-            return new ApplicationError(ErrorTypes.MfaCodeInvalid, "The verification code is not valid.");
+        if (await CheckCodeAsync(user, () => authentication.VerifyAuthenticatorOrRecoveryCodeAsync(user, request.Code)) is { } wrongCode)
+            return wrongCode;
 
         await userManager.SetTwoFactorEnabledAsync(user, false);
         await userManager.ResetAuthenticatorKeyAsync(user);
@@ -260,14 +290,49 @@ internal sealed class AccountSecurity(
         if (!user.TwoFactorEnabled)
             return new ApplicationError(ErrorTypes.MfaNotEnabled, "Two-factor authentication is not enabled.");
 
-        if (!await VerifyAuthenticatorAsync(user, request.Code))
-            return new ApplicationError(ErrorTypes.MfaCodeInvalid, "The verification code is not valid.");
+        if (await CheckCodeAsync(user, () => VerifyAuthenticatorAsync(user, request.Code)) is { } wrongCode)
+            return wrongCode;
 
         var codes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, RecoveryCodeCount);
         return new RecoveryCodesResponse([.. codes ?? []]);
     }
 
     // ---------- helpers ----------
+
+    /// <summary>
+    /// The password, asked again before a sensitive change. Wrong guesses count toward the lockout as sign-in
+    /// attempts do, so a session left open cannot be used to try passwords at leisure.
+    /// </summary>
+    private async Task<ApplicationError?> CheckCurrentPasswordAsync(ApplicationUser user, string password)
+    {
+        if (await userManager.IsLockedOutAsync(user))
+            return AccountLock.Refusal(user);
+
+        if (await userManager.CheckPasswordAsync(user, password))
+        {
+            await userManager.ResetAccessFailedCountAsync(user);
+            return null;
+        }
+
+        await userManager.AccessFailedAsync(user);
+        return new ApplicationError(ErrorTypes.InvalidCredentials, "The current password is not correct.");
+    }
+
+    /// <summary>A 2FA code for turning 2FA off or replacing the recovery codes: wrong ones count like at sign-in.</summary>
+    private async Task<ApplicationError?> CheckCodeAsync(ApplicationUser user, Func<Task<bool>> verify)
+    {
+        if (await userManager.IsLockedOutAsync(user))
+            return AccountLock.Refusal(user);
+
+        if (await verify())
+        {
+            await userManager.ResetAccessFailedCountAsync(user);
+            return null;
+        }
+
+        await userManager.AccessFailedAsync(user);
+        return new ApplicationError(ErrorTypes.MfaCodeInvalid, "The verification code is not valid.");
+    }
 
     private Task<bool> VerifyAuthenticatorAsync(ApplicationUser user, string code) =>
         userManager.VerifyTwoFactorTokenAsync(

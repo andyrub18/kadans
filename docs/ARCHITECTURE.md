@@ -97,6 +97,18 @@ lag), and a database read on every request (the in-memory answer is as exact wit
 out only when the server refuses a refresh (400, 401, 403). A server that cannot answer (a deploy restart
 behind the proxy, a rate limit, no network) keeps the session and fails just that call.
 
+**Locks, and proving it is you again** (Phase 8). Identity's lockout carries two locks (`AccountLock`).
+Deactivation locks an account for good: it ends sessions, refuses Google sign-in and withholds the reset
+email. Wrong passwords or codes (5) lock it for 15 minutes, answered with 429 / 10054. That lock only guards
+sign-in: sessions go on, Google sign-in (which proves who it is) and the reset link still work, and the reset
+lifts it. Otherwise a stranger typing wrong passwords against a username would sign its owner out
+everywhere. Wrong passwords and codes count wherever they are typed: sign-in, 2FA at sign-in, changing the
+password, changing the email, turning 2FA off, new recovery codes. So an open session cannot be used to try
+passwords or codes at leisure. Changing the email takes the current password, because the address is where
+reset links go; accounts that only use Google have none to give. Sign-in looks up anything with an `@` as an
+address first. A username may hold an `@` only when it is the account's own address, and it follows that
+address when it changes. Passwords need 8 characters; Identity's complexity rules stay as they are.
+
 Every emailed link opens an anonymous page served by the API (confirm email, reset password,
 confirm a new email): a person clicks it in a mail client, where no session exists, so the token in the
 link is the proof – it is bound to the user and, for an email change, to the new address. After a change
@@ -249,7 +261,10 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 - Scheduled job selects occurrences where `scheduled_at - lead_time <= now AND notified_at IS NULL`,
   dispatches, stamps `notified_at` (idempotent).
 - Channels: FCM (Android/iOS), SignalR for connected clients (desktop is long-running, so the
-  persistent connection is the primary channel there), Web Push later if a web client appears.
+  persistent connection is the primary channel there), Web Push later if a web client appears. A hub
+  connection is authorized once, when it opens. It closes when its access token expires and at once when
+  its session ends. The app reconnects with a fresh token and catches up on the unread notifications that
+  arrived during the gap, so a reminder never falls into it.
 - Durable scheduling via Quartz.NET (in-memory job store: every job is an idempotent periodic
   scan, so nothing needs to survive a restart). Implemented in Phase 4: `OccurrenceReminderJob` scans
   `notify_at <= now AND notified_at IS NULL`, builds the message in the user's time zone

@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 sealed interface RealtimeEvent {
     data class NotificationReceived(val notification: NotificationResponse) : RealtimeEvent
@@ -30,7 +33,10 @@ sealed interface RealtimeEvent {
 /**
  * Live connection to the server's SignalR hub. Best-effort by design: the REST API stays the
  * source of truth, this only makes changes arrive without a refresh. Reconnects with backoff
- * for as long as [start] is in effect; [stop] on sign-out.
+ * for as long as [start] is in effect; [stop] on sign-out. The server closes a connection when
+ * its access token expires (hourly) or its session ends; after a reconnect, the notifications
+ * that arrived during the gap are delivered from the notification list, so a reminder never
+ * falls into it (the desktop app has no push to cover for it).
  */
 class KadansRealtime(private val api: KadansApi) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -41,6 +47,15 @@ class KadansRealtime(private val api: KadansApi) {
 
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
+
+    /** What one [start] remembers across its reconnects; owned by its connection loop alone. */
+    private class Run {
+        /** When the last established connection dropped; null before the first one (nothing to catch up). */
+        var droppedAt: Instant? = null
+
+        /** Notifications already delivered, newest last: a catch-up never repeats a live one. */
+        val delivered = LinkedHashSet<String>()
+    }
 
     fun start() {
         if (connection?.isActive == true) return
@@ -54,6 +69,7 @@ class KadansRealtime(private val api: KadansApi) {
     }
 
     private suspend fun connectLoop() {
+        val run = Run() // the next start may be another account: nothing of this one carries over
         var attempt = 0
         while (currentCoroutineContextIsActive()) {
             val token = api.tokenStore.load()?.accessToken
@@ -62,12 +78,13 @@ class KadansRealtime(private val api: KadansApi) {
                 continue
             }
             try {
-                connectOnce(token)
+                connectOnce(token, run)
                 attempt = 0 // a session that established then dropped restarts the backoff
             } catch (_: Exception) {
                 // Likely an expired access token: any authed REST call refreshes the pair.
                 runCatching { api.notifications.unreadCount() }
             } finally {
+                if (_connected.value) run.droppedAt = Clock.System.now()
                 _connected.value = false
             }
             attempt += 1
@@ -75,7 +92,7 @@ class KadansRealtime(private val api: KadansApi) {
         }
     }
 
-    private suspend fun connectOnce(token: String) {
+    private suspend fun connectOnce(token: String, run: Run) {
         val url = api.baseUrl
             .replaceFirst("http://", "ws://")
             .replaceFirst("https://", "wss://") +
@@ -83,6 +100,8 @@ class KadansRealtime(private val api: KadansApi) {
         api.http.webSocket(url) {
             send(Frame.Text(SignalRProtocol.HANDSHAKE))
             _connected.value = true
+            // Before reading live frames (they wait in the channel), so both paths run one after the other.
+            run.droppedAt?.let { catchUp(since = it, run) }
             val buffer = StringBuilder()
             val keepAlive = launch {
                 while (true) {
@@ -95,7 +114,7 @@ class KadansRealtime(private val api: KadansApi) {
                     val text = (frame as? Frame.Text)?.readText() ?: continue
                     for (raw in SignalRProtocol.extractFrames(buffer, text)) {
                         when (val message = SignalRProtocol.parse(raw)) {
-                            is SignalRProtocol.Message.Invocation -> dispatch(message)
+                            is SignalRProtocol.Message.Invocation -> dispatch(message, run)
                             is SignalRProtocol.Message.Close -> return@webSocket
                             else -> {}
                         }
@@ -107,7 +126,18 @@ class KadansRealtime(private val api: KadansApi) {
         }
     }
 
-    private fun dispatch(message: SignalRProtocol.Message.Invocation) {
+    private suspend fun catchUp(since: Instant, run: Run) {
+        val unread = runCatching { api.notifications.list(unreadOnly = true, page = 1, pageSize = CATCH_UP_PAGE) }.getOrNull() ?: return
+        missedSince(unread, since, run.delivered).forEach { deliver(it, run) }
+    }
+
+    private fun deliver(notification: NotificationResponse, run: Run) {
+        if (!run.delivered.add(notification.id)) return
+        if (run.delivered.size > REMEMBERED) run.delivered.remove(run.delivered.first())
+        _events.tryEmit(RealtimeEvent.NotificationReceived(notification))
+    }
+
+    private fun dispatch(message: SignalRProtocol.Message.Invocation, run: Run) {
         val payload = message.arguments.firstOrNull() ?: return
         val event = try {
             when (message.target) {
@@ -124,10 +154,24 @@ class KadansRealtime(private val api: KadansApi) {
         } catch (_: Exception) {
             null
         }
-        if (event != null) _events.tryEmit(event)
+        when (event) {
+            is RealtimeEvent.NotificationReceived -> deliver(event.notification, run)
+            null -> {}
+            else -> _events.tryEmit(event)
+        }
     }
 
-    private companion object {
+    internal companion object {
+        private const val CATCH_UP_PAGE = 50
+        private const val REMEMBERED = 200
+
+        /** The device's clock may differ from the server's: notifications this much older than the drop count too. */
+        internal val CLOCK_MARGIN = 2.minutes
+
+        /** Unread notifications from around the drop on, oldest first, minus those already shown. */
+        internal fun missedSince(unread: List<NotificationResponse>, since: Instant, delivered: Set<String>): List<NotificationResponse> =
+            unread.filter { it.createdAt >= since - CLOCK_MARGIN && it.id !in delivered }.sortedBy { it.createdAt }
+
         fun backoffMillis(attempt: Int): Long = when {
             attempt <= 1 -> 1_000
             attempt == 2 -> 2_000

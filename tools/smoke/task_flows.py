@@ -40,7 +40,15 @@ start = (now + dt.timedelta(days=1)).replace(hour=9, minute=0, second=0)
 s, tok = call("POST", "/auth/login", {"username": USER, "password": PASSWORD})
 assert s == 200 and tok.get("accessToken"), f"login as {USER} failed ({s}) - an account with MFA cannot run the smoke; pass [username] [password]"
 T = tok["accessToken"]
-def occ(todo_id): return call("GET", f"/todos/{todo_id}/occurrences?pageSize=5000", token=T)[1]
+def occ(todo_id):
+    """Every stored occurrence of a todo, a page (at most 100) at a time."""
+    rows, page = [], 1
+    while True:
+        s, batch = call("GET", f"/todos/{todo_id}/occurrences?page={page}&pageSize=100", token=T)
+        assert s == 200, f"occurrences page {page}: {s} {batch}"
+        rows += batch
+        if len(batch) < 100: return rows
+        page += 1
 
 # --- bounded rule: fully materialized, todo completes when its last occurrence is done ---
 s, t3 = call("POST", "/todos/recurring", {"title": "smoke: 3 days", "description": "", "notificationEnabled": False,

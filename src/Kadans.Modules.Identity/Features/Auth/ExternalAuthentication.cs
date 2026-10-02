@@ -54,8 +54,10 @@ internal sealed class ExternalAuthentication(
             user = linkResult.AsT1;
         }
 
-        if (await userManager.IsLockedOutAsync(user))
-            return new ApplicationError(ErrorTypes.UserInactive, "User is deactivated");
+        // The provider just proved who this is: a lock after wrong passwords does not stand in the way (2FA, when
+        // on, still does, with its own attempt count). A deactivated account stays closed.
+        if (AccountLock.IsDeactivated(user))
+            return AccountLock.Deactivated();
 
         return await authentication.IssueTokensOrChallengeAsync(user);
     }

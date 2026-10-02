@@ -68,8 +68,11 @@ public sealed class SessionTests : IAsyncDisposable
             throw new InvalidOperationException(registered.AsT0.ErrorMessage);
     }
 
-    private static Guid SessionOf(string accessToken) =>
+    internal static Guid SessionOf(string accessToken) =>
         Guid.Parse(new JwtSecurityTokenHandler().ReadJwtToken(accessToken).Claims.Single(c => c.Type == SessionClaim.Type).Value);
+
+    internal static string UserOf(string accessToken) =>
+        new JwtSecurityTokenHandler().ReadJwtToken(accessToken).Claims.Single(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier).Value;
 
     private async Task<T> InScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
     {

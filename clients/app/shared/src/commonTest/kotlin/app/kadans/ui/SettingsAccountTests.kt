@@ -38,13 +38,22 @@ class SettingsAccountTests {
 
     @Test
     fun an_email_change_needs_a_different_plausible_address() {
-        val state = SettingsUiState(user = user, isLoading = false)
+        val state = SettingsUiState(user = user, isLoading = false, emailPassword = "secret")
 
         assertEquals(false, state.canRequestEmailChange)
         assertEquals(false, state.copy(newEmail = "not-an-email").canRequestEmailChange)
         assertEquals(false, state.copy(newEmail = " ALICE@example.com ").canRequestEmailChange) // the address they already have
         assertEquals(true, state.copy(newEmail = "alice@new.example").canRequestEmailChange)
         assertEquals(false, state.copy(newEmail = "alice@new.example", isBusy = true).canRequestEmailChange)
+    }
+
+    @Test
+    fun an_email_change_takes_the_password_unless_the_account_only_uses_google() {
+        val state = SettingsUiState(user = user, isLoading = false, newEmail = "alice@new.example")
+
+        assertEquals(false, state.canRequestEmailChange)
+        assertEquals(true, state.copy(emailPassword = "secret").canRequestEmailChange)
+        assertEquals(true, state.copy(user = user.copy(hasPassword = false)).canRequestEmailChange)
     }
 
     @Test

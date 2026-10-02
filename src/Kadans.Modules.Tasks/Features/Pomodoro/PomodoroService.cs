@@ -2,6 +2,7 @@ using Kadans.Modules.Tasks.Contracts;
 using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Http;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Security;
@@ -201,6 +202,9 @@ internal sealed class PomodoroService(
 
     public async Task<OneOf<ApplicationError, List<PomodoroRunResponse>>> GetRunHistory(Guid todoId, int page = 1, int pageSize = 20)
     {
+        if (Paging.Check(page, pageSize) is { } pagingError)
+            return pagingError;
+
         var runs = await context
             .PomodoroRuns.Include(r => r.Phases)
             .Where(r => r.TodoId == todoId)

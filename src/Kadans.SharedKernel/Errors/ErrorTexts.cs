@@ -103,6 +103,7 @@ public static class ErrorTexts
         ["10051"] = new("Ce compte est archivé.", "Kont sa a achive."),
         ["10052"] = new("Le délai du rappel n'est pas valide.", "Delè rapèl la pa valab."),
         ["10053"] = new("Trop de tentatives. Réessayez dans un moment.", "Twòp tantativ. Tann yon ti moman epi eseye ankò."),
+        ["10054"] = new("Trop d'essais infructueux. Réessayez dans quelques minutes.", "Twòp tantativ ki pa mache. Eseye ankò nan kèk minit."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
@@ -166,6 +167,11 @@ public static class ErrorTexts
         ["Invalid username or password"] = new("Nom d'utilisateur ou mot de passe invalide.", "Non itilizatè oswa modpas la pa bon."),
         ["Invalid refresh token"] = new("Votre session a expiré. Reconnectez-vous.", "Sesyon ou an ekspire. Konekte ankò."),
         ["The current password is not correct."] = new("Le mot de passe actuel n'est pas correct.", "Modpas aktyèl la pa bon."),
+        ["Enter your current password."] = new("Saisissez votre mot de passe actuel.", "Antre modpas aktyèl ou."),
+        ["Too many failed attempts. Try again in a few minutes."] = new("Trop d'essais infructueux. Réessayez dans quelques minutes.", "Twòp tantativ ki pa mache. Eseye ankò nan kèk minit."),
+        ["A username can contain @ only when it is the account's email address."] = new("Un nom d'utilisateur ne peut contenir @ que s'il est l'adresse e-mail du compte.", "Yon non itilizatè ka gen @ sèlman si se adrès imèl kont lan."),
+        ["Page must be 1 or more."] = new("La page doit être 1 ou plus.", "Paj la dwe 1 oswa plis."),
+        ["Page size must be between 1 and 100."] = new("La taille de page doit être comprise entre 1 et 100.", "Gwosè paj la dwe ant 1 ak 100."),
         ["User is deactivated"] = new("Ce compte est désactivé.", "Kont sa a dezaktive."),
         ["Current user no longer exists."] = new("Ce compte n'existe plus.", "Kont sa a pa egziste ankò."),
         ["Unable to resolve current user."] = new("Vous devez être connecté.", "Ou dwe konekte."),

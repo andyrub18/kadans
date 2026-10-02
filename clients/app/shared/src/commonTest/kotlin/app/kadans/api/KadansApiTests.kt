@@ -1,6 +1,7 @@
 package app.kadans.api
 
 import app.kadans.api.model.OccurrenceStatus
+import app.kadans.api.model.RegisterUserRequest
 import app.kadans.api.model.TodoOccurrenceResponse
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -11,6 +12,7 @@ import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
@@ -174,6 +176,42 @@ class KadansApiTests {
 
         assertEquals("10015", error.errorCode)
         assertEquals("Modpas la dwe gen omwen 8 karaktè.", error.problem?.errors?.single()?.message)
+    }
+
+    @Test
+    fun a_new_account_starts_in_the_devices_zone_and_the_apps_language() = runTest {
+        val bodies = mutableMapOf<String, String>()
+        val engine = MockEngine { request ->
+            bodies[request.url.encodedPath] = (request.body as TextContent).text
+            respond(if (request.url.encodedPath == "/auth/register") userJson else loginJson("a", "r"), HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = KadansApi.create("http://test", engine = engine, languageProvider = { "ht" }, timeZoneProvider = { "America/Port-au-Prince" })
+
+        api.auth.register(RegisterUserRequest("alice", "Password1!"))
+        api.auth.loginExternal("google", "id.token")
+        api.auth.loginGoogleCode("code", "verifier", "http://127.0.0.1:5000")
+
+        listOf("/auth/register", "/auth/external", "/auth/external/google/code").forEach { path ->
+            val body = bodies.getValue(path)
+            assertTrue(""""timeZone":"America/Port-au-Prince"""" in body && """"language":"ht"""" in body, "$path: $body")
+        }
+    }
+
+    @Test
+    fun a_device_without_a_usable_zone_leaves_the_zone_to_the_server() = runTest {
+        var body = ""
+        val engine = MockEngine { request ->
+            body = (request.body as TextContent).text
+            respond(userJson, HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = KadansApi.create("http://test", engine = engine, timeZoneProvider = { null })
+
+        api.auth.register(RegisterUserRequest("alice", "Password1!"))
+        assertFalse("timeZone" in body, body)
+
+        // A zone the person typed is kept.
+        api.auth.register(RegisterUserRequest("alice", "Password1!", timeZone = "Europe/Paris"))
+        assertTrue(""""timeZone":"Europe/Paris"""" in body, body)
     }
 
     @Test

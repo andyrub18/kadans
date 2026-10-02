@@ -19,6 +19,7 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,8 +37,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.Frequency
+import kotlin.time.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
 import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -122,14 +126,18 @@ fun CreateTodoScreen(
                     Frequency.entries.forEach { f ->
                         FilterChip(
                             selected = state.frequency == f,
-                            onClick = { viewModel.update { it.copy(frequency = f, times = if (f == Frequency.Daily) it.times else emptyList()) } },
+                            onClick = { viewModel.update { CreateTodoViewModel.withFrequency(it, f) } },
                             label = { Text(s.frequencyName(f)) },
                         )
                     }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { viewModel.update { it.copy(interval = (it.interval - 1).coerceAtLeast(1)) } }) { Text("−") }
+                    // Every 5 minutes at most: the stepper stops there (the server refuses more).
+                    OutlinedButton(
+                        onClick = { viewModel.update { it.copy(interval = (it.interval - 1).coerceAtLeast(CreateTodoViewModel.minInterval(it.frequency))) } },
+                        enabled = state.interval > CreateTodoViewModel.minInterval(state.frequency),
+                    ) { Text("−") }
                     Text(
                         s.every(state.frequency, state.interval),
                         style = MaterialTheme.typography.titleMedium,
@@ -180,9 +188,11 @@ fun CreateTodoScreen(
                     EndMode.AfterCount ->
                         OutlinedTextField(
                             value = state.count?.toString() ?: "",
-                            onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
+                            onValueChange = { v -> viewModel.update { it.copy(count = v.filter(Char::isDigit).take(6).toIntOrNull()) } },
                             label = { Text(s.howManyTimes) },
                             singleLine = true,
+                            isError = state.countTooHigh,
+                            supportingText = if (state.countTooHigh) ({ Text(s.todoForm.countLimit) }) else null,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     EndMode.OnDate -> {
@@ -224,6 +234,9 @@ fun CreateTodoScreen(
                 Text(s.remindMe)
                 Switch(checked = state.notify, onCheckedChange = { v -> viewModel.update { it.copy(notify = v) } })
             }
+            if (state.notify) {
+                ReminderLeadChooser(selected = state.notifyBefore, onSelect = { v -> viewModel.update { it.copy(notifyBefore = v) } })
+            }
 
             if (state.error != null || state.errorCode != null) {
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -237,7 +250,11 @@ fun CreateTodoScreen(
 
     val pickingDate = dateTarget
     if (pickingDate != null) {
-        val pickerState = rememberDatePickerState()
+        // Only dates the server accepts: a start from today on, an end between the start and ten years after it.
+        val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
+        val first = if (pickingDate == DateTarget.Until) state.date ?: today else today
+        val last = if (pickingDate == DateTarget.Until) CreateTodoViewModel.latestEnd(first) else null
+        val pickerState = rememberDatePickerState(selectableDates = DateRange(first, last))
         DatePickerDialog(
             onDismissRequest = { dateTarget = null },
             confirmButton = {
@@ -281,6 +298,14 @@ fun CreateTodoScreen(
             text = { TimePicker(state = timeState) },
         )
     }
+}
+
+/** The DatePicker speaks UTC-midnight millis; these bounds are calendar days. */
+private class DateRange(private val first: LocalDate, private val last: LocalDate?) : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+        LocalDate.fromEpochDays((utcTimeMillis / 86_400_000L).toInt()).let { it >= first && (last == null || it <= last) }
+
+    override fun isSelectableYear(year: Int): Boolean = year >= first.year && (last == null || year <= last.year)
 }
 
 private fun LocalTime.formatted(): String =

@@ -134,6 +134,28 @@ an id or a name), then English. ASP.NET Identity's messages carry numbers and na
 translated where the parameters are: `LocalizedIdentityErrorDescriber`. Emails and notifications keep
 using the account's language – there is no request to read a header from.
 
+### The account's time zone and language follow the device
+
+The server works in the account's time zone and language: reminder texts, focus-stats days, Budget months and
+emails. Both come from the device, not from a form. A new account starts with the device's IANA zone and the
+app's language: sign-up sends them, and so does a Google sign-in that creates the account (the server keeps a
+zone its tz database knows and a language among en, fr and ht, otherwise UTC and English; linking leaves an
+existing profile alone). After that the client's `ProfileSync` runs after every sign-in and app start:
+
+- **Time zone**: while "Follow this device" is on (per install, on by default) the account takes the device's
+  zone, so it follows the person when they travel. A device that reports only `UTC` or a raw offset is not
+  followed: desktops whose zone was never set say `UTC`. Picking a zone in Settings (a searchable list of
+  region/city zones with their current offset) turns following off on that install. Otherwise the next start
+  would undo the choice.
+- **Language**: the latest explicit choice wins. A choice made on a device is sent to the account. A fresh
+  install takes the account's language rather than pushing the phone's system language, since in Haiti the
+  phone is often in French while the person reads Kreyòl. An install whose choice the account already has
+  follows a change made on another device. The install remembers the last language the account confirmed
+  (`kadans.language.synced`), which tells "chosen here, not sent yet" from "changed elsewhere".
+
+Considered and rejected: asking for a zone in the sign-up form (people do not know their IANA id, and it goes
+stale when they travel), and syncing on every request (a header the server would trust on each call).
+
 ### Tests: TUnit on Microsoft.Testing.Platform
 
 Opt-in for `dotnet test` is `"test": { "runner": "Microsoft.Testing.Platform" }` in `global.json`.

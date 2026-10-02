@@ -85,13 +85,14 @@ fun SettingsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
-                value = state.timeZone,
-                onValueChange = { v -> viewModel.update { it.copy(timeZone = v) } },
-                label = { Text(s.timeZoneLabel) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Button(onClick = viewModel::saveProfile, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) {
+                Text(s.saveProfile)
+            }
+            if (state.profileSaved) {
+                Text(s.profileSaved, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+            }
+
+            // Language and time zone apply as soon as they are chosen.
             Text(s.languageLabel, style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Language.entries.forEach { candidate ->
@@ -102,12 +103,7 @@ fun SettingsScreen(
                     )
                 }
             }
-            Button(onClick = viewModel::saveProfile, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) {
-                Text(s.saveProfile)
-            }
-            if (state.profileSaved) {
-                Text(s.profileSaved, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-            }
+            TimeZoneSection(state, viewModel)
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 

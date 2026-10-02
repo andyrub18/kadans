@@ -7,6 +7,7 @@ import app.kadans.api.KadansApiException
 import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
+import app.kadans.profile.ProfileSync
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.RealtimeEvent
@@ -37,6 +38,7 @@ class HomeViewModel(
     private val realtime: KadansRealtime,
     private val alerts: SystemAlerts,
     private val deviceRegistrar: DeviceRegistrar,
+    private val profileSync: ProfileSync,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -57,6 +59,8 @@ class HomeViewModel(
         realtime.start()
         alerts.start()
         viewModelScope.launch { deviceRegistrar.register() }
+        // The account follows this device: time zone (while followed) and language. Best-effort.
+        viewModelScope.launch { runCatching { profileSync.sync() } }
         viewModelScope.launch {
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {

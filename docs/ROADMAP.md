@@ -126,7 +126,8 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       translation is a compile error) with `LocalStrings`; in-app picker (Login chips, Home cycle
       button), persisted, first run follows the device language; API errors localized by
       `errorCode` with server-detail fallback. Server: `PreferredLanguage` on the user (synced on
-      switch) drives localized emails and localized reminder/pomodoro notifications.
+      switch; since Phase 8 also at sign-up and at every start) drives localized emails and localized
+      reminder/pomodoro notifications.
       Server-side error and validation texts followed in Phase 8.
 - [x] Occurrence calendar (month grid, Monday-first, dots for pending/planned/done, day detail);
       edit-todo & move-occurrence UI; settings screen (profile, language, password, TOTP MFA
@@ -314,8 +315,19 @@ installing on real devices second, hosting last.
       Docker kept them forever. Measured with production limits: the 6th mail request is refused with
       `Retry-After: 180`, the 21st sign-in attempt too, 50 health checks pass, and a second reset mail to
       the same address within 2 minutes is held back.
-- [ ] The profile follows the device: time zone and language are sent at sign-up and synced after every
-      sign-in, and the reminder lead can be chosen when creating a todo (see the known-bugs table).
+- [x] The profile follows the device (design: ARCHITECTURE → "The account's time zone and language follow
+      the device"):
+      - **New accounts.** A new account starts in the device's time zone and the app's language. Sign-up
+        sends both, and so does a Google sign-in that creates the account. The server keeps a zone its tz
+        database knows and en, fr or ht, else UTC and English.
+      - **Every sign-in and app start.** The account follows the device's zone while "Follow this device"
+        is on (per install, on by default). With it off, Settings has a searchable list of zones (city,
+        region, current offset). The language follows the latest explicit choice, and a fresh install
+        takes the account's language instead of the phone's.
+      - **Todo form.** "Notify me" offers the start, 5, 10, 15 or 30 minutes, 1 hour or 1 day before, in
+        create and edit. An older custom lead stays selectable.
+      - **Recurrence limits.** The form keeps within step 2's limits: every 5 minutes at the least, at most
+        5,000 repeats (said under the field), and an end date within 10 years in the date picker.
 - [ ] Sign-out and sessions: a signed-out device stops receiving pushes, and a refresh that fails for
       any reason except a rejected token keeps the session (so a deploy restart signs nobody out).
 - [ ] Account hardening: email change confirms the password, rules for `@` in usernames, 2FA attempt
@@ -342,7 +354,7 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
-| `clients/app`: sign-up and profile | Sign-up sends neither the device time zone nor the app language, and nothing syncs them later (Google-created accounts included), so the account stays on UTC and English. Reminders show the start in UTC ("Starts at 01:28" for a 21:28 start in Port-au-Prince), server texts and emails are English until the language is picked again, and focus-stats days and Budget month boundaries follow UTC. Workaround: set both in Settings. Fix: Phase 8 → 4, "The profile follows the device" |
+| `clients/app`: sign-up and profile | ~~Sign-up sent neither the device time zone nor the app language, and nothing synced them later (Google-created accounts included), so the account stayed on UTC and English: reminders showed the start in UTC ("Starts at 01:28" for a 21:28 start in Port-au-Prince), server texts and emails were English, and focus-stats days and Budget month boundaries followed UTC~~ fixed 2026-10-01: new accounts start with the device's zone and the app's language, and the app brings existing accounts in line at its next start (ships with the next app build) |
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
 | `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
 | `tools/smoke/identity_flows.py` | ~~Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`)~~ fixed 2026-09-18: a fresh `alice<timestamp>` per run |

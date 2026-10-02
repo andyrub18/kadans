@@ -8,8 +8,13 @@ import app.kadans.api.model.DeviceResponse
 import app.kadans.api.model.MfaEnrollResponse
 import app.kadans.api.model.UpdateSelfUserRequest
 import app.kadans.api.model.UserResponse
+import app.kadans.profile.TimeZoneCatalog
+import app.kadans.profile.TimeZoneEntry
+import app.kadans.profile.TimeZonePreference
+import app.kadans.profile.deviceTimeZone
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -23,8 +28,13 @@ data class SettingsUiState(
     // profile form
     val username: String = "",
     val displayName: String = "",
-    val timeZone: String = "",
     val profileSaved: Boolean = false,
+    // time zone: followed from this device, or picked
+    val followDevice: Boolean = true,
+    /** This device's zone when usable (see deviceTimeZone); null: it reports none, so the person picks. */
+    val deviceZone: String? = null,
+    val zonePickerOpen: Boolean = false,
+    val timeZoneSaved: Boolean = false,
     // email
     val newEmail: String = "",
     /** The address a change link was just sent to; the change itself happens when that link is opened. */
@@ -47,15 +57,23 @@ data class SettingsUiState(
 ) {
     val canRequestEmailChange: Boolean
         get() = !isBusy && newEmail.trim().let { it.contains('@') && !it.equals(user?.email, ignoreCase = true) }
+
+    /** Following needs a device zone worth following; otherwise the list is the only way. */
+    val followingDevice: Boolean get() = followDevice && deviceZone != null
 }
 
 class SettingsViewModel(
     private val api: KadansApi,
     private val realtime: KadansRealtime,
     private val deviceRegistrar: DeviceRegistrar,
+    private val timeZones: TimeZonePreference,
+    private val deviceZone: () -> String? = ::deviceTimeZone,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
+
+    /** The picker's list, built once: about 400 zones with their current offset. */
+    val timeZoneChoices: List<TimeZoneEntry> by lazy { TimeZoneCatalog.entries(Clock.System.now()) }
 
     /** The local session ended (sign-out, or password change revoked it) — go to Login. */
     private val _loggedOut = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -73,7 +91,8 @@ class SettingsViewModel(
                     user = user,
                     username = user.username,
                     displayName = user.displayName ?: "",
-                    timeZone = user.timeZone,
+                    followDevice = timeZones.followsDevice,
+                    deviceZone = deviceZone(),
                     isLoading = false,
                     error = null,
                     errorCode = null,
@@ -99,16 +118,42 @@ class SettingsViewModel(
             UpdateSelfUserRequest(
                 username = current.username.trim().takeIf { it.isNotBlank() && it != current.user?.username },
                 displayName = current.displayName.trim().takeIf { it != (current.user?.displayName ?: "") },
-                timeZone = current.timeZone.trim().takeIf { it.isNotBlank() && it != current.user?.timeZone },
             ),
         )
         _state.value = _state.value.copy(
             user = user,
             username = user.username,
             displayName = user.displayName ?: "",
-            timeZone = user.timeZone,
             profileSaved = true,
         )
+    }
+
+    /** Remembered for this install. Turning it on applies the device's zone right away. */
+    fun setFollowDevice(follow: Boolean) {
+        timeZones.followsDevice = follow
+        _state.value = _state.value.copy(followDevice = follow, timeZoneSaved = false)
+        val zone = _state.value.deviceZone
+        if (follow && zone != null && zone != _state.value.user?.timeZone) saveTimeZone(zone)
+    }
+
+    fun openTimeZonePicker() {
+        _state.value = _state.value.copy(zonePickerOpen = true, timeZoneSaved = false)
+    }
+
+    fun closeTimeZonePicker() {
+        _state.value = _state.value.copy(zonePickerOpen = false)
+    }
+
+    /** A zone picked by hand: this install stops following the device, or the next start would undo the choice. */
+    fun chooseTimeZone(id: String) {
+        timeZones.followsDevice = false
+        _state.value = _state.value.copy(followDevice = false, zonePickerOpen = false)
+        if (id != _state.value.user?.timeZone) saveTimeZone(id)
+    }
+
+    private fun saveTimeZone(id: String) = busy {
+        val user = api.account.update(UpdateSelfUserRequest(timeZone = id))
+        _state.value = _state.value.copy(user = user, timeZoneSaved = true)
     }
 
     /** Nothing changes yet: the server mails a link to the new address and applies the change when it is opened. */
@@ -188,7 +233,7 @@ class SettingsViewModel(
 
     private fun busy(action: suspend () -> Unit) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isBusy = true, error = null, errorCode = null, profileSaved = false)
+            _state.value = _state.value.copy(isBusy = true, error = null, errorCode = null, profileSaved = false, timeZoneSaved = false)
             try {
                 action()
                 _state.value = _state.value.copy(isBusy = false)

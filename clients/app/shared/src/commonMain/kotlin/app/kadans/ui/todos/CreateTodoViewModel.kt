@@ -9,7 +9,9 @@ import app.kadans.api.model.CreateRecurrenceRule
 import app.kadans.api.model.CreateRecurringTodo
 import app.kadans.api.model.Frequency
 import kotlin.time.Instant
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -34,6 +36,8 @@ data class CreateTodoUiState(
     val title: String = "",
     val description: String = "",
     val notify: Boolean = true,
+    /** Minutes before the start the reminder comes ([ReminderLeads]). */
+    val notifyBefore: Int = ReminderLeads.DEFAULT,
     val mode: TodoMode = TodoMode.OneTime,
     val date: LocalDate? = null,
     val time: LocalTime = LocalTime(9, 0),
@@ -52,20 +56,25 @@ data class CreateTodoUiState(
 ) {
     val timesShareMinute: Boolean get() = times.map { it.minute }.distinct().size <= 1
 
+    /** More repeats than the server accepts: shown under the field, and the form cannot be sent. */
+    val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > CreateTodoViewModel.MAX_COUNT
+
     val endValid: Boolean
         get() = when (endMode) {
             EndMode.Never -> true
-            EndMode.AfterCount -> (count ?: 0) > 0
-            // The end is a moment, not a day: "every 2 hours until Friday 18:00". It cannot precede the first time.
+            EndMode.AfterCount -> (count ?: 0) in 1..CreateTodoViewModel.MAX_COUNT
+            // The end is a moment, not a day: "every 2 hours until Friday 18:00". It cannot precede the first
+            // time, nor come more than ten years after it (the server's limit; the date picker enforces it too).
             EndMode.OnDate -> untilDate != null &&
-                (date == null || LocalDateTime(untilDate, untilClock) >= LocalDateTime(date, times.minOrNull() ?: time))
+                (date == null || LocalDateTime(untilDate, untilClock) >= LocalDateTime(date, times.minOrNull() ?: time)) &&
+                (date == null || untilDate <= CreateTodoViewModel.latestEnd(date))
         }
 
     /** The wall-clock time the rule ends at on [untilDate]. */
     val untilClock: LocalTime get() = untilTime ?: END_OF_DAY
 
     val canSubmit: Boolean
-        get() = title.isNotBlank() && date != null && interval >= 1 && timesShareMinute &&
+        get() = title.isNotBlank() && date != null && interval >= CreateTodoViewModel.minInterval(frequency) && timesShareMinute &&
             (mode == TodoMode.OneTime || endValid) && !isLoading
 }
 
@@ -103,6 +112,23 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
     }
 
     internal companion object {
+        /** The server's limits for a new rule (RecurrenceSchedule): the form never offers more. */
+        const val MAX_COUNT = 5_000
+        const val MAX_YEARS = 10
+
+        /** Every 5 minutes at most; every other frequency starts at 1. */
+        fun minInterval(frequency: Frequency): Int = if (frequency == Frequency.Minutely) 5 else 1
+
+        /** Switching frequency keeps the interval when it is allowed, else moves it up to the smallest one. */
+        fun withFrequency(state: CreateTodoUiState, frequency: Frequency): CreateTodoUiState = state.copy(
+            frequency = frequency,
+            interval = state.interval.coerceAtLeast(minInterval(frequency)),
+            times = if (frequency == Frequency.Daily) state.times else emptyList(),
+        )
+
+        /** The last day a rule starting on [start] may end on. */
+        fun latestEnd(start: LocalDate): LocalDate = start.plus(MAX_YEARS, DateTimeUnit.YEAR)
+
         fun effectiveTime(state: CreateTodoUiState): LocalTime =
             state.times.minOrNull() ?: state.time
 
@@ -114,6 +140,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
             title = state.title.trim(),
             description = state.description.trim(),
             notificationEnabled = state.notify,
+            notifyBeforeInMinutes = state.notifyBefore,
             dueDate = startInstant(state, timeZone),
         )
 
@@ -125,6 +152,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                 title = state.title.trim(),
                 description = state.description.trim(),
                 notificationEnabled = state.notify,
+                notifyBeforeInMinutes = state.notifyBefore,
                 recurrenceRule = CreateRecurrenceRule(
                     frequency = state.frequency,
                     startDate = startInstant(state, timeZone),

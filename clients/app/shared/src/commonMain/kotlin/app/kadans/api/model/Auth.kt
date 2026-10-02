@@ -31,11 +31,23 @@ data class RevokeRefreshTokenRequest(val refreshToken: String)
 data class MfaVerifyRequest(val mfaToken: String, val code: String)
 
 @Serializable
-data class ExternalLoginRequest(val provider: String, val idToken: String)
+data class ExternalLoginRequest(
+    val provider: String,
+    val idToken: String,
+    /** This device's zone and language: used only if the sign-in creates the account. */
+    val timeZone: String? = null,
+    val language: String? = null,
+)
 
 /** Desktop loopback flow: the server trades the code for an ID token (it holds the client secret). */
 @Serializable
-data class GoogleCodeLoginRequest(val code: String, val codeVerifier: String, val redirectUri: String)
+data class GoogleCodeLoginRequest(
+    val code: String,
+    val codeVerifier: String,
+    val redirectUri: String,
+    val timeZone: String? = null,
+    val language: String? = null,
+)
 
 /** `google == null` ⇔ the server cannot complete a Google sign-in: hide the button. */
 @Serializable

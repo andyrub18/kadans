@@ -9,6 +9,8 @@ import app.kadans.config.ServerAddress
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
+import app.kadans.profile.ProfileSync
+import app.kadans.profile.TimeZonePreference
 import app.kadans.realtime.SystemAlerts
 import app.kadans.ui.auth.ForgotPasswordViewModel
 import app.kadans.ui.auth.LoginViewModel
@@ -29,6 +31,7 @@ import app.kadans.ui.todos.EditTodoViewModel
 import app.kadans.ui.todos.TodoDetailViewModel
 import com.russhwolf.settings.Settings
 import org.koin.core.context.startKoin
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
@@ -47,6 +50,8 @@ val appModule = org.koin.dsl.module {
     single { SystemAlerts(get()) }
     single { DeviceRegistrar(get(), get()) }
     single { LanguageController(get(), get()) }
+    single { TimeZonePreference(get()) }
+    single { ProfileSync(get(), get(), get()) }
     single<GoogleSignIn> {
         val language = get<LanguageController>()
         // The desktop flow ends on a page in the user's browser; it speaks the app's language.
@@ -64,7 +69,7 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::CalendarViewModel)
     viewModelOf(::BudgetViewModel)
     viewModelOf(::BudgetAddViewModel)
-    viewModelOf(::SettingsViewModel)
+    viewModel { SettingsViewModel(get(), get(), get(), get()) }
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     viewModelOf(::CreateTodoViewModel)
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }

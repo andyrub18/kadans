@@ -3,6 +3,7 @@ using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -30,16 +31,23 @@ internal sealed class ExternalAuthentication(
         if (validation.IsT0)
             return validation.AsT0;
 
-        return await SignInAsync(validation.AsT1, cancellationToken);
+        return await SignInAsync(validation.AsT1, cancellationToken, new NewAccountProfile(request.TimeZone, request.Language));
     }
 
-    /// <summary>After the provider's ID token checked out: find, link or create the account, then hand out tokens.</summary>
-    internal async Task<OneOf<ApplicationError, LoginResponse>> SignInAsync(ExternalIdentity external, CancellationToken cancellationToken)
+    /// <summary>
+    /// After the provider's ID token checked out: find, link or create the account, then hand out tokens.
+    /// <paramref name="newAccount"/> (the device's time zone and language) is used only when the account is created.
+    /// </summary>
+    internal async Task<OneOf<ApplicationError, LoginResponse>> SignInAsync(
+        ExternalIdentity external,
+        CancellationToken cancellationToken,
+        NewAccountProfile? newAccount = null
+    )
     {
         var user = await userManager.FindByLoginAsync(external.Provider, external.Subject);
         if (user is null)
         {
-            var linkResult = await LinkOrCreateAsync(external, cancellationToken);
+            var linkResult = await LinkOrCreateAsync(external, newAccount, cancellationToken);
             if (linkResult.IsT0)
                 return linkResult.AsT0;
             user = linkResult.AsT1;
@@ -61,7 +69,10 @@ internal sealed class ExternalAuthentication(
         if (exchanged.IsT0)
             return exchanged.AsT0;
 
-        return await SignIn(new ExternalLoginRequest(ExternalIdTokenValidator.Google, exchanged.AsT1), cancellationToken);
+        return await SignIn(
+            new ExternalLoginRequest(ExternalIdTokenValidator.Google, exchanged.AsT1, request.TimeZone, request.Language),
+            cancellationToken
+        );
     }
 
     /// <summary>What the clients may offer. A platform's id is only published when its flow can complete.</summary>
@@ -75,7 +86,11 @@ internal sealed class ExternalAuthentication(
         );
     }
 
-    private async Task<OneOf<ApplicationError, ApplicationUser>> LinkOrCreateAsync(ExternalIdentity external, CancellationToken cancellationToken)
+    private async Task<OneOf<ApplicationError, ApplicationUser>> LinkOrCreateAsync(
+        ExternalIdentity external,
+        NewAccountProfile? newAccount,
+        CancellationToken cancellationToken
+    )
     {
         // A verified address is what proves who an account belongs to. Without one there is nothing safe to link
         // to, and an account created on an unproven address would squat it. (Already-linked logins never get here.)
@@ -99,6 +114,11 @@ internal sealed class ExternalAuthentication(
                 EmailConfirmed = true,
                 DisplayName = external.DisplayName,
                 LockoutEnabled = true,
+                // Like registration: the device's zone and language, so reminders and mails are right from the start.
+                TimeZoneId = newAccount?.TimeZone is { } zone && TimeZoneInfo.TryFindSystemTimeZoneById(zone, out _) ? zone : "UTC",
+                PreferredLanguage = newAccount?.Language?.Trim().ToLowerInvariant() is { } language && RequestLanguage.Supported.Contains(language)
+                    ? language
+                    : RequestLanguage.Default,
             };
 
             var created = await userManager.CreateAsync(user);
@@ -178,3 +198,6 @@ internal sealed class ExternalAuthentication(
         return $"{external.Provider}_{external.Subject}";
     }
 }
+
+/// <summary>What the signing-in device says about its user, applied only to an account the sign-in creates.</summary>
+internal sealed record NewAccountProfile(string? TimeZone, string? Language);

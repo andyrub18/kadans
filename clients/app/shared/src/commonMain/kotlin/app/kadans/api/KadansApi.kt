@@ -23,6 +23,7 @@ import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 import app.kadans.api.model.LoginResponse
 import app.kadans.api.model.RefreshTokenRequest
+import app.kadans.profile.deviceTimeZone
 
 /**
  * Typed client for the Kadans API. Bearer tokens come from [tokenStore]; on a 401 the client
@@ -33,8 +34,15 @@ class KadansApi internal constructor(
     internal val http: HttpClient,
     internal val tokenStore: TokenStore,
     private val baseUrlProvider: () -> String,
+    private val languageProvider: (() -> String)? = null,
+    private val timeZoneProvider: () -> String? = ::deviceTimeZone,
 ) {
     internal val baseUrl: String get() = baseUrlProvider().trimEnd('/')
+
+    /** The in-app language and the device's time zone: what a new account starts with (sign-up, Google). */
+    internal fun newAccountLanguage(): String? = languageProvider?.invoke()
+
+    internal fun newAccountTimeZone(): String? = timeZoneProvider()
 
     val auth: AuthApi = AuthApi(this)
     val account: AccountApi = AccountApi(this)
@@ -55,6 +63,7 @@ class KadansApi internal constructor(
             engine: HttpClientEngine? = null,
             baseUrlProvider: (() -> String)? = null,
             languageProvider: (() -> String)? = null,
+            timeZoneProvider: () -> String? = ::deviceTimeZone,
         ): KadansApi {
             // The provider is consulted per request, so a settings change applies immediately.
             val provider = baseUrlProvider ?: { baseUrl }
@@ -96,7 +105,7 @@ class KadansApi internal constructor(
                 }
             }
             val http = if (engine is HttpClientEngine) HttpClient(engine, { configure() }) else HttpClient { configure() }
-            api = KadansApi(http, tokenStore, provider)
+            api = KadansApi(http, tokenStore, provider, languageProvider, timeZoneProvider)
             return api
         }
     }

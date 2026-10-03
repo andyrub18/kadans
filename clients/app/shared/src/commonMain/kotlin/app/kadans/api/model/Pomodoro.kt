@@ -74,7 +74,8 @@ data class PomodoroRunResponse(
     val startedAt: Instant,
     val pausedAt: Instant? = null,
     val completedAt: Instant? = null,
-    val updatedAt: Instant,
+    val updatedAt: Instant,    /** When the session ends by itself unless finished sooner (12 hours after the start by default). */
+    val finishAt: Instant? = null,
 )
 
 @Serializable
@@ -96,3 +97,6 @@ data class PomodoroStatsResponse(
     val breakMinutes: Int,
     val perDay: List<PomodoroDayStats> = emptyList(),
 )
+
+@Serializable
+data class ChangePomodoroFinishAt(val finishAt: Instant)

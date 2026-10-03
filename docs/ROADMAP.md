@@ -372,6 +372,16 @@ installing on real devices second, hosting last.
         hands-free run only once the server's clock agrees. Asked early, the run comes back unchanged
         with no notification, so a phone whose clock runs fast no longer shortens phases. "Next phase"
         still skips at once.
+- [x] Pomodoro polish, out of a review of looping sessions (decided 2026-10-03):
+      - **A session ends by itself.** A looping session ends at its end time: 12 hours after the start by
+        default, or a time picked when starting ("until 17:00"), and it can be moved while running. Before,
+        a session nobody finished kept cycling, and a hands-free one notified all night. Measured: finished
+        on its end time to the second, with one "the session ended at 08:35, as planned" notification. A
+        session whose end passed long ago finishes silently.
+      - **Stats count real time.** The time a phase really took, without its pauses. Skipping early counted
+        the full planned length, and the phase under way when a session was finished counted nothing.
+      - **A cycle builder.** "Focus 15, short break 5, 4 rounds, long break 30" fills in the eight phases.
+      - **Cycle limits.** At most 24 phases of 1 to 240 minutes; before, any size was accepted.
 - [ ] Data retention. Nothing is deleted today; one reminder every 5 minutes alone writes about 210,000
       rows a year (occurrences plus notifications). One nightly job per module, deleting in small batches,
       with the day counts in configuration and each run logging what it removed:

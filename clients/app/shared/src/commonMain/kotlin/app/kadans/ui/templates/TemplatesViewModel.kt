@@ -34,8 +34,29 @@ data class TemplateEditorState(
     val error: String? = null,
     val errorCode: String? = null,
 ) {
+    /** The server's limits: a cycle of 1 to 24 phases, each 1 to 240 minutes. */
+    val withinLimits: Boolean
+        get() = phases.size in 1..MAX_PHASES && phases.all { it.durationMinutes in 1..MAX_MINUTES }
+
     val canSave: Boolean
-        get() = name.isNotBlank() && phases.isNotEmpty() && phases.all { it.durationMinutes > 0 } && !isSaving
+        get() = name.isNotBlank() && withinLimits && !isSaving
+
+    companion object {
+        const val MAX_PHASES = 24
+        const val MAX_MINUTES = 240
+
+        /**
+         * The classic pomodoro as phases: [rounds] focuses with a short break after each, the last break long
+         * ("15 focus + 5 break, 4 times, then 30"). No long break ([longBreak] 0) keeps the last break short.
+         */
+        fun classicCycle(focus: Int, shortBreak: Int, rounds: Int, longBreak: Int): List<CreatePomodoroPhase> =
+            (1..rounds).flatMap { round ->
+                listOf(
+                    CreatePomodoroPhase(PomodoroPhaseType.Focus, focus),
+                    CreatePomodoroPhase(PomodoroPhaseType.Break, if (round == rounds && longBreak > 0) longBreak else shortBreak),
+                )
+            }
+    }
 }
 
 class TemplatesViewModel(private val api: KadansApi) : ViewModel() {

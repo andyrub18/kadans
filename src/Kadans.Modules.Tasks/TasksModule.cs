@@ -56,6 +56,7 @@ public sealed class TasksModule : IModule
         services.AddScoped<PomodoroService>();
         services.AddScoped<PomodoroAutoAdvancer>();
         services.AddScoped<PomodoroTimeUp>();
+        services.AddScoped<PomodoroAutoFinish>();
         services.AddSingleton<PomodoroDeadlineSignal>();
         services.AddHostedService<PomodoroDeadlineWatcher>();
     }

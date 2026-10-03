@@ -45,7 +45,9 @@ public sealed record PomodoroRunResponse(
     DateTimeOffset StartedAt,
     DateTimeOffset? PausedAt,
     DateTimeOffset? CompletedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    /// <summary>When the session ends by itself unless finished sooner.</summary>
+    DateTimeOffset? FinishAt = null
 );
 
 public sealed record PomodoroDayStats(DateOnly Date, int FocusMinutes, int BreakMinutes, int CompletedRuns);

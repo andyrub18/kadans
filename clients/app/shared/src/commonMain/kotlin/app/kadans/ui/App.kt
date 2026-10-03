@@ -60,7 +60,8 @@ data object BudgetRoute
 data object BudgetAddRoute
 data class TodoDetailRoute(val todoId: String)
 data class EditTodoRoute(val todoId: String)
-data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false)
+/** [finishAtMillis]: when a new session should end by itself (epoch ms); null leaves the default, 12 hours. */
+data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false, val finishAtMillis: Long? = null)
 
 @Composable
 fun App(deepLink: String? = null) {
@@ -226,7 +227,9 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is TodoDetailRoute -> NavEntry(key) {
                     TodoDetailScreen(
                         todoId = key.todoId,
-                        onOpenPomodoro = { loop, handsFree -> backStack.add(PomodoroRoute(key.todoId, loop, handsFree)) },
+                        onOpenPomodoro = { loop, handsFree, finishAt ->
+                            backStack.add(PomodoroRoute(key.todoId, loop, handsFree, finishAt?.toEpochMilliseconds()))
+                        },
                         onEdit = { backStack.add(EditTodoRoute(key.todoId)) },
                         onBack = { backStack.removeLastOrNull() },
                     )
@@ -243,6 +246,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         todoId = key.todoId,
                         loop = key.loop,
                         handsFree = key.handsFree,
+                        finishAtMillis = key.finishAtMillis,
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

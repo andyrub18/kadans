@@ -20,6 +20,12 @@ public enum PomodoroRunStatus
 
 internal sealed class PomodoroTemplate
 {
+    /// <summary>A cycle holds at most this many phases: four focus/break rounds with a long break are 8.</summary>
+    public const int MaxPhases = 24;
+
+    /// <summary>A phase lasts 1 minute to 4 hours.</summary>
+    public const int MaxPhaseMinutes = 240;
+
     public Guid Id { get; init; } = Guid.CreateVersion7();
     public string Name { get; set; } = string.Empty;
     public string UserId { get; set; } = string.Empty;
@@ -74,6 +80,19 @@ internal sealed class PomodoroRun
     /// <summary>Phases per lap, fixed at start. CurrentPhaseIndex / CycleLength is the lap number.</summary>
     public int CycleLength { get; private set; }
 
+    /// <summary>
+    /// When the session ends by itself, even if nobody presses Finish: a looping session left running overnight
+    /// would otherwise notify all night. Chosen at start (or later), <see cref="DefaultSpan"/> after it by default.
+    /// Null only for runs that ended before end times existed.
+    /// </summary>
+    public DateTimeOffset? FinishBy { get; private set; }
+
+    /// <summary>A workday and then some.</summary>
+    public static readonly TimeSpan DefaultSpan = TimeSpan.FromHours(12);
+
+    /// <summary>The latest end a session can be given: a day from now.</summary>
+    public static readonly TimeSpan MaxSpan = TimeSpan.FromHours(24);
+
     public DateTimeOffset StartedAt { get; private init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? PausedAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
@@ -99,13 +118,15 @@ internal sealed class PomodoroRun
 
     private PomodoroRun() { }
 
+    /// <param name="finishBy">When the session ends by itself; null is <see cref="DefaultSpan"/> from now. See <see cref="CheckFinishBy"/>.</param>
     public static PomodoroRun Start(
         Todo todo,
         IReadOnlyList<PomodoroTemplatePhase> templatePhases,
         string userId,
         bool autoAdvance,
         DateTimeOffset now,
-        bool loop = false
+        bool loop = false,
+        DateTimeOffset? finishBy = null
     )
     {
         var ordered = templatePhases.OrderBy(p => p.Order).ToList();
@@ -118,6 +139,7 @@ internal sealed class PomodoroRun
             AutoAdvance = autoAdvance,
             Loop = loop,
             CycleLength = ordered.Count,
+            FinishBy = finishBy ?? now + DefaultSpan,
             StartedAt = now,
             UpdatedAt = now,
             Phases = ordered
@@ -133,6 +155,28 @@ internal sealed class PomodoroRun
         run.PhaseEndsAt = now + TimeSpan.FromMinutes(ordered[0].DurationMinutes);
         return run;
     }
+
+    /// <summary>An end the person picked: at least a minute away, at most <see cref="MaxSpan"/>.</summary>
+    public static ApplicationError? CheckFinishBy(DateTimeOffset finishBy, DateTimeOffset now) =>
+        finishBy < now + TimeSpan.FromMinutes(1) || finishBy > now + MaxSpan
+            ? new ApplicationError(ErrorTypes.ValidationError, "A session ends between 1 minute and 24 hours from now.")
+            : null;
+
+    /// <summary>Working later (or stopping sooner) than planned.</summary>
+    public OneOf<ApplicationError, Success> ChangeFinishBy(DateTimeOffset finishBy, DateTimeOffset now)
+    {
+        if (!IsRunning)
+            return InvalidState("Only active or paused runs can change their end.");
+        if (CheckFinishBy(finishBy, now) is { } error)
+            return error;
+
+        FinishBy = finishBy;
+        UpdatedAt = now;
+        return new Success();
+    }
+
+    /// <summary>The end time has come and nobody pressed Finish.</summary>
+    public bool FinishDue(DateTimeOffset now) => IsRunning && FinishBy is { } end && end <= now;
 
     public OneOf<ApplicationError, Success> Pause(DateTimeOffset now)
     {
@@ -153,6 +197,7 @@ internal sealed class PomodoroRun
         if (Status != PomodoroRunStatus.Paused)
             return InvalidState("Only paused runs can be resumed.");
 
+        CurrentPhase.PausedSeconds += PausedSecondsUntil(now);
         PhaseEndsAt = now + PausedRemaining!.Value;
         PausedRemaining = null;
         PausedAt = null;
@@ -220,11 +265,22 @@ internal sealed class PomodoroRun
         return new Success();
     }
 
-    /// <summary>The workday is over: a looping session ends as completed, not cancelled.</summary>
+    /// <summary>
+    /// The workday is over: a looping session ends as completed, not cancelled. The phase under way ends here too,
+    /// so the focus time it holds counts (a pause it ends in counts as paused).
+    /// </summary>
     public OneOf<ApplicationError, Success> Finish(DateTimeOffset now)
     {
         if (!IsRunning)
             return InvalidState("Only active or paused runs can be finished.");
+
+        var current = CurrentPhase;
+        if (current.StartedAt is not null && current.CompletedAt is null)
+        {
+            if (Status == PomodoroRunStatus.Paused)
+                current.PausedSeconds += PausedSecondsUntil(now);
+            current.CompletedAt = now;
+        }
 
         Status = PomodoroRunStatus.Completed;
         CompletedAt = now;
@@ -247,6 +303,9 @@ internal sealed class PomodoroRun
         return new Success();
     }
 
+    private int PausedSecondsUntil(DateTimeOffset now) =>
+        PausedAt is { } since && now > since ? (int)Math.Round((now - since).TotalSeconds) : 0;
+
     private static ApplicationError InvalidState(string message) =>
         new(ErrorTypes.PomodoroRunInvalidState, message);
 }
@@ -260,4 +319,18 @@ internal sealed class PomodoroRunPhase
     public int DurationMinutes { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
+
+    /// <summary>Time spent paused within this phase: what stats leave out.</summary>
+    public int PausedSeconds { get; set; }
+
+    /// <summary>
+    /// The time this phase really took: skipped after 5 minutes it is 5, kept going past its timer it is longer.
+    /// Null until it ends.
+    /// </summary>
+    public int? ActualSeconds => SecondsSpent(StartedAt, CompletedAt, PausedSeconds);
+
+    internal static int? SecondsSpent(DateTimeOffset? startedAt, DateTimeOffset? completedAt, int pausedSeconds) =>
+        startedAt is { } started && completedAt is { } completed
+            ? Math.Max(0, (int)Math.Round((completed - started).TotalSeconds) - pausedSeconds)
+            : null;
 }

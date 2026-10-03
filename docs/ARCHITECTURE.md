@@ -262,6 +262,17 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   that ran out more than 15 minutes earlier is marked without a notification: the server was down, or the
   run was left at 0:00.
 - Hands-free is the default for a new session, and each device remembers the last choice.
+- A session ends by itself at its end time (`FinishBy`), as completed, as if Finish were pressed: a looping session
+  left running overnight would otherwise notify all night. The end is 12 hours after the start unless one is picked
+  when starting or moved while running, between 1 minute and 24 hours ahead. The app picks a clock time ("until
+  17:00"), its next occurrence. `PomodoroAutoFinish` runs first in each watcher pass, and the auto-advance never
+  steps a run past its end. An end more than 15 minutes in the past (server downtime, or sessions running when
+  this was deployed, given an end 12 hours after their start) finishes silently.
+- Stats count the time a phase really took: from its start to its end, minus its pauses (`PausedSeconds`). A
+  phase skipped after 5 minutes counts 5, and one kept going past its timer counts the whole time. Finishing a
+  session ends the phase under way, so the focus it holds counts.
+- A cycle has 1 to 24 phases of 1 to 240 minutes (`PomodoroTemplate.MaxPhases`, `MaxPhaseMinutes`). The editor
+  builds the classic one from four numbers: focus, short break, rounds, long break.
 - Run state changes are broadcast over SignalR so phone and desktop stay in sync.
 
 ### Notifications

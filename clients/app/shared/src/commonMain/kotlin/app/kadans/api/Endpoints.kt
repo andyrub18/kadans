@@ -202,11 +202,16 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
             .orThrow<Success>()
     }
 
-    suspend fun start(todoId: String, autoAdvance: Boolean = false, loop: Boolean = false): PomodoroRunResponse =
+    /** [finishAt]: when the session ends by itself; null leaves the server's default (12 hours after the start). */
+    suspend fun start(todoId: String, autoAdvance: Boolean = false, loop: Boolean = false, finishAt: Instant? = null): PomodoroRunResponse =
         api.http.post("todos/$todoId/pomodoro/start") {
             parameter("autoAdvance", autoAdvance)
             parameter("loop", loop)
+            finishAt?.let { parameter("finishAt", it.toString()) }
         }.orThrow()
+
+    suspend fun changeFinishAt(runId: String, finishAt: Instant): PomodoroRunResponse =
+        api.http.put("pomodoro/runs/$runId/finish-at") { setBody(ChangePomodoroFinishAt(finishAt)) }.orThrow()
 
     suspend fun finish(runId: String): PomodoroRunResponse =
         api.http.put("pomodoro/runs/$runId/finish").orThrow()

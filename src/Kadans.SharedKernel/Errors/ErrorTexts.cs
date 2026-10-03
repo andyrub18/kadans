@@ -160,6 +160,10 @@ public static class ErrorTexts
         ["Cannot attach an empty Pomodoro template."] = new("Un cycle vide ne peut pas être attaché.", "Ou pa ka tache yon sik ki vid."),
         ["Cannot start a Pomodoro run from an empty template."] = new("Impossible de démarrer une session avec un cycle vide.", "Ou pa ka kòmanse yon sesyon ak yon sik ki vid."),
         ["Phase duration must be greater than zero."] = new("La durée d'une phase doit être supérieure à zéro.", "Dire yon faz dwe pi gran pase zewo."),
+        ["Only active or paused runs can change their end."] = new("Seule une session active ou en pause peut changer son heure de fin.", "Se sèlman yon seyans k ap mache oswa ki an poz ki ka chanje lè li fini."),
+        ["Each phase lasts 1 to 240 minutes."] = new("Chaque phase dure de 1 à 240 minutes.", "Chak etap dire ant 1 ak 240 minit."),
+        ["A cycle has at most 24 phases."] = new("Un cycle compte au plus 24 phases.", "Yon sik gen 24 etap pou pi plis."),
+        ["A session ends between 1 minute and 24 hours from now."] = new("Une session se termine entre 1 minute et 24 heures à partir de maintenant.", "Yon seyans fini ant 1 minit ak 24 èdtan apati kounye a."),
         ["Template name is required."] = new("Le nom du cycle est obligatoire.", "Non sik la obligatwa."),
         ["This todo has no Pomodoro template attached."] = new("Cette tâche n'a pas de cycle Pomodoro.", "Travay sa a pa gen sik Pomodoro."),
         // --- identity ---

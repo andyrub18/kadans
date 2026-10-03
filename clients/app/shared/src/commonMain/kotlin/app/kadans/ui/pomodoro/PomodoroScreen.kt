@@ -23,14 +23,27 @@ import app.kadans.api.model.PomodoroRunStatus
 import app.kadans.i18n.LocalStrings
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlin.time.Clock
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 @Composable
 fun PomodoroScreen(
     todoId: String,
     loop: Boolean,
     handsFree: Boolean,
+    finishAtMillis: Long? = null,
     onBack: () -> Unit,
-    viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId-$loop-$handsFree") { parametersOf(todoId, loop, handsFree) },
+    viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId-$loop-$handsFree-$finishAtMillis") {
+        parametersOf(todoId, loop, handsFree, finishAtMillis)
+    },
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
@@ -95,6 +108,30 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                 if (run.status == PomodoroRunStatus.Paused) {
                     Text(s.paused, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                // A looping session ends by itself at its end time; it can be moved while it runs.
+                val end = run.finishAt
+                if (run.loop && end != null) {
+                    var choosingEnd by remember { mutableStateOf(false) }
+                    val zone = TimeZone.currentSystemDefault()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            SessionEnd.label(end, Clock.System.now(), zone, s.pomodoro),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { choosingEnd = true }) { Text(s.change) }
+                    }
+                    if (choosingEnd) {
+                        EndTimeDialog(
+                            initial = end.toLocalDateTime(zone).time,
+                            onPick = { time ->
+                                choosingEnd = false
+                                viewModel.changeFinishAt(time)
+                            },
+                            onDismiss = { choosingEnd = false },
+                        )
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 16.dp)) {
                     if (run.status == PomodoroRunStatus.Active) {
                         Button(onClick = viewModel::pause) { Text(s.pause) }
@@ -115,4 +152,23 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
             }
         }
     }
+}
+
+/** "When should the session end?": a clock time, its next occurrence (see [SessionEnd.next]). */
+@Composable
+fun EndTimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, onDismiss: () -> Unit) {
+    val s = LocalStrings.current
+    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.pomodoro.chooseEnd) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                TimePicker(state = state)
+                Text(s.pomodoro.endHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { TextButton(onClick = { onPick(LocalTime(state.hour, state.minute)) }) { Text(s.ok) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+    )
 }

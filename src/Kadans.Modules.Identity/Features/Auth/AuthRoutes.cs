@@ -72,6 +72,14 @@ internal static class AuthRoutes
                 .WithName("AuthRevoke")
                 .WithSummary("Log out (revoke the session this refresh token belongs to)");
 
+            auth.MapPost("/restore-account", async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> (RestoreAccountRequest request, AccountDeletions service, HttpContext context) =>
+                    (await service.Restore(request)).ToHttp(context))
+                .WithName("AuthRestoreAccount")
+                .RequireRateLimiting(RateLimitPolicies.Credentials)
+                .WithSummary("Keep an account awaiting erasure")
+                .WithDescription("Takes the restoreToken a sign-in returned for an account awaiting erasure: the erasure is off and a session starts.")
+                .ProducesProblem(StatusCodes.Status400BadRequest);
+
             auth.MapPost("/register", async Task<Results<Ok<UserResponse>, ProblemHttpResult>> (RegisterUserRequest request, UserManagement service, HttpContext context) =>
                     (await service.RegisterUser(request)).ToHttp(context))
                 .WithName("AuthRegister")

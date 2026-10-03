@@ -209,6 +209,21 @@ internal static class TodoRoutes
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
             todos
+                .MapDelete(
+                    "/{id:guid}",
+                    async Task<Results<Ok<Success>, ProblemHttpResult>> (Guid id, TodoErasure service, HttpContext context, CancellationToken cancellationToken) =>
+                        (await service.DeleteTodo(id, cancellationToken)).Match<Results<Ok<Success>, ProblemHttpResult>>(
+                            error => TypedResults.Problem(error.ToProblemDetails(context)),
+                            _ => TypedResults.Ok(new Success())
+                        )
+                )
+                .WithName("TodosDelete")
+                .WithSummary("Delete a todo for good")
+                .WithDescription("Unlike cancel: the todo goes with all its occurrences, remarks and focus history (and so from the stats).")
+                .Produces<Success>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            todos
                 .MapPost(
                     "/{id:guid}/remarks",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (

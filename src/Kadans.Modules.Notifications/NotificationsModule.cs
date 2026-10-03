@@ -45,6 +45,7 @@ public sealed class NotificationsModule : IModule
         services.AddHostedService<PushWorker>();
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<NotificationQueries>();
+        services.AddScoped<IUserDataEraser, NotificationsUserDataEraser>();
 
         services.Configure<NotificationsOptions>(configuration.GetSection(NotificationsOptions.SectionName));
         services.AddQuartz(quartz =>

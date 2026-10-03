@@ -400,9 +400,18 @@ installing on real devices second, hosting last.
 
       Measured on seeded data: each rule removed exactly its old row and kept the recent, annotated, completed
       and reachable ones. Deleted data leaves the nightly backups within their 14 days.
-- [ ] Delete my account, in the app and from a web page (Google Play requires both). With it, deleting a
-      single todo (today a todo can only be cancelled). An account with a live subscription is told to cancel it
-      in the store: the store bills, not Kadans, and deleting the account does not stop it.
+- [x] Delete my account (design: ARCHITECTURE → "Account deletion"; decided 2026-10-03: a 7-day grace period):
+      - **Closing.** Asked in Settings (with the password; an account that only uses Google confirms by an emailed
+        link) or from the web page `/account/delete`, which Google Play requires: an address, the emailed link,
+        and its button. The account closes at once: signed out everywhere, no devices, no live connections.
+      - **The grace period.** A sign-in during the 7 days opens nothing but "Keep my account". Then everything
+        is erased: every module's data, then the account, then a last email. The record of the erasure (id and
+        dates) stays 30 days, so a restored backup can be cleaned again.
+      - **Subscriptions.** The app and the emails say a store subscription must be cancelled in the store.
+      - **One todo.** Deleting a single todo removes it with its history; cancelling stays for keeping it.
+      - **Measured.** A fresh account with 720 occurrences, a Pomodoro run and cycle, budget rows, notifications
+        and a session token was erased to zero rows in every module, with no orphans; the record and the last
+        email remained.
 - [ ] Subscriptions, decided 2026-10-02: the Android and iPhone apps are free to download and need a
       subscription, USD 0.99 a month after a 14-day free trial (the stores' own trial offer); the desktop app
       stays free. Not a paid download: it would charge twice for the same thing, allow no trial, and put the

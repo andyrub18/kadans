@@ -38,6 +38,9 @@ sealed interface LoginEvent {
     data object LoggedIn : LoginEvent
 
     data class MfaRequired(val mfaToken: String) : LoginEvent
+
+    /** The account is closed, to be erased at [eraseAfter]; [restoreToken] can keep it. */
+    data class DeletionScheduled(val eraseAfter: kotlin.time.Instant, val restoreToken: String) : LoginEvent
 }
 
 class LoginViewModel(
@@ -105,8 +108,16 @@ class LoginViewModel(
     }
 
     private suspend fun emitOutcome(login: LoginResponse) {
-        if (login.mfaRequired && login.mfaToken != null) _events.emit(LoginEvent.MfaRequired(login.mfaToken))
-        else _events.emit(LoginEvent.LoggedIn)
+        _events.emit(outcomeOf(login))
+    }
+
+    internal companion object {
+        fun outcomeOf(login: LoginResponse): LoginEvent = when {
+            login.mfaRequired && login.mfaToken != null -> LoginEvent.MfaRequired(login.mfaToken)
+            login.deletionScheduled && login.restoreToken != null && login.eraseAfter != null ->
+                LoginEvent.DeletionScheduled(login.eraseAfter, login.restoreToken)
+            else -> LoginEvent.LoggedIn
+        }
     }
 
     fun onUsernameChange(value: String) = _state.update { it.copy(username = value, error = null) }

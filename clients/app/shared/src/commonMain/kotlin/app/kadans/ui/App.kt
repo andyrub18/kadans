@@ -41,7 +41,9 @@ import app.kadans.ui.todos.EditTodoScreen
 import app.kadans.ui.todos.TodoDetailScreen
 import app.kadans.ui.pomodoro.PomodoroScreen
 import app.kadans.ui.templates.TemplatesScreen
+import app.kadans.ui.auth.KeepAccountScreen
 import org.koin.compose.koinInject
+import kotlinx.datetime.toLocalDateTime
 
 // Navigation 3: routes are plain keys; the back stack is state we own.
 data object LoginRoute
@@ -49,6 +51,9 @@ data object RegisterRoute
 data object ForgotPasswordRoute
 data class ResetPasswordRoute(val email: String, val token: String)
 data class MfaRoute(val mfaToken: String)
+
+/** A sign-in into an account awaiting erasure: keep it, or leave it closed. */
+data class KeepAccountRoute(val eraseAfterMillis: Long, val restoreToken: String)
 data object HomeRoute
 data object CreateTodoRoute
 data object TemplatesRoute
@@ -107,6 +112,10 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
     val api = koinInject<KadansApi>()
     val realtime = koinInject<KadansRealtime>()
     var sessionEnded by remember { mutableStateOf(false) }
+    // The account was just closed for erasure here: the sign-in screen says until when it can be kept.
+    var closedUntil by remember { mutableStateOf<kotlin.time.Instant?>(null) }
+    fun offerToKeep(eraseAfter: kotlin.time.Instant, restoreToken: String) =
+        backStack.add(KeepAccountRoute(eraseAfter.toEpochMilliseconds(), restoreToken))
     LaunchedEffect(api) {
         api.sessionEnded.collect {
             realtime.stop()
@@ -140,6 +149,23 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onRegister = { backStack.add(RegisterRoute) },
                         onForgotPassword = { backStack.add(ForgotPasswordRoute) },
                         sessionEnded = sessionEnded,
+                        onDeletionScheduled = ::offerToKeep,
+                        notice = closedUntil?.let {
+                            val d = LocalStrings.current.deletion
+                            d.closedNotice(d.date(it.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date))
+                        },
+                    )
+                }
+                is KeepAccountRoute -> NavEntry(key) {
+                    KeepAccountScreen(
+                        eraseAfter = kotlin.time.Instant.fromEpochMilliseconds(key.eraseAfterMillis),
+                        restoreToken = key.restoreToken,
+                        onKept = {
+                            closedUntil = null
+                            sessionEnded = false
+                            resetTo(HomeRoute)
+                        },
+                        onLeave = { resetTo(LoginRoute) },
                     )
                 }
                 is ForgotPasswordRoute -> NavEntry(key) {
@@ -156,6 +182,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is MfaRoute -> NavEntry(key) {
                     MfaScreen(
                         mfaToken = key.mfaToken,
+                        onDeletionScheduled = ::offerToKeep,
                         onVerified = {
                             sessionEnded = false
                             resetTo(HomeRoute)
@@ -216,6 +243,10 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         languageController = languageController,
                         onLoggedOut = { resetTo(LoginRoute) },
                         onBack = { backStack.removeLastOrNull() },
+                        onAccountClosed = { eraseAfter ->
+                            closedUntil = eraseAfter
+                            resetTo(LoginRoute)
+                        },
                     )
                 }
                 is CreateTodoRoute -> NavEntry(key) {

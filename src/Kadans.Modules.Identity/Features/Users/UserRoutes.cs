@@ -33,6 +33,15 @@ internal static class UserRoutes
                 .WithName("UsersDeactivateSelf")
                 .WithSummary("Deactivate own account");
 
+            me.MapPost("/delete", async Task<Results<Ok<DeleteAccountResponse>, ProblemHttpResult>> (DeleteAccountRequest request, AccountDeletions service, HttpContext context, CancellationToken cancellationToken) =>
+                    (await service.Request(request, cancellationToken)).ToHttp(context))
+                .WithName("UsersMeDelete")
+                .RequireRateLimiting(RateLimitPolicies.Credentials)
+                .WithSummary("Delete my account")
+                .WithDescription("With the password: the account closes now (signed out everywhere) and is erased with everything in it after 7 days, unless kept by signing in. Without one (Google only): a link to confirm goes to the account's address.")
+                .ProducesProblem(StatusCodes.Status400BadRequest)
+                .ProducesProblem(StatusCodes.Status401Unauthorized);
+
             me.MapPut("/password", async Task<Results<Ok<Success>, ProblemHttpResult>> (ChangePasswordRequest request, AccountSecurity service, HttpContext context) =>
                     (await service.ChangePassword(request)).ToHttp(context))
                 .WithName("UsersChangePassword")

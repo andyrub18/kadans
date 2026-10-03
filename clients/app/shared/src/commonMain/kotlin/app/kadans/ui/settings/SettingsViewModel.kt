@@ -39,6 +39,10 @@ data class SettingsUiState(
     val newEmail: String = "",
     /** The password, asked again for an email change (not for accounts that only use Google). */
     val emailPassword: String = "",
+    /** Deleting the account: the password asked again (not for accounts that only use Google). */
+    val deletePassword: String = "",
+    /** An account without a password: the address the confirmation link went to. */
+    val deletionLinkSentTo: String? = null,
     /** The address a change link was just sent to; the change itself happens when that link is opened. */
     val emailChangeSentTo: String? = null,
     val confirmationResent: Boolean = false,
@@ -61,6 +65,9 @@ data class SettingsUiState(
         get() = !isBusy && newEmail.trim().let { it.contains('@') && !it.equals(user?.email, ignoreCase = true) } &&
             (user?.hasPassword != true || emailPassword.isNotEmpty())
 
+    val canDeleteAccount: Boolean
+        get() = !isBusy && user != null && (user.hasPassword.not() || deletePassword.isNotEmpty())
+
     /** Following needs a device zone worth following; otherwise the list is the only way. */
     val followingDevice: Boolean get() = followDevice && deviceZone != null
 }
@@ -81,6 +88,10 @@ class SettingsViewModel(
     /** The local session ended (sign-out, or password change revoked it) — go to Login. */
     private val _loggedOut = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val loggedOut: SharedFlow<Unit> = _loggedOut.asSharedFlow()
+
+    /** The account was closed for erasure on that date: this session is over too. */
+    private val _accountClosed = MutableSharedFlow<kotlin.time.Instant>(extraBufferCapacity = 1)
+    val accountClosed: SharedFlow<kotlin.time.Instant> = _accountClosed.asSharedFlow()
 
     init {
         refresh()
@@ -207,6 +218,22 @@ class SettingsViewModel(
     fun regenerateRecoveryCodes() = busy {
         val codes = api.account.regenerateRecoveryCodes(_state.value.mfaCode.trim())
         _state.value = _state.value.copy(mfaCode = "", recoveryCodes = codes.codes)
+    }
+
+    /**
+     * Closes the account now (erased after 7 days unless kept), with the password; an account without one gets a
+     * confirmation link at its address instead, and nothing changes until it is opened.
+     */
+    fun deleteAccount() = busy {
+        val current = _state.value
+        val answer = api.account.deleteAccount(current.deletePassword.takeIf { current.user?.hasPassword == true })
+        val eraseAfter = answer.eraseAfter
+        if (eraseAfter != null) {
+            realtime.stop()
+            _accountClosed.emit(eraseAfter)
+        } else {
+            _state.value = _state.value.copy(deletePassword = "", deletionLinkSentTo = answer.confirmationSentTo)
+        }
     }
 
     fun signOutEverywhere() = busy {

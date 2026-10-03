@@ -165,6 +165,9 @@ Both:
 ## Client (Compose Multiplatform)
 
 - [ ] Google Play / App Store developer accounts when it is time to ship
+- [ ] Play Console → App content → Data safety → "Delete account URL": `https://api.kadansplanning.com/account/delete`
+      (the web route Google Play requires; the app has its own in Settings). The form also asks how long deletion
+      takes: closed at once, erased after 7 days, out of the backups 14 days after that.
 - [x] Deep links: `kadans://auth/...` custom scheme handled on Android; the email landing pages
       offer the app link. Verified https App Links / Universal Links wait for the domain.
 - [x] Device registration on every sign-in: `PUT /users/me/devices/{installationId}` with the

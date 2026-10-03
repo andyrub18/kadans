@@ -21,6 +21,12 @@ internal sealed class IdentityRetentionOptions
     /// the app, and Google reports an uninstalled app's token as dead at the next push, which removes it already.
     /// </summary>
     public int IdleDeviceDays { get; set; } = 180;
+
+    /// <summary>
+    /// How long the record of an erased account (its id and dates, nothing else) is kept: longer than the backups (14
+    /// days), so a restored backup can be cleaned again (DEPLOYMENT → Restore).
+    /// </summary>
+    public int ErasedAccountRecordDays { get; set; } = 30;
 }
 
 /// <summary>Nightly: expired sign-in tokens, and devices that can no longer be reached and are not used.</summary>
@@ -52,9 +58,12 @@ internal sealed class IdentityRetentionJob(
             cancellationToken
         );
 
+        var recordsBefore = now.AddDays(-settings.ErasedAccountRecordDays);
+        var records = await dbContext.AccountDeletions.Where(d => d.ErasedAt < recordsBefore).ExecuteDeleteAsync(cancellationToken);
+
         logger.LogInformation(
-            "Retention: removed {Tokens} sign-in token(s) expired over {TokenDays} days ago and {Devices} device(s) unseen for {DeviceDays} days",
-            tokens, settings.ExpiredTokenGraceDays, devices, settings.IdleDeviceDays
+            "Retention: removed {Tokens} sign-in token(s) expired over {TokenDays} days ago, {Devices} device(s) unseen for {DeviceDays} days and {Records} erased-account record(s) older than {RecordDays} days",
+            tokens, settings.ExpiredTokenGraceDays, devices, settings.IdleDeviceDays, records, settings.ErasedAccountRecordDays
         );
     }
 }

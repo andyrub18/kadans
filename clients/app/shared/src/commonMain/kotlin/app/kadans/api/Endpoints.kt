@@ -20,6 +20,12 @@ class AuthApi internal constructor(private val api: KadansApi) {
             .orThrow<LoginResponse>()
             .also { api.adopt(it) }
 
+    /** "Keep my account": the offer a sign-in made for an account awaiting erasure. Starts a session. */
+    suspend fun restoreAccount(restoreToken: String): LoginResponse =
+        api.http.post("auth/restore-account") { setBody(RestoreAccountRequest(restoreToken)) }
+            .orThrow<LoginResponse>()
+            .also { api.adopt(it) }
+
     suspend fun verifyMfa(mfaToken: String, code: String): LoginResponse =
         api.http.post("auth/mfa/verify") { setBody(MfaVerifyRequest(mfaToken, code)) }
             .orThrow<LoginResponse>()
@@ -94,6 +100,20 @@ class AccountApi internal constructor(private val api: KadansApi) {
         api.http.post("auth/resend-confirmation") { setBody(ResendConfirmationRequest(email)) }.orThrow<Success>()
     }
 
+    /**
+     * With the password the account closes now (this session too, so it is forgotten here) and is erased after 7 days;
+     * an account without one gets a confirmation link instead.
+     */
+    suspend fun deleteAccount(currentPassword: String?): DeleteAccountResponse =
+        api.http.post("users/me/delete") { setBody(DeleteAccountRequest(currentPassword)) }
+            .orThrow<DeleteAccountResponse>()
+            .also {
+                if (it.eraseAfter != null) {
+                    api.tokenStore.save(null)
+                    api.invalidateTokenCache()
+                }
+            }
+
     /** Ends every session of the account, this one included: each device signs in again. */
     suspend fun revokeAllSessions() {
         api.http.post("users/me/sessions/revoke-all").orThrow<Success>()
@@ -141,6 +161,11 @@ class TodosApi internal constructor(private val api: KadansApi) {
 
     suspend fun update(id: String, request: UpdateTodo): TodoResponse =
         api.http.put("todos/$id") { setBody(request) }.orThrow()
+
+    /** For good, with its occurrences, remarks and focus history (unlike [cancel]). */
+    suspend fun delete(id: String) {
+        api.http.delete("todos/$id").orThrow<Success>()
+    }
 
     suspend fun cancel(id: String, reason: String = "") {
         api.http.put("todos/$id/cancel") { setBody(CancelRequest(reason)) }.orThrow<Success>()

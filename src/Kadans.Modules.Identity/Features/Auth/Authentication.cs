@@ -83,7 +83,7 @@ internal sealed class Authentication(
         }
 
         await userManager.ResetAccessFailedCountAsync(user);
-        return await IssueTokensAsync(user);
+        return await SessionOrRestoreAsync(user);
     }
 
     public async Task<OneOf<ApplicationError, LoginResponse>> RefreshToken(RefreshTokenRequest request)
@@ -127,6 +127,13 @@ internal sealed class Authentication(
             return AccountLock.Deactivated();
         }
 
+        // Closed for erasure: its sessions ended at the request; one that slipped through ends here.
+        if (await dbContext.AccountDeletions.AnyAsync(d => d.UserId == token.UserId && d.ErasedAt == null))
+        {
+            await sessions.EndAsync(token.UserId, token.FamilyId, "account awaiting erasure");
+            return new ApplicationError(ErrorTypes.InvalidCredentials, "Invalid refresh token");
+        }
+
         token.Revoke(RotatedReason);
         return await IssueTokensAsync(token.User, token.FamilyId);
     }
@@ -153,7 +160,7 @@ internal sealed class Authentication(
             return new LoginResponse(null, null, null, null, MfaRequired: true, MfaToken: jwtProvider.CreateMfaChallengeToken(user));
         }
 
-        return await IssueTokensAsync(user);
+        return await SessionOrRestoreAsync(user);
     }
 
     public async Task<bool> VerifyAuthenticatorOrRecoveryCodeAsync(ApplicationUser user, string code)
@@ -165,6 +172,21 @@ internal sealed class Authentication(
         // Recovery codes are stored exactly as issued (e.g. "53JHH-VWMJV"); only case is normalized.
         var redeemed = await userManager.RedeemTwoFactorRecoveryCodeAsync(user, trimmed.ToUpperInvariant());
         return redeemed.Succeeded;
+    }
+
+    /// <summary>A new session, for an account just kept from erasure (<c>AccountDeletions.Restore</c>).</summary>
+    internal Task<LoginResponse> StartSessionAsync(ApplicationUser user) => IssueTokensAsync(user);
+
+    /// <summary>
+    /// Who this is has been proven. An account awaiting erasure gets no session, only the offer to keep it: it stays
+    /// closed until its owner says so.
+    /// </summary>
+    private async Task<LoginResponse> SessionOrRestoreAsync(ApplicationUser user)
+    {
+        var deletion = await dbContext.AccountDeletions.AsNoTracking().FirstOrDefaultAsync(d => d.UserId == user.Id && d.ErasedAt == null);
+        return deletion is null
+            ? await IssueTokensAsync(user)
+            : new LoginResponse(null, null, null, null, DeletionScheduled: true, EraseAfter: deletion.EraseAfter, RestoreToken: jwtProvider.CreateRestoreToken(user));
     }
 
     /// <param name="familyId">The session to continue (a refresh); null starts a new one (a sign-in).</param>

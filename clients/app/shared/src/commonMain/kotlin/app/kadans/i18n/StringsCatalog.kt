@@ -133,6 +133,41 @@ data class PomodoroStrings(
     fun endsTomorrowAt(time: String): String = endsTomorrowAtFormat.replace("%s", time)
 }
 
+/** Deleting the account (closed now, erased after 7 days unless kept) and deleting one todo. A feature group. */
+data class DeletionStrings(
+    val section: String,
+    val explanation: String,
+    val subscriptionNote: String,
+    val deleteAccount: String,
+    val confirmTitle: String,
+    val confirmText: String,
+    /** `%s` = the address the link went to. */
+    val linkSentFormat: String,
+    /** `%s` = the erasure date. */
+    val closedNoticeFormat: String,
+    val keepTitle: String,
+    /** `%s` = the erasure date. */
+    val keepTextFormat: String,
+    val keepButton: String,
+    val notNow: String,
+    val deleteTodo: String,
+    val deleteTodoTitle: String,
+    val deleteTodoText: String,
+    /** January … December. */
+    val months: List<String>,
+    /** `{d}` day, `{m}` month name, `{y}` year: "October 9, 2026", "9 octobre 2026". */
+    val datePattern: String,
+) {
+    fun date(day: kotlinx.datetime.LocalDate): String =
+        datePattern.replace("{d}", "${day.day}").replace("{m}", months[day.month.ordinal]).replace("{y}", "${day.year}")
+
+    fun linkSent(address: String): String = linkSentFormat.replace("%s", address)
+
+    fun closedNotice(date: String): String = closedNoticeFormat.replace("%s", date)
+
+    fun keepText(date: String): String = keepTextFormat.replace("%s", date)
+}
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -144,6 +179,7 @@ data class StringsCatalog(
     val timeZone: TimeZoneStrings,
     val todoForm: TodoFormStrings,
     val pomodoro: PomodoroStrings,
+    val deletion: DeletionStrings,
     val notificationsTitle: String,
     val markAllRead: String,
     val noNotificationsYet: String,

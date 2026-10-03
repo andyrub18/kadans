@@ -87,6 +87,7 @@ internal sealed class BillingUserDataEraser(BillingDbContext dbContext, IGoogleP
         }
 
         await dbContext.Subscriptions.IgnoreQueryFilters().Where(s => s.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await dbContext.FreeAccounts.IgnoreQueryFilters().Where(f => f.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         access.Changed(userId);
     }
 }

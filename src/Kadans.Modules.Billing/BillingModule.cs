@@ -37,6 +37,7 @@ public sealed class BillingModule : IModule
         services.AddSingleton<MobileAccess>();
         services.AddSingleton<IMobileAccess>(provider => provider.GetRequiredService<MobileAccess>());
         services.AddScoped<Subscriptions>();
+        services.AddScoped<FreeAccounts>();
         services.AddScoped<IUserDataEraser, BillingUserDataEraser>();
 
         services.AddQuartz(quartz =>

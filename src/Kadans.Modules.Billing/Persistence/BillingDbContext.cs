@@ -11,6 +11,8 @@ internal sealed class BillingDbContext(DbContextOptions<BillingDbContext> option
 
     public DbSet<StoreSubscription> Subscriptions => Set<StoreSubscription>();
 
+    public DbSet<FreeAccount> FreeAccounts => Set<FreeAccount>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);
@@ -37,6 +39,15 @@ internal sealed class BillingDbContext(DbContextOptions<BillingDbContext> option
             s.HasIndex(p => new { p.Store, p.StoreKey }).IsUnique();
             s.HasIndex(p => p.UserId);
             s.HasQueryFilter(x => x.UserId == userService.UserId);
+        });
+
+        builder.Entity<FreeAccount>(f =>
+        {
+            // Named here: UseSnakeCaseNames above ran before this key existed.
+            f.HasKey(p => p.UserId).HasName("pk_free_accounts");
+            f.Property(p => p.UserId).HasMaxLength(450);
+            f.Property(p => p.AddedBy).IsRequired().HasMaxLength(450);
+            f.HasQueryFilter(x => x.UserId == userService.UserId);
         });
     }
 }

@@ -9,6 +9,17 @@ internal sealed class UserDirectory(UserManager<ApplicationUser> userManager) : 
     public async Task<UserSummary?> FindAsync(string userId, CancellationToken cancellationToken = default)
     {
         var user = await userManager.FindByIdAsync(userId);
-        return user is null ? null : new UserSummary(user.Id, user.DisplayName, user.Email, user.TimeZoneId, user.PreferredLanguage);
+        return user is null ? null : Summary(user);
     }
+
+    public async Task<UserSummary?> FindByLoginAsync(string usernameOrEmail, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByNameAsync(usernameOrEmail);
+        if (user is null && await userManager.FindByEmailAsync(usernameOrEmail) is { EmailConfirmed: true } byEmail)
+            user = byEmail;
+        return user is null ? null : Summary(user);
+    }
+
+    private static UserSummary Summary(ApplicationUser user) =>
+        new(user.Id, user.DisplayName, user.Email, user.TimeZoneId, user.PreferredLanguage, user.UserName, user.EmailConfirmed);
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.billing.SubscriptionSection
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -302,6 +303,9 @@ fun SettingsScreen(
             }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+            // ---- Subscription (phones; it brings its own divider) ----
+            SubscriptionSection()
 
             // ---- Sessions ----
             OutlinedButton(onClick = viewModel::signOutEverywhere, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) {

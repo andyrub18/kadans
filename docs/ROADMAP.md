@@ -450,11 +450,19 @@ installing on real devices second, hosting last.
           renewal. `Billing:Required` stays off until the product is live, and Development has a fake store.
           Measured with it on: a reminder for an unsubscribed account was stored but not pushed to the phone;
           after a (fake) trial it was pushed.
-        - [ ] Android app: Play Billing, the paywall (price, trial, renewal terms, Terms and Privacy, Restore,
-          Manage), and Development's fake purchase button. The build with billing is what Play Console needs
-          before the product can be created.
+        - [x] Android app (design: ARCHITECTURE → "Subscriptions" → "In the app"): Play Billing 9, a gate
+          before Home on phones, the paywall (price and trial as Google sells them, renewal and cancel terms,
+          Terms and Privacy, Restore, Manage in Google Play, Sign out), the subscription in Settings, and
+          Development's fake trial button. Pending payments (cash, bank transfer) are linked while they wait,
+          and the server now acknowledges them itself when Google says they cleared. Checked on an emulator
+          against a server with `Billing:Required` on: the paywall, Restore finding nothing, the fake trial
+          opening Home, Settings showing the trial's end. The build with billing is what Play Console needs
+          before the product can be created (OWNER-CHECKLIST → Subscriptions).
         - [ ] End to end with real test purchases (license testers), once the Play product exists.
-        - [ ] iPhone: StoreKit 2 and the App Store Server API, with the iPhone app (needs a Mac).
+        - [ ] iPhone: StoreKit 2 and the App Store Server API, with the iPhone app (needs a Mac). Until then
+          the iPhone build shows no paywall (it has no way to sell), and the server still gates its pushes.
+        - [ ] Terms of Use and Privacy Policy pages at `kadansplanning.com/terms` and `/privacy`: the paywall
+          links there already (`config/LegalLinks.kt`).
 - [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,
       and 20,000 reminders due in the same minute, on the production server: 2 vCPU, 4 GB RAM). Pass when every

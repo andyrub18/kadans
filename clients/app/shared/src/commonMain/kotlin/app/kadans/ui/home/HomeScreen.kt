@@ -47,8 +47,16 @@ fun HomeScreen(
     onOpenNotifications: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenTodo: (String) -> Unit,
+    onPaywall: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
 ) {
+    val access by viewModel.access.collectAsState()
+    LaunchedEffect(access) { if (access == HomeAccess.Paywall) onPaywall() }
+    if (access != HomeAccess.Open) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+
     val state by viewModel.state.collectAsState()
     val unread by viewModel.unread.collectAsState()
     val s = LocalStrings.current

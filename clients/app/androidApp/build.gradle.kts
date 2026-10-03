@@ -11,6 +11,11 @@ if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.googleServices.get().pluginId)
 }
 
+// Release signing with the upload key Play App Signing expects. The keystore and its passwords never enter the
+// repository: they live in ~/.gradle/gradle.properties on the release machine (DEPLOYMENT → Building the apps).
+// Without them a release build comes out unsigned, which Play Console refuses.
+val uploadStoreFile: String? = providers.gradleProperty("kadans.upload.storeFile").orNull
+
 dependencies {
     implementation(projects.shared)
     implementation(libs.androidx.activity.compose)
@@ -26,8 +31,19 @@ android {
         applicationId = "app.kadans"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
+        // Every upload to Play needs a higher versionCode: -Pkadans.versionCode=2, 3, …
+        versionCode = providers.gradleProperty("kadans.versionCode").orNull?.toInt() ?: 1
         versionName = "0.1.0"
+    }
+    signingConfigs {
+        if (uploadStoreFile != null) {
+            create("upload") {
+                storeFile = file(uploadStoreFile)
+                storePassword = providers.gradleProperty("kadans.upload.storePassword").get()
+                keyAlias = providers.gradleProperty("kadans.upload.keyAlias").get()
+                keyPassword = providers.gradleProperty("kadans.upload.keyPassword").get()
+            }
+        }
     }
     packaging {
         resources {
@@ -37,6 +53,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("upload")
         }
     }
     compileOptions {

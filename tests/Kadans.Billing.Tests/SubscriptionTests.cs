@@ -164,6 +164,28 @@ public sealed class SubscriptionTests : IAsyncDisposable
     }
 
     [Test]
+    public async Task A_pending_payment_that_clears_is_acknowledged_without_the_app()
+    {
+        // Paid in cash: the app links the purchase while it waits, and nothing is acknowledged yet.
+        Bought("token-1", Alice, state: "SUBSCRIPTION_STATE_PENDING", offer: null, days: 30);
+        await Link(Alice, "token-1");
+        await Assert.That((await Row("token-1"))!.State).IsEqualTo(SubscriptionState.Pending);
+        await Assert.That(Google.Acknowledged).IsEmpty();
+        await Assert.That(await PhonesAllowed(Alice)).IsFalse();
+
+        // The payment clears and Google says so: acknowledged then, or Google would refund it after 3 days.
+        Bought("token-1", Alice, offer: null, days: 30);
+        await As(Alice, async s => { await s.SyncGoogle("token-1", revoked: false, CancellationToken.None); return 0; });
+        await Assert.That(Google.Acknowledged).IsEquivalentTo(["token-1"]);
+        await Assert.That(await PhonesAllowed(Alice)).IsTrue();
+
+        // Read again once acknowledged: nothing twice.
+        Bought("token-1", Alice, offer: null, days: 30, acknowledged: true);
+        await As(Alice, async s => { await s.SyncGoogle("token-1", revoked: false, CancellationToken.None); return 0; });
+        await Assert.That(Google.Acknowledged.Count).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task A_notification_about_a_token_nobody_linked_changes_nothing()
     {
         Bought("unlinked", Alice);

@@ -75,6 +75,8 @@ kotlin {
             implementation(libs.androidx.credentials)
             implementation(libs.androidx.credentials.playServicesAuth)
             implementation(libs.googleid)
+            // Subscriptions: Google Play Billing (it also declares the BILLING permission Play Console looks for)
+            implementation(libs.play.billing)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

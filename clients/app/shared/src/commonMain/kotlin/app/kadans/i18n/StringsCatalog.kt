@@ -168,6 +168,46 @@ data class DeletionStrings(
     fun keepText(date: String): String = keepTextFormat.replace("%s", date)
 }
 
+/** The paywall on phones, and the subscription in Settings. A feature group. Placeholders: {days}, {price}, {date}. */
+data class PaywallStrings(
+    val title: String,
+    val intro: String,
+    val benefitReminders: String,
+    val benefitFocus: String,
+    val benefitBudget: String,
+    val trialPriceFormat: String,
+    val priceFormat: String,
+    val renewalTerms: String,
+    val startTrial: String,
+    val subscribe: String,
+    val restore: String,
+    val manage: String,
+    val terms: String,
+    val privacy: String,
+    val pending: String,
+    val nothingToRestore: String,
+    val unavailable: String,
+    val devFakeTrial: String,
+    val settingsSection: String,
+    val trialUntilFormat: String,
+    val renewsOnFormat: String,
+    val endsOnFormat: String,
+    val paymentProblem: String,
+    val paused: String,
+    val notSubscribed: String,
+    val storeFailed: String,
+) {
+    fun trialPrice(days: Int, price: String): String = trialPriceFormat.replace("{days}", "$days").replace("{price}", price)
+
+    fun price(price: String): String = priceFormat.replace("{price}", price)
+
+    fun trialUntil(date: String): String = trialUntilFormat.replace("{date}", date)
+
+    fun renewsOn(date: String): String = renewsOnFormat.replace("{date}", date)
+
+    fun endsOn(date: String): String = endsOnFormat.replace("{date}", date)
+}
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -180,6 +220,7 @@ data class StringsCatalog(
     val todoForm: TodoFormStrings,
     val pomodoro: PomodoroStrings,
     val deletion: DeletionStrings,
+    val paywall: PaywallStrings,
     val notificationsTitle: String,
     val markAllRead: String,
     val noNotificationsYet: String,

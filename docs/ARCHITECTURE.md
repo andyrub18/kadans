@@ -228,6 +228,32 @@ month after a 14-day free trial, with the stores converting the price per countr
 - **Erasing an account** cancels a Google subscription that is still renewing (paid time stays), since the store
   would otherwise keep billing a deleted account. Apple's cannot be cancelled by Kadans, so the emails say so.
 - **Apple** comes with the iPhone app (StoreKit 2 and the App Store Server API), which needs a Mac.
+- **Pending payments** (cash, bank transfer) are linked while they wait (state `Pending`, no access). When Google
+  says the payment cleared, the notification re-reads it and the server acknowledges it then: the app may not
+  open again within Google's 3 days.
+
+#### In the app
+
+`app.kadans.billing` in `clients/app/shared`.
+
+- **`StoreBilling`** is the phone's store: the price and trial as it sells them, the purchase sheet, and the
+  purchases this store account already holds. Android implements it with Play Billing 9
+  (`StoreBilling.android.kt`); desktop and, until StoreKit, iOS have `NoStoreBilling`. The app never acknowledges
+  a purchase: the server does once it has checked it, so a purchase that never reaches the server is refunded.
+- **`SubscriptionGate`** runs before Home on phones that can sell (`HomeAccess`: Home shows a spinner meanwhile).
+  It asks `GET /billing/subscription`. When the answer is no, it first hands the store's purchases to the server
+  again (a new phone, a reinstall, a link that failed), then decides. An unreachable server shows no paywall:
+  a network hiccup must not lock anyone out, and the pushes are gated on the server anyway. Desktop never asks.
+- **The paywall** (`PaywallRoute`) shows what the stores require on the screen that sells: the price and trial as
+  Google formats them in the buyer's currency (a trial only when Google still offers it to this Google account),
+  how it renews and how to cancel, Terms and Privacy (`config/LegalLinks.kt`), Restore, and Manage in Google
+  Play once the account holds a Google subscription. Buying names the account (`accountHash`) and sends the
+  token to the server; only its answer opens Home. A pending payment waits on the paywall; "already owned" turns
+  into a restore; another account's purchase shows the server's refusal (10057). Development adds a fake trial
+  button when the server allows it (`fakeStore`). Sign out stays available. It says nothing about the free
+  desktop app: both stores forbid steering buyers away from in-app purchase.
+- **Settings** shows the subscription on phones once subscriptions are sold (or the account holds one): trial
+  end, renewal date, cancelled until, or a payment problem, with Manage in Google Play.
 
 ### Account deletion: closed now, erased after 7 days
 

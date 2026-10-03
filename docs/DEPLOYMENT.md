@@ -131,6 +131,29 @@ Put `kadans.apiBaseUrl=https://api.<domain>` in `~/.gradle/gradle.properties` on
 stop typing it. The Login screen's server field still overrides it on a device (order: typed address →
 built-for address → dev default).
 
+Google Play takes an Android App Bundle signed with your **upload key** (Play App Signing keeps the real app
+signing key). Create the upload key once, keep it and its password out of the repository and backed up (losing it
+means asking Google to reset it), and tell Gradle where it is in `~/.gradle/gradle.properties`:
+
+```bash
+keytool -genkeypair -keystore ~/.kadans/upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
+```
+
+```properties
+kadans.upload.storeFile=/home/<you>/.kadans/upload.jks
+kadans.upload.storePassword=…
+kadans.upload.keyAlias=upload
+kadans.upload.keyPassword=…
+```
+
+```bash
+./gradlew :androidApp:bundleRelease -Pkadans.apiBaseUrl=https://api.<domain> -Pkadans.versionCode=1
+# → androidApp/build/outputs/bundle/release/androidApp-release.aab, uploaded in Play Console
+```
+
+Every upload needs a higher `kadans.versionCode` (1, 2, 3, …). Without the upload properties the bundle comes out
+unsigned and Play Console refuses it.
+
 ## Updating
 
 ```bash

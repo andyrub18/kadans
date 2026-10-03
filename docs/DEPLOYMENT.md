@@ -187,20 +187,23 @@ service account) and the same URL as audience.
 ### Free accounts
 
 Some accounts get their phones free, with no store involved: the closed test's testers, the account Google's
-reviewers sign in with (Play Console → App access), family. They are listed by **user id** (an id never changes;
-a username can be given up and taken by someone else). Each person registers first; then look their ids up:
+reviewers sign in with (Play Console → App access), family. The person signs up (and confirms their address) first;
+then, from any machine with the repository:
 
 ```bash
-cd deploy
-docker compose exec -T db psql -U kadans -d kadans -c \
-  "SELECT id, user_name, email FROM identity.asp_net_users WHERE user_name IN ('marie', 'jean') OR email = 'paul@example.com'"
-nano .env   # BILLING_FREE_ACCOUNTS=<id>,<id>,<id>
-docker compose up -d   # recreates the API with the new list
+python3 tools/admin/free_accounts.py add marie              # a username, or a confirmed email address
+python3 tools/admin/free_accounts.py list
+python3 tools/admin/free_accounts.py remove marie@example.com
 ```
 
-A listed account has access whether or not subscriptions are required, its phone gets its reminders, and the app's
-Settings says "Free access". The API refuses to start if an entry is not a user id (a username or an address put
-there by mistake). Removing an id takes the access away at the next `up -d`.
+It signs in as `admin` (`--admin` for another admin account), asking for the password and the two-factor code, does
+that one thing and signs out. It talks to `https://api.kadansplanning.com` (`--api` or `KADANS_API` for another
+server). A change applies at once, without a restart: the person opens the app again, or taps "Restore my purchase"
+on the paywall, and is in; Settings then says "Free access". An address only finds an account once it is confirmed,
+since anyone can sign up with an address that is not theirs. Removing an account takes the access away at once.
+
+The list lives in the database (`billing.free_accounts`), so the backups keep it. (A first version read it from
+`BILLING_FREE_ACCOUNTS` in `deploy/.env`; that is no longer read and can be deleted from it.)
 
 ## Backups
 

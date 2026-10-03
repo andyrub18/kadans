@@ -463,7 +463,8 @@ installing on real devices second, hosting last.
           the iPhone build shows no paywall (it has no way to sell), and the server still gates its pushes.
         - [ ] Terms of Use and Privacy Policy pages at `kadansplanning.com/terms` and `/privacy`: the paywall
           links there already (`config/LegalLinks.kt`).
-        - [x] Free accounts (`BILLING_FREE_ACCOUNTS`, by user id): the testers Google requires before production
+        - [x] Free accounts, kept by an admin with `tools/admin/free_accounts.py` (by username or confirmed address,
+          stored by id, no restart): the testers Google requires before production
           (12 for 14 days on a new personal account) and its reviewers never pay, even with subscriptions on.
 - [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,

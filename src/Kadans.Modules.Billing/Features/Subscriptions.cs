@@ -153,7 +153,7 @@ internal sealed class Subscriptions(
         var all = await dbContext.Subscriptions.IgnoreQueryFilters().AsNoTracking().Where(s => s.UserId == userId).ToListAsync(cancellationToken);
         // The one that matters: paid up first, then the latest to end.
         var best = all.OrderByDescending(s => s.GivesAccess(now)).ThenByDescending(s => s.ExpiresAt).FirstOrDefault();
-        var free = Settings.IsFree(userId);
+        var free = await dbContext.FreeAccounts.IgnoreQueryFilters().AnyAsync(f => f.UserId == userId, cancellationToken);
         return new SubscriptionStatusResponse(
             Settings.Required,
             !Settings.Required || free || all.Any(s => s.GivesAccess(now)),

@@ -18,7 +18,7 @@ internal sealed class MobileAccess(IServiceScopeFactory scopes, IOptions<Billing
 
     public async Task<bool> AllowsPhonesAsync(string userId, CancellationToken cancellationToken = default)
     {
-        if (!options.Value.Required || options.Value.IsFree(userId))
+        if (!options.Value.Required)
             return true;
 
         var now = time.GetUtcNow();
@@ -26,9 +26,10 @@ internal sealed class MobileAccess(IServiceScopeFactory scopes, IOptions<Billing
             return cached.Allowed;
 
         await using var scope = scopes.CreateAsyncScope();
-        var subscriptions = await scope.ServiceProvider.GetRequiredService<BillingDbContext>()
-            .Subscriptions.IgnoreQueryFilters().AsNoTracking().Where(s => s.UserId == userId).ToListAsync(cancellationToken);
-        var allowed = subscriptions.Any(s => s.GivesAccess(now));
+        var dbContext = scope.ServiceProvider.GetRequiredService<BillingDbContext>();
+        var subscriptions = await dbContext.Subscriptions.IgnoreQueryFilters().AsNoTracking().Where(s => s.UserId == userId).ToListAsync(cancellationToken);
+        var allowed = subscriptions.Any(s => s.GivesAccess(now))
+            || await dbContext.FreeAccounts.IgnoreQueryFilters().AnyAsync(f => f.UserId == userId, cancellationToken);
         answers[userId] = (allowed, now + CacheFor);
         return allowed;
     }

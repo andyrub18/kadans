@@ -57,5 +57,13 @@ C("Google's notification endpoint refuses what Google did not sign", s == 401, f
 s, _ = call("POST", "/billing/google/notifications", {"message": {"data": "e30="}}, headers={"Authorization": "Bearer forged.jwt.token"})
 C("and a forged token", s == 401, f"{s}")
 
+# The free accounts are an admin's: anyone else is refused, signed in or not.
+s, _ = call("GET", "/billing/free-accounts", token=T)
+C("a non-admin cannot list the free accounts", s == 403, f"{s}")
+s, _ = call("POST", "/billing/free-accounts", {"account": USER}, token=T)
+C("nor make itself free", s == 403, f"{s}")
+s, _ = call("GET", "/billing/free-accounts")
+C("nor can anyone signed out", s == 401, f"{s}")
+
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")
 sys.exit(1 if fails else 0)

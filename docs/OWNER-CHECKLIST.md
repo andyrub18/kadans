@@ -163,10 +163,12 @@ Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account
 - [ ] Production access. A personal developer account created after 13 November 2023 must first run a **closed
       test with at least 12 testers opted in for 14 days in a row** (organization accounts are exempt, but they
       need a company and a D-U-N-S number). The testers never pay: while `BILLING_REQUIRED=false` nobody sees a
-      paywall; once it is on, list their accounts in `BILLING_FREE_ACCOUNTS` (DEPLOYMENT → Subscriptions → Free
-      accounts). License testing is no use for them: their test subscriptions end within the hour.
+      paywall; once it is on, each one signs up and you add them with `tools/admin/free_accounts.py add <them>`
+      (DEPLOYMENT → Subscriptions → Free accounts), then they open the app again. License testing is no use for
+      them: their test subscriptions end within the hour.
 - [ ] Play Console → App content → App access: an account for Google's reviewers (username and password), listed
-      in `BILLING_FREE_ACCOUNTS` so they see the whole app. Without two-factor: reviewers cannot get the codes.
+      as a free account (`tools/admin/free_accounts.py add <it>`) so they see the whole app. Without two-factor:
+      reviewers cannot get the codes.
 
 Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts where Apple is):
 - [ ] Apple Developer Program membership (USD 99 a year). Check first that you can enroll and be paid from

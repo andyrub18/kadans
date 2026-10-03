@@ -126,19 +126,6 @@ public class ProductionConfigurationTests
     }
 
     [Test]
-    public async Task Free_accounts_are_listed_by_user_id()
-    {
-        var ids = $"{Guid.NewGuid()}, {Guid.NewGuid()}";
-        await Assert.That(Problems(v => v["Billing:FreeAccounts"] = ids)).IsEmpty();
-        await Assert.That(Problems(v => v["Billing:FreeAccounts"] = "")).IsEmpty();
-
-        // A username and an address by mistake: refused, without repeating them in the log.
-        var problem = Problems(v => v["Billing:FreeAccounts"] = $"{Guid.NewGuid()},marie,marie@example.com").Single();
-        await Assert.That(problem).Contains("2 entries");
-        await Assert.That(problem).DoesNotContain("marie");
-    }
-
-    [Test]
     public async Task Requiring_subscriptions_takes_the_google_settings()
     {
         var problems = Problems(v => v["Billing:Required"] = "true");

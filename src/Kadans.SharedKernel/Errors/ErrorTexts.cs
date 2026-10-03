@@ -179,6 +179,7 @@ public static class ErrorTexts
         ["Subscriptions are not available yet."] = new("Les abonnements ne sont pas encore disponibles.", "Abònman yo poko disponib."),
         ["This purchase could not be verified."] = new("Cet achat n'a pas pu être vérifié.", "Nou pa t ka verifye acha sa a."),
         ["This subscription belongs to another Kadans account."] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
+        ["No account has that username or confirmed email address."] = new("Aucun compte n'a ce nom d'utilisateur ou cette adresse e-mail confirmée.", "Pa gen okenn kont ki gen non itilizatè sa a oswa adrès imel konfime sa a."),
         ["Enter your current password."] = new("Saisissez votre mot de passe actuel.", "Antre modpas aktyèl ou."),
         ["Too many failed attempts. Try again in a few minutes."] = new("Trop d'essais infructueux. Réessayez dans quelques minutes.", "Twòp tantativ ki pa mache. Eseye ankò nan kèk minit."),
         ["A username can contain @ only when it is the account's email address."] = new("Un nom d'utilisateur ne peut contenir @ que s'il est l'adresse e-mail du compte.", "Yon non itilizatè ka gen @ sèlman si se adrès imèl kont lan."),

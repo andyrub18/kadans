@@ -1,8 +1,10 @@
 using Kadans.Modules.Billing.Contracts;
 using Kadans.Modules.Billing.Google;
 using Kadans.SharedKernel.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
+using OneOf.Types;
 
 namespace Kadans.Modules.Billing.Features;
 
@@ -54,6 +56,31 @@ internal static class BillingRoutes
                 .WithTags("Billing")
                 .WithName("BillingGoogleNotifications")
                 .ExcludeFromDescription();
+
+            // The free accounts, kept by an admin (tools/admin/free_accounts.py): no restart, no ids to look up.
+            var free = routeBuilder.MapGroup("/billing/free-accounts").WithTags("Billing (admin)").RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+
+            free.MapGet(string.Empty, async Task<Ok<List<FreeAccountResponse>>> (FreeAccounts service, CancellationToken cancellationToken) =>
+                    TypedResults.Ok(await service.List(cancellationToken)))
+                .WithName("BillingFreeAccounts")
+                .WithSummary("Admin: the accounts whose phones are free")
+                .WithDescription("Oldest first, with each account's username and email as they are now.")
+                .Produces<List<FreeAccountResponse>>();
+
+            free.MapPost(string.Empty, async Task<Results<Ok<FreeAccountResponse>, ProblemHttpResult>> (AddFreeAccountRequest request, FreeAccounts service, HttpContext context, CancellationToken cancellationToken) =>
+                    (await service.Add(request, cancellationToken)).ToHttp(context))
+                .WithName("BillingAddFreeAccount")
+                .WithSummary("Admin: make an account's phones free")
+                .WithDescription("By username, or by a confirmed email address (an unconfirmed one names nobody). Applies at once; adding an account already there changes nothing.")
+                .Produces<FreeAccountResponse>()
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            free.MapDelete("/{userId}", async Task<Results<Ok<Success>, ProblemHttpResult>> (string userId, FreeAccounts service, HttpContext context, CancellationToken cancellationToken) =>
+                    (await service.Remove(userId, cancellationToken)).ToHttp(context))
+                .WithName("BillingRemoveFreeAccount")
+                .WithSummary("Admin: an account needs a subscription again")
+                .WithDescription("Applies at once (when subscriptions are required). Removing an account not there changes nothing.")
+                .Produces<Success>();
 
             if (options.FakeStore.Enabled)
             {

@@ -3,6 +3,7 @@ using Kadans.Modules.Billing.Features;
 using Kadans.Modules.Billing.Google;
 using Kadans.Modules.Billing.Persistence;
 using Kadans.SharedKernel.Security;
+using Kadans.SharedKernel.Users;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,9 @@ internal static class BillingTestServices
         collection.AddSingleton<ICurrentUserService>(provider => provider.GetRequiredService<TestCurrentUser>());
         collection.AddSingleton<MobileAccess>();
         collection.AddScoped<Subscriptions>();
+        collection.AddScoped<FreeAccounts>();
+        collection.AddSingleton<FakeUserDirectory>();
+        collection.AddSingleton<IUserDirectory>(provider => provider.GetRequiredService<FakeUserDirectory>());
         collection.AddScoped<SubscriptionReconcileJob>();
         collection.AddScoped<BillingUserDataEraser>();
         var services = collection.BuildServiceProvider();
@@ -82,4 +86,19 @@ internal sealed class FakeGooglePlay : IGooglePlay
         Cancelled.Add(purchaseToken);
         return Task.CompletedTask;
     }
+}
+
+/// <summary>Identity's directory, as the Billing module sees it: accounts by id, by username, by confirmed address.</summary>
+internal sealed class FakeUserDirectory : IUserDirectory
+{
+    public List<UserSummary> Users { get; } = [];
+
+    public Task<UserSummary?> FindAsync(string userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(Users.FirstOrDefault(u => u.Id == userId));
+
+    public Task<UserSummary?> FindByLoginAsync(string usernameOrEmail, CancellationToken cancellationToken = default) =>
+        Task.FromResult(
+            Users.FirstOrDefault(u => string.Equals(u.Username, usernameOrEmail, StringComparison.OrdinalIgnoreCase))
+                ?? Users.FirstOrDefault(u => u.EmailConfirmed && string.Equals(u.Email, usernameOrEmail, StringComparison.OrdinalIgnoreCase))
+        );
 }

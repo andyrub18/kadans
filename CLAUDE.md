@@ -72,7 +72,8 @@ alongside must get one "time's up" within 1 s, an early "ran out" must change no
 ~65 s later must finish there by itself);
 the task, notification, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
-`python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and
+`python3 tools/admin/free_accounts.py add|remove|list` keeps the free accounts (an admin's task, DEPLOYMENT →
+Subscriptions → Free accounts); `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and
 recurring rules (restart the API right before: the recurring job's first pass runs ~15 s after boot).
 In Development nothing applies migrations at startup – run the five `dotnet ef database update` commands above
 first. Production does (`Database:MigrateOnStartup`, set by the image): Kadans runs as exactly one instance.

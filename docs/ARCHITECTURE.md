@@ -225,11 +225,13 @@ month after a 14-day free trial, with the stores converting the price per countr
 - **`Billing:Required`** switches all of this on, in configuration. Until the store product is live it is off:
   no paywall, every phone gets its reminders. Development has a fake store (`Billing:FakeStore:Enabled`,
   `POST /billing/fake/purchases`) for the flows without a store; the production guard refuses it.
-- **Free accounts** (`Billing:FreeAccounts`, user ids) have their phones without a store: the closed test's testers,
-  Google's reviewers, family. Status answers `hasAccess` and `freeAccess`, `IMobileAccess` lets their pushes
-  through, and the app's Settings says so. Ids, not usernames: a username can be given up and taken by someone
-  else. The production guard refuses an entry that is not an id. A configuration list, not a table: a handful of
-  accounts, changed rarely, by the owner only, with no endpoint to attack.
+- **Free accounts** have their phones without a store: the closed test's testers, Google's reviewers, family. An
+  admin keeps the list (`billing.free_accounts`, by user id) through `/billing/free-accounts` (role `Admin`, so
+  behind its two-factor), with `tools/admin/free_accounts.py`. An account is found by username or by a confirmed
+  address (`IUserDirectory.FindByLoginAsync`: anyone can sign up with an address that is not theirs) and stored by
+  id, which never changes, unlike a username that can be given up and taken. A change applies at once: status
+  answers `hasAccess` and `freeAccess`, and `IMobileAccess` forgets its cached answer. Each entry records which
+  admin added it; erasing the account removes it.
 - **Erasing an account** cancels a Google subscription that is still renewing (paid time stays), since the store
   would otherwise keep billing a deleted account. Apple's cannot be cancelled by Kadans, so the emails say so.
 - **Apple** comes with the iPhone app (StoreKit 2 and the App Store Server API), which needs a Mac.
@@ -305,6 +307,7 @@ each run logs what it removed. The day counts are configuration with code defaul
 | Todos, Pomodoro history, every Budget record | until the person deletes them (never automatic for money) | – |
 | A deleted account | closed at once, erased with everything in it 7 days later (above) | `Identity:AccountDeletion:GraceDays` |
 | The record of an erased account (its id and dates) | 30 days | `Identity:Retention:ErasedAccountRecordDays` |
+| A free account (its id, the admin who added it, when) | until an admin removes it, or the account is erased | – |
 | Nightly database dumps | 14 days (DEPLOYMENT → Backups) | the compose file |
 
 A phone that still takes pushes is kept however long the app stays closed: someone may only ever see the reminders.

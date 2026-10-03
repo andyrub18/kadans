@@ -48,8 +48,9 @@ Kadans.Modules.Tasks/
    Endpoints never return entities that could drag another module's data along.
 3. **Modules depend only on SharedKernel.** They communicate through SharedKernel abstractions:
    `IUserDirectory` and `IDevicePushTargets` (implemented by Identity), `INotificationDispatcher`
-   and `IRealtimePublisher` (implemented by Notifications), and `ISessionEndListener` (called by Identity
-   when sessions end; Notifications closes their live connections). Tasks and Budget only consume them.
+   and `IRealtimePublisher` (implemented by Notifications), `ISessionEndListener` (called by Identity
+   when sessions end; Notifications closes their live connections), and `IUserDataEraser` (each module erases a
+   user's data when Identity erases the account). Tasks and Budget only consume the rest.
 4. **Everything is `internal`** except `Contracts` and the `IModule` implementation.
 5. **Per-user isolation via EF global query filters** on `UserId == ICurrentUserService.UserId`.
 6. **Endpoints return DTOs**, never EF entities (the old code returned `Todo`/`PomodoroRun`
@@ -196,6 +197,32 @@ and token providers on an in-memory SQLite database, so CI needs no Postgres. In
 Testcontainers against real Postgres are still to come (recurrence and query filters must be tested on the
 real provider); the smoke scripts in `tools/smoke/` cover those paths against a running Development API for now.
 
+### Account deletion: closed now, erased after 7 days
+
+Google Play and the App Store require deleting the account in the app, and Google Play also wants a web route for
+people without the app. Deleting closes the account at once and erases it with everything in it 7 days later,
+unless its owner keeps it (decided 2026-10-03).
+
+- **Asking.** In the app, the current password (wrong ones count toward the lock), or for an account without one
+  (Google only) a link to its address. The web page `/account/delete` takes an address and sends the same link. It
+  answers the same for every address, so it tells nobody which addresses have an account. The link's page only
+  shows what will happen; its button (a POST) does it, because mail scanners open links.
+- **Closed.** `AccountDeletions` records the request (`identity.account_deletions`) and ends every session, which
+  removes the devices and closes the live connections. It emails the owner the date, which is also their alarm if
+  it was not them. A correct sign-in during the grace period opens nothing: like the 2FA challenge, it returns
+  `deletionScheduled` and a short-lived `restoreToken`, its own audience, accepted only by
+  `POST /auth/restore-account`, which keeps the account and starts a session.
+- **Erased.** `AccountErasureJob` (every 15 minutes) calls every module's `IUserDataEraser` (SharedKernel; Tasks,
+  Notifications and Budget implement it, deleting in batches), then deletes the user, which takes sign-ins, 2FA,
+  sessions and devices with it, and sends a last email. Each eraser can run again, so a run cut short is finished
+  by the next.
+- **Afterwards.** The deletion record stays with the id and dates only, 30 days, longer than the backups: after a
+  backup restore, the erasures it predates are re-applied (DEPLOYMENT → Backups). A subscription is billed by the
+  store, so the app and the emails tell the person to cancel it there.
+
+Deleting one todo (`DELETE /todos/{id}`), unlike cancelling it, takes its occurrences, remarks and focus history
+along, and its stats with them.
+
 ### Data retention
 
 What Kadans keeps, and for how long. It is what the privacy policy and Google Play's data-safety form state.
@@ -213,6 +240,8 @@ each run logs what it removed. The day counts are configuration with code defaul
 | Devices without a push token (desktops, push off) | 180 days unseen | `Identity:Retention:IdleDeviceDays` |
 | Devices with a push token | until signed out, or until the push provider reports the token dead | – |
 | Todos, Pomodoro history, every Budget record | until the person deletes them (never automatic for money) | – |
+| A deleted account | closed at once, erased with everything in it 7 days later (above) | `Identity:AccountDeletion:GraceDays` |
+| The record of an erased account (its id and dates) | 30 days | `Identity:Retention:ErasedAccountRecordDays` |
 | Nightly database dumps | 14 days (DEPLOYMENT → Backups) | the compose file |
 
 A phone that still takes pushes is kept however long the app stays closed: someone may only ever see the reminders.

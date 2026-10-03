@@ -57,6 +57,8 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
+`python3 tools/smoke/deletion_flows.py <api log>` for deleting a todo and an account (the app's way and the web page's,
+closed at once, kept through the sign-in offer);
 `python3 tools/smoke/session_flows.py` for sessions (a signed-out token is refused at once, its device and live
 connection go, a push token moves to the next account on the phone);
 `python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, stats, and the hands-free

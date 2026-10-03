@@ -31,7 +31,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 @Composable
-private fun AuthScaffold(title: String, content: @Composable () -> Unit) {
+internal fun AuthScaffold(title: String, content: @Composable () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -65,6 +65,10 @@ fun LoginScreen(
     onForgotPassword: () -> Unit,
     /** The server ended this device's session (signed out elsewhere, password changed): say so. */
     sessionEnded: Boolean = false,
+    /** The account awaits erasure (just deleted here, or signed into): where to offer keeping it. */
+    onDeletionScheduled: (eraseAfter: kotlin.time.Instant, restoreToken: String) -> Unit = { _, _ -> },
+    /** A word above the form: the account was just closed for erasure. */
+    notice: String? = null,
     viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -74,6 +78,7 @@ fun LoginScreen(
             when (event) {
                 is LoginEvent.LoggedIn -> onLoggedIn()
                 is LoginEvent.MfaRequired -> onMfaRequired(event.mfaToken)
+                is LoginEvent.DeletionScheduled -> onDeletionScheduled(event.eraseAfter, event.restoreToken)
             }
         }
     }
@@ -81,7 +86,9 @@ fun LoginScreen(
     val s = LocalStrings.current
     val currentLanguage by languageController.language.collectAsState()
     AuthScaffold(title = s.signInTitle) {
-        if (sessionEnded) {
+        if (notice != null) {
+            Text(notice, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+        } else if (sessionEnded) {
             Text(s.account.sessionEndedNotice, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -254,11 +261,16 @@ fun MfaScreen(
     mfaToken: String,
     onVerified: () -> Unit,
     onBack: () -> Unit,
+    onDeletionScheduled: (eraseAfter: kotlin.time.Instant, restoreToken: String) -> Unit = { _, _ -> },
     viewModel: MfaViewModel = koinViewModel(key = "mfa-$mfaToken") { parametersOf(mfaToken) },
 ) {
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(viewModel) { viewModel.verified.collect { onVerified() } }
+    LaunchedEffect(viewModel) {
+        viewModel.verified.collect { outcome ->
+            if (outcome is LoginEvent.DeletionScheduled) onDeletionScheduled(outcome.eraseAfter, outcome.restoreToken) else onVerified()
+        }
+    }
 
     val s = LocalStrings.current
     AuthScaffold(title = s.twoFactorTitle) {

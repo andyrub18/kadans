@@ -82,6 +82,46 @@ internal sealed class IdentityEmails(
         await SendAsync(oldEmail, texts.ChangedNoticeSubject, string.Format(texts.ChangedNoticeBody, Greeting(user), newEmail), cancellationToken);
     }
 
+    /// <summary>The token an account-deletion link carries (Identity's data-protection provider, bound to the user).</summary>
+    public const string DeleteAccountPurpose = "DeleteAccount";
+
+    /// <summary>"Someone asked to delete this account": the link that confirms it (web page, or an account without a password).</summary>
+    public async Task SendDeletionLinkAsync(ApplicationUser user, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email) || HeldBack("delete", user.Email, user))
+            return;
+
+        var token = Encode(await userManager.GenerateUserTokenAsync(user, TokenOptions.DefaultProvider, DeleteAccountPurpose));
+        var link = $"{BaseUrl}/account/delete/confirm?userId={Uri.EscapeDataString(user.Id)}&token={token}";
+        var texts = DeletionTexts.For(user.PreferredLanguage);
+        await SendAsync(user.Email, texts.LinkSubject, string.Format(texts.LinkBody, Greeting(user), link), cancellationToken);
+    }
+
+    /// <summary>Closed, erased on that date unless kept: the owner's alarm too, if it was not them.</summary>
+    public async Task SendDeletionScheduledAsync(ApplicationUser user, DateTimeOffset eraseAfter, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+            return;
+
+        var texts = DeletionTexts.For(user.PreferredLanguage);
+        await SendAsync(
+            user.Email,
+            texts.ScheduledSubject,
+            string.Format(texts.ScheduledBody, Greeting(user), texts.Date(eraseAfter, ZoneOf(user))),
+            cancellationToken
+        );
+    }
+
+    /// <summary>The last word, sent once the account is gone (so it takes what is needed, not the user).</summary>
+    public Task SendErasedAsync(string email, string greeting, string? language, CancellationToken cancellationToken = default)
+    {
+        var texts = DeletionTexts.For(language);
+        return SendAsync(email, texts.ErasedSubject, string.Format(texts.ErasedBody, greeting), cancellationToken);
+    }
+
+    internal static TimeZoneInfo ZoneOf(ApplicationUser user) =>
+        TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var zone) ? zone : TimeZoneInfo.Utc;
+
     public static string Encode(string token) => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
     public static string? Decode(string encoded)
@@ -106,7 +146,7 @@ internal sealed class IdentityEmails(
         return true;
     }
 
-    private static string Greeting(ApplicationUser user) => user.DisplayName ?? user.UserName ?? "there";
+    internal static string Greeting(ApplicationUser user) => user.DisplayName ?? user.UserName ?? "there";
 
     private async Task SendAsync(string to, string subject, string text, CancellationToken cancellationToken)
     {

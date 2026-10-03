@@ -137,6 +137,8 @@ public sealed class IdentityModule : IModule
         services.AddScoped<UserManagement>();
 
         services.Configure<IdentityRetentionOptions>(configuration.GetSection(IdentityRetentionOptions.SectionName));
+        services.Configure<AccountDeletionOptions>(configuration.GetSection(AccountDeletionOptions.SectionName));
+        services.AddScoped<AccountDeletions>();
         services.AddQuartz(quartz =>
         {
             // Nightly, and once soon after a start so a server that restarts often still cleans up.
@@ -153,6 +155,16 @@ public sealed class IdentityModule : IModule
                     .WithIdentity("identity-retention-startup", "identity")
                     .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Minute))
             );
+
+            // Accounts whose 7 days are over: erased within a quarter of an hour.
+            quartz.AddJob<AccountErasureJob>(job => job.WithIdentity(AccountErasureJob.Key));
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(AccountErasureJob.Key)
+                    .WithIdentity("account-erasure-trigger", "identity")
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Minute))
+                    .WithSimpleSchedule(s => s.WithIntervalInMinutes(15).RepeatForever())
+            );
         });
     }
 
@@ -160,6 +172,7 @@ public sealed class IdentityModule : IModule
     {
         endpoints.MapAuthRoutes();
         endpoints.MapUserRoutes();
+        endpoints.MapAccountDeletionPages();
     }
 
     public async Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken)

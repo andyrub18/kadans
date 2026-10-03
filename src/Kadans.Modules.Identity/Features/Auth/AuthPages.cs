@@ -55,6 +55,29 @@ internal static class AuthPages
             """);
     }
 
+    /// <summary>Google Play's web route to deletion, for people without the app: an address, then a link to it.</summary>
+    public static string DeleteRequest(DeletionTexts texts) =>
+        Page($$"""
+            <h3>{{HtmlEncoder.Default.Encode(texts.PageTitle)}}</h3>
+            <p>{{HtmlEncoder.Default.Encode(texts.PageIntro)}}</p>
+            <form method="post" action="/account/delete">
+              <input name="email" type="email" required autocomplete="email" placeholder="{{HtmlEncoder.Default.Encode(texts.PageEmail)}}">
+              <button>{{HtmlEncoder.Default.Encode(texts.PageSend)}}</button>
+            </form>
+            """);
+
+    /// <summary>The emailed link's page: what will happen, and a button. Opening it deletes nothing (mail scanners open links).</summary>
+    public static string DeleteConfirm(DeletionTexts texts, string accountName, string eraseOn, string userId, string token) =>
+        Page($$"""
+            <h3>{{HtmlEncoder.Default.Encode(texts.PageTitle)}}</h3>
+            <p>{{HtmlEncoder.Default.Encode(string.Format(texts.ConfirmQuestion, accountName, eraseOn))}}</p>
+            <form method="post" action="/account/delete/confirm">
+              <input type="hidden" name="userId" value="{{HtmlEncoder.Default.Encode(userId)}}">
+              <input type="hidden" name="token" value="{{HtmlEncoder.Default.Encode(token)}}">
+              <button style="background:#b3261e">{{HtmlEncoder.Default.Encode(texts.ConfirmButton)}}</button>
+            </form>
+            """);
+
     private static string Page(string body) => $$"""
         <!doctype html><html><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1"><title>Kadans</title>

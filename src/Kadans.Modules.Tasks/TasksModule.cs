@@ -4,6 +4,7 @@ using Kadans.Modules.Tasks.Features.Todos.Occurrences;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
+using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -66,6 +67,8 @@ public sealed class TasksModule : IModule
         });
 
         services.AddScoped<TodoCreation>();
+        services.AddScoped<TodoErasure>();
+        services.AddScoped<IUserDataEraser>(provider => provider.GetRequiredService<TodoErasure>());
         services.AddScoped<TodoUpdate>();
         services.AddScoped<GetTodos>();
         services.AddScoped<PomodoroService>();

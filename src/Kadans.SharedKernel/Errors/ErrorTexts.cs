@@ -171,6 +171,8 @@ public static class ErrorTexts
         ["Invalid username or password"] = new("Nom d'utilisateur ou mot de passe invalide.", "Non itilizatè oswa modpas la pa bon."),
         ["Invalid refresh token"] = new("Votre session a expiré. Reconnectez-vous.", "Sesyon ou an ekspire. Konekte ankò."),
         ["The current password is not correct."] = new("Le mot de passe actuel n'est pas correct.", "Modpas aktyèl la pa bon."),
+        ["This account has no email address."] = new("Ce compte n'a pas d'adresse e-mail.", "Kont sa a pa gen adrès imèl."),
+        ["This offer to keep the account has expired. Sign in again."] = new("Cette offre de garder le compte a expiré. Reconnectez-vous.", "Òf pou kenbe kont lan ekspire. Konekte ankò."),
         ["Enter your current password."] = new("Saisissez votre mot de passe actuel.", "Antre modpas aktyèl ou."),
         ["Too many failed attempts. Try again in a few minutes."] = new("Trop d'essais infructueux. Réessayez dans quelques minutes.", "Twòp tantativ ki pa mache. Eseye ankò nan kèk minit."),
         ["A username can contain @ only when it is the account's email address."] = new("Un nom d'utilisateur ne peut contenir @ que s'il est l'adresse e-mail du compte.", "Yon non itilizatè ka gen @ sèlman si se adrès imèl kont lan."),

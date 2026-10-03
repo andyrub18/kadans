@@ -15,9 +15,14 @@ internal sealed class JwtProvider(IOptions<JwtParameter> options, IdentityModule
 {
     private const string PurposeClaim = "purpose";
     private const string MfaPurpose = "mfa";
+    private const string RestorePurpose = "restore";
 
     // Challenge tokens carry their own audience so the API's bearer handler can never accept one.
     private string MfaAudience => $"{parameter.Audience}:mfa";
+    private string RestoreAudience => $"{parameter.Audience}:restore";
+
+    /// <summary>How long a "keep my account" offer stands after a sign-in into an account awaiting erasure.</summary>
+    internal static readonly TimeSpan RestoreTokenLifetime = TimeSpan.FromMinutes(10);
 
     private readonly JwtParameter parameter = options.Value;
 
@@ -55,7 +60,23 @@ internal sealed class JwtProvider(IOptions<JwtParameter> options, IdentityModule
         );
 
     /// <summary>Returns the user id carried by a valid MFA challenge token, or null.</summary>
-    public string? ValidateMfaChallengeToken(string token)
+    public string? ValidateMfaChallengeToken(string token) => ValidatePurposeToken(token, MfaAudience, MfaPurpose);
+
+    /// <summary>
+    /// A sign-in into an account awaiting erasure proved who this is, and hands out this instead of a session: it can
+    /// only keep the account (<c>POST /auth/restore-account</c>). Its own audience, so no API endpoint accepts it.
+    /// </summary>
+    public string CreateRestoreToken(ApplicationUser user) =>
+        Write(
+            [new Claim(ClaimTypes.NameIdentifier, user.Id), new Claim(PurposeClaim, RestorePurpose)],
+            RestoreTokenLifetime,
+            RestoreAudience
+        );
+
+    /// <summary>Returns the user id carried by a valid restore token, or null.</summary>
+    public string? ValidateRestoreToken(string token) => ValidatePurposeToken(token, RestoreAudience, RestorePurpose);
+
+    private string? ValidatePurposeToken(string token, string audience, string purpose)
     {
         try
         {
@@ -68,14 +89,14 @@ internal sealed class JwtProvider(IOptions<JwtParameter> options, IdentityModule
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = parameter.Issuer,
-                    ValidAudience = MfaAudience,
+                    ValidAudience = audience,
                     IssuerSigningKey = SigningKey,
                     ClockSkew = TimeSpan.FromSeconds(30),
                 },
                 out _
             );
 
-            if (principal.FindFirstValue(PurposeClaim) != MfaPurpose)
+            if (principal.FindFirstValue(PurposeClaim) != purpose)
                 return null;
 
             return principal.FindFirstValue(ClaimTypes.NameIdentifier);

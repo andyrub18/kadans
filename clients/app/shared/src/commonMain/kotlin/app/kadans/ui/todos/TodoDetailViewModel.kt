@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 sealed interface TodoDetailUiState {
     data object Loading : TodoDetailUiState
@@ -60,6 +63,27 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
         act { api.todos.rescheduleOccurrence(occurrenceId, RescheduleOccurrence(newDate, reason?.ifBlank { null })) }
 
     fun cancelTodo() = act { api.todos.cancel(todoId) }
+
+    private val _deleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** The todo is gone for good: the screen closes. */
+    val deleted: SharedFlow<Unit> = _deleted.asSharedFlow()
+
+    fun deleteTodo() {
+        viewModelScope.launch {
+            try {
+                api.todos.delete(todoId)
+                _deleted.emit(Unit)
+            } catch (e: KadansApiException) {
+                val current = _state.value
+                if (current is TodoDetailUiState.Content)
+                    _state.value = current.copy(actionError = e.message, actionErrorCode = e.errorCode)
+            } catch (_: Exception) {
+                val current = _state.value
+                if (current is TodoDetailUiState.Content) _state.value = current.copy(actionError = null, actionErrorCode = "network")
+            }
+        }
+    }
 
     fun attachTemplate(templateId: String?) = act { api.pomodoro.attachTemplate(todoId, templateId) }
 

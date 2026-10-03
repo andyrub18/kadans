@@ -8,14 +8,29 @@ public sealed record LoginRequest(string Username, string Password);
 /// Either a token pair, or – when <see cref="MfaRequired"/> is true – an <see cref="MfaToken"/>
 /// to exchange at <c>POST /auth/mfa/verify</c> together with a TOTP or recovery code.
 /// </summary>
+/// <param name="DeletionScheduled">
+/// The account is closed, awaiting erasure on <paramref name="EraseAfter"/>: no session, only
+/// <paramref name="RestoreToken"/>, which can keep it (<c>POST /auth/restore-account</c>).
+/// </param>
 public sealed record LoginResponse(
     string? AccessToken,
     DateTimeOffset? ExpiresAt,
     string? RefreshToken,
     DateTimeOffset? RefreshTokenExpireAt,
     bool MfaRequired = false,
-    string? MfaToken = null
+    string? MfaToken = null,
+    bool DeletionScheduled = false,
+    DateTimeOffset? EraseAfter = null,
+    string? RestoreToken = null
 );
+
+/// <param name="CurrentPassword">Required when the account has one; an account that only uses Google confirms by email.</param>
+public sealed record DeleteAccountRequest(string? CurrentPassword = null);
+
+/// <summary>Either the erasure date (closed now), or <paramref name="ConfirmationSentTo"/>: a link to confirm went there.</summary>
+public sealed record DeleteAccountResponse(DateTimeOffset? EraseAfter, string? ConfirmationSentTo = null);
+
+public sealed record RestoreAccountRequest(string RestoreToken);
 
 public sealed record RefreshTokenRequest(string RefreshToken);
 

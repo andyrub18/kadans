@@ -63,6 +63,11 @@ internal static class IdentityTestServices
         collection.AddScoped<IdentityEmails>();
         collection.AddScoped<AccountSecurity>();
         collection.AddScoped<UserManagement>();
+        collection.Configure<AccountDeletionOptions>(_ => { });
+        collection.AddScoped<AccountDeletions>();
+        collection.AddScoped<AccountErasureJob>();
+        collection.AddSingleton<RecordingEraser>();
+        collection.AddSingleton<IUserDataEraser>(provider => provider.GetRequiredService<RecordingEraser>());
         var services = collection.BuildServiceProvider();
 
         using var scope = services.CreateScope();
@@ -105,6 +110,18 @@ internal sealed class RecordingEmailSender : IEmailSender
     public Task SendAsync(OutgoingEmail email, CancellationToken cancellationToken = default)
     {
         Sent.Add(email);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Stands for the other modules' erasers: which accounts they were asked to erase.</summary>
+internal sealed class RecordingEraser : IUserDataEraser
+{
+    public List<string> Erased { get; } = [];
+
+    public Task EraseAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        Erased.Add(userId);
         return Task.CompletedTask;
     }
 }

@@ -158,6 +158,18 @@ docker compose start api
 The dump drops and recreates every Kadans table before loading, inside one transaction: either the
 whole restore applies or nothing changes. Test a restore once before you need one.
 
+A dump can hold accounts erased since it was taken (ARCHITECTURE → Account deletion). Save the list of erased
+accounts **before** restoring, and hand it back after: the erasure job erases them again within 15 minutes.
+
+```bash
+# before the restore
+docker compose exec -T db psql -U kadans -d kadans -At -c "SELECT user_id FROM identity.account_deletions WHERE erased_at IS NOT NULL" > erased.txt
+# after the restore (and after `docker compose start api`)
+while read id; do
+  docker compose exec -T db psql -U kadans -d kadans -c "INSERT INTO identity.account_deletions (user_id, requested_at, erase_after) VALUES ('$id', now(), now()) ON CONFLICT (user_id) DO UPDATE SET erased_at = NULL, erase_after = now();"
+done < erased.txt
+```
+
 ## Operating
 
 - Logs: `docker compose logs -f api` (Serilog writes to the console). Docker keeps 5 × 10 MB per service

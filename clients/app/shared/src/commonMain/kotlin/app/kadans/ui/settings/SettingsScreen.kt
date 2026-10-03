@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -39,6 +40,7 @@ fun SettingsScreen(
     languageController: LanguageController,
     onLoggedOut: () -> Unit,
     onBack: () -> Unit,
+    onAccountClosed: (eraseAfter: kotlin.time.Instant) -> Unit = { onLoggedOut() },
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -46,6 +48,7 @@ fun SettingsScreen(
     val language by languageController.language.collectAsState()
 
     LaunchedEffect(viewModel) { viewModel.loggedOut.collect { onLoggedOut() } }
+    LaunchedEffect(viewModel) { viewModel.accountClosed.collect { onAccountClosed(it) } }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -307,7 +310,54 @@ fun SettingsScreen(
             TextButton(onClick = viewModel::signOut, modifier = Modifier.fillMaxWidth()) {
                 Text(s.signOut)
             }
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+
+            // ---- Delete the account (Google Play and the App Store require it in the app) ----
+            DeleteAccountSection(state, viewModel)
         }
+    }
+}
+
+@Composable
+private fun DeleteAccountSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+    val s = LocalStrings.current
+    val d = s.deletion
+    var confirming by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    Text(d.section, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+    Text(d.explanation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(d.subscriptionNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (state.user?.hasPassword == true) {
+        OutlinedTextField(
+            value = state.deletePassword,
+            onValueChange = { v -> viewModel.update { it.copy(deletePassword = v) } },
+            label = { Text(s.currentPassword) },
+            singleLine = true,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    OutlinedButton(onClick = { confirming = true }, enabled = state.canDeleteAccount, modifier = Modifier.fillMaxWidth()) {
+        Text(d.deleteAccount, color = MaterialTheme.colorScheme.error)
+    }
+    state.deletionLinkSentTo?.let { address ->
+        Text(d.linkSent(address), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+    }
+
+    if (confirming) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(d.confirmTitle) },
+            text = { Text(d.confirmText) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    viewModel.deleteAccount()
+                }) { Text(d.deleteAccount, color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text(s.cancel) } },
+        )
     }
 }
 

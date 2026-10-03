@@ -46,6 +46,7 @@ fun TodoDetailScreen(
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
     LaunchedEffect(Unit) { viewModel.refresh() }
+    LaunchedEffect(viewModel) { viewModel.deleted.collect { onBack() } }
 
     when (val current = state) {
         is TodoDetailUiState.Loading ->
@@ -74,6 +75,7 @@ private fun Detail(
     // When a looping session ends by itself: null is the default, 12 hours after it starts.
     var endTime by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<kotlinx.datetime.LocalTime?>(null) }
     var choosingEnd by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var deleting by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     LazyColumn(
@@ -217,6 +219,26 @@ private fun Detail(
                 }
             }
         }
+        item {
+            TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(s.deletion.deleteTodo, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+
+    if (deleting) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleting = false },
+            title = { Text(s.deletion.deleteTodoTitle) },
+            text = { Text(s.deletion.deleteTodoText) },
+            confirmButton = {
+                TextButton(onClick = {
+                    deleting = false
+                    viewModel.deleteTodo()
+                }) { Text(s.deletion.deleteTodo, color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { deleting = false }) { Text(s.cancel) } },
+        )
     }
 
     if (pickingTemplate) {

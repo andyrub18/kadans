@@ -13,6 +13,7 @@ internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbC
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Device> Devices => Set<Device>();
+    public DbSet<AccountDeletion> AccountDeletions => Set<AccountDeletion>();
 
     /// <summary>
     /// The ASP.NET Core Data Protection key ring. It protects the tokens in emailed links (confirm email,
@@ -55,6 +56,14 @@ internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbC
                 .WithMany()
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<AccountDeletion>(d =>
+        {
+            d.HasKey(x => x.UserId);
+            d.Property(x => x.UserId).HasMaxLength(450);
+            // What the eraser scans: due and not yet erased.
+            d.HasIndex(x => x.EraseAfter).HasFilter("erased_at IS NULL");
         });
 
         builder.Entity<Device>(d =>

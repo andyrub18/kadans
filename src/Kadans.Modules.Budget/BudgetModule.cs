@@ -2,6 +2,7 @@ using Kadans.Modules.Budget.Features;
 using Kadans.Modules.Budget.Persistence;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
+using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +40,7 @@ public sealed class BudgetModule : IModule
         });
 
         services.AddScoped<AccountService>();
+        services.AddScoped<IUserDataEraser, BudgetUserDataEraser>();
         services.AddScoped<CategoryService>();
         services.AddScoped<TransactionService>();
         services.AddScoped<RecurringTransactionService>();

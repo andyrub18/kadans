@@ -26,8 +26,9 @@ class MfaViewModel(private val api: KadansApi, private val mfaToken: String) : V
     private val _state = MutableStateFlow(MfaUiState())
     val state: StateFlow<MfaUiState> = _state.asStateFlow()
 
-    private val _verified = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val verified: SharedFlow<Unit> = _verified.asSharedFlow()
+    /** The verified sign-in: a session, or (an account awaiting erasure) the offer to keep it. */
+    private val _verified = MutableSharedFlow<LoginEvent>(extraBufferCapacity = 1)
+    val verified: SharedFlow<LoginEvent> = _verified.asSharedFlow()
 
     fun onCodeChange(value: String) = _state.update { it.copy(code = value, error = null) }
 
@@ -38,9 +39,9 @@ class MfaViewModel(private val api: KadansApi, private val mfaToken: String) : V
         _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
-                api.auth.verifyMfa(mfaToken, current.code.trim())
+                val login = api.auth.verifyMfa(mfaToken, current.code.trim())
                 _state.update { it.copy(isLoading = false) }
-                _verified.emit(Unit)
+                _verified.emit(LoginViewModel.outcomeOf(login))
             } catch (e: KadansApiException) {
                 _state.update { it.copy(isLoading = false, error = e.message, errorCode = e.errorCode) }
             } catch (e: Exception) {

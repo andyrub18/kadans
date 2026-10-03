@@ -15,6 +15,7 @@ import app.kadans.ui.pomodoro.PomodoroPreference
 import app.kadans.realtime.SystemAlerts
 import app.kadans.ui.auth.ForgotPasswordViewModel
 import app.kadans.ui.auth.LoginViewModel
+import app.kadans.ui.auth.KeepAccountViewModel
 import app.kadans.ui.auth.MfaViewModel
 import app.kadans.ui.auth.RegisterViewModel
 import app.kadans.ui.auth.ResetPasswordViewModel
@@ -73,6 +74,7 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::BudgetAddViewModel)
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
+    factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }
     viewModelOf(::CreateTodoViewModel)
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }
     factory { (todoId: String) -> EditTodoViewModel(get(), todoId) }

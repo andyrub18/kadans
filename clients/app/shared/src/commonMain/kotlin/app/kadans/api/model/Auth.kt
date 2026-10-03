@@ -19,6 +19,10 @@ data class LoginResponse(
     val refreshTokenExpireAt: Instant? = null,
     val mfaRequired: Boolean = false,
     val mfaToken: String? = null,
+    /** The account is closed, to be erased at [eraseAfter]; [restoreToken] can keep it (no session meanwhile). */
+    val deletionScheduled: Boolean = false,
+    val eraseAfter: Instant? = null,
+    val restoreToken: String? = null,
 )
 
 @Serializable
@@ -141,3 +145,13 @@ data class DeviceResponse(
     val registeredAt: Instant,
     val lastSeenAt: Instant,
 )
+
+@Serializable
+data class DeleteAccountRequest(val currentPassword: String? = null)
+
+/** Either the erasure date (closed now), or the address a confirmation link went to (an account without a password). */
+@Serializable
+data class DeleteAccountResponse(val eraseAfter: Instant? = null, val confirmationSentTo: String? = null)
+
+@Serializable
+data class RestoreAccountRequest(val restoreToken: String)

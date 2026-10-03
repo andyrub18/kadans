@@ -195,6 +195,8 @@ internal sealed class TasksDbContext(
                 .HasFilter("status = 'Active' AND auto_advance");
             r.HasIndex(x => x.PhaseEndsAt, "ix_pomodoro_runs_manual_due")
                 .HasFilter("status = 'Active' AND NOT auto_advance");
+            r.HasIndex(x => x.FinishBy, "ix_pomodoro_runs_finish_due")
+                .HasFilter("status IN ('Active', 'Paused')");
 
             r.HasIndex(x => new { x.TodoId, x.StartedAt })
                 .HasDatabaseName("ix_pomodoro_runs_todo_id_started_at_desc")

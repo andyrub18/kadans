@@ -106,8 +106,11 @@ internal sealed class PomodoroService(
         if (request.Phases is not { Count: > 0 })
             return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "At least one Pomodoro phase is required.");
 
-        if (request.Phases.Any(p => p.DurationMinutes <= 0))
-            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Phase duration must be greater than zero.");
+        if (request.Phases.Count > PomodoroTemplate.MaxPhases)
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "A cycle has at most 24 phases.");
+
+        if (request.Phases.Any(p => p.DurationMinutes is < 1 or > PomodoroTemplate.MaxPhaseMinutes))
+            return new ApplicationError(ErrorTypes.PomodoroTemplateInvalid, "Each phase lasts 1 to 240 minutes.");
 
         return null;
     }
@@ -146,11 +149,16 @@ internal sealed class PomodoroService(
         return true;
     }
 
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId, bool autoAdvance, bool loop)
+    /// <param name="finishAt">When the session ends by itself; null: <see cref="PomodoroRun.DefaultSpan"/> after the start.</param>
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId, bool autoAdvance, bool loop, DateTimeOffset? finishAt = null)
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
             return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
+
+        var now = DateTimeOffset.UtcNow;
+        if (finishAt is { } end && PomodoroRun.CheckFinishBy(end, now) is { } endError)
+            return endError;
 
         var todo = await context
             .Todos.Include(t => t.PomodoroTemplate)
@@ -174,7 +182,7 @@ internal sealed class PomodoroService(
         if (hasActiveRun)
             return new ApplicationError(ErrorTypes.PomodoroAlreadyActiveForTodo, "This todo already has an active Pomodoro run.");
 
-        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, DateTimeOffset.UtcNow, loop);
+        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, now, loop, finishAt);
 
         if (todo.Status == TaskStatus.Scheduled)
             todo.UpdateStatus(TaskStatus.Started);
@@ -216,7 +224,10 @@ internal sealed class PomodoroService(
         return runs.ConvertAll(r => r.ToResponse());
     }
 
-    /// <summary>Completed-phase minutes and run counts, grouped per day in the user's time zone.</summary>
+    /// <summary>
+    /// Minutes really spent in ended phases (skipped early, kept going past the timer, pauses left out), and run
+    /// counts, grouped per day in the user's time zone.
+    /// </summary>
     public async Task<OneOf<ApplicationError, PomodoroStatsResponse>> GetStats(DateTimeOffset? from, DateTimeOffset? to)
     {
         var userId = currentUser.UserId;
@@ -236,8 +247,17 @@ internal sealed class PomodoroService(
         var phases = await context
             .PomodoroRuns.SelectMany(r => r.Phases)
             .Where(p => p.CompletedAt != null && p.CompletedAt >= rangeFrom && p.CompletedAt <= rangeTo)
-            .Select(p => new { p.Type, p.DurationMinutes, CompletedAt = p.CompletedAt!.Value })
+            .Select(p => new { p.Type, p.StartedAt, p.CompletedAt, p.PausedSeconds })
             .ToListAsync();
+        var spent = phases
+            .Select(p => new
+            {
+                p.Type,
+                Seconds = PomodoroRunPhase.SecondsSpent(p.StartedAt, p.CompletedAt, p.PausedSeconds) ?? 0,
+                CompletedAt = p.CompletedAt!.Value,
+            })
+            .ToList();
+        static int Minutes(IEnumerable<int> seconds) => seconds.Sum() / 60;
 
         var completedRuns = await context
             .PomodoroRuns.Where(r => r.Status == PomodoroRunStatus.Completed && r.CompletedAt >= rangeFrom && r.CompletedAt <= rangeTo)
@@ -250,12 +270,12 @@ internal sealed class PomodoroService(
 
         DateOnly LocalDate(DateTimeOffset at) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(at, timeZone).Date);
 
-        var perDay = phases
+        var perDay = spent
             .GroupBy(p => LocalDate(p.CompletedAt))
             .Select(g => new PomodoroDayStats(
                 g.Key,
-                g.Where(p => p.Type == PomodoroPhaseType.Focus).Sum(p => p.DurationMinutes),
-                g.Where(p => p.Type == PomodoroPhaseType.Break).Sum(p => p.DurationMinutes),
+                Minutes(g.Where(p => p.Type == PomodoroPhaseType.Focus).Select(p => p.Seconds)),
+                Minutes(g.Where(p => p.Type == PomodoroPhaseType.Break).Select(p => p.Seconds)),
                 completedRuns.Count(c => LocalDate(c) == g.Key)
             ))
             .OrderBy(d => d.Date)
@@ -267,8 +287,8 @@ internal sealed class PomodoroService(
             timeZone.Id,
             completedRuns.Count,
             cancelledRuns,
-            phases.Where(p => p.Type == PomodoroPhaseType.Focus).Sum(p => p.DurationMinutes),
-            phases.Where(p => p.Type == PomodoroPhaseType.Break).Sum(p => p.DurationMinutes),
+            Minutes(spent.Where(p => p.Type == PomodoroPhaseType.Focus).Select(p => p.Seconds)),
+            Minutes(spent.Where(p => p.Type == PomodoroPhaseType.Break).Select(p => p.Seconds)),
             perDay
         );
     }
@@ -278,6 +298,9 @@ internal sealed class PomodoroService(
 
     public Task<OneOf<ApplicationError, PomodoroRunResponse>> ResumeRun(Guid runId) =>
         MutateAsync(runId, (run, now) => run.Resume(now));
+
+    public Task<OneOf<ApplicationError, PomodoroRunResponse>> ChangeFinishAt(Guid runId, ChangePomodoroFinishAt request) =>
+        MutateAsync(runId, (run, now) => run.ChangeFinishBy(request.FinishAt, now));
 
     public async Task<OneOf<ApplicationError, PomodoroRunResponse>> AdvanceRun(Guid runId, AdvancePomodoroRun request)
     {

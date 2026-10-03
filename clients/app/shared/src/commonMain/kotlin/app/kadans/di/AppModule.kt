@@ -76,7 +76,9 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::CreateTodoViewModel)
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }
     factory { (todoId: String) -> EditTodoViewModel(get(), todoId) }
-    factory { (todoId: String, loop: Boolean, handsFree: Boolean) -> PomodoroViewModel(get(), get(), todoId, loop, handsFree) }
+    factory { (todoId: String, loop: Boolean, handsFree: Boolean, finishAtMillis: Long?) ->
+        PomodoroViewModel(get(), get(), todoId, loop, handsFree, finishAtMillis?.let(kotlin.time.Instant::fromEpochMilliseconds))
+    }
 }
 
 private var started = false

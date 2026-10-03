@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlin.time.Duration.Companion.minutes
 
 sealed interface PomodoroUiState {
     data object Loading : PomodoroUiState
@@ -34,6 +36,8 @@ class PomodoroViewModel(
     private val todoId: String,
     private val loop: Boolean = true,
     private val handsFree: Boolean = false,
+    /** When the session should end by itself; null: the server's default, 12 hours after the start. */
+    private val finishAt: kotlin.time.Instant? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow<PomodoroUiState>(PomodoroUiState.Loading)
     val state: StateFlow<PomodoroUiState> = _state.asStateFlow()
@@ -81,7 +85,7 @@ class PomodoroViewModel(
 
     private suspend fun startInternal() {
         try {
-            adopt(api.pomodoro.start(todoId, autoAdvance = handsFree, loop = loop))
+            adopt(api.pomodoro.start(todoId, autoAdvance = handsFree, loop = loop, finishAt = chosenEnd()))
         } catch (e: KadansApiException) {
             if (e.errorCode == "10031") {
                 // No template attached: give the todo the classic cycle and retry.
@@ -92,20 +96,11 @@ class PomodoroViewModel(
                                 "Pomodoro 4×25",
                                 // The real pomodoro cycle: four 25-minute focuses with short
                                 // breaks, the last break long. Loop repeats it until finished.
-                                listOf(
-                                    CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 5),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 5),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 5),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Focus, 25),
-                                    CreatePomodoroPhase(PomodoroPhaseType.Break, 30),
-                                ),
+                                app.kadans.ui.templates.TemplateEditorState.classicCycle(focus = 25, shortBreak = 5, rounds = 4, longBreak = 30),
                             )
                         )
                     api.pomodoro.attachTemplate(todoId, template.id)
-                    adopt(api.pomodoro.start(todoId, autoAdvance = handsFree, loop = loop))
+                    adopt(api.pomodoro.start(todoId, autoAdvance = handsFree, loop = loop, finishAt = chosenEnd()))
                 } catch (inner: KadansApiException) {
                     fail(inner)
                 } catch (inner: Exception) {
@@ -126,6 +121,14 @@ class PomodoroViewModel(
     fun end() = mutate { api.pomodoro.cancel(it.id) }
 
     fun finish() = mutate { api.pomodoro.finish(it.id) }
+
+    /** Working later (or stopping sooner) than planned: the next time the clock shows [time]. */
+    fun changeFinishAt(time: kotlinx.datetime.LocalTime) = mutate {
+        api.pomodoro.changeFinishAt(it.id, SessionEnd.next(time, Clock.System.now(), TimeZone.currentSystemDefault()))
+    }
+
+    /** The end picked for this screen while it is still ahead; a new cycle started later takes the default. */
+    private fun chosenEnd(): kotlin.time.Instant? = finishAt?.takeIf { it > Clock.System.now() + 1.minutes }
 
     private fun mutate(action: suspend (PomodoroRunResponse) -> PomodoroRunResponse) {
         val run = (state.value as? PomodoroUiState.Session)?.run ?: return

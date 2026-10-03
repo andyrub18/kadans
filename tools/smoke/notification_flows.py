@@ -69,9 +69,14 @@ if found:
     C("reminder sent within one job interval of its notify time", 0 <= late <= 7, f"{late:.1f} s after")
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
 C("silent todo produced no reminder", not any(n["data"]["todoId"] == quiet["id"] for n in items))
-log = open(LOG).read()
-# Push:Provider=Log prints the message; Push:Provider=Fcm really calls Google, which rejects the fake token.
-C("push attempted for the registered device", "PUSH (not sent) to 1 device(s) [Android]" in log or "FCM: " in log)
+# Push:Provider=Log prints the message; Push:Provider=Fcm really calls Google, which rejects the fake token. The push
+# leaves from a background queue after the notification is stored, and Google takes about a second to answer.
+def push_logged(): return ("PUSH (not sent) to 1 device(s) [Android]" in (t := open(LOG).read()) or "FCM: " in t), t
+for _ in range(50):
+    pushed, log = push_logged()
+    if pushed: break
+    time.sleep(0.1)
+C("push attempted for the registered device", pushed)
 C("reminder job logged", "Reminder run: 1 reminder(s) sent" in log)
 s, hist = call("GET", f"/todos/{todo['id']}/occurrences", token=T)
 s, r = call("PUT", f"/notifications/{found['id']}/read", token=T) if found else (0, None)

@@ -52,6 +52,10 @@ s, _ = call("DELETE", f"/pomodoro/templates/{tmp['id']}", token=T)
 C("template delete", s == 200)
 s, r = call("DELETE", f"/pomodoro/templates/{tmp['id']}", token=T)
 C("template delete again -> 404", s == 404)
+s, r = call("POST", "/pomodoro/templates", {"name": "smoke too long", "phases": [{"type": "Focus", "durationMinutes": 5}] * 25}, token=T)
+C("a cycle of 25 phases is refused (at most 24)", s == 400, f"{s}")
+s, r = call("POST", "/pomodoro/templates", {"name": "smoke too slow", "phases": [{"type": "Focus", "durationMinutes": 241}]}, token=T)
+C("a 241-minute phase is refused (at most 240)", s == 400, f"{s}")
 
 s, todo = call("POST", "/todos/one-time", {"title": "smoke: deep work", "description": "", "notificationEnabled": False,
                "dueDate": iso(now + dt.timedelta(days=1)), "pomodoroTemplateId": tpl["id"]}, token=T)
@@ -59,6 +63,8 @@ s, todo = call("POST", "/todos/one-time", {"title": "smoke: deep work", "descrip
 # manual run
 s, run = call("POST", f"/todos/{todo['id']}/pomodoro/start", token=T)
 C("start run", s == 200 and run["status"] == "Active" and not run["autoAdvance"], f"{s}")
+span = (parse_ts(run["finishAt"]) - parse_ts(run["startedAt"])).total_seconds()
+C("a session ends by itself 12 hours after its start unless told otherwise", abs(span - 12 * 3600) < 1, f"{span:.0f}s")
 ends = parse_ts(run["phaseEndsAt"]); delta = (ends - dt.datetime.now(dt.timezone.utc)).total_seconds()
 C("phaseEndsAt ≈ now + 25 min", 24*60 < delta <= 25*60, f"{delta:.0f}s")
 s, r = call("POST", f"/todos/{todo['id']}/pomodoro/start", token=T)
@@ -84,7 +90,8 @@ s, hist = call("GET", f"/todos/{todo['id']}/pomodoro/runs", token=T)
 C("run history lists the completed run", s == 200 and len(hist) == 1 and hist[0]["status"] == "Completed")
 s, stats = call("GET", "/pomodoro/stats", token=T)
 deltas = {k: stats[k] - base[k] for k in ("completedRuns", "focusMinutes", "breakMinutes")}
-C("stats gained one completed run, 50 focus and 5 break minutes", deltas == {"completedRuns": 1, "focusMinutes": 50, "breakMinutes": 5}, json.dumps(deltas))
+# The phases were skipped seconds after they began: stats count the time really spent, not the plan (50 + 5).
+C("stats gained one completed run and the minutes really spent (none)", deltas == {"completedRuns": 1, "focusMinutes": 0, "breakMinutes": 0}, json.dumps(deltas))
 C("stats per-day in user's tz has today", any(d["completedRuns"] >= 1 for d in stats["perDay"]), stats["timeZoneId"])
 
 # auto-advance run: 1-minute focus then 5-minute break
@@ -106,6 +113,19 @@ s, todo4 = call("POST", "/todos/one-time", {"title": "smoke: manual sprint", "de
                "dueDate": iso(now + dt.timedelta(days=1)), "pomodoroTemplateId": tpl2["id"]}, token=T)
 s, run4 = call("POST", f"/todos/{todo4['id']}/pomodoro/start", token=T)
 manual_deadline = parse_ts(run4["phaseEndsAt"])
+# A workday that ends by itself: picked 10 minutes ahead, moved to ~65 s ahead, finished there with nobody pressing Finish.
+s, todo5 = call("POST", "/todos/one-time", {"title": "smoke: short day", "description": "", "notificationEnabled": False,
+               "dueDate": iso(now + dt.timedelta(days=1)), "pomodoroTemplateId": tpl["id"]}, token=T)
+too_far = iso(dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=25))
+s, _ = call("POST", f"/todos/{todo5['id']}/pomodoro/start?loop=true&finishAt={too_far}", token=T)
+C("an end more than a day ahead is refused", s == 400, f"{s}")
+s, run5 = call("POST", f"/todos/{todo5['id']}/pomodoro/start?loop=true&finishAt={iso(dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=10))}", token=T)
+C("a looping session starts with the end it was given", s == 200 and abs((parse_ts(run5["finishAt"]) - dt.datetime.now(dt.timezone.utc)).total_seconds() - 600) < 5, f"{s}")
+s, _ = call("PUT", f"/pomodoro/runs/{run5['id']}/finish-at", {"finishAt": iso(dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=20))}, token=T)
+C("an end less than a minute ahead is refused", s == 400, f"{s}")
+day_end = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=66)).replace(microsecond=0)
+s, run5 = call("PUT", f"/pomodoro/runs/{run5['id']}/finish-at", {"finishAt": iso(day_end)}, token=T)
+C("the end can move while it runs", s == 200 and parse_ts(run5["finishAt"]) == day_end, f"{s}")
 print("  ...  waiting for the focus minute to elapse; the deadline watcher must advance on the second")
 time.sleep(max(0, (deadline - dt.datetime.now(dt.timezone.utc)).total_seconds() - 0.3))
 # Play the watching client too: advance at the very instant the phase ends, racing the server.
@@ -165,6 +185,17 @@ s, run4 = call("PUT", f"/pomodoro/runs/{run4['id']}/advance", {"expectedPhaseInd
 C("'Next phase' moves on", s == 200 and run4["currentPhaseIndex"] == 1, f"{s}")
 call("PUT", f"/pomodoro/runs/{run4['id']}/cancel", token=T)
 
+# the short day ends by itself at its end time
+time.sleep(max(0, (day_end - dt.datetime.now(dt.timezone.utc)).total_seconds() + 1.0))
+s, runs5 = call("GET", f"/todos/{todo5['id']}/pomodoro/runs", token=T)
+ended = runs5[0] if s == 200 and runs5 else {}
+C("the session finished by itself at its end time", ended.get("status") == "Completed" and ended.get("completedAt") and abs((parse_ts(ended["completedAt"]) - day_end).total_seconds()) < 0.5,
+  f"{ended.get('status')} {ended.get('completedAt')}")
+C("the focus under way counted up to the end", ended.get("phases") and ended["phases"][0]["completedAt"] is not None)
+s, items = call("GET", "/notifications?unreadOnly=true", token=T)
+finished = [n for n in items if n["kind"] == "pomodoro.run.finished" and (n.get("data") or {}).get("runId") == run5["id"]]
+C("one 'session ended' notification", len(finished) == 1, finished[0]["body"] if finished else "none")
+
 s, run2 = call("PUT", f"/pomodoro/runs/{run2['id']}/cancel", token=T)
 C("cancel auto run", s == 200 and run2["status"] == "Cancelled")
 
@@ -182,7 +213,7 @@ C("finish ends the loop as Completed", s == 200 and run3["status"] == "Completed
 s, stats = call("GET", "/pomodoro/stats", token=T)
 C("finished loop counts as a completed run", stats["completedRuns"] - base["completedRuns"] >= 2, str(stats["completedRuns"]))
 call("PUT", f"/todos/{todo3['id']}/cancel", {"reason": "cleanup"}, token=T)
-for t in (todo, todo2, todo4):
+for t in (todo, todo2, todo4, todo5):
     call("PUT", f"/todos/{t['id']}/cancel", {"reason": "cleanup"}, token=T)
 
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")

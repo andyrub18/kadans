@@ -112,6 +112,27 @@ data class TodoFormStrings(
     }
 }
 
+/** Pomodoro: when a session ends by itself, and the cycle builder. A feature group (the flat catalog is full). */
+data class PomodoroStrings(
+    /** `%s` = a clock time. */
+    val endsAtFormat: String,
+    /** `%s` = a clock time. */
+    val endsTomorrowAtFormat: String,
+    val endHint: String,
+    val chooseEnd: String,
+    val builderTitle: String,
+    val builderFocus: String,
+    val builderShortBreak: String,
+    val builderRounds: String,
+    val builderLongBreak: String,
+    val builderFill: String,
+    val cycleLimits: String,
+) {
+    fun endsAt(time: String): String = endsAtFormat.replace("%s", time)
+
+    fun endsTomorrowAt(time: String): String = endsTomorrowAtFormat.replace("%s", time)
+}
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -122,6 +143,7 @@ data class StringsCatalog(
     val account: AccountStrings,
     val timeZone: TimeZoneStrings,
     val todoForm: TodoFormStrings,
+    val pomodoro: PomodoroStrings,
     val notificationsTitle: String,
     val markAllRead: String,
     val noNotificationsYet: String,

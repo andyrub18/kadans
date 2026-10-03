@@ -64,14 +64,15 @@ internal sealed class PomodoroAutoAdvancer(
             // Two collection loads (Phases, plus Todo's owned Remarks): split to avoid the join blow-up.
             .AsSplitQuery()
             .FirstOrDefaultAsync(r => r.Id == runId, cancellationToken);
-        if (run is null || run.Status != PomodoroRunStatus.Active || run.PhaseEndsAt > now)
-            return false; // a client got there between the scan and this load
+        if (run is null || run.Status != PomodoroRunStatus.Active || run.PhaseEndsAt > now || run.PhaseEndsAt >= run.FinishBy)
+            return false; // a client got there between the scan and this load, or the session ends first
 
         // Step on the schedule, not on wake-up time: a run overdue by two phases lands where it
         // should be. The cap only guards a pathological backlog (looping runs never complete).
         var existingPhaseIds = run.Phases.Select(p => p.Id).ToHashSet();
         var steps = 0;
-        while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now && steps++ < 500)
+        // Never past the session's end: PomodoroAutoFinish ends it there.
+        while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now && !(run.PhaseEndsAt >= run.FinishBy) && steps++ < 500)
         {
             if (run.Advance(expectedPhaseIndex: null, run.PhaseEndsAt!.Value).IsT0)
                 break;

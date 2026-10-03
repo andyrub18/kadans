@@ -27,6 +27,8 @@ import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.pomodoro.PomodoroPreference
+import app.kadans.ui.pomodoro.EndTimeDialog
+import app.kadans.ui.pomodoro.SessionEnd
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
@@ -36,7 +38,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun TodoDetailScreen(
     todoId: String,
-    onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
+    onOpenPomodoro: (loop: Boolean, handsFree: Boolean, finishAt: kotlin.time.Instant?) -> Unit,
     onEdit: () -> Unit,
     onBack: () -> Unit,
     viewModel: TodoDetailViewModel = koinViewModel(key = "todo-$todoId") { parametersOf(todoId) },
@@ -61,7 +63,7 @@ fun TodoDetailScreen(
 private fun Detail(
     content: TodoDetailUiState.Content,
     viewModel: TodoDetailViewModel,
-    onOpenPomodoro: (loop: Boolean, handsFree: Boolean) -> Unit,
+    onOpenPomodoro: (loop: Boolean, handsFree: Boolean, finishAt: kotlin.time.Instant?) -> Unit,
     onEdit: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -69,6 +71,9 @@ private fun Detail(
     var loop by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
     val pomodoroPreference = koinInject<PomodoroPreference>()
     var handsFree by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(pomodoroPreference.handsFree) }
+    // When a looping session ends by itself: null is the default, 12 hours after it starts.
+    var endTime by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<kotlinx.datetime.LocalTime?>(null) }
+    var choosingEnd by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     LazyColumn(
@@ -128,9 +133,41 @@ private fun Detail(
                     )
                 }
             }
+            if (loop) {
+                item {
+                    val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
+                    val now = kotlin.time.Clock.System.now()
+                    val end = endTime?.let { SessionEnd.next(it, now, zone) } ?: (now + SessionEnd.DEFAULT)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(SessionEnd.label(end, now, zone, s.pomodoro), style = MaterialTheme.typography.bodyMedium)
+                            Text(s.pomodoro.endHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        TextButton(onClick = { choosingEnd = true }) { Text(s.change) }
+                    }
+                    if (choosingEnd) {
+                        EndTimeDialog(
+                            initial = end.toLocalDateTime(zone).time,
+                            onPick = { picked ->
+                                endTime = picked
+                                choosingEnd = false
+                            },
+                            onDismiss = { choosingEnd = false },
+                        )
+                    }
+                }
+            }
         }
         item {
-            Button(onClick = { onOpenPomodoro(loop, handsFree) }, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = {
+                    val end = endTime?.takeIf { loop }?.let {
+                        SessionEnd.next(it, kotlin.time.Clock.System.now(), kotlinx.datetime.TimeZone.currentSystemDefault())
+                    }
+                    onOpenPomodoro(loop, handsFree, end)
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(if (content.hasActiveRun) s.openFocus else s.startFocus)
             }
         }

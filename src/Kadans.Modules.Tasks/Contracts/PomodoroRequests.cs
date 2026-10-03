@@ -12,3 +12,6 @@ public sealed record CreatePomodoroPhase(PomodoroPhaseType Type, int DurationMin
 /// unchanged). False is "Next phase": skip now, whatever is left.
 /// </param>
 public sealed record AdvancePomodoroRun(int? ExpectedPhaseIndex = null, bool OnlyIfEnded = false);
+
+/// <summary>The new moment a running session ends by itself (1 minute to 24 hours from now).</summary>
+public sealed record ChangePomodoroFinishAt(DateTimeOffset FinishAt);

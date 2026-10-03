@@ -439,9 +439,22 @@ installing on real devices second, hosting last.
         paid in USD. Haitian buyers probably need an international card, which is a conversion risk to
         measure. Apple has no App Store in Haiti: iPhone users there use another country's store, so the
         iPhone subscription is sold where Apple is (the diaspora's stores: United States, Canada, France).
-      - **Decisions when the step starts.** Prices per country and Apple Family Sharing. Store trials ask
-        for a card at the start and bill when the trial ends, so the Haiti card risk moves to the trial start.
-        Owner setup: OWNER-CHECKLIST → Subscriptions.
+      - **Decided when the step started.** USD 0.99 as the base price, converted per country by the stores
+        (adjustable there later), and no Apple Family Sharing. Store trials ask for a card at the start and
+        bill when the trial ends, so the Haiti card risk moves to the trial start. Owner setup:
+        OWNER-CHECKLIST → Subscriptions.
+      - **Progress.**
+        - [x] Server (design: ARCHITECTURE → "Subscriptions"): the `Billing` module. Google purchases are
+          checked, acknowledged and tied to their account; Pub/Sub notifications are authenticated and
+          re-read; an hourly re-check runs; phone pushes are gated (`IMobileAccess`); erasure cancels the
+          renewal. `Billing:Required` stays off until the product is live, and Development has a fake store.
+          Measured with it on: a reminder for an unsubscribed account was stored but not pushed to the phone;
+          after a (fake) trial it was pushed.
+        - [ ] Android app: Play Billing, the paywall (price, trial, renewal terms, Terms and Privacy, Restore,
+          Manage), and Development's fake purchase button. The build with billing is what Play Console needs
+          before the product can be created.
+        - [ ] End to end with real test purchases (license testers), once the Play product exists.
+        - [ ] iPhone: StoreKit 2 and the App Store Server API, with the iPhone app (needs a Mac).
 - [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,
       and 20,000 reminders due in the same minute, on the production server: 2 vCPU, 4 GB RAM). Pass when every

@@ -26,6 +26,9 @@
     <PackageVersion Include="Quartz.Extensions.DependencyInjection" Version="3.20.0" />
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.20.0" />
     <PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
+    <!-- The 1.73 line, like the Google.Apis.Auth FirebaseAdmin 3.6 brings: one version of the shared Google libraries. -->
+    <PackageVersion Include="Google.Apis.AndroidPublisher.v3" Version="1.73.0.4123" />
+    <PackageVersion Include="Google.Apis.Auth" Version="1.73.0" />
   </ItemGroup>
 
   <ItemGroup Label="Email">

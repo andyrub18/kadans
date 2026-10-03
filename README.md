@@ -10,7 +10,7 @@ and desktop. Trilingual: English, French, Haitian Creole.
 | Path | What |
 |------|------|
 | `src/Kadans.Api` | ASP.NET Core host (wires the modules) |
-| `src/Kadans.Modules.*` | Identity, Tasks, Notifications, Budget – one schema and DbContext each |
+| `src/Kadans.Modules.*` | Identity, Tasks, Notifications, Budget, Billing – one schema and DbContext each |
 | `src/Kadans.SharedKernel` | Cross-module building blocks (errors, recurrence engine, module contract) |
 | `tests/` | TUnit test projects |
 | `tools/smoke/` | End-to-end smoke scripts (Python, stdlib only) against a running dev API |
@@ -32,6 +32,7 @@ dotnet ef database update --project src/Kadans.Modules.Identity --startup-projec
 dotnet ef database update --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext
 dotnet ef database update --project src/Kadans.Modules.Notifications --startup-project src/Kadans.Api --context NotificationsDbContext
 dotnet ef database update --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext
+dotnet ef database update --project src/Kadans.Modules.Billing --startup-project src/Kadans.Api --context BillingDbContext
 dotnet run --project src/Kadans.Api      # http://localhost:5199 – Scalar UI at /scalar in Development
 ```
 
@@ -41,7 +42,7 @@ adds one. In Development emails go to the log (`Email:Provider=Log`) and push is
 Tests:
 
 ```bash
-dotnet test --solution Kadans.slnx            # TUnit unit tests (Tasks, Budget, Identity, Notifications, SharedKernel)
+dotnet test --solution Kadans.slnx            # TUnit unit tests (Tasks, Budget, Identity, Notifications, Billing, SharedKernel)
 python3 tools/smoke/identity_flows.py <log>   # end-to-end flows against a running API; see also
                                               # task_flows, notification_flows, pomodoro_flows, budget_flows
 ```

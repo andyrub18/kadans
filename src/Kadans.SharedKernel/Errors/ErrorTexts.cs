@@ -104,6 +104,9 @@ public static class ErrorTexts
         ["10052"] = new("Le délai du rappel n'est pas valide.", "Delè rapèl la pa valab."),
         ["10053"] = new("Trop de tentatives. Réessayez dans un moment.", "Twòp tantativ. Tann yon ti moman epi eseye ankò."),
         ["10054"] = new("Trop d'essais infructueux. Réessayez dans quelques minutes.", "Twòp tantativ ki pa mache. Eseye ankò nan kèk minit."),
+        ["10055"] = new("Les abonnements ne sont pas encore disponibles.", "Abònman yo poko disponib."),
+        ["10056"] = new("Cet achat n'a pas pu être vérifié.", "Nou pa t ka verifye acha sa a."),
+        ["10057"] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
@@ -173,6 +176,9 @@ public static class ErrorTexts
         ["The current password is not correct."] = new("Le mot de passe actuel n'est pas correct.", "Modpas aktyèl la pa bon."),
         ["This account has no email address."] = new("Ce compte n'a pas d'adresse e-mail.", "Kont sa a pa gen adrès imèl."),
         ["This offer to keep the account has expired. Sign in again."] = new("Cette offre de garder le compte a expiré. Reconnectez-vous.", "Òf pou kenbe kont lan ekspire. Konekte ankò."),
+        ["Subscriptions are not available yet."] = new("Les abonnements ne sont pas encore disponibles.", "Abònman yo poko disponib."),
+        ["This purchase could not be verified."] = new("Cet achat n'a pas pu être vérifié.", "Nou pa t ka verifye acha sa a."),
+        ["This subscription belongs to another Kadans account."] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
         ["Enter your current password."] = new("Saisissez votre mot de passe actuel.", "Antre modpas aktyèl ou."),
         ["Too many failed attempts. Try again in a few minutes."] = new("Trop d'essais infructueux. Réessayez dans quelques minutes.", "Twòp tantativ ki pa mache. Eseye ankò nan kèk minit."),
         ["A username can contain @ only when it is the account's email address."] = new("Un nom d'utilisateur ne peut contenir @ que s'il est l'adresse e-mail du compte.", "Yon non itilizatè ka gen @ sèlman si se adrès imèl kont lan."),

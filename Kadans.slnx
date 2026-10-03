@@ -10,6 +10,7 @@
     <Project Path="src/Kadans.SharedKernel/Kadans.SharedKernel.csproj" />
   </Folder>
   <Folder Name="/src/modules/">
+    <Project Path="src/Kadans.Modules.Billing/Kadans.Modules.Billing.csproj" />
     <Project Path="src/Kadans.Modules.Budget/Kadans.Modules.Budget.csproj" />
     <Project Path="src/Kadans.Modules.Identity/Kadans.Modules.Identity.csproj" />
     <Project Path="src/Kadans.Modules.Notifications/Kadans.Modules.Notifications.csproj" />
@@ -17,6 +18,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Kadans.Api.Tests/Kadans.Api.Tests.csproj" />
+    <Project Path="tests/Kadans.Billing.Tests/Kadans.Billing.Tests.csproj" />
     <Project Path="tests/Kadans.Budget.Tests/Kadans.Budget.Tests.csproj" />
     <Project Path="tests/Kadans.Identity.Tests/Kadans.Identity.Tests.csproj" />
     <Project Path="tests/Kadans.Notifications.Tests/Kadans.Notifications.Tests.csproj" />

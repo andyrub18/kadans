@@ -32,6 +32,15 @@ public class PushWorkerTests
         }
     }
 
+    /// <summary>The account's phone access, as Billing would answer it.</summary>
+    private sealed class Phones(bool allowed) : IMobileAccess
+    {
+        public static readonly Phones Allowed = new(true);
+        public static readonly Phones NotSubscribed = new(false);
+
+        public Task<bool> AllowsPhonesAsync(string userId, CancellationToken cancellationToken = default) => Task.FromResult(allowed);
+    }
+
     private static readonly PushRequest Request = new("user-1", new NotificationMessage("pomodoro.phase.completed", "Deep work", "Break — 5 min", null));
 
     [Test]
@@ -40,7 +49,7 @@ public class PushWorkerTests
         var devices = new FakeDevices(new PushTarget("Android", "live"), new PushTarget("Android", "dead"));
         var sender = new FakeSender(_ => ["dead"]);
 
-        await PushWorker.DeliverAsync(Request, devices, sender, NullLogger.Instance, CancellationToken.None);
+        await PushWorker.DeliverAsync(Request, devices, Phones.Allowed, sender, NullLogger.Instance, CancellationToken.None);
 
         await Assert.That(sender.Calls).IsEqualTo(1);
         await Assert.That(devices.Invalidated).IsEquivalentTo(["dead"]);
@@ -51,7 +60,7 @@ public class PushWorkerTests
     {
         var sender = new FakeSender(_ => []);
 
-        await PushWorker.DeliverAsync(Request, new FakeDevices(), sender, NullLogger.Instance, CancellationToken.None);
+        await PushWorker.DeliverAsync(Request, new FakeDevices(), Phones.Allowed, sender, NullLogger.Instance, CancellationToken.None);
 
         await Assert.That(sender.Calls).IsEqualTo(0);
     }
@@ -61,7 +70,7 @@ public class PushWorkerTests
     {
         var sender = new FakeSender(_ => throw new InvalidOperationException("FCM is down"));
 
-        await PushWorker.DeliverAsync(Request, new FakeDevices(new PushTarget("Android", "live")), sender, NullLogger.Instance, CancellationToken.None);
+        await PushWorker.DeliverAsync(Request, new FakeDevices(new PushTarget("Android", "live")), Phones.Allowed, sender, NullLogger.Instance, CancellationToken.None);
 
         await Assert.That(sender.Calls).IsEqualTo(1); // reached here: nothing propagated
     }
@@ -87,5 +96,24 @@ public class PushWorkerTests
         catch (OperationCanceledException) { }
 
         await Assert.That(seen).IsEquivalentTo(["a", "b"]);
+    }
+
+    [Test]
+    public async Task Phones_get_no_push_without_a_subscription_other_devices_still_do()
+    {
+        var sent = new List<string>();
+        var sender = new FakeSender(targets =>
+        {
+            sent.AddRange(targets.Select(t => t.Platform));
+            return [];
+        });
+        var devices = new FakeDevices(new PushTarget("Android", "phone"), new PushTarget("Ios", "iphone"), new PushTarget("Web", "browser"));
+
+        await PushWorker.DeliverAsync(Request, devices, Phones.NotSubscribed, sender, NullLogger.Instance, CancellationToken.None);
+        await Assert.That(sent).IsEquivalentTo(["Web"]);
+
+        sent.Clear();
+        await PushWorker.DeliverAsync(Request, new FakeDevices(new PushTarget("Android", "phone")), Phones.NotSubscribed, sender, NullLogger.Instance, CancellationToken.None);
+        await Assert.That(sender.Calls).IsEqualTo(1); // the call above; nothing left to send to here
     }
 }

@@ -132,18 +132,26 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 ## Subscriptions – Google Play and App Store
 
 The mobile apps are free to download and need a subscription (USD 0.99 a month after a 14-day free trial);
-the desktop app is free (ROADMAP → Phase 8 → Subscriptions). The exact setting names and notification URLs come with that step; the accounts take
-days to approve, so they can start now.
+the desktop app is free (ROADMAP → Phase 8 → Subscriptions). The server side is built and waits, switched off
+(DEPLOYMENT → Subscriptions); the accounts take days to approve, so they can start now. Play Console only lets you
+create the subscription once a build with billing is uploaded to a testing track: the Android app step brings it.
 
 Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account, paid out in USD):
 - [ ] Play Console developer account, then a payments profile (merchant account) with tax and bank details.
-- [ ] Monetize → Subscriptions: one product (for example `kadans_mobile`) with a monthly base plan at USD 0.99
-      and a 14-day free-trial offer for new subscribers.
+- [ ] Create the app (package `app.kadans`), set up Play App Signing, and upload the build with billing to the
+      **internal testing** track (it comes with the Android app step).
+- [ ] Monetize → Subscriptions: product id **`kadans_mobile`**, a monthly auto-renewing base plan at USD 0.99
+      (let Google set the other countries' prices), and an offer with id **`trial-14d`**: a 14-day free trial
+      for new subscribers. Those ids are the server's defaults (`Billing:Google:ProductId`, `TrialOfferId`).
 - [ ] Real-time developer notifications: a Pub/Sub topic in `kadans-420a7`, publish rights for
-      `google-play-developer-notifications@system.gserviceaccount.com`, and a push subscription to the
-      API's Google notification URL.
-- [ ] A service account invited in Play Console → Users and permissions, allowed to view financial data and
-      manage orders and subscriptions; its JSON key goes to the server as a secret.
+      `google-play-developer-notifications@system.gserviceaccount.com`, then a **push** subscription to
+      `https://api.kadansplanning.com/billing/google/notifications` with **authentication enabled**: a service
+      account of your choice (its email goes in `PLAY_NOTIFICATIONS_SERVICE_ACCOUNT`) and that same URL as the
+      audience. Play Console → Monetization setup: the topic's name, then "Send test notification".
+- [ ] A service account for the Play Developer API (Google Cloud → IAM → Service accounts → create, then a JSON
+      key), invited in Play Console → Users and permissions with "View financial data" and "Manage orders and
+      subscriptions". Its key goes to the server as `deploy/secrets/play-developer-api.json` (DEPLOYMENT →
+      Subscriptions).
 - [ ] Setup → License testing: your Google accounts, to buy test subscriptions without paying.
 
 Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts where Apple is):

@@ -118,4 +118,25 @@ public class ProductionConfigurationTests
         await Assert.That(problems.Count).IsGreaterThanOrEqualTo(4);
         await Assert.That(() => ProductionConfiguration.ThrowIfIncomplete(new ConfigurationBuilder().Build())).Throws<InvalidOperationException>();
     }
+
+    [Test]
+    public async Task The_fake_store_never_runs_in_production()
+    {
+        await Assert.That(Problems(v => v["Billing:FakeStore:Enabled"] = "true").Single()).Contains("Development only");
+    }
+
+    [Test]
+    public async Task Requiring_subscriptions_takes_the_google_settings()
+    {
+        var problems = Problems(v => v["Billing:Required"] = "true");
+
+        await Assert.That(problems.Count).IsEqualTo(3);
+        await Assert.That(Problems(v =>
+        {
+            v["Billing:Required"] = "true";
+            v["Billing:Google:ServiceAccountFile"] = FirebaseKey; // any readable file stands in for the Play key
+            v["Billing:Google:NotificationAudience"] = "https://api.kadansplanning.com/billing/google/notifications";
+            v["Billing:Google:NotificationServiceAccount"] = "rtdn-push@kadans-420a7.iam.gserviceaccount.com";
+        })).IsEmpty();
+    }
 }

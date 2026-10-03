@@ -143,7 +143,8 @@ commit, and if its schema is older, restore the last dump first.
 
 ## Backups
 
-The `backup` service writes one compressed dump a day to `deploy/backups/` and keeps two weeks. That
+The `backup` service writes one compressed dump a day to `deploy/backups/` and keeps two weeks, so data the nightly
+retention deletes (ARCHITECTURE → Data retention) is gone from the server two weeks later. That
 protects against a bad migration or a mistake – **not** against losing the server. Copy the folder off
 the machine on a schedule (provider snapshots, `rclone` to object storage, or `scp` from another computer).
 

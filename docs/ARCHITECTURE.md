@@ -196,6 +196,30 @@ and token providers on an in-memory SQLite database, so CI needs no Postgres. In
 Testcontainers against real Postgres are still to come (recurrence and query filters must be tested on the
 real provider); the smoke scripts in `tools/smoke/` cover those paths against a running Development API for now.
 
+### Data retention
+
+What Kadans keeps, and for how long. It is what the privacy policy and Google Play's data-safety form state.
+Each module cleans up its own tables nightly at 07:30 UTC (about 03:30 in Port-au-Prince), and once two minutes
+after a start. `Retention.DeleteInBatchesAsync` deletes 5,000 rows at a time, at most 1,000 batches a run, and
+each run logs what it removed. The day counts are configuration with code defaults.
+
+| Data | Kept | Setting |
+|------|------|---------|
+| Occurrences nobody acted on (pending, never moved, no remark) | 90 days after they were due | `Tasks:UntouchedOccurrenceRetentionDays` |
+| Occurrences someone completed, cancelled, moved or annotated | until the todo or the account is deleted | – |
+| Future occurrences of a cancelled todo, untouched | deleted at the cancel (they never happened) | – |
+| Notifications (the notification centre) | 30 days, read or not | `Notifications:RetentionDays` |
+| Sign-in tokens | 7 days after they expire | `Identity:Retention:ExpiredTokenGraceDays` |
+| Devices without a push token (desktops, push off) | 180 days unseen | `Identity:Retention:IdleDeviceDays` |
+| Devices with a push token | until signed out, or until the push provider reports the token dead | – |
+| Todos, Pomodoro history, every Budget record | until the person deletes them (never automatic for money) | – |
+| Nightly database dumps | 14 days (DEPLOYMENT → Backups) | the compose file |
+
+A phone that still takes pushes is kept however long the app stays closed: someone may only ever see the reminders.
+An uninstalled app's token is reported dead at the next push, and the device goes then. Cancelling a todo leaves
+its missed past occurrences pending, without reminders, so they age out like the rest. Moved or annotated ones are
+cancelled and kept.
+
 ### Client: Compose Multiplatform
 
 Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/Linux) from one

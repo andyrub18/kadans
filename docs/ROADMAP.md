@@ -382,20 +382,24 @@ installing on real devices second, hosting last.
         the full planned length, and the phase under way when a session was finished counted nothing.
       - **A cycle builder.** "Focus 15, short break 5, 4 rounds, long break 30" fills in the eight phases.
       - **Cycle limits.** At most 24 phases of 1 to 240 minutes; before, any size was accepted.
-- [ ] Data retention. Nothing is deleted today; one reminder every 5 minutes alone writes about 210,000
-      rows a year (occurrences plus notifications). One nightly job per module, deleting in small batches,
-      with the day counts in configuration and each run logging what it removed:
-      - past occurrences nobody acted on (still pending, no remark): after 90 days;
-      - occurrences someone completed, cancelled or annotated: kept as history;
-      - the future occurrences of a cancelled todo: deleted at the cancel, they never happened;
-      - the notification centre: after 30 days;
-      - sign-in tokens: 7 days after they expire;
-      - devices not seen for 180 days;
-      - todos, Pomodoro history and every Budget record: kept until the person deletes them (never
-        automatic for money).
+- [x] Data retention (policy: ARCHITECTURE → "Data retention"). Nothing was ever deleted; one reminder every 5
+      minutes alone wrote about 210,000 rows a year (occurrences plus notifications). Now one nightly job per
+      module (07:30 UTC, and two minutes after a start) deletes 5,000 rows at a time. The day counts are
+      configuration, and each run logs what it removed:
+      - **Occurrences.** Those nobody acted on go 90 days after they were due. Completed, cancelled, moved or
+        annotated ones stay as history.
+      - **Cancelling a todo** deletes its untouched future occurrences, since they never happened. Moved or
+        annotated ones are kept, cancelled. Missed past ones stay pending, without reminders, and age out
+        like the rest.
+      - **Notifications** go after 30 days.
+      - **Sign-in tokens** go 7 days after they expire.
+      - **Devices.** Those that cannot receive pushes go after 180 days unseen. A phone with a live push
+        token stays, since someone may only ever see the reminders; Google reports an uninstalled app's token
+        as dead.
+      - **Kept until the person deletes them:** todos, Pomodoro history and every Budget record.
 
-      The policy goes in ARCHITECTURE and in the privacy policy (Google Play's data-safety form asks).
-      Deleted data leaves the nightly backups within their 14 days.
+      Measured on seeded data: each rule removed exactly its old row and kept the recent, annotated, completed
+      and reachable ones. Deleted data leaves the nightly backups within their 14 days.
 - [ ] Delete my account, in the app and from a web page (Google Play requires both). With it, deleting a
       single todo (today a todo can only be cancelled). An account with a live subscription is told to cancel it
       in the store: the store bills, not Kadans, and deleting the account does not stop it.

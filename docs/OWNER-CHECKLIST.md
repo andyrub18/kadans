@@ -159,7 +159,8 @@ Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts
 
 Both:
 - [ ] Terms of Use (with the subscription terms) and a Privacy Policy at public URLs. The paywall and both
-      store listings link to them.
+      store listings link to them. The privacy policy states what is kept and for how long: the table in
+      ARCHITECTURE → Data retention, including the 14 days of backups.
 
 ## Client (Compose Multiplatform)
 

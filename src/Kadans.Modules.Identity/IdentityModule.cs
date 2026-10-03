@@ -22,6 +22,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
+using Quartz;
 
 namespace Kadans.Modules.Identity;
 
@@ -134,6 +135,25 @@ public sealed class IdentityModule : IModule
         services.AddScoped<IDevicePushTargets, DevicePushTargets>();
         services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddScoped<UserManagement>();
+
+        services.Configure<IdentityRetentionOptions>(configuration.GetSection(IdentityRetentionOptions.SectionName));
+        services.AddQuartz(quartz =>
+        {
+            // Nightly, and once soon after a start so a server that restarts often still cleans up.
+            quartz.AddJob<IdentityRetentionJob>(job => job.WithIdentity(IdentityRetentionJob.Key));
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(IdentityRetentionJob.Key)
+                    .WithIdentity("identity-retention-nightly", "identity")
+                    .WithCronSchedule(Retention.NightlyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc))
+            );
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(IdentityRetentionJob.Key)
+                    .WithIdentity("identity-retention-startup", "identity")
+                    .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Minute))
+            );
+        });
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

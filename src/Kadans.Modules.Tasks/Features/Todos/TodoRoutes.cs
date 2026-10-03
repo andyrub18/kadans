@@ -204,7 +204,7 @@ internal static class TodoRoutes
                 )
                 .WithName("TodosCancel")
                 .WithSummary("Cancel a todo")
-                .WithDescription("Cancels the todo and all of its pending occurrences.")
+                .WithDescription("Cancels the todo. Its future occurrences nobody moved or annotated are deleted (they never happened); moved or annotated ones are kept, cancelled; missed ones in the past stay pending, without reminders, until retention removes them.")
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 

@@ -198,14 +198,22 @@ internal sealed class TodoUpdate(
         try
         {
             var now = DateTimeOffset.UtcNow;
-            await dbContext
-                .TodoOccurrences.IgnoreQueryFilters()
-                .Where(o => o.TodoId == id && o.Status == OccurrenceStatus.Pending)
+            var pending = dbContext.TodoOccurrences.IgnoreQueryFilters().Where(o => o.TodoId == id && o.Status == OccurrenceStatus.Pending);
+
+            // Still ahead and never touched: they would never have happened, so they go with the todo.
+            await pending.Where(o => o.ScheduledAt > now && o.RescheduledAt == null && o.Remarks == null).ExecuteDeleteAsync();
+
+            // Moved or annotated by the person: kept as their history, cancelled with the todo's reason.
+            await pending
+                .Where(o => o.RescheduledAt != null || o.Remarks != null)
                 .ExecuteUpdateAsync(s =>
                     s.SetProperty(o => o.Status, OccurrenceStatus.Cancelled)
                         .SetProperty(o => o.CancelledAt, now)
                         .SetProperty(o => o.CancellationReason, reason)
                 );
+
+            // Missed ones in the past stay as they were, without a reminder to come; retention removes them later.
+            await pending.Where(o => o.NotifyAt != null).ExecuteUpdateAsync(s => s.SetProperty(o => o.NotifyAt, (DateTimeOffset?)null));
 
             todo.UpdateStatus(TaskStatus.Cancelled);
             await dbContext.SaveChangesAsync();

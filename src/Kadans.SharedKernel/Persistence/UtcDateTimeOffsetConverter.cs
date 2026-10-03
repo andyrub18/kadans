@@ -11,13 +11,25 @@ namespace Kadans.SharedKernel.Persistence;
 public sealed class UtcDateTimeOffsetConverter()
     : ValueConverter<DateTimeOffset, DateTimeOffset>(v => v.ToUniversalTime(), v => v);
 
+/// <summary>
+/// SQLite (the in-process tests) stores a <see cref="DateTimeOffset"/> as text it cannot compare or sort. As UTC ticks
+/// it can, so a test runs the same date filters production runs on Postgres.
+/// </summary>
+public sealed class UtcTicksDateTimeOffsetConverter()
+    : ValueConverter<DateTimeOffset, long>(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero));
+
 public static class ModelConfigurationBuilderExtensions
 {
+    /// <param name="providerName">The context's <c>Database.ProviderName</c>: SQLite gets sortable ticks.</param>
     public static ModelConfigurationBuilder StoreDateTimeOffsetsAsUtc(
-        this ModelConfigurationBuilder builder
+        this ModelConfigurationBuilder builder,
+        string? providerName = null
     )
     {
-        builder.Properties<DateTimeOffset>().HaveConversion<UtcDateTimeOffsetConverter>();
+        if (providerName == "Microsoft.EntityFrameworkCore.Sqlite")
+            builder.Properties<DateTimeOffset>().HaveConversion<UtcTicksDateTimeOffsetConverter>();
+        else
+            builder.Properties<DateTimeOffset>().HaveConversion<UtcDateTimeOffsetConverter>();
         return builder;
     }
 }

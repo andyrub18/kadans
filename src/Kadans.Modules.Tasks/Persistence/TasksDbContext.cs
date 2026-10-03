@@ -28,7 +28,7 @@ internal sealed class TasksDbContext(
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);
-        configurationBuilder.StoreDateTimeOffsetsAsUtc();
+        configurationBuilder.StoreDateTimeOffsetsAsUtc(Database.ProviderName);
     }
 
     protected override void OnModelCreating(ModelBuilder builder)

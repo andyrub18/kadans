@@ -153,16 +153,18 @@ internal sealed class Subscriptions(
         var all = await dbContext.Subscriptions.IgnoreQueryFilters().AsNoTracking().Where(s => s.UserId == userId).ToListAsync(cancellationToken);
         // The one that matters: paid up first, then the latest to end.
         var best = all.OrderByDescending(s => s.GivesAccess(now)).ThenByDescending(s => s.ExpiresAt).FirstOrDefault();
+        var free = Settings.IsFree(userId);
         return new SubscriptionStatusResponse(
             Settings.Required,
-            !Settings.Required || all.Any(s => s.GivesAccess(now)),
+            !Settings.Required || free || all.Any(s => s.GivesAccess(now)),
             best?.State,
             best?.Store,
             best?.ExpiresAt,
             best?.AutoRenewing ?? false,
             AccountHash.Of(userId),
             Settings.Google.ProductId,
-            Settings.FakeStore.Enabled
+            Settings.FakeStore.Enabled,
+            free
         );
     }
 

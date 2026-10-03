@@ -154,11 +154,19 @@ Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account
       key), invited in Play Console → Users and permissions with "View financial data" and "Manage orders and
       subscriptions". Its key goes to the server as `deploy/secrets/play-developer-api.json` (DEPLOYMENT →
       Subscriptions).
-- [ ] Setup → License testing: your Google accounts, to buy test subscriptions without paying. Install the app
-      from the internal testing link (not with adb) on a phone signed in with one of them: purchases only work
-      for an app Google Play installed.
+- [ ] Setup → License testing: your Google accounts, to buy test subscriptions without paying (Google's test
+      cards; a test trial lasts 3 minutes and a test month 5, ending after 6 renewals). Once a build with billing
+      is on any track, a license tester's phone may also run a build installed with adb, debug ones included: the
+      package name is what Google checks.
 - [ ] Then, on the server, `BILLING_REQUIRED=true` (DEPLOYMENT → Subscriptions) and a test purchase: the paywall
       shows the price and the 14-day trial, the trial opens Home, and Settings shows its end date.
+- [ ] Production access. A personal developer account created after 13 November 2023 must first run a **closed
+      test with at least 12 testers opted in for 14 days in a row** (organization accounts are exempt, but they
+      need a company and a D-U-N-S number). The testers never pay: while `BILLING_REQUIRED=false` nobody sees a
+      paywall; once it is on, list their accounts in `BILLING_FREE_ACCOUNTS` (DEPLOYMENT → Subscriptions → Free
+      accounts). License testing is no use for them: their test subscriptions end within the hour.
+- [ ] Play Console → App content → App access: an account for Google's reviewers (username and password), listed
+      in `BILLING_FREE_ACCOUNTS` so they see the whole app. Without two-factor: reviewers cannot get the codes.
 
 Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts where Apple is):
 - [ ] Apple Developer Program membership (USD 99 a year). Check first that you can enroll and be paid from

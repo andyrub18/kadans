@@ -102,6 +102,7 @@ val CreoleStrings = StringsCatalog(
         paymentProblem = "Pwoblèm peman: ranje l nan Google Play pou kenbe Kadans sou telefòn ou.",
         paused = "An poz nan Google Play",
         notSubscribed = "Pa abòne",
+        freeAccess = "Aksè gratis: pa gen anyen pou peye",
         storeFailed = "Google Play pa t ka fini acha a. Eseye ankò nan yon ti moman.",
     ),
     focusStats = FocusStatsStrings(

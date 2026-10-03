@@ -274,6 +274,14 @@ class SubscriptionTests {
     }
 
     @Test
+    fun a_free_account_goes_straight_to_home() = runTest(dispatcher) {
+        val server = Server { _, _ -> HttpStatusCode.OK to status(hasAccess = true).replace("}", ""","freeAccess":true}""") }
+
+        assertFalse(gate(server, FakeStore(owned = listOf("t1"))).needsPaywall())
+        assertEquals(listOf("GET /billing/subscription"), server.calls) // nothing to restore
+    }
+
+    @Test
     fun a_paywall_opened_once_access_is_back_moves_on() = runTest(dispatcher) {
         val server = Server { _, _ -> HttpStatusCode.OK to paidUp }
 
@@ -299,6 +307,7 @@ class SubscriptionTests {
         assertEquals(p.paused, line(SubscriptionState.Paused))
         assertEquals(p.notSubscribed, line(SubscriptionState.Expired))
         assertEquals(p.notSubscribed, line(null))
+        assertEquals(p.freeAccess, SubscriptionSettingsViewModel.describe(SubscriptionStatusResponse(required = true, hasAccess = true, freeAccess = true), p) { "" })
 
         // Left out of Settings until subscriptions are sold, unless this account holds one.
         assertFalse(SubscriptionSettingsViewModel.shows(SubscriptionStatusResponse(required = false)))

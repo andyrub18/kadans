@@ -195,6 +195,7 @@ data class PaywallStrings(
     val paymentProblem: String,
     val paused: String,
     val notSubscribed: String,
+    val freeAccess: String,
     val storeFailed: String,
 ) {
     fun trialPrice(days: Int, price: String): String = trialPriceFormat.replace("{days}", "$days").replace("{price}", price)

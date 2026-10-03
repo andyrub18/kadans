@@ -28,6 +28,8 @@ data class SubscriptionStatusResponse(
     val accountHash: String = "",
     val googleProductId: String = "",
     val fakeStore: Boolean = false,
+    /** This account's phones are free (the server's list of free accounts): access without a subscription. */
+    val freeAccess: Boolean = false,
 )
 
 @Serializable

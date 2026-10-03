@@ -9,6 +9,7 @@ namespace Kadans.Modules.Billing.Contracts;
 /// <param name="HasAccess">Paid up now (a trial, a grace period and a cancelled-but-paid month count).</param>
 /// <param name="AccountHash">What the app hands the store with a purchase, so it can only ever be this account's.</param>
 /// <param name="FakeStore">Development: purchases can be made without a store (<c>POST /billing/fake/purchases</c>).</param>
+/// <param name="FreeAccess">This account's phones are free (<c>Billing:FreeAccounts</c>): access without a subscription.</param>
 public sealed record SubscriptionStatusResponse(
     bool Required,
     bool HasAccess,
@@ -18,7 +19,8 @@ public sealed record SubscriptionStatusResponse(
     bool AutoRenewing,
     string AccountHash,
     string GoogleProductId,
-    bool FakeStore
+    bool FakeStore,
+    bool FreeAccess = false
 );
 
 /// <summary>A purchase the app just made (or found again: "Restore purchases"), for the server to check with Google.</summary>

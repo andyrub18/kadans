@@ -10,6 +10,23 @@ internal sealed class BillingOptions
     /// </summary>
     public bool Required { get; set; }
 
+    /// <summary>
+    /// Accounts whose phones are free, with no store involved: the closed test's testers, the account Google's
+    /// reviewers sign in with (Play Console → App access), family. User ids, separated by commas: an id never changes,
+    /// while a username can be given up and taken by someone else. Read at startup.
+    /// </summary>
+    public string? FreeAccounts { get; set; }
+
+    private HashSet<string>? freeAccountIds;
+
+    public bool IsFree(string userId) => (freeAccountIds ??= ParseIds(FreeAccounts)).Contains(userId);
+
+    /// <summary>Commas, semicolons or whitespace between ids; blanks skipped; any case (they are GUIDs).</summary>
+    public static HashSet<string> ParseIds(string? list) =>
+        (list ?? string.Empty)
+            .Split([',', ';', ' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
     public GooglePlayOptions Google { get; set; } = new();
 
     public FakeStoreOptions FakeStore { get; set; } = new();

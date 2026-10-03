@@ -9,7 +9,7 @@ namespace Kadans.Modules.Billing.Features;
 /// <summary>
 /// "May this account use a phone?", asked before every push to a phone: from memory, read at most once a minute per
 /// account, dropped the moment a subscription changes (Kadans runs as one instance). Always yes while subscriptions
-/// are not required.
+/// are not required, and for the free accounts.
 /// </summary>
 internal sealed class MobileAccess(IServiceScopeFactory scopes, IOptions<BillingOptions> options, TimeProvider time) : IMobileAccess
 {
@@ -18,7 +18,7 @@ internal sealed class MobileAccess(IServiceScopeFactory scopes, IOptions<Billing
 
     public async Task<bool> AllowsPhonesAsync(string userId, CancellationToken cancellationToken = default)
     {
-        if (!options.Value.Required)
+        if (!options.Value.Required || options.Value.IsFree(userId))
             return true;
 
         var now = time.GetUtcNow();

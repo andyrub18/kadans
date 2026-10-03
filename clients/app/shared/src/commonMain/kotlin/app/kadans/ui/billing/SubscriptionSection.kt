@@ -54,6 +54,8 @@ class SubscriptionSettingsViewModel(
         fun shows(status: SubscriptionStatusResponse): Boolean = status.required || status.store != null
 
         fun describe(status: SubscriptionStatusResponse, p: PaywallStrings, date: (Instant) -> String): String {
+            // A free account that also bought one (before it was made free) is still told it has nothing to pay.
+            if (status.freeAccess) return p.freeAccess
             val end = status.expiresAt?.let(date) ?: "—"
             return when (status.state) {
                 null, SubscriptionState.Expired, SubscriptionState.Revoked -> p.notSubscribed

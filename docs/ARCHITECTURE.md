@@ -225,6 +225,11 @@ month after a 14-day free trial, with the stores converting the price per countr
 - **`Billing:Required`** switches all of this on, in configuration. Until the store product is live it is off:
   no paywall, every phone gets its reminders. Development has a fake store (`Billing:FakeStore:Enabled`,
   `POST /billing/fake/purchases`) for the flows without a store; the production guard refuses it.
+- **Free accounts** (`Billing:FreeAccounts`, user ids) have their phones without a store: the closed test's testers,
+  Google's reviewers, family. Status answers `hasAccess` and `freeAccess`, `IMobileAccess` lets their pushes
+  through, and the app's Settings says so. Ids, not usernames: a username can be given up and taken by someone
+  else. The production guard refuses an entry that is not an id. A configuration list, not a table: a handful of
+  accounts, changed rarely, by the owner only, with no endpoint to attack.
 - **Erasing an account** cancels a Google subscription that is still renewing (paid time stays), since the store
   would otherwise keep billing a deleted account. Apple's cannot be cancelled by Kadans, so the emails say so.
 - **Apple** comes with the iPhone app (StoreKit 2 and the App Store Server API), which needs a Mac.

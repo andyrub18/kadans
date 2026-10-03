@@ -184,6 +184,24 @@ With `BILLING_REQUIRED=true` the API refuses to start if the key or the notifica
 Pub/Sub push subscription points at `https://<domain>/billing/google/notifications`, with authentication on (that
 service account) and the same URL as audience.
 
+### Free accounts
+
+Some accounts get their phones free, with no store involved: the closed test's testers, the account Google's
+reviewers sign in with (Play Console → App access), family. They are listed by **user id** (an id never changes;
+a username can be given up and taken by someone else). Each person registers first; then look their ids up:
+
+```bash
+cd deploy
+docker compose exec -T db psql -U kadans -d kadans -c \
+  "SELECT id, user_name, email FROM identity.asp_net_users WHERE user_name IN ('marie', 'jean') OR email = 'paul@example.com'"
+nano .env   # BILLING_FREE_ACCOUNTS=<id>,<id>,<id>
+docker compose up -d   # recreates the API with the new list
+```
+
+A listed account has access whether or not subscriptions are required, its phone gets its reminders, and the app's
+Settings says "Free access". The API refuses to start if an entry is not a user id (a username or an address put
+there by mistake). Removing an id takes the access away at the next `up -d`.
+
 ## Backups
 
 The `backup` service writes one compressed dump a day to `deploy/backups/` and keeps two weeks, so data the nightly

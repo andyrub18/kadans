@@ -47,6 +47,13 @@ internal static class ProductionConfiguration
         if (configuration.GetValue<bool>("Billing:FakeStore:Enabled"))
             problems.Add("Billing:FakeStore:Enabled is on: it is for Development only (purchases without a store).");
 
+        // Free accounts are user ids: a username or an address there would quietly match nobody.
+        var notIds = (configuration["Billing:FreeAccounts"] ?? string.Empty)
+            .Split([',', ';', ' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Count(entry => !Guid.TryParse(entry, out _));
+        if (notIds > 0)
+            problems.Add($"Billing:FreeAccounts has {notIds} entr{(notIds == 1 ? "y" : "ies")} that {(notIds == 1 ? "is" : "are")} not a user id – list ids, separated by commas (docs/DEPLOYMENT.md → Subscriptions → Free accounts).");
+
         // Requiring subscriptions takes a way to sell them, and to hear from Google when they change.
         if (configuration.GetValue<bool>("Billing:Required"))
         {

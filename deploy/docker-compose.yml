@@ -60,6 +60,7 @@ services:
       InitialAdmin__Password: ${INITIAL_ADMIN_PASSWORD:-}
       # Subscriptions (docs/DEPLOYMENT.md → Subscriptions): off until the Play product is live.
       Billing__Required: ${BILLING_REQUIRED:-false}
+      Billing__FreeAccounts: ${BILLING_FREE_ACCOUNTS:-}
       Billing__Google__ServiceAccountFile: ${PLAY_SERVICE_ACCOUNT_FILE:-}
       Billing__Google__NotificationAudience: https://${KADANS_DOMAIN}/billing/google/notifications
       Billing__Google__NotificationServiceAccount: ${PLAY_NOTIFICATIONS_SERVICE_ACCOUNT:-}

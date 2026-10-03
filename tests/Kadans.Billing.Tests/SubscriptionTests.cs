@@ -218,6 +218,33 @@ public sealed class SubscriptionTests : IAsyncDisposable
     }
 
     [Test]
+    public async Task A_free_account_has_its_phones_without_a_store_and_only_that_account()
+    {
+        await using var otherConnection = new SqliteConnection("DataSource=:memory:");
+        otherConnection.Open();
+        await using var withFree = BillingTestServices.Build(otherConnection, o => o.FreeAccounts = " ALICE-ID ;\nsomeone-else");
+        withFree.GetRequiredService<TestCurrentUser>().UserId = Alice;
+        await using (var scope = withFree.CreateAsyncScope())
+        {
+            var status = (await scope.ServiceProvider.GetRequiredService<Subscriptions>().Status(CancellationToken.None)).AsT1;
+            await Assert.That(status.Required).IsTrue();
+            await Assert.That(status.HasAccess).IsTrue();
+            await Assert.That(status.FreeAccess).IsTrue();
+            await Assert.That(status.State).IsNull(); // nothing bought: nothing in the store to show
+        }
+        await Assert.That(await withFree.GetRequiredService<MobileAccess>().AllowsPhonesAsync(Alice)).IsTrue();
+        await Assert.That(await withFree.GetRequiredService<MobileAccess>().AllowsPhonesAsync(Bob)).IsFalse();
+
+        withFree.GetRequiredService<TestCurrentUser>().UserId = Bob;
+        await using (var scope = withFree.CreateAsyncScope())
+        {
+            var status = (await scope.ServiceProvider.GetRequiredService<Subscriptions>().Status(CancellationToken.None)).AsT1;
+            await Assert.That(status.HasAccess).IsFalse();
+            await Assert.That(status.FreeAccess).IsFalse();
+        }
+    }
+
+    [Test]
     public async Task The_hourly_check_reads_again_what_ran_out_unheard_and_ends_fake_ones()
     {
         Bought("token-1", Alice, offer: null, days: 30);

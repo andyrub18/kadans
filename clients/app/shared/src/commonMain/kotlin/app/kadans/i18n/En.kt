@@ -102,6 +102,7 @@ val EnglishStrings = StringsCatalog(
         paymentProblem = "Payment problem: fix it in Google Play to keep Kadans on your phone.",
         paused = "Paused in Google Play",
         notSubscribed = "Not subscribed",
+        freeAccess = "Free access: nothing to pay",
         storeFailed = "Google Play could not complete the purchase. Try again in a moment.",
     ),
     focusStats = FocusStatsStrings(

@@ -2,6 +2,7 @@ package app.kadans.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -42,6 +43,7 @@ import app.kadans.ui.todos.TodoDetailScreen
 import app.kadans.ui.pomodoro.PomodoroScreen
 import app.kadans.ui.templates.TemplatesScreen
 import app.kadans.ui.auth.KeepAccountScreen
+import app.kadans.ui.billing.PaywallScreen
 import org.koin.compose.koinInject
 import kotlinx.datetime.toLocalDateTime
 
@@ -55,6 +57,9 @@ data class MfaRoute(val mfaToken: String)
 /** A sign-in into an account awaiting erasure: keep it, or leave it closed. */
 data class KeepAccountRoute(val eraseAfterMillis: Long, val restoreToken: String)
 data object HomeRoute
+
+/** A phone whose account has no subscription (once they are required): subscribe, restore, or sign out. */
+data object PaywallRoute
 data object CreateTodoRoute
 data object TemplatesRoute
 data object CalendarRoute
@@ -72,22 +77,26 @@ data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val hands
 fun App(deepLink: String? = null) {
     KadansTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            val languageController = koinInject<LanguageController>()
-            val language by languageController.language.collectAsState()
-            val tokenStore = koinInject<TokenStore>()
-            var hasSession by remember { mutableStateOf<Boolean?>(null) }
-            LaunchedEffect(Unit) { hasSession = tokenStore.load() != null }
+            // Edge to edge on Android: the background goes under the system bars, the content stays clear of them and
+            // of the keyboard. Consumed here, so a Scaffold further down does not pad twice.
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                val languageController = koinInject<LanguageController>()
+                val language by languageController.language.collectAsState()
+                val tokenStore = koinInject<TokenStore>()
+                var hasSession by remember { mutableStateOf<Boolean?>(null) }
+                LaunchedEffect(Unit) { hasSession = tokenStore.load() != null }
 
-            when (hasSession) {
-                null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-                else -> CompositionLocalProvider(LocalStrings provides language.catalog) {
-                    KadansNav(
-                        startAtHome = hasSession == true,
-                        languageController = languageController,
-                        deepLinkRoute = parseDeepLink(deepLink),
-                    )
+                when (hasSession) {
+                    null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                    else -> CompositionLocalProvider(LocalStrings provides language.catalog) {
+                        KadansNav(
+                            startAtHome = hasSession == true,
+                            languageController = languageController,
+                            deepLinkRoute = parseDeepLink(deepLink),
+                        )
+                    }
                 }
             }
         }
@@ -208,6 +217,13 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onOpenNotifications = { backStack.add(NotificationsRoute) },
                         onOpenStats = { backStack.add(StatsRoute) },
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
+                        onPaywall = { resetTo(PaywallRoute) },
+                    )
+                }
+                is PaywallRoute -> NavEntry(key) {
+                    PaywallScreen(
+                        onUnlocked = { resetTo(HomeRoute) },
+                        onSignedOut = { resetTo(LoginRoute) },
                     )
                 }
                 is NotificationsRoute -> NavEntry(key) {

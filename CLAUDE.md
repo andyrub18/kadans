@@ -134,7 +134,10 @@ Anything a production host needs must be in `appsettings.json` or an environment
 everything lives in `shared` (KMP library, package `app.kadans`); `androidApp`, `desktopApp`
 and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
 `./gradlew :desktopApp:run`, `:androidApp:assembleDebug`, `:shared:jvmTest`.
-iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). The app talks to `http://localhost:5199`
+iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). Release bundles for Google Play are signed with the owner's
+upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subscriptions in the app go through
+`billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
+acknowledges a purchase. The app talks to `http://localhost:5199`
 (desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. `local.properties`
 (untracked) points at the
 Android SDK. Versions are pinned in `gradle/libs.versions.toml` to the combo the official

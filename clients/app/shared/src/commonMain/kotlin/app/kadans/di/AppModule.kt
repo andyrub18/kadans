@@ -5,6 +5,9 @@ import app.kadans.api.TokenStore
 import app.kadans.auth.GoogleSignIn
 import app.kadans.auth.SettingsTokenStore
 import app.kadans.auth.platformGoogleSignIn
+import app.kadans.billing.StoreBilling
+import app.kadans.billing.SubscriptionGate
+import app.kadans.billing.platformStoreBilling
 import app.kadans.config.ServerAddress
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
@@ -22,6 +25,8 @@ import app.kadans.ui.auth.ResetPasswordViewModel
 import app.kadans.ui.budget.BudgetAddViewModel
 import app.kadans.ui.budget.BudgetViewModel
 import app.kadans.ui.calendar.CalendarViewModel
+import app.kadans.ui.billing.PaywallViewModel
+import app.kadans.ui.billing.SubscriptionSettingsViewModel
 import app.kadans.ui.home.HomeViewModel
 import app.kadans.ui.notifications.NotificationsViewModel
 import app.kadans.ui.settings.SettingsViewModel
@@ -55,6 +60,8 @@ val appModule = org.koin.dsl.module {
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }
     single { ProfileSync(get(), get(), get()) }
+    single<StoreBilling> { platformStoreBilling() }
+    single { SubscriptionGate(get(), get()) }
     single<GoogleSignIn> {
         val language = get<LanguageController>()
         // The desktop flow ends on a page in the user's browser; it speaks the app's language.
@@ -66,6 +73,8 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::ForgotPasswordViewModel)
     factory { (email: String, token: String) -> ResetPasswordViewModel(get(), email, token) }
     viewModelOf(::HomeViewModel)
+    viewModelOf(::PaywallViewModel)
+    viewModelOf(::SubscriptionSettingsViewModel)
     viewModelOf(::TemplatesViewModel)
     viewModelOf(::StatsViewModel)
     factory { NotificationsViewModel(get(), get<KadansRealtime>().events) }

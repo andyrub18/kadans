@@ -16,3 +16,7 @@ captures
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
+
+# Signing keys (the Play upload key lives outside the repository: DEPLOYMENT → Building the apps)
+*.jks
+*.keystore

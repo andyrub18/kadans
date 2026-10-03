@@ -84,7 +84,8 @@ internal sealed class Subscriptions(
 
     /// <summary>
     /// Google said something changed about a token (a real-time notification), or a paid period ran out unheard: read
-    /// it again. A token no account has linked yet is left for the app, which links it right after the purchase.
+    /// it again. A token no account has linked yet is left for the app, which links it right after the purchase. A
+    /// pending payment that clears is acknowledged here: the app may not open again within Google's 3 days.
     /// </summary>
     public async Task SyncGoogle(string purchaseToken, bool revoked, CancellationToken cancellationToken)
     {
@@ -106,6 +107,8 @@ internal sealed class Subscriptions(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        if (purchase is { Acknowledged: false } && subscription.GivesAccess(now))
+            await google.AcknowledgeAsync(subscription.ProductId, purchaseToken, cancellationToken);
         access.Changed(subscription.UserId);
     }
 

@@ -138,8 +138,10 @@ create the subscription once a build with billing is uploaded to a testing track
 
 Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account, paid out in USD):
 - [ ] Play Console developer account, then a payments profile (merchant account) with tax and bank details.
-- [ ] Create the app (package `app.kadans`), set up Play App Signing, and upload the build with billing to the
-      **internal testing** track (it comes with the Android app step).
+- [ ] Create the app (package `app.kadans`) with Play App Signing, make your upload key, and upload the signed
+      bundle to the **internal testing** track: DEPLOYMENT → Building the apps (the key, its four Gradle
+      properties, then `./gradlew :androidApp:bundleRelease -Pkadans.apiBaseUrl=https://api.kadansplanning.com`).
+      It contains Play Billing, which is what unlocks Monetize → Subscriptions.
 - [ ] Monetize → Subscriptions: product id **`kadans_mobile`**, a monthly auto-renewing base plan at USD 0.99
       (let Google set the other countries' prices), and an offer with id **`trial-14d`**: a 14-day free trial
       for new subscribers. Those ids are the server's defaults (`Billing:Google:ProductId`, `TrialOfferId`).
@@ -152,7 +154,11 @@ Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account
       key), invited in Play Console → Users and permissions with "View financial data" and "Manage orders and
       subscriptions". Its key goes to the server as `deploy/secrets/play-developer-api.json` (DEPLOYMENT →
       Subscriptions).
-- [ ] Setup → License testing: your Google accounts, to buy test subscriptions without paying.
+- [ ] Setup → License testing: your Google accounts, to buy test subscriptions without paying. Install the app
+      from the internal testing link (not with adb) on a phone signed in with one of them: purchases only work
+      for an app Google Play installed.
+- [ ] Then, on the server, `BILLING_REQUIRED=true` (DEPLOYMENT → Subscriptions) and a test purchase: the paywall
+      shows the price and the 14-day trial, the trial opens Home, and Settings shows its end date.
 
 Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts where Apple is):
 - [ ] Apple Developer Program membership (USD 99 a year). Check first that you can enroll and be paid from
@@ -166,8 +172,9 @@ Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts
 - [ ] Sandbox testers, to buy test subscriptions without paying.
 
 Both:
-- [ ] Terms of Use (with the subscription terms) and a Privacy Policy at public URLs. The paywall and both
-      store listings link to them. The privacy policy states what is kept and for how long: the table in
+- [ ] Terms of Use (with the subscription terms) and a Privacy Policy at **`https://kadansplanning.com/terms`**
+      and **`https://kadansplanning.com/privacy`**: the paywall already links there (`config/LegalLinks.kt`;
+      change both together if they live elsewhere), and both store listings need them too. The privacy policy states what is kept and for how long: the table in
       ARCHITECTURE → Data retention, including the 14 days of backups.
 
 ## Client (Compose Multiplatform)

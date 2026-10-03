@@ -55,6 +55,7 @@ class KadansApi internal constructor(
     val pomodoro: PomodoroApi = PomodoroApi(this)
     val budget: BudgetApi = BudgetApi(this)
     val notifications: NotificationsApi = NotificationsApi(this)
+    val billing: BillingApi = BillingApi(this)
 
     private val _sessionEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 

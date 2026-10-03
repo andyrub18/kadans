@@ -377,6 +377,19 @@ class NotificationsApi internal constructor(private val api: KadansApi) {
     }
 }
 
+/** Subscriptions: the phone apps need one (when the server says so), the desktop app is free. */
+class BillingApi internal constructor(private val api: KadansApi) {
+    suspend fun status(): SubscriptionStatusResponse = api.http.get("billing/subscription").orThrow()
+
+    /** A Google Play purchase made (or found again) on this phone: the server checks it with Google and keeps it. */
+    suspend fun linkGoogle(purchaseToken: String): SubscriptionStatusResponse =
+        api.http.post("billing/google/purchases") { setBody(GooglePurchaseRequest(purchaseToken)) }.orThrow()
+
+    /** Development only: a subscription without a store. */
+    suspend fun fake(state: SubscriptionState = SubscriptionState.Trial, days: Int = 14): SubscriptionStatusResponse =
+        api.http.post("billing/fake/purchases") { setBody(FakePurchaseRequest(state, days)) }.orThrow()
+}
+
 /** Store a completed login (never an MFA challenge) and refresh Ktor's cached bearer. */
 internal suspend fun KadansApi.adopt(login: LoginResponse) {
     if (!login.mfaRequired && login.accessToken != null && login.refreshToken != null) {

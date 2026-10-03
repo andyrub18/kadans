@@ -7,6 +7,7 @@ import app.kadans.api.KadansApiException
 import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
+import app.kadans.billing.SubscriptionGate
 import app.kadans.profile.ProfileSync
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
@@ -33,12 +34,16 @@ sealed interface HomeUiState {
     data class Error(val message: String?, val code: String? = null) : HomeUiState
 }
 
+/** Whether this phone may show Home: asked of the server first (desktop is free and never waits). */
+enum class HomeAccess { Checking, Open, Paywall }
+
 class HomeViewModel(
     private val api: KadansApi,
     private val realtime: KadansRealtime,
     private val alerts: SystemAlerts,
     private val deviceRegistrar: DeviceRegistrar,
     private val profileSync: ProfileSync,
+    private val gate: SubscriptionGate,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -54,7 +59,18 @@ class HomeViewModel(
     private val _unread = MutableStateFlow(0)
     val unread: StateFlow<Int> = _unread.asStateFlow()
 
+    private val _access = MutableStateFlow(if (gate.appliesHere) HomeAccess.Checking else HomeAccess.Open)
+    val access: StateFlow<HomeAccess> = _access.asStateFlow()
+
     init {
+        if (_access.value == HomeAccess.Checking) {
+            viewModelScope.launch {
+                val paywall = gate.needsPaywall()
+                // Behind the paywall nothing live is shown: the hub comes back with the next Home.
+                if (paywall) realtime.stop()
+                _access.value = if (paywall) HomeAccess.Paywall else HomeAccess.Open
+            }
+        }
         // Home only exists with a session; the hub connection lives for as long as it does.
         realtime.start()
         alerts.start()

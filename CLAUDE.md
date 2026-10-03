@@ -17,9 +17,11 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `src/Kadans.Modules.Notifications` – notification log, SignalR hub `/hubs/kadans`, push (FCM) (`notifications` schema).
 - `src/Kadans.Modules.Budget` – accounts, categories, transactions/transfers, recurring money, monthly
   summary, base currency + rates (`budget` schema).
+- `src/Kadans.Modules.Billing` – subscriptions as the stores report them (Google Play now, Apple with the iPhone app),
+  phone access for push (`billing` schema). `Billing:Required` is off until the store product is live.
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
-- `tests/Kadans.Api.Tests` (startup configuration guard), `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`,
+- `tests/Kadans.Api.Tests` (startup configuration guard), `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.Billing.Tests`,
   `tests/Kadans.Identity.Tests`, `tests/Kadans.Notifications.Tests`,
   `tests/Kadans.SharedKernel.Tests` – TUnit unit tests (modules expose internals via `InternalsVisibleTo`). Identity
   also runs external sign-in against the real `UserManager` on in-memory SQLite (`ExternalSignInTests`); Identity and
@@ -39,6 +41,7 @@ dotnet ef database update --project src/Kadans.Modules.Identity --startup-projec
 dotnet ef database update --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext
 dotnet ef database update --project src/Kadans.Modules.Notifications --startup-project src/Kadans.Api --context NotificationsDbContext
 dotnet ef database update --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext
+dotnet ef database update --project src/Kadans.Modules.Billing --startup-project src/Kadans.Api --context BillingDbContext
 dotnet ef migrations add <Name> --project src/Kadans.Modules.Tasks --startup-project src/Kadans.Api --context TasksDbContext --output-dir Persistence/Migrations
 dotnet ef migrations add <Name> --project src/Kadans.Modules.Budget --startup-project src/Kadans.Api --context BudgetDbContext --output-dir Persistence/Migrations
 docker start kadans-postgres                # local Postgres 17 (created with POSTGRES_DB=kadans, password 'password')
@@ -57,6 +60,8 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
+`python3 tools/smoke/billing_flows.py` for subscriptions in Development (the status the app reads, the fake store, a
+Google purchase refused without a key, Google's notification endpoint refusing what Google did not sign);
 `python3 tools/smoke/deletion_flows.py <api log>` for deleting a todo and an account (the app's way and the web page's,
 closed at once, kept through the sign-in offer);
 `python3 tools/smoke/session_flows.py` for sessions (a signed-out token is refused at once, its device and live
@@ -69,7 +74,7 @@ the task, notification, session, pomodoro and budget scripts log in as `smoke` /
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and
 recurring rules (restart the API right before: the recurring job's first pass runs ~15 s after boot).
-In Development nothing applies migrations at startup – run the four `dotnet ef database update` commands above
+In Development nothing applies migrations at startup – run the five `dotnet ef database update` commands above
 first. Production does (`Database:MigrateOnStartup`, set by the image): Kadans runs as exactly one instance.
 Anything a production host needs must be in `appsettings.json` or an environment variable, never only in
 `appsettings.Development.json`; add required values to `ProductionConfiguration` so a missing one stops startup.

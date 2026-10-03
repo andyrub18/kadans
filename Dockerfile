@@ -13,6 +13,7 @@ COPY src/Kadans.Modules.Identity/Kadans.Modules.Identity.csproj src/Kadans.Modul
 COPY src/Kadans.Modules.Tasks/Kadans.Modules.Tasks.csproj src/Kadans.Modules.Tasks/
 COPY src/Kadans.Modules.Notifications/Kadans.Modules.Notifications.csproj src/Kadans.Modules.Notifications/
 COPY src/Kadans.Modules.Budget/Kadans.Modules.Budget.csproj src/Kadans.Modules.Budget/
+COPY src/Kadans.Modules.Billing/Kadans.Modules.Billing.csproj src/Kadans.Modules.Billing/
 RUN dotnet restore src/Kadans.Api/Kadans.Api.csproj
 
 COPY src/ src/

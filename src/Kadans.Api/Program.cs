@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Humanizer;
 using Kadans.Api;
 using Kadans.Api.Documentation;
+using Kadans.Modules.Billing;
 using Kadans.Modules.Budget;
 using Kadans.Modules.Identity;
 using Kadans.Modules.Notifications;
@@ -25,7 +26,7 @@ if (!builder.Environment.IsDevelopment())
     ProductionConfiguration.ThrowIfIncomplete(builder.Configuration);
 
 // Modules own their services, persistence and endpoints; the host only wires them together.
-IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule(), new BudgetModule()];
+IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule(), new BudgetModule(), new BillingModule()];
 
 builder.Host.UseSerilog(
     (context, configuration) => configuration.ReadFrom.Configuration(context.Configuration)

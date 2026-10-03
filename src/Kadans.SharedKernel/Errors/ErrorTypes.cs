@@ -323,6 +323,30 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    /// <summary>Subscriptions cannot be bought on this server yet (no store configured).</summary>
+    public static readonly ErrorTypes BillingUnavailable = new(
+        "10055",
+        "Subscriptions unavailable",
+        StatusCodes.Status503ServiceUnavailable,
+        ""
+    );
+
+    /// <summary>The store does not know this purchase, or it is not Kadans' subscription.</summary>
+    public static readonly ErrorTypes PurchaseNotVerified = new(
+        "10056",
+        "Purchase not verified",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+
+    /// <summary>The purchase was made for another Kadans account.</summary>
+    public static readonly ErrorTypes PurchaseOtherAccount = new(
+        "10057",
+        "Purchase belongs to another account",
+        StatusCodes.Status409Conflict,
+        ""
+    );
+
     /// <summary>Locked for a while after too many wrong passwords or codes; not a deactivation.</summary>
     public static readonly ErrorTypes AccountLockedOut = new(
         "10054",

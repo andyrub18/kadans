@@ -35,7 +35,14 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
             {
                 // IDevicePushTargets is scoped (it reads the Identity database).
                 await using var scope = scopes.CreateAsyncScope();
-                await DeliverAsync(request, scope.ServiceProvider.GetRequiredService<IDevicePushTargets>(), push, logger, stoppingToken);
+                await DeliverAsync(
+                    request,
+                    scope.ServiceProvider.GetRequiredService<IDevicePushTargets>(),
+                    scope.ServiceProvider.GetRequiredService<IMobileAccess>(),
+                    push,
+                    logger,
+                    stoppingToken
+                );
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -44,10 +51,14 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
         }
     }
 
-    /// <summary>Send to the user's devices and retire the tokens the provider reports dead. Never throws.</summary>
+    /// <summary>
+    /// Send to the user's devices and retire the tokens the provider reports dead. Never throws. Phones only for an
+    /// account with a subscription (<see cref="IMobileAccess"/>): reminders on a phone are what it pays for.
+    /// </summary>
     internal static async Task DeliverAsync(
         PushRequest request,
         IDevicePushTargets devices,
+        IMobileAccess mobileAccess,
         IPushSender push,
         ILogger logger,
         CancellationToken cancellationToken
@@ -56,6 +67,8 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
         try
         {
             var targets = await devices.ForUserAsync(request.UserId, cancellationToken);
+            if (targets.Any(IsPhone) && !await mobileAccess.AllowsPhonesAsync(request.UserId, cancellationToken))
+                targets = [.. targets.Where(t => !IsPhone(t))];
             if (targets.Count == 0)
                 return;
 
@@ -68,4 +81,6 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
             logger.LogError(ex, "Push failed for user {UserId}", request.UserId);
         }
     }
+
+    private static bool IsPhone(PushTarget target) => target.Platform is "Android" or "Ios";
 }

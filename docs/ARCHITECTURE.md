@@ -6,7 +6,7 @@ One deployable API, one Postgres database, hard module boundaries inside the cod
 Not microservices, and not a four-layer "clean architecture" per module – vertical slices inside
 modules are enough.
 
-### Layout (all four modules exist)
+### Layout (all five modules exist)
 
 ```
 src/
@@ -19,8 +19,9 @@ src/
   Kadans.Modules.Budget/         accounts, categories, transactions/transfers, category limits,
                                  recurring money, monthly summary, base currency + rates
   Kadans.Modules.Notifications/  notification log, SignalR hub, push (FCM), dispatcher
+  Kadans.Modules.Billing/        subscriptions as the stores report them, phone access (IMobileAccess)
 tests/
-  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, Identity, Notifications, SharedKernel)
+  Kadans.<Module>.Tests/         TUnit unit tests (Tasks, Budget, Identity, Notifications, Billing, SharedKernel)
   Kadans.Api.IntegrationTests/   planned: TUnit + Testcontainers (real Postgres); until then
                                  tools/smoke/*.py exercise the DB paths against a running API
 clients/
@@ -49,8 +50,9 @@ Kadans.Modules.Tasks/
 3. **Modules depend only on SharedKernel.** They communicate through SharedKernel abstractions:
    `IUserDirectory` and `IDevicePushTargets` (implemented by Identity), `INotificationDispatcher`
    and `IRealtimePublisher` (implemented by Notifications), `ISessionEndListener` (called by Identity
-   when sessions end; Notifications closes their live connections), and `IUserDataEraser` (each module erases a
-   user's data when Identity erases the account). Tasks and Budget only consume the rest.
+   when sessions end; Notifications closes their live connections), `IUserDataEraser` (each module erases a
+   user's data when Identity erases the account), and `IMobileAccess` (implemented by Billing; Notifications asks
+   it before pushing to a phone). Tasks and Budget only consume the rest.
 4. **Everything is `internal`** except `Contracts` and the `IModule` implementation.
 5. **Per-user isolation via EF global query filters** on `UserId == ICurrentUserService.UserId`.
 6. **Endpoints return DTOs**, never EF entities (the old code returned `Todo`/`PomodoroRun`
@@ -196,6 +198,36 @@ external sign-in lands in, what a takeover removes), `tests/Kadans.Identity.Test
 and token providers on an in-memory SQLite database, so CI needs no Postgres. Integration tests with
 Testcontainers against real Postgres are still to come (recurrence and query filters must be tested on the
 real provider); the smoke scripts in `tools/smoke/` cover those paths against a running Development API for now.
+
+### Subscriptions: paid phones, free desktop
+
+Decided 2026-10-02. The Android and iPhone apps are free to download and need a subscription: USD 0.99 a
+month after a 14-day free trial, with the stores converting the price per country. The desktop app is free. The
+`Billing` module (`billing` schema) keeps each account's store subscriptions as the stores report them.
+
+- **Never the app's word.** The app hands over a purchase (`POST /billing/google/purchases`). The server reads
+  it from Google (Play Developer API, `purchases.subscriptionsv2.get`), acknowledges it (unacknowledged
+  purchases are refunded after 3 days), and keeps the state.
+- **One account per purchase.** A purchase carries the account: the app sets Google's obfuscated account id to
+  `accountHash`, a SHA-256 of the user id, so the store never sees the id. A purchase naming another account,
+  or a token already linked to one, is refused.
+- **Changes come from Google.** Renewals, failures, cancellations and refunds arrive as real-time developer
+  notifications, pushed by Pub/Sub to `/billing/google/notifications`. The push must carry an OIDC token Google
+  signed for that URL as the push subscription's service account. Even then the server only reads the purchase
+  again from Google. An hourly job re-reads anything still counted as paid whose period ran out, in case a
+  notification went missing.
+- **Access.** Trial, active, grace period (the store is retrying a payment) and a cancelled subscription until
+  its end count; on hold, paused, expired and refunded do not.
+- **Enforced on the server where it matters.** Reminders are pushed to phones only for accounts with access
+  (`IMobileAccess`, answered from memory and dropped on every change). The app's paywall could be patched out of
+  an app package; the reminders are what a phone subscription buys. The desktop app and the live connection are
+  unaffected.
+- **`Billing:Required`** switches all of this on, in configuration. Until the store product is live it is off:
+  no paywall, every phone gets its reminders. Development has a fake store (`Billing:FakeStore:Enabled`,
+  `POST /billing/fake/purchases`) for the flows without a store; the production guard refuses it.
+- **Erasing an account** cancels a Google subscription that is still renewing (paid time stays), since the store
+  would otherwise keep billing a deleted account. Apple's cannot be cancelled by Kadans, so the emails say so.
+- **Apple** comes with the iPhone app (StoreKit 2 and the App Store Server API), which needs a Mac.
 
 ### Account deletion: closed now, erased after 7 days
 

@@ -79,10 +79,10 @@ nano .env                       # RESEND_API_KEY, GOOGLE_DESKTOP_CLIENT_SECRET (
 mkdir -p secrets backups
 #    The Firebase service-account key – the same file as ~/.kadans/firebase-admin.json in dev. Firebase
 #    names the download kadans-420a7-firebase-adminsdk-….json; on the server it must be named exactly
-#    firebase-admin.json (the compose file mounts that name). From your computer:
+#    firebase-admin.json (the compose file mounts the secrets folder; that is the name it reads). From your computer:
 #      scp ~/.kadans/firebase-admin.json <user>@<server>:kadans/deploy/secrets/firebase-admin.json
 #    (or `echo '{}' > secrets/firebase-admin.json` and PUSH_PROVIDER=Log to start without push).
-#    It must exist before step 3: Docker turns a missing file into an empty directory.
+#    It must exist before step 3: the API refuses to start without it.
 chmod 600 .env
 #    The API runs as uid/gid 1654 inside the container, not as you: give that group read access
 #    (600 locks it out – "Access to the path '/run/secrets/firebase-admin.json' is denied").
@@ -140,6 +140,26 @@ cd kadans && git pull && cd deploy && docker compose up -d --build
 Pending migrations are applied as the new container starts (`Database:MigrateOnStartup`, set by the
 image; the log names each one). Migrations only go forward: to undo a bad release, check out the previous
 commit, and if its schema is older, restore the last dump first.
+
+## Subscriptions
+
+Off until the Play product is live (`BILLING_REQUIRED=false`): no paywall, and every phone gets its reminders. To
+switch them on, once OWNER-CHECKLIST → Subscriptions is done:
+
+```bash
+cd deploy
+# the Play Developer API service account key, readable by the API like the Firebase key
+scp play-developer-api.json <user>@<server>:kadans/deploy/secrets/play-developer-api.json
+sudo chown "$USER":1654 secrets/play-developer-api.json && chmod 640 secrets/play-developer-api.json
+nano .env   # BILLING_REQUIRED=true
+            # PLAY_SERVICE_ACCOUNT_FILE=/run/secrets/play-developer-api.json
+            # PLAY_NOTIFICATIONS_SERVICE_ACCOUNT=<the Pub/Sub push subscription's service account>
+docker compose up -d
+```
+
+With `BILLING_REQUIRED=true` the API refuses to start if the key or the notification settings are missing. The
+Pub/Sub push subscription points at `https://<domain>/billing/google/notifications`, with authentication on (that
+service account) and the same URL as audience.
 
 ## Backups
 

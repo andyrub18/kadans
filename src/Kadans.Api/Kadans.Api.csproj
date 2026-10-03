@@ -10,6 +10,7 @@
     <ProjectReference Include="../Kadans.Modules.Tasks/Kadans.Modules.Tasks.csproj" />
     <ProjectReference Include="../Kadans.Modules.Notifications/Kadans.Modules.Notifications.csproj" />
     <ProjectReference Include="../Kadans.Modules.Budget/Kadans.Modules.Budget.csproj" />
+    <ProjectReference Include="../Kadans.Modules.Billing/Kadans.Modules.Billing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

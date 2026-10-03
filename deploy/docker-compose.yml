@@ -58,10 +58,15 @@ services:
       InitialAdmin__Username: ${INITIAL_ADMIN_USERNAME:-admin}
       InitialAdmin__Email: ${INITIAL_ADMIN_EMAIL:-}
       InitialAdmin__Password: ${INITIAL_ADMIN_PASSWORD:-}
+      # Subscriptions (docs/DEPLOYMENT.md → Subscriptions): off until the Play product is live.
+      Billing__Required: ${BILLING_REQUIRED:-false}
+      Billing__Google__ServiceAccountFile: ${PLAY_SERVICE_ACCOUNT_FILE:-}
+      Billing__Google__NotificationAudience: https://${KADANS_DOMAIN}/billing/google/notifications
+      Billing__Google__NotificationServiceAccount: ${PLAY_NOTIFICATIONS_SERVICE_ACCOUNT:-}
     volumes:
-      # Must exist before the first `up`: Docker turns a missing file into an empty directory (the API then
-      # refuses to start and says so).
-      - ./secrets/firebase-admin.json:/run/secrets/firebase-admin.json:ro
+      # The whole folder, read-only: firebase-admin.json (must exist before the first `up`), and the Play key once
+      # subscriptions are on. A folder, so a key not there yet never becomes an empty directory.
+      - ./secrets:/run/secrets:ro
     depends_on:
       db:
         condition: service_healthy

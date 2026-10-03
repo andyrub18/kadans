@@ -29,4 +29,7 @@ internal sealed class TasksOptions
 
     /// <summary>Reminders for occurrences already this far in the past are skipped instead of sent late.</summary>
     public int ReminderStaleAfterMinutes { get; set; } = 60;
+
+    /// <summary>How long occurrences nobody acted on are kept (<c>TasksRetentionJob</c>).</summary>
+    public int UntouchedOccurrenceRetentionDays { get; set; } = 90;
 }

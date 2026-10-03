@@ -9,6 +9,7 @@ using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Users;
 using Microsoft.EntityFrameworkCore;
+using Quartz;
 using System.Text.Json.Serialization;
 
 namespace Kadans.Modules.Notifications;
@@ -44,6 +45,25 @@ public sealed class NotificationsModule : IModule
         services.AddHostedService<PushWorker>();
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<NotificationQueries>();
+
+        services.Configure<NotificationsOptions>(configuration.GetSection(NotificationsOptions.SectionName));
+        services.AddQuartz(quartz =>
+        {
+            // Nightly, and once soon after a start so a server that restarts often still cleans up.
+            quartz.AddJob<NotificationsRetentionJob>(job => job.WithIdentity(NotificationsRetentionJob.Key));
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(NotificationsRetentionJob.Key)
+                    .WithIdentity("notifications-retention-nightly", "notifications")
+                    .WithCronSchedule(Retention.NightlyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc))
+            );
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(NotificationsRetentionJob.Key)
+                    .WithIdentity("notifications-retention-startup", "notifications")
+                    .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Minute))
+            );
+        });
     }
 
     public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken) =>

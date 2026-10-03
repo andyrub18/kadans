@@ -123,8 +123,10 @@ s, r = call("PUT", f"/todos/{th['id']}/reschedule", {"newDate": iso(start + dt.t
 C("todo-level reschedule moves the next pending occurrence", s == 200 and r["isRescheduled"], f"{s}")
 s, r = call("PUT", f"/todos/{th['id']}/cancel", {"reason": "done with smoke"}, token=T)
 C("cancel todo", s == 200)
-s, hist = call("GET", f"/todos/{th['id']}/history?pageSize=5", token=T)
-C("cancelled todo: occurrences cancelled", all(h["status"] == "Cancelled" for h in hist) and len(hist) == 5)
+s, hist = call("GET", f"/todos/{th['id']}/history?pageSize=50", token=T)
+# What was still ahead and untouched never happened: gone. The occurrence the person moved stays, cancelled.
+C("cancelled todo: untouched future occurrences gone, the moved one kept as cancelled",
+  len(hist) == 1 and hist[0]["status"] == "Cancelled" and hist[0]["isRescheduled"], f"{[(h['status'], h['isRescheduled']) for h in hist]}")
 s, r = call("GET", f"/todos/{th['id']}", token=T)
 C("cancelled todo still readable by id", s == 200 and r["status"] == "Cancelled", f"{s}")
 for t in (tm, tw):

@@ -23,7 +23,7 @@ internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbC
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);
-        configurationBuilder.StoreDateTimeOffsetsAsUtc();
+        configurationBuilder.StoreDateTimeOffsetsAsUtc(Database.ProviderName);
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -50,6 +50,7 @@ internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbC
             t.HasIndex(rt => rt.TokenHash).IsUnique();
             t.HasIndex(rt => rt.FamilyId);
             t.HasIndex(rt => new { rt.UserId, rt.IsActive });
+            t.HasIndex(rt => rt.ExpireAtUtc); // what the nightly retention deletes by
             t.HasOne(rt => rt.User)
                 .WithMany()
                 .HasForeignKey(rt => rt.UserId)

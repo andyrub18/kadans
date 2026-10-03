@@ -13,7 +13,7 @@ internal sealed class NotificationsDbContext(DbContextOptions<NotificationsDbCon
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);
-        configurationBuilder.StoreDateTimeOffsetsAsUtc();
+        configurationBuilder.StoreDateTimeOffsetsAsUtc(Database.ProviderName);
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -35,6 +35,9 @@ internal sealed class NotificationsDbContext(DbContextOptions<NotificationsDbCon
             n.HasIndex(x => new { x.UserId, x.CreatedAt })
                 .HasDatabaseName("ix_notifications_user_id_created_at_desc")
                 .IsDescending(false, true);
+
+            // What the nightly retention deletes by.
+            n.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_notifications_created_at");
 
             n.HasIndex(x => x.UserId)
                 .HasDatabaseName("ix_notifications_user_id_unread")

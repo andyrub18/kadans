@@ -48,6 +48,21 @@ public sealed class TasksModule : IModule
                     .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Second))
                     .WithSimpleSchedule(s => s.WithIntervalInSeconds(Math.Max(5, tasksOptions.ReminderIntervalSeconds)).RepeatForever())
             );
+
+            // Nightly, and once soon after a start so a server that restarts often still cleans up.
+            quartz.AddJob<TasksRetentionJob>(job => job.WithIdentity(TasksRetentionJob.Key));
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(TasksRetentionJob.Key)
+                    .WithIdentity("tasks-retention-nightly", "tasks")
+                    .WithCronSchedule(Retention.NightlyCron, cron => cron.InTimeZone(TimeZoneInfo.Utc))
+            );
+            quartz.AddTrigger(trigger =>
+                trigger
+                    .ForJob(TasksRetentionJob.Key)
+                    .WithIdentity("tasks-retention-startup", "tasks")
+                    .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Minute))
+            );
         });
 
         services.AddScoped<TodoCreation>();

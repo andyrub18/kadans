@@ -19,6 +19,7 @@ internal sealed class PomodoroAutoFinish(
     INotificationDispatcher dispatcher,
     IRealtimePublisher realtime,
     IUserDirectory users,
+    TasksMetrics metrics,
     ILogger<PomodoroAutoFinish> logger
 )
 {
@@ -79,6 +80,7 @@ internal sealed class PomodoroAutoFinish(
             logger.LogDebug("Run {RunId} changed while it was being finished at its end time", runId);
             return;
         }
+        metrics.PomodoroDeadline("finish", DateTimeOffset.UtcNow - end);
 
         try
         {

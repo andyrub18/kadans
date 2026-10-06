@@ -28,7 +28,8 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
   Notifications are otherwise thin: the smoke scripts cover the rest.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions, `DEPLOYMENT.md`, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
-- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (Caddy, API, Postgres, nightly dump).
+- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (Caddy, API, Postgres, nightly dump,
+  and the monitoring: Prometheus, Loki, Grafana, node-exporter, configured in `deploy/observability/`).
 
 ## Commands
 
@@ -47,6 +48,7 @@ dotnet ef migrations add <Name> --project src/Kadans.Modules.Budget --startup-pr
 docker start kadans-postgres                # local Postgres 17 (created with POSTGRES_DB=kadans, password 'password')
 dotnet user-secrets list --project src/Kadans.Api
 docker build -t kadans-api .                # the production image (CI builds it too); deploy/ runs it
+docker compose -f deploy/observability/compose.dev.yml up -d   # local Prometheus/Loki/Grafana (:3000), Mailpit (:8025)
 ```
 
 Dev secrets (`ConnectionStrings:kadans`, `Jwt:Key`, `InitialAdmin:Password`, and when needed
@@ -122,6 +124,10 @@ Anything a production host needs must be in `appsettings.json` or an environment
   texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
   `PreferredLanguage`; error responses follow the request's `Accept-Language`, which the client sets from
   its in-app language on every call.
+- Observability (ARCHITECTURE → Observability): a new metric goes on the module's meter (`Kadans.<Module>`, created
+  from `IMeterFactory` in a `*Metrics` singleton), named `kadans.<area>.<thing>` with a unit, and histograms get
+  explicit buckets (`InstrumentAdvice`). Labels stay bounded: never a user id. Logs carry user ids, never an email
+  address, a name, what someone wrote, or a token – they are shipped to Loki and kept 30 days.
 - Recurrence: never hand-roll date math. Build a `RecurrenceSpec`, create a `RecurrenceSchedule`,
   and ask it for occurrences. Clients send a structured rule plus an IANA `TimeZone`. Pass
   `GetOccurrences` the number you will keep (it never returns more than 10,000). To learn whether a

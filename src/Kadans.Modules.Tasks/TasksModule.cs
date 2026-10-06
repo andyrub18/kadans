@@ -1,3 +1,4 @@
+using Kadans.Modules.Tasks.Features;
 using Kadans.Modules.Tasks.Features.Pomodoro;
 using Kadans.Modules.Tasks.Features.Todos;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
@@ -72,6 +73,7 @@ public sealed class TasksModule : IModule
         services.AddScoped<TodoUpdate>();
         services.AddScoped<GetTodos>();
         services.AddScoped<PomodoroService>();
+        services.AddSingleton<TasksMetrics>();
         services.AddScoped<PomodoroAutoAdvancer>();
         services.AddScoped<PomodoroTimeUp>();
         services.AddScoped<PomodoroAutoFinish>();

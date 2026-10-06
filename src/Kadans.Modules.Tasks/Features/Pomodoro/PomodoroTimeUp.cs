@@ -15,6 +15,7 @@ internal sealed class PomodoroTimeUp(
     TasksDbContext dbContext,
     INotificationDispatcher dispatcher,
     IUserDirectory users,
+    TasksMetrics metrics,
     ILogger<PomodoroTimeUp> logger
 )
 {
@@ -78,6 +79,7 @@ internal sealed class PomodoroTimeUp(
             logger.LogDebug("Run {RunId} changed while its time's up was going out", runId);
             return;
         }
+        metrics.PomodoroDeadline("time_up", DateTimeOffset.UtcNow - run.PhaseEndsAt!.Value);
 
         if (now - run.PhaseEndsAt!.Value > StaleAfter)
             return;

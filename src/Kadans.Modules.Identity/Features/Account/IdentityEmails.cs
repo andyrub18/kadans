@@ -157,8 +157,8 @@ internal sealed class IdentityEmails(
         }
         catch (Exception ex)
         {
-            // Never fail the calling flow because mail is down; the user can ask again.
-            logger.LogError(ex, "Failed to send '{Subject}' to {To}", subject, to);
+            // Never fail the calling flow because mail is down; the user can ask again. No address in the logs.
+            logger.LogError(ex, "Failed to send '{Subject}'", subject);
         }
     }
 }

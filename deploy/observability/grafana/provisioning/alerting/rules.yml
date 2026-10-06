@@ -1,0 +1,300 @@
+# Kadans' alerts (docs/ARCHITECTURE.md → Observability), evaluated every minute by Grafana, sent to the
+# contact point in contact-points.yml. Each: a Prometheus query (A), then a threshold on it (C).
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: kadans
+    folder: Kadans
+    interval: 1m
+    rules:
+      - uid: kadans-api-silent
+        title: 'The API stopped reporting'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'absent_over_time(target_info{job="kadans-api"}[5m])'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: 'No metrics from the API for 5 minutes'
+          description: 'The API is down, restarting in a loop, or cannot reach Prometheus. Check `docker compose ps` and `docker compose logs api`.'
+        labels:
+          severity: critical
+      - uid: kadans-server-errors
+        title: 'Server errors'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'sum(increase(http_server_request_duration_seconds_count{job="kadans-api", http_route!~"/hubs/.*", http_response_status_code=~"5.."}[10m]))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: 'More than 5 requests answered with a 5xx in 10 minutes'
+          description: 'Grafana → Explore → Loki: {service_name="kadans-api"} | detected_level="error" shows what failed.'
+        labels:
+          severity: warning
+      - uid: kadans-reminders-late
+        title: 'Reminders are late'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(kadans_reminder_lateness_seconds_bucket[5m])))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [60] }
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: '95% of reminders took more than a minute to go out'
+          description: 'The reminder job is behind (its pass is slower than its schedule, or the database is). Dashboard: Reminders and push.'
+        labels:
+          severity: critical
+      - uid: kadans-pomodoro-late
+        title: 'Pomodoro deadlines are late'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'histogram_quantile(0.95, sum by (le) (rate(kadans_pomodoro_deadline_lateness_seconds_bucket[5m])))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [10] }
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: 'Hands-free phase changes and session ends are more than 10 s late'
+          description: 'The Pomodoro deadline watcher is behind. Dashboard: Reminders and push.'
+        labels:
+          severity: warning
+      - uid: kadans-push-dropped
+        title: 'Pushes dropped'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'sum(increase(kadans_push_dropped_total[10m]))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: 'The push queue was full and dropped notifications'
+          description: 'Pushes are queued faster than the provider takes them (1,000 waiting at most). Dashboard: Reminders and push.'
+        labels:
+          severity: critical
+      - uid: kadans-push-failing
+        title: 'Pushes failing'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: '(sum(increase(kadans_push_messages_total{result="failed"}[30m])) / sum(increase(kadans_push_messages_total[30m])) > 0.2) and on() (sum(increase(kadans_push_messages_total[30m])) >= 10)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: 'More than 20% of push messages failed in 30 minutes'
+          description: 'Firebase is refusing sends (an expired key, a quota, an outage). `docker compose logs api | grep FCM`.'
+        labels:
+          severity: warning
+      - uid: kadans-job-failing
+        title: 'A scheduled job is failing'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'sum by (job_name) (increase(kadans_job_duration_seconds_count{outcome="error"}[15m]))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: 'A scheduled job threw in the last 15 minutes'
+          description: 'The job_name label says which. Loki: {service_name="kadans-api"} | detected_level="error".'
+        labels:
+          severity: warning
+      - uid: kadans-disk
+        title: 'Disk almost full'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'max(1 - node_filesystem_avail_bytes{mountpoint="/", fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/", fstype!~"tmpfs|overlay"})'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.85] }
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: 'The server''s disk is more than 85% full'
+          description: 'The database, the backups (deploy/backups) and the monitoring data share it. DEPLOYMENT → Monitoring.'
+        labels:
+          severity: critical
+      - uid: kadans-memory
+        title: 'Memory almost exhausted'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'min(node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [0.1] }
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: 'Less than 10% of the server''s memory is available'
+          description: '`docker stats` shows who uses it. The monitoring containers are capped; the API and Postgres are not.'
+        labels:
+          severity: warning
+      - uid: kadans-backup-stale
+        title: 'No backup for a day'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: '(time() - max(kadans_backup_last_success_timestamp_seconds)) or on() (absent(kadans_backup_last_success_timestamp_seconds) * 1e9)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [93600] }
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: 'The nightly database dump has not succeeded for 26 hours'
+          description: '`docker compose logs backup` says why. DEPLOYMENT → Backups.'
+        labels:
+          severity: critical

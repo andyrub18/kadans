@@ -234,10 +234,55 @@ while read id; do
 done < erased.txt
 ```
 
+## Monitoring
+
+Prometheus, Loki and Grafana run next to the API (ARCHITECTURE → Observability). They need three lines in
+`deploy/.env` (an `.env` made before them lacks them, and `docker compose up` says so):
+
+```bash
+cd deploy
+echo "GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 24)" >> .env
+echo "ALERT_EMAIL=you@example.com" >> .env            # where alerts go
+echo "ALERT_FROM_ADDRESS=alerts@kadansplanning.com" >> .env   # an address on the Resend-verified domain
+docker compose up -d
+```
+
+Grafana is never on the internet: it listens on the server's loopback. From your machine:
+
+```bash
+ssh -L 3000:localhost:3000 <you>@<server>     # then http://localhost:3000, user admin, GRAFANA_ADMIN_PASSWORD
+```
+
+- **Dashboard:** Dashboards → Kadans → Kadans.
+- **Alerts:** Alerting → Alert rules (ten, provisioned from `deploy/observability/grafana/provisioning/alerting/`).
+  Alerting → Contact points → owner → Test sends a test email: do it once after the first start.
+- **Searching logs:** Explore → Loki. Every property of an event is a field, nested ones joined with `_`:
+
+  ```logql
+  {service_name="kadans-api"} | detected_level="error"
+  {service_name="kadans-api"} | RequestPath="/todos" | StatusCode >= 500
+  {service_name="kadans-api"} | UserId="<id>"
+  sum by (RequestPath) (count_over_time({service_name="kadans-api"} | StatusCode >= 400 [1h]))
+  ```
+
+- **Numbers over time:** Explore → Prometheus, e.g. the p95 of each route over 5 minutes:
+
+  ```promql
+  histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket[5m])))
+  ```
+
+Retention is 30 days for both (Prometheus also stops at 2 GB). The dashboard and the alerts are files in the
+repository: edit them there and `docker compose up -d` (Grafana does not keep changes made in its UI to them).
+
+On a development machine the same stack runs with `docker compose -f deploy/observability/compose.dev.yml up -d`:
+Grafana at http://localhost:3000 without a login, alert emails caught by Mailpit at http://localhost:8025, and the API
+started with `dotnet run` (Development) already sends there.
+
 ## Operating
 
-- Logs: `docker compose logs -f api` (Serilog writes to the console). Docker keeps 5 × 10 MB per service
-  (`x-logging` in the compose file), so a flood of requests cannot fill the disk.
+- Logs: Grafana → Explore → Loki (Monitoring above), or `docker compose logs -f api`: Serilog writes to the console
+  too, and Docker keeps 5 × 10 MB per service (`x-logging` in the compose file), so a flood cannot fill the disk.
+  Successful, fast requests are not logged; the metrics count them.
 - Rate limits, per client address (the real one: Caddy sets `X-Forwarded-For` itself; IPv6 counts per /64).
   Sign-up, forgot password, resend confirmation and email change: 5 per 15 minutes. Sign-in, 2FA codes and
   password change: 20 a minute. Everything else: 300 a minute. Health checks are never limited. On top of

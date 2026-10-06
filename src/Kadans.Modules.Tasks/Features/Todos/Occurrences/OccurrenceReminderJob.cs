@@ -20,6 +20,7 @@ internal sealed class OccurrenceReminderJob(
     INotificationDispatcher dispatcher,
     IUserDirectory users,
     IOptions<TasksOptions> options,
+    TasksMetrics metrics,
     ILogger<OccurrenceReminderJob> logger
 ) : IJob
 {
@@ -35,10 +36,11 @@ internal sealed class OccurrenceReminderJob(
         var staleBefore = now.AddMinutes(-options.Value.ReminderStaleAfterMinutes);
 
         // Too late to be useful: stamp them so the index stops returning them.
-        await dbContext
+        var stale = await dbContext
             .TodoOccurrences.IgnoreQueryFilters()
             .Where(o => o.Status == OccurrenceStatus.Pending && o.NotifiedAt == null && o.NotifyAt != null && o.NotifyAt <= now && o.ScheduledAt < staleBefore)
             .ExecuteUpdateAsync(s => s.SetProperty(o => o.NotifiedAt, now), cancellationToken);
+        metrics.RemindersStale(stale);
 
         var due = await dbContext
             .TodoOccurrences.IgnoreQueryFilters()
@@ -77,6 +79,7 @@ internal sealed class OccurrenceReminderJob(
 
             await dispatcher.DispatchAsync(todo.UserId, message, cancellationToken);
             occurrence.NotifiedAt = now;
+            metrics.ReminderSent(DateTimeOffset.UtcNow - occurrence.NotifyAt!.Value);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

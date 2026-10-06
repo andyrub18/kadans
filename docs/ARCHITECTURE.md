@@ -309,11 +309,53 @@ each run logs what it removed. The day counts are configuration with code defaul
 | The record of an erased account (its id and dates) | 30 days | `Identity:Retention:ErasedAccountRecordDays` |
 | A free account (its id, the admin who added it, when) | until an admin removes it, or the account is erased | – |
 | Nightly database dumps | 14 days (DEPLOYMENT → Backups) | the compose file |
+| Logs in Loki (no addresses, names or contents: below) | 30 days | `deploy/observability/loki.yml` |
+| Metrics in Prometheus (counts and durations, no personal data) | 30 days, at most 2 GB | the compose file |
+| Console logs Docker keeps | 5 × 10 MB per container, oldest first | the compose file |
 
 A phone that still takes pushes is kept however long the app stays closed: someone may only ever see the reminders.
 An uninstalled app's token is reported dead at the next push, and the device goes then. Cancelling a todo leaves
 its missed past occurrences pending, without reminders, so they age out like the rest. Moved or annotated ones are
 cancelled and kept.
+
+### Observability: Prometheus, Loki and Grafana on the server
+
+Decided 2026-10-05, before the load test, which needs the measurements. All on the one server, in the compose file;
+nothing leaves it, and nothing of it is published to the internet.
+
+- **Metrics: OpenTelemetry, pushed to Prometheus.** The API exports every 15 s over OTLP to Prometheus's own
+  receiver (`--web.enable-otlp-receiver`): no collector, no scrape endpoint to protect, only stable packages.
+  Most metrics are .NET's own: requests by route and status (`http_server_request_duration_seconds`), Kestrel,
+  SignalR connections, rate limiting, sign-ins, HttpClient, the runtime (CPU, memory, GC, thread pool), Npgsql (pool,
+  command durations) and EF Core. Kadans adds what a person would feel first (`Telemetry.Meters`; one meter per
+  module, named `Kadans.<Module>`, through `IMeterFactory`):
+  - `kadans_reminder_lateness_seconds`: from a reminder's notify time to its dispatch; `kadans_reminders_sent_total`,
+    `kadans_reminders_stale_total` (skipped, too late);
+  - `kadans_pomodoro_deadline_lateness_seconds{kind=advance|time_up|finish}`;
+  - push: `kadans_push_queue_length`, `kadans_push_dropped_total`, `kadans_push_delay_seconds` (queued to answered),
+    `kadans_push_messages_total{result=sent|failed|dead}` per device, `kadans_push_withheld_total` (phones without a
+    subscription);
+  - `kadans_job_duration_seconds{job_name, outcome}`: every Quartz pass, through a job listener in the host;
+  - from the backup container, through node-exporter's textfile collector: `kadans_backup_last_success_timestamp_seconds`.
+
+  Labels stay bounded (routes, results, job names), never a user id. Histograms carry explicit buckets
+  (`InstrumentAdvice`) sized for what they measure.
+- **Logs: Serilog, pushed to Loki.** The console sink stays (`docker compose logs`); the OpenTelemetry sink sends the
+  same events to Loki's OTLP endpoint. Each property arrives as structured metadata, nested ones flattened with `_`,
+  so `{service_name="kadans-api"} | RequestPath="/todos" | StatusCode >= 500` needs no parsing; `trace_id` ties one
+  request's lines together. One line per request is the metrics' job now: a request is logged when it failed (4xx,
+  5xx, an exception) or took over a second (`Telemetry.RequestLogLevel`).
+- **No personal data in either.** Logs carry user ids, never an address, a name, what someone wrote (a todo's title)
+  or a secret; a failed sign-in does not log what was typed. The privacy policy can say so.
+- **Grafana** reads both, with one provisioned dashboard (Kadans: overview, API, reminders and push, jobs, database
+  and runtime, server, logs) and ten alerts, emailed through Resend's SMTP (`deploy/observability/grafana/`):
+  the API silent for 5 minutes, more than 5 server errors in 10 minutes, reminders' p95 over a minute, Pomodoro
+  deadlines' p95 over 10 s, any push dropped, over 20% of pushes failing, a job throwing, the disk over 85%, memory
+  under 10%, and no backup for 26 hours. Grafana listens on the server's loopback only: an SSH tunnel reaches it.
+- **node-exporter** adds the server: CPU, memory, disk, and the backup's last success.
+- **Cost.** Memory caps: Prometheus and Loki 512 MB, Grafana 256 MB, node-exporter 64 MB, so monitoring cannot starve
+  the API or Postgres. Traces are not collected (one process, little to follow across); the trace ids in the logs
+  are enough to group a request's lines.
 
 ### Client: Compose Multiplatform
 

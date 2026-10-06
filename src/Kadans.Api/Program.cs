@@ -28,9 +28,16 @@ if (!builder.Environment.IsDevelopment())
 // Modules own their services, persistence and endpoints; the host only wires them together.
 IModule[] modules = [new IdentityModule(), new TasksModule(), new NotificationsModule(), new BudgetModule(), new BillingModule()];
 
+// Console always (docker compose logs); Loki too when Telemetry:LogsEndpoint is set.
 builder.Host.UseSerilog(
-    (context, configuration) => configuration.ReadFrom.Configuration(context.Configuration)
+    (context, configuration) =>
+        configuration
+            .ReadFrom.Configuration(context.Configuration)
+            .WriteToLoki(Telemetry.Options(context.Configuration), context.HostingEnvironment.EnvironmentName)
 );
+
+// Metrics to Prometheus when Telemetry:MetricsEndpoint is set (ARCHITECTURE → Observability).
+builder.AddKadansMetrics();
 
 builder.Services.AddOpenApi(options =>
 {
@@ -131,7 +138,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(options => options.GetLevel = Telemetry.RequestLogLevel);
 app.UseHttpsRedirection();
 
 foreach (var module in modules)

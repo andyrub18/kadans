@@ -243,17 +243,17 @@ Prometheus, Loki and Grafana run next to the API (ARCHITECTURE → Observability
 cd deploy
 echo "GRAFANA_ADMIN_PASSWORD=$(openssl rand -hex 24)" >> .env
 echo "ALERT_EMAIL=you@example.com" >> .env            # where alerts go
-echo "ALERT_FROM_ADDRESS=alerts@kadansplanning.com" >> .env   # an address on the Resend-verified domain
+echo "ALERT_FROM_ADDRESS=alerts@kadansplanning.com" >> .env   # on the Resend-verified domain; a bare address
 docker compose up -d
 ```
 
 Grafana is never on the internet: it listens on the server's loopback. From your machine:
 
 ```bash
-ssh -L 3000:localhost:3000 <you>@<server>     # then http://localhost:3000, user admin, GRAFANA_ADMIN_PASSWORD
+ssh -L 3000:127.0.0.1:3000 <you>@<server>     # then http://localhost:3000, user admin, GRAFANA_ADMIN_PASSWORD
 ```
 
-- **Dashboard:** Dashboards → Kadans → Kadans.
+- **Dashboard:** the home page after signing in (also Dashboards → Kadans → Kadans).
 - **Alerts:** Alerting → Alert rules (ten, provisioned from `deploy/observability/grafana/provisioning/alerting/`).
   Alerting → Contact points → owner → Test sends a test email: do it once after the first start.
 - **Searching logs:** Explore → Loki. Every property of an event is a field, nested ones joined with `_`:
@@ -270,6 +270,10 @@ ssh -L 3000:localhost:3000 <you>@<server>     # then http://localhost:3000, user
   ```promql
   histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket[5m])))
   ```
+
+If the tunnel answers "connect failed: Connection refused", Grafana is not running on the server: `docker compose ps
+grafana` and `docker compose logs --tail 30 grafana` say why (its last line names a bad setting, e.g. an
+`ALERT_FROM_ADDRESS` written as `Name <address>`).
 
 Retention is 30 days for both (Prometheus also stops at 2 GB). The dashboard and the alerts are files in the
 repository: edit them there and `docker compose up -d` (Grafana does not keep changes made in its UI to them).

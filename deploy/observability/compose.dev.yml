@@ -1,6 +1,6 @@
 # The monitoring stack on a development machine, for the API run with `dotnet run` (its Development settings push
-# here). Same configuration files as production, ports on localhost only, Grafana without a login, and alert emails
-# caught by Mailpit instead of sent.
+# here). Same configuration files and memory caps as production, ports on localhost only, Grafana without a login, and
+# alert emails caught by Mailpit instead of sent.
 #
 #   docker compose -f deploy/observability/compose.dev.yml up -d      Grafana: http://localhost:3000
 #                                                                     alert emails: http://localhost:8025
@@ -10,6 +10,9 @@ name: kadans-observability-dev
 services:
   prometheus:
     image: prom/prometheus:v3.15.0
+    mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 400MiB
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -23,6 +26,9 @@ services:
 
   loki:
     image: grafana/loki:3.7.8
+    mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 400MiB
     command: -config.file=/etc/loki/config.yml
     ports:
       - "127.0.0.1:3100:3100"
@@ -32,9 +38,11 @@ services:
 
   grafana:
     image: grafana/grafana:13.2.3
+    mem_limit: 768m
     ports:
       - "127.0.0.1:3000:3000"
     environment:
+      GOMEMLIMIT: 512MiB
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
@@ -42,6 +50,7 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_PLUGINS_PREINSTALL_DISABLED: "true" # nothing downloaded behind our back: the two data sources are built in
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/kadans.json
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: mailpit:1025
       GF_SMTP_STARTTLS_POLICY: NoStartTLS

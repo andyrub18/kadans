@@ -353,8 +353,10 @@ nothing leaves it, and nothing of it is published to the internet.
   deadlines' p95 over 10 s, any push dropped, over 20% of pushes failing, a job throwing, the disk over 85%, memory
   under 10%, and no backup for 26 hours. Grafana listens on the server's loopback only: an SSH tunnel reaches it.
 - **node-exporter** adds the server: CPU, memory, disk, and the backup's last success.
-- **Cost.** Memory caps: Prometheus and Loki 512 MB, Grafana 256 MB, node-exporter 64 MB, so monitoring cannot starve
-  the API or Postgres. Traces are not collected (one process, little to follow across); the trace ids in the logs
+- **Cost.** Memory caps: Prometheus and Loki 512 MB, Grafana 768 MB, node-exporter 64 MB, so monitoring cannot starve
+  the API or Postgres. The three Go programs also get `GOMEMLIMIT` below their cap, so their garbage collector works
+  harder near it instead of letting the kernel kill them. Grafana's numbers are measured (about 250 MB idle, 590 MB
+  with three browsers opening the dashboard at once); at 256 MB, opening the dashboard got it killed. Traces are not collected (one process, little to follow across); the trace ids in the logs
   are enough to group a request's lines.
 
 ### Client: Compose Multiplatform

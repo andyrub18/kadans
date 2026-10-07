@@ -1,0 +1,60 @@
+name: Load test
+
+# k6 (tools/loadtest/app.js) from a GitHub runner, against the load-test API that `deploy/loadtest/loadtest.sh
+# switch-in` puts behind production's Caddy (docs/LOADTEST.md). A runner has the cores and the bandwidth a home
+# connection lacks. Started by hand, or by pushing a `loadtest-run` branch whose tools/loadtest/run.env holds the
+# settings. Never on main's pushes or pull requests.
+on:
+  workflow_dispatch:
+    inputs:
+      session_tag:
+        description: Sessions minted on the server for this run (./loadtest.sh sessions <tag>)
+        required: true
+      app_vus:
+        description: People using the app at once
+        default: "2000"
+      live_vus:
+        description: Apps connected to the hub
+        default: "3000"
+      ramp:
+        default: "5m"
+      hold:
+        default: "15m"
+  push:
+    branches: [loadtest-run]
+
+jobs:
+  k6:
+    name: k6
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Settings
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            {
+              echo "SESSION_TAG=${{ inputs.session_tag }}"
+              echo "APP_VUS=${{ inputs.app_vus }}"
+              echo "LIVE_VUS=${{ inputs.live_vus }}"
+              echo "RAMP=${{ inputs.ramp }}"
+              echo "HOLD=${{ inputs.hold }}"
+            } > tools/loadtest/run.env
+          fi
+          grep -E '^[A-Z_]+=' tools/loadtest/run.env | tee -a "$GITHUB_ENV"
+
+      - name: Run k6
+        run: |
+          mkdir -p out
+          docker run --rm --network host -u "$(id -u)" --ulimit nofile=200000:200000 \
+            -v "$PWD/tools/loadtest:/scripts:ro" -v "$PWD/out:/out" grafana/k6:2.3.0 run \
+            --summary-export /out/summary.json \
+            -e BASE_URL="${BASE_URL:-https://api.kadansplanning.com}" -e SESSION_TAG -e APP_VUS -e LIVE_VUS -e RAMP -e HOLD \
+            -e USER_OFFSET="${USER_OFFSET:-0}" /scripts/app.js | tee out/summary.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-${{ github.run_id }}
+          path: out/

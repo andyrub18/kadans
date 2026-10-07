@@ -38,6 +38,8 @@ public sealed class NotificationsModule : IModule
         services.Configure<PushOptions>(pushSection);
         if (string.Equals(pushSection["Provider"], "Fcm", StringComparison.OrdinalIgnoreCase))
             services.AddSingleton<IPushSender, FcmPushSender>();
+        else if (string.Equals(pushSection["Provider"], "Simulated", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IPushSender, SimulatedPushSender>(); // load tests: ProductionConfiguration refuses it elsewhere
         else
             services.AddSingleton<IPushSender, LoggingPushSender>();
 

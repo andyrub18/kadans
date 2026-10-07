@@ -1,0 +1,59 @@
+# A throwaway Kadans for the load test (docs/LOADTEST.md), next to production on the same server: its own Postgres
+# and its own API (the kadans-api:loadtest image), reporting to production's Prometheus, Loki and Grafana. The real
+# database is never touched. Driven by ./loadtest.sh; `./loadtest.sh down` removes all of it.
+name: kadans-loadtest
+
+# Service names are unique on purpose: compose makes each one an alias on every network it joins, and the API also
+# sits on production's network. Named "api" or "db", it would take a share of production's traffic, or reach for
+# production's database.
+services:
+  loadtest-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: kadans_loadtest
+      POSTGRES_USER: kadans
+      POSTGRES_PASSWORD: ${LOADTEST_DB_PASSWORD:?run ./loadtest.sh up}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kadans -d kadans_loadtest"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  loadtest-api:
+    image: kadans-api:loadtest
+    environment:
+      ConnectionStrings__kadans: Host=loadtest-db;Database=kadans_loadtest;Username=kadans;Password=${LOADTEST_DB_PASSWORD:?};GSS Encryption Mode=Disable
+      Jwt__Key: ${LOADTEST_JWT_KEY:?run ./loadtest.sh up}
+      Email__Provider: Log
+      Email__From: Kadans <no-reply@kadansplanning.com>
+      Email__LinkBaseUrl: https://${KADANS_DOMAIN:-api.kadansplanning.com}
+      # Firebase's timing, no device: real Firebase would refuse the seeded tokens. Refused outside a load test.
+      Push__Provider: Simulated
+      Push__Simulated__LatencyMilliseconds: ${PUSH_LATENCY_MS:-150}
+      LoadTest__Enabled: "true"
+      # Every request comes from the load generator's few addresses: the per-client limits would measure themselves.
+      RateLimiting__RequestsPerMinute: "10000000"
+      RateLimiting__CredentialsPerMinute: "10000000"
+      RateLimiting__EmailPer15Minutes: "10000000"
+      Billing__Required: "false"
+      InitialAdmin__Enabled: "false"
+      # Same dashboards as production: the same job, its own instance.
+      Telemetry__MetricsEndpoint: http://prometheus:9090/api/v1/otlp/v1/metrics
+      Telemetry__LogsEndpoint: http://loki:3100/otlp/v1/logs
+      Telemetry__InstanceId: loadtest
+    networks:
+      - default
+      - kadans # production's network, for Prometheus and Loki; Caddy reaches this API only after `switch-in`
+    depends_on:
+      loadtest-db:
+        condition: service_healthy
+
+networks:
+  kadans:
+    name: kadans_default
+    external: true
+
+volumes:
+  pgdata:

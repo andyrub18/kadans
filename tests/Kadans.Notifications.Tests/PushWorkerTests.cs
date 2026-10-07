@@ -174,4 +174,18 @@ public class PushWorkerTests
         length.RecordObservableInstruments();
         await Assert.That(length.LastMeasurement!.Value).IsEqualTo(1000);
     }
+
+    [Test]
+    public async Task The_simulated_provider_answers_like_firebase_500_messages_a_call()
+    {
+        var options = Microsoft.Extensions.Options.Options.Create(new PushOptions { Simulated = { LatencyMilliseconds = 40 } });
+        var sender = new SimulatedPushSender(options);
+        var targets = Enumerable.Range(0, 1001).Select(i => new PushTarget("Android", $"t{i}")).ToList();
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var outcome = await sender.SendAsync(targets, Request.Message);
+
+        await Assert.That(outcome.Sent).IsEqualTo(1001);
+        await Assert.That(watch.ElapsedMilliseconds).IsGreaterThanOrEqualTo(110); // three calls of 40 ms
+    }
 }

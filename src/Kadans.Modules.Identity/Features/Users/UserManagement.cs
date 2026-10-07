@@ -108,7 +108,7 @@ internal sealed class UserManagement(
         var createResult = await userManager.CreateAsync(user, request.Password);
         if (!createResult.Succeeded)
         {
-            logger.LogWarning("Failed to create user {Username}", request.Username);
+            logger.LogWarning("Failed to create a user: {Errors}", string.Join("; ", createResult.Errors.Select(e => e.Code)));
             return createResult.ToValidationError("Validation failed for creating user.");
         }
 
@@ -118,7 +118,7 @@ internal sealed class UserManagement(
             if (!addRolesResult.Succeeded)
             {
                 await transaction.RollbackAsync();
-                logger.LogWarning("Failed to assign roles to user {Username}", request.Username);
+                logger.LogWarning("Failed to assign roles to a new user: {Errors}", string.Join("; ", addRolesResult.Errors.Select(e => e.Code)));
                 return addRolesResult.ToValidationError("Validation failed for creating user.");
             }
         }

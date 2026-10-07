@@ -481,6 +481,15 @@ installing on real devices second, hosting last.
         can be booked days late;
       - the calendar reads occurrences by todo and start instant, but the index is on the original
         instant.
+      - **Progress.**
+        - [x] Observability first, decided 2026-10-05 (design: ARCHITECTURE → "Observability"): OpenTelemetry metrics
+          to Prometheus and Serilog logs to Loki, both over OTLP, Grafana with a dashboard and ten emailed alerts,
+          node-exporter for the server, all in the compose file and capped in memory. Kadans' own metrics measure
+          the targets above: reminder and Pomodoro lateness, the push queue (length, drops, delay, results), and
+          every job pass. Logs carry no addresses, names or contents. Checked on a local copy of the stack with the
+          smoke scripts as traffic: every dashboard query and alert rule runs; stopping the API emailed "The API
+          stopped reporting" (summary, description, labels) and starting it again emailed the resolution.
+        - [ ] Seeding script for the target volumes, then the load test and its measurements.
 - [x] Decided 2026-10-01: reminders every 5 s (was 10 s). Measured before the change with a 5-minute lead:
       one-time, daily and lead-edited todos were reminded 0.5 to 5.5 s after their moment, and a todo
       created inside its lead within one pass.

@@ -129,6 +129,15 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [ ] An uptime monitor on `https://api.<domain>/health/ready`, and an off-server copy of `deploy/backups/`.
 - [ ] Build the apps for production: `-Pkadans.apiBaseUrl=https://api.<domain>` (DEPLOYMENT.md → Building the apps).
 
+## Monitoring
+
+- [ ] On the server, the three new lines in `deploy/.env` (DEPLOYMENT → Monitoring): `GRAFANA_ADMIN_PASSWORD`
+      (generated), `ALERT_EMAIL` (where alerts go), `ALERT_FROM_ADDRESS` (on the Resend-verified domain); then
+      `docker compose up -d`.
+- [ ] Through the SSH tunnel: Grafana → Alerting → Contact points → owner → Test, and check the email arrives.
+- [ ] The privacy policy: logs (30 days) hold user ids and what happened, never addresses, names or contents;
+      metrics (30 days) are counts and durations only.
+
 ## Subscriptions – Google Play and App Store
 
 The mobile apps are free to download and need a subscription (USD 0.99 a month after a 14-day free trial);

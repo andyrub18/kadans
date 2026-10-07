@@ -36,7 +36,8 @@ internal sealed class Authentication(
 
         if (user is null)
         {
-            logger.LogWarning("Login failed: unknown user {Username}", request.Username);
+            // Not what was typed: it may be an address, or a password typed in the wrong field.
+            logger.LogWarning("Login failed: no account has that username or address");
             return new ApplicationError(ErrorTypes.InvalidCredentials, "Invalid username or password");
         }
 

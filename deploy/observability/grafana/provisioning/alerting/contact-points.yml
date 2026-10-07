@@ -1,0 +1,12 @@
+# Where alerts go: one email address (ALERT_EMAIL in deploy/.env), sent through Resend's SMTP.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: owner
+    receivers:
+      - uid: owner-email
+        type: email
+        settings:
+          addresses: $ALERT_EMAIL
+          singleEmail: true

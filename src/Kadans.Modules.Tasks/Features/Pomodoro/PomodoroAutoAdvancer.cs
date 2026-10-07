@@ -19,6 +19,7 @@ internal sealed class PomodoroAutoAdvancer(
     INotificationDispatcher dispatcher,
     IRealtimePublisher realtime,
     IUserDirectory users,
+    TasksMetrics metrics,
     ILogger<PomodoroAutoAdvancer> logger
 )
 {
@@ -70,6 +71,7 @@ internal sealed class PomodoroAutoAdvancer(
         // Step on the schedule, not on wake-up time: a run overdue by two phases lands where it
         // should be. The cap only guards a pathological backlog (looping runs never complete).
         var existingPhaseIds = run.Phases.Select(p => p.Id).ToHashSet();
+        var dueAt = run.PhaseEndsAt!.Value;
         var steps = 0;
         // Never past the session's end: PomodoroAutoFinish ends it there.
         while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now && !(run.PhaseEndsAt >= run.FinishBy) && steps++ < 500)
@@ -90,6 +92,7 @@ internal sealed class PomodoroAutoAdvancer(
             logger.LogDebug("Run {RunId} was advanced by a client at the same moment", runId);
             return false;
         }
+        metrics.PomodoroDeadline("advance", DateTimeOffset.UtcNow - dueAt);
 
         try
         {

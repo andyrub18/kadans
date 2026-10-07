@@ -41,6 +41,7 @@ public sealed class NotificationsModule : IModule
         else
             services.AddSingleton<IPushSender, LoggingPushSender>();
 
+        services.AddSingleton<PushMetrics>();
         services.AddSingleton<PushQueue>();
         services.AddHostedService<PushWorker>();
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();

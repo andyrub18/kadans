@@ -32,10 +32,10 @@ internal sealed class FcmPushSender : IPushSender
         messaging = FirebaseMessaging.GetMessaging(app);
     }
 
-    public async Task<IReadOnlyList<string>> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
+    public async Task<PushOutcome> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
     {
         if (targets.Count == 0)
-            return [];
+            return PushOutcome.AllSent(0);
 
         var data = (message.Data ?? new Dictionary<string, string>())
             .Concat([new KeyValuePair<string, string>("kind", message.Kind)])
@@ -72,6 +72,6 @@ internal sealed class FcmPushSender : IPushSender
         }
 
         logger.LogInformation("FCM: {Success} sent, {Failed} failed, {Dead} dead token(s)", response.SuccessCount, response.FailureCount, dead.Count);
-        return dead;
+        return new PushOutcome(response.SuccessCount, response.FailureCount - dead.Count, dead);
     }
 }

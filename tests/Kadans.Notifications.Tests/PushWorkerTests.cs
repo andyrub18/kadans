@@ -1,6 +1,9 @@
+using System.Diagnostics.Metrics;
 using Kadans.Modules.Notifications.Push;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Users;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kadans.Notifications.Tests;
@@ -21,16 +24,28 @@ public class PushWorkerTests
         }
     }
 
+    /// <summary>Answers with the dead tokens <paramref name="send"/> names; every other device was sent to.</summary>
     private sealed class FakeSender(Func<IReadOnlyList<PushTarget>, IReadOnlyList<string>> send) : IPushSender
     {
         public int Calls { get; private set; }
 
-        public Task<IReadOnlyList<string>> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
+        public Task<PushOutcome> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult(send(targets));
+            var dead = send(targets);
+            return Task.FromResult(new PushOutcome(targets.Count - dead.Count, 0, dead));
         }
     }
+
+    private readonly IMeterFactory meters = new ServiceCollection().AddMetrics().BuildServiceProvider().GetRequiredService<IMeterFactory>();
+    private readonly PushMetrics metrics;
+
+    public PushWorkerTests() => metrics = new PushMetrics(meters);
+
+    private Task Deliver(PushRequest request, IDevicePushTargets devices, IMobileAccess phones, IPushSender sender) =>
+        PushWorker.DeliverAsync(request, devices, phones, sender, metrics, NullLogger.Instance, CancellationToken.None);
+
+    private MetricCollector<T> Collect<T>(string instrument) where T : struct => new(meters, PushMetrics.MeterName, instrument);
 
     /// <summary>The account's phone access, as Billing would answer it.</summary>
     private sealed class Phones(bool allowed) : IMobileAccess
@@ -49,7 +64,7 @@ public class PushWorkerTests
         var devices = new FakeDevices(new PushTarget("Android", "live"), new PushTarget("Android", "dead"));
         var sender = new FakeSender(_ => ["dead"]);
 
-        await PushWorker.DeliverAsync(Request, devices, Phones.Allowed, sender, NullLogger.Instance, CancellationToken.None);
+        await Deliver(Request, devices, Phones.Allowed, sender);
 
         await Assert.That(sender.Calls).IsEqualTo(1);
         await Assert.That(devices.Invalidated).IsEquivalentTo(["dead"]);
@@ -60,7 +75,7 @@ public class PushWorkerTests
     {
         var sender = new FakeSender(_ => []);
 
-        await PushWorker.DeliverAsync(Request, new FakeDevices(), Phones.Allowed, sender, NullLogger.Instance, CancellationToken.None);
+        await Deliver(Request, new FakeDevices(), Phones.Allowed, sender);
 
         await Assert.That(sender.Calls).IsEqualTo(0);
     }
@@ -70,7 +85,7 @@ public class PushWorkerTests
     {
         var sender = new FakeSender(_ => throw new InvalidOperationException("FCM is down"));
 
-        await PushWorker.DeliverAsync(Request, new FakeDevices(new PushTarget("Android", "live")), Phones.Allowed, sender, NullLogger.Instance, CancellationToken.None);
+        await Deliver(Request, new FakeDevices(new PushTarget("Android", "live")), Phones.Allowed, sender);
 
         await Assert.That(sender.Calls).IsEqualTo(1); // reached here: nothing propagated
     }
@@ -78,7 +93,7 @@ public class PushWorkerTests
     [Test]
     public async Task The_queue_hands_requests_over_in_order()
     {
-        var queue = new PushQueue();
+        var queue = new PushQueue(metrics);
         queue.Enqueue(Request with { UserId = "a" });
         queue.Enqueue(Request with { UserId = "b" });
 
@@ -109,11 +124,54 @@ public class PushWorkerTests
         });
         var devices = new FakeDevices(new PushTarget("Android", "phone"), new PushTarget("Ios", "iphone"), new PushTarget("Web", "browser"));
 
-        await PushWorker.DeliverAsync(Request, devices, Phones.NotSubscribed, sender, NullLogger.Instance, CancellationToken.None);
+        await Deliver(Request, devices, Phones.NotSubscribed, sender);
         await Assert.That(sent).IsEquivalentTo(["Web"]);
 
         sent.Clear();
-        await PushWorker.DeliverAsync(Request, new FakeDevices(new PushTarget("Android", "phone")), Phones.NotSubscribed, sender, NullLogger.Instance, CancellationToken.None);
+        await Deliver(Request, new FakeDevices(new PushTarget("Android", "phone")), Phones.NotSubscribed, sender);
         await Assert.That(sender.Calls).IsEqualTo(1); // the call above; nothing left to send to here
+    }
+
+    [Test]
+    public async Task What_the_provider_answers_is_counted_per_device_and_how_long_it_waited()
+    {
+        using var messages = Collect<long>("kadans.push.messages");
+        using var delay = Collect<double>("kadans.push.delay");
+        var devices = new FakeDevices(new PushTarget("Android", "a"), new PushTarget("Android", "b"), new PushTarget("Ios", "dead"));
+
+        await Deliver(Request, devices, Phones.Allowed, new FakeSender(_ => ["dead"]));
+
+        var byResult = messages.GetMeasurementSnapshot().ToDictionary(m => (string)m.Tags["result"]!, m => m.Value);
+        await Assert.That(byResult["sent"]).IsEqualTo(2);
+        await Assert.That(byResult["dead"]).IsEqualTo(1);
+        await Assert.That(byResult.ContainsKey("failed")).IsFalse();
+        await Assert.That(delay.GetMeasurementSnapshot().Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Phones_left_out_for_want_of_a_subscription_are_counted()
+    {
+        using var withheld = Collect<long>("kadans.push.withheld");
+        var devices = new FakeDevices(new PushTarget("Android", "phone"), new PushTarget("Ios", "iphone"), new PushTarget("Web", "browser"));
+
+        await Deliver(Request, devices, Phones.NotSubscribed, new FakeSender(_ => []));
+        await Deliver(Request, devices, Phones.Allowed, new FakeSender(_ => []));
+
+        await Assert.That(withheld.GetMeasurementSnapshot().Sum(m => m.Value)).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task A_full_queue_drops_the_oldest_and_says_so()
+    {
+        using var dropped = Collect<long>("kadans.push.dropped");
+        using var length = Collect<int>("kadans.push.queue.length");
+        var queue = new PushQueue(metrics);
+
+        for (var i = 0; i < 1003; i++)
+            queue.Enqueue(Request with { UserId = $"user-{i}" });
+
+        await Assert.That(dropped.GetMeasurementSnapshot().Sum(m => m.Value)).IsEqualTo(3);
+        length.RecordObservableInstruments();
+        await Assert.That(length.LastMeasurement!.Value).IsEqualTo(1000);
     }
 }

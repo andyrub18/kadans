@@ -1,10 +1,15 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Users;
 
 namespace Kadans.Modules.Notifications.Push;
 
-internal sealed record PushRequest(string UserId, NotificationMessage Message);
+internal sealed record PushRequest(string UserId, NotificationMessage Message)
+{
+    /// <summary>When it was queued (<see cref="Stopwatch"/> ticks): how long a push waits is a measured number.</summary>
+    public long QueuedAt { get; init; } = Stopwatch.GetTimestamp();
+}
 
 /// <summary>
 /// Push leaves the caller's path here. A call to FCM takes from a few hundred milliseconds to
@@ -14,9 +19,17 @@ internal sealed record PushRequest(string UserId, NotificationMessage Message);
 /// </summary>
 internal sealed class PushQueue
 {
-    private readonly Channel<PushRequest> channel = Channel.CreateBounded<PushRequest>(
-        new BoundedChannelOptions(1000) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true }
-    );
+    private readonly Channel<PushRequest> channel;
+
+    public PushQueue(PushMetrics metrics)
+    {
+        // Full: the oldest goes, and the drop is counted (an alert watches it).
+        channel = Channel.CreateBounded<PushRequest>(
+            new BoundedChannelOptions(1000) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true },
+            _ => metrics.Dropped()
+        );
+        metrics.ObserveQueue(() => channel.Reader.Count);
+    }
 
     public void Enqueue(PushRequest request) => channel.Writer.TryWrite(request);
 
@@ -24,7 +37,7 @@ internal sealed class PushQueue
         channel.Reader.ReadAllAsync(cancellationToken);
 }
 
-internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, IPushSender push, ILogger<PushWorker> logger)
+internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, IPushSender push, PushMetrics metrics, ILogger<PushWorker> logger)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,6 +53,7 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
                     scope.ServiceProvider.GetRequiredService<IDevicePushTargets>(),
                     scope.ServiceProvider.GetRequiredService<IMobileAccess>(),
                     push,
+                    metrics,
                     logger,
                     stoppingToken
                 );
@@ -60,6 +74,7 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
         IDevicePushTargets devices,
         IMobileAccess mobileAccess,
         IPushSender push,
+        PushMetrics metrics,
         ILogger logger,
         CancellationToken cancellationToken
     )
@@ -67,13 +82,19 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
         try
         {
             var targets = await devices.ForUserAsync(request.UserId, cancellationToken);
-            if (targets.Any(IsPhone) && !await mobileAccess.AllowsPhonesAsync(request.UserId, cancellationToken))
+            var phones = targets.Count(IsPhone);
+            if (phones > 0 && !await mobileAccess.AllowsPhonesAsync(request.UserId, cancellationToken))
+            {
                 targets = [.. targets.Where(t => !IsPhone(t))];
+                metrics.Withheld(phones);
+            }
             if (targets.Count == 0)
                 return;
 
-            var dead = await push.SendAsync(targets, request.Message, cancellationToken);
-            foreach (var token in dead)
+            var outcome = await push.SendAsync(targets, request.Message, cancellationToken);
+            metrics.Answered(outcome.Sent, outcome.Failed, outcome.Dead.Count);
+            metrics.Delivered(Stopwatch.GetElapsedTime(request.QueuedAt));
+            foreach (var token in outcome.Dead)
                 await devices.InvalidateAsync(token, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

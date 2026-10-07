@@ -4,7 +4,7 @@
 #
 #   docker compose up -d --build        first start, and every update after `git pull`
 #   docker compose logs -f api
-#   ssh -L 3000:localhost:3000 <you>@<server>   then http://localhost:3000: Grafana, never on the internet
+#   ssh -L 3000:127.0.0.1:3000 <you>@<server>   then http://localhost:3000: Grafana, never on the internet
 name: kadans
 
 # Docker keeps container logs forever by default. Capped at 5 × 10 MB per service, a flood of requests (and the
@@ -123,12 +123,15 @@ services:
 
   # ---- Monitoring (docs/ARCHITECTURE.md → Observability). Nothing here is published to the internet: Grafana listens
   # on the server's loopback only (an SSH tunnel reaches it), the rest only on the compose network. Memory is capped
-  # so monitoring can never starve the API or the database.
+  # so monitoring can never starve the API or the database. All three are Go programs: GOMEMLIMIT makes their garbage
+  # collector work harder as they near the cap, instead of growing until the kernel kills them.
   prometheus:
     image: prom/prometheus:v3.15.0
     restart: unless-stopped
     logging: *logging
     mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 400MiB
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -144,6 +147,8 @@ services:
     restart: unless-stopped
     logging: *logging
     mem_limit: 512m
+    environment:
+      GOMEMLIMIT: 400MiB
     command: -config.file=/etc/loki/config.yml
     volumes:
       - ./observability/loki.yml:/etc/loki/config.yml:ro
@@ -153,10 +158,13 @@ services:
     image: grafana/grafana:13.2.3
     restart: unless-stopped
     logging: *logging
-    mem_limit: 256m
+    # Measured: about 250 MB idle, 590 MB at most with three browsers opening the dashboard at once (with the collector
+    # at 512 MiB). At 256 MB, opening the dashboard got it killed.
+    mem_limit: 768m
     ports:
-      - "127.0.0.1:3000:3000" # loopback only: ssh -L 3000:localhost:3000 <you>@<server>
+      - "127.0.0.1:3000:3000" # loopback only: ssh -L 3000:127.0.0.1:3000 <you>@<server>
     environment:
+      GOMEMLIMIT: 512MiB
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
       GF_SERVER_ROOT_URL: http://localhost:3000
@@ -165,6 +173,7 @@ services:
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_PLUGINS_PREINSTALL_DISABLED: "true" # nothing downloaded behind our back: the two data sources are built in
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/kadans.json # signing in lands on it
       # Alerts by email, through Resend's SMTP with the API key Kadans already sends with.
       GF_SMTP_ENABLED: "true"
       GF_SMTP_HOST: smtp.resend.com:587

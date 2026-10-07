@@ -7,6 +7,7 @@
 #   ./loadtest.sh peak <ISO instant> [count]   reminders due within that minute
 #   ./loadtest.sh switch-in           production's API stops; this one takes its place behind Caddy
 #   ./loadtest.sh switch-out          and back: this one stops, production's API starts again
+#   ./loadtest.sh report [minutes]    the verdict from Prometheus over the last N minutes (default 20)
 #   ./loadtest.sh down                everything here goes, data included; production's API runs
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -44,6 +45,8 @@ case "${1:-}" in
     compose stop loadtest-api
     docker compose --project-directory "$PROD" -p kadans start api
     echo "production's API is back";;
+  report)
+    python3 report.py "${2:-20}";;
   down)
     compose down -v || true
     docker compose --project-directory "$PROD" -p kadans start api

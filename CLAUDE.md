@@ -11,7 +11,8 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 
 ## Layout
 
-- `src/Kadans.Api` – host only: Serilog, OpenAPI/Scalar, JSON, authorization fallback, module wiring.
+- `src/Kadans.Api` – host only: Serilog, OpenAPI/Scalar, JSON, authorization fallback, rate limiting and admission
+  control (load shedding), metrics, module wiring.
 - `src/Kadans.Modules.Identity` – users, auth, tokens, profile (`identity` schema).
 - `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro, Quartz jobs (`tasks` schema).
 - `src/Kadans.Modules.Notifications` – notification log, SignalR hub `/hubs/kadans`, push (FCM) (`notifications` schema).
@@ -104,6 +105,9 @@ Anything a production host needs must be in `appsettings.json` or an environment
   One that checks a password or a code gets `RateLimitPolicies.Credentials`. Everything else is under the
   host's global per-client limit. Development's limits are generous (`appsettings.Development.json`), so
   the smoke scripts never hit them.
+- Every request holds one of the host's admission places while it runs (`AdmissionControl`: 32 at once, then a short
+  queue, then 503 "server busy"). Something that stays open (streaming, long polling) belongs under `/hubs`, which
+  holds no place; never make a request wait on a timer.
 - Database names are snake_case via `ModelBuilder.UseSnakeCaseNames()`; timestamps are `DateTimeOffset` UTC.
 - Per-user data isolation is done with EF global query filters on `UserId == ICurrentUserService.UserId`.
   Keep that pattern; do not add manual `Where(UserId == ...)` checks instead of it.

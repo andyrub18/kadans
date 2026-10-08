@@ -149,6 +149,20 @@ code. Both are token buckets, so a rejection says when to retry. The numbers are
 confirmation, reset or email-change mail per address every 2 minutes, so many senders cannot bury one
 inbox either. Token refresh is only under the global limit: a refresh token has nothing to guess. Details: [DEPLOYMENT.md](DEPLOYMENT.md).
 
+Admission control is the host's too, for the server rather than a client (`AdmissionControl`, after the rate limiter
+and before authentication). The load test showed why (docs/LOADTEST.md, run 4): past about 280 requests a second on
+2 vCPU, an API that accepts everything slows every request at once, until the database pool, the thread pool and the
+memory run out and nothing is answered at all. So the API works on at most 32 requests at a time, below the
+database pool's 40 so that an admitted request never waits for a connection. Up to 128 more wait for a place, first
+come first served, for up to 2 seconds. Anything beyond is answered at once with 503, `Retry-After: 5` and error
+10058 ("The server is busy. Try again in a moment.", translated). A request turned away has cost no token check and no
+query, so the server keeps its full speed for the requests it took. Health checks always pass. A hub connection lives
+as long as the app stays open, so it holds no place; a new one is refused while requests are waiting. The apps
+already treat a 503 as passing: a refresh refused that way keeps the session, a screen shows the sentence and its
+Retry, and the live connection retries with backoff. The numbers are configuration (`Admission`); every request
+turned away is counted (`kadans_admission_shed_total`), and any at all raises the "Server busy" alert: the server is
+at capacity.
+
 ### Errors: written once in English, worded per request
 
 Services return `ApplicationError(ErrorType, message)` with an English message next to the code that
@@ -336,6 +350,9 @@ nothing leaves it, and nothing of it is published to the internet.
     `kadans_push_messages_total{result=sent|failed|dead}` per device, `kadans_push_withheld_total` (phones without a
     subscription);
   - `kadans_job_duration_seconds{job_name, outcome}`: every Quartz pass, through a job listener in the host;
+  - admission control, from the host: `kadans_admission_shed_total{reason=queue_full|queue_timeout|hub}` (turned away
+    with a 503, also marked `kadans_admission="shed"` on the request metrics so "server errors" leave them out),
+    `kadans_admission_waiting`, `kadans_admission_wait_seconds` (for a place, those that waited);
   - from the backup container, through node-exporter's textfile collector: `kadans_backup_last_success_timestamp_seconds`.
 
   Labels stay bounded (routes, results, job names), never a user id. Histograms carry explicit buckets
@@ -348,8 +365,9 @@ nothing leaves it, and nothing of it is published to the internet.
 - **No personal data in either.** Logs carry user ids, never an address, a name, what someone wrote (a todo's title)
   or a secret; a failed sign-in does not log what was typed. The privacy policy can say so.
 - **Grafana** reads both, with one provisioned dashboard (Kadans: overview, API, reminders and push, jobs, database
-  and runtime, server, logs) and ten alerts, emailed through Resend's SMTP (`deploy/observability/grafana/`):
-  the API silent for 5 minutes, more than 5 server errors in 10 minutes, reminders' p95 over a minute, Pomodoro
+  and runtime, server, logs) and eleven alerts, emailed through Resend's SMTP (`deploy/observability/grafana/`):
+  the API silent for 5 minutes, more than 5 server errors in 10 minutes, any request turned away as "server busy"
+  in 10 minutes, reminders' p95 over a minute, Pomodoro
   deadlines' p95 over 10 s, any push dropped, over 20% of pushes failing, a job throwing, the disk over 85%, memory
   under 10%, and no backup for 26 hours. Grafana listens on the server's loopback only: an SSH tunnel reaches it.
 - **node-exporter** adds the server: CPU, memory, disk, and the backup's last success.

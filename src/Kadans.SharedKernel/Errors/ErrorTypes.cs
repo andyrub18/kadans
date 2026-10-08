@@ -323,6 +323,14 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    /// <summary>The server is past what it can work on at once and turned the request away (load shedding).</summary>
+    public static readonly ErrorTypes ServerBusy = new(
+        "10058",
+        "Server busy",
+        StatusCodes.Status503ServiceUnavailable,
+        ""
+    );
+
     /// <summary>Subscriptions cannot be bought on this server yet (no store configured).</summary>
     public static readonly ErrorTypes BillingUnavailable = new(
         "10055",

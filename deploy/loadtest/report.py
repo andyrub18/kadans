@@ -49,7 +49,14 @@ line("requests / s", fmt(one(f"sum(rate(http_server_request_duration_seconds_cou
 line("p50", fmt(one(p(0.5, "http_server_request_duration_seconds", http)), "s"))
 line("p95", fmt(one(p(0.95, "http_server_request_duration_seconds", http)), "s"), "target: under 200 ms")
 line("p99", fmt(one(p(0.99, "http_server_request_duration_seconds", http)), "s"))
-line("server errors (5xx)", fmt(one(f'sum(increase(http_server_request_duration_seconds_count{{{http}, http_response_status_code=~"5.."}}[{window}]))')), "target: 0")
+line("server errors (5xx)", fmt(one(f'sum(increase(http_server_request_duration_seconds_count{{{http}, kadans_admission!="shed", http_response_status_code=~"5.."}}[{window}]))')), "target: 0")
+shed = one(f"sum(increase(kadans_admission_shed_total{{{api}}}[{window}]))")
+total = one(f"sum(increase(http_server_request_duration_seconds_count{{{http}}}[{window}]))")
+line("turned away, server busy (503)", fmt(shed), f"{fmt(shed / total, '%')} of requests" if shed and total else "")
+for r in query(f"sum by (reason) (increase(kadans_admission_shed_total{{{api}}}[{window}]))"):
+    line(f"  {r['metric'].get('reason')}", fmt(float(r["value"][1])))
+line("waiting for a place (max)", fmt(one(f"max_over_time(sum(kadans_admission_waiting{{{api}}})[{window}:15s])")))
+line("wait for a place p95 (those that waited)", fmt(one(p(0.95, "kadans_admission_wait_seconds", api)), "s"))
 line("live connections (max)", fmt(one(f"max_over_time(sum(signalr_server_active_connections{{{api}}})[{window}:15s])")))
 print("  slowest routes (p95):")
 for r in sorted(query(p(0.95, "http_server_request_duration_seconds", http, "le, http_request_method, http_route")),

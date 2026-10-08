@@ -46,7 +46,7 @@ groups:
             datasourceUid: prometheus
             model:
               refId: A
-              expr: 'sum(increase(http_server_request_duration_seconds_count{job="kadans-api", http_route!~"/hubs/.*", http_response_status_code=~"5.."}[10m]))'
+              expr: 'sum(increase(http_server_request_duration_seconds_count{job="kadans-api", http_route!~"/hubs/.*", kadans_admission!="shed", http_response_status_code=~"5.."}[10m]))'
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -64,6 +64,35 @@ groups:
         annotations:
           summary: 'More than 5 requests answered with a 5xx in 10 minutes'
           description: 'Grafana → Explore → Loki: {service_name="kadans-api"} | detected_level="error" shows what failed.'
+        labels:
+          severity: warning
+      - uid: kadans-server-busy
+        title: 'Server busy'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: 'sum(increase(kadans_admission_shed_total[10m]))'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: 'Requests were turned away with "server busy" (503)'
+          description: 'More arrived than the API can work on at once (Admission in appsettings.json). Now and then after a burst is survivable; every day means the server is too small for its users (docs/LOADTEST.md). Dashboard: API → Turned away.'
         labels:
           severity: warning
       - uid: kadans-reminders-late
@@ -150,7 +179,7 @@ groups:
         for: 0s
         annotations:
           summary: 'The push queue was full and dropped notifications'
-          description: 'Pushes are queued faster than the provider takes them (1,000 waiting at most). Dashboard: Reminders and push.'
+          description: 'Pushes are queued faster than the provider takes them (50,000 waiting at most). Dashboard: Reminders and push.'
         labels:
           severity: critical
       - uid: kadans-push-failing

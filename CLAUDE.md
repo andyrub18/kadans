@@ -109,8 +109,11 @@ Anything a production host needs must be in `appsettings.json` or an environment
   queue, then 503 "server busy"). Something that stays open (streaming, long polling) belongs under `/hubs`, which
   holds no place; never make a request wait on a timer.
 - Database names are snake_case via `ModelBuilder.UseSnakeCaseNames()`; timestamps are `DateTimeOffset` UTC.
-- Per-user data isolation is done with EF global query filters on `UserId == ICurrentUserService.UserId`.
-  Keep that pattern; do not add manual `Where(UserId == ...)` checks instead of it.
+- Per-user data isolation is done with EF global query filters on `UserId == CurrentUserId`.
+  Keep that pattern; do not add manual `Where(UserId == ...)` checks instead of it. DbContexts are pooled: one with
+  user filters derives from `UserScopedDbContext` and is registered with `AddUserScopedDbContextPool` (the current user
+  is handed to each rented instance), the others with `AddDbContextPool`. Never put a scoped service in a DbContext's
+  constructor: a pooled instance outlives its request.
 - Modules must only depend on `Kadans.SharedKernel`, never on each other. Cross-module
   references are by id (no foreign keys, no navigation properties to another module's entities).
 - Inside a module everything is `internal` except `Contracts/` (request/response records, enums they

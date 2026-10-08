@@ -2,6 +2,7 @@ using Kadans.Modules.Billing;
 using Kadans.Modules.Billing.Features;
 using Kadans.Modules.Billing.Google;
 using Kadans.Modules.Billing.Persistence;
+using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Security;
 using Kadans.SharedKernel.Users;
 using Microsoft.Data.Sqlite;
@@ -17,7 +18,7 @@ internal static class BillingTestServices
     {
         var collection = new ServiceCollection();
         collection.AddLogging();
-        collection.AddDbContext<BillingDbContext>(options => options.UseSqlite(connection));
+        collection.AddUserScopedDbContextPool<BillingDbContext>(options => options.UseSqlite(connection)); // as the module registers it
         collection.Configure<BillingOptions>(options =>
         {
             options.Required = true;

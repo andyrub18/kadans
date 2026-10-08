@@ -20,12 +20,12 @@ public sealed class NotificationsModule : IModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = KadansDatabase.ConnectionString(configuration);
-        services.AddDbContext<NotificationsDbContext>(options =>
+        // Pooled: building a context per request was a tenth of the API's CPU (docs/LOADTEST.md).
+        services.AddDbContextPool<NotificationsDbContext>(options =>
             options.UseNpgsql(
                 connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", NotificationsDbContext.Schema)
-            ),
-            optionsLifetime: ServiceLifetime.Singleton // built once: the options depend on configuration only
+            )
         );
 
         // Hub payloads must match the REST contract (string enums), or clients need two decoders.

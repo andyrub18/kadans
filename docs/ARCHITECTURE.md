@@ -54,7 +54,11 @@ Kadans.Modules.Tasks/
    user's data when Identity erases the account), and `IMobileAccess` (implemented by Billing; Notifications asks
    it before pushing to a phone). Tasks and Budget only consume the rest.
 4. **Everything is `internal`** except `Contracts` and the `IModule` implementation.
-5. **Per-user isolation via EF global query filters** on `UserId == ICurrentUserService.UserId`.
+5. **Per-user isolation via EF global query filters** on `UserId == CurrentUserId`. Contexts are pooled (building one
+   per request was a tenth of the API's CPU, docs/LOADTEST.md), so a context with user filters derives from
+   `UserScopedDbContext` and is registered with `AddUserScopedDbContextPool`: each request's instance is handed that
+   request's `ICurrentUserService` when it is rented and loses it when it goes back. A context rented any other way
+   sees no one's rows, never the previous renter's. A pooled context takes nothing scoped in its constructor.
 6. **Endpoints return DTOs**, never EF entities (the old code returned `Todo`/`PomodoroRun`
    with an `IdentityUser` navigation – a password-hash leak waiting for an `Include`).
 7. Authorization fallback policy = authenticated user; anonymous endpoints opt out explicitly.

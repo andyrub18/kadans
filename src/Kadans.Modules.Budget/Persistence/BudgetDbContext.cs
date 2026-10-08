@@ -1,14 +1,10 @@
 using Kadans.Modules.Budget.Domain;
 using Kadans.SharedKernel.Persistence;
-using Kadans.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kadans.Modules.Budget.Persistence;
 
-internal sealed class BudgetDbContext(
-    DbContextOptions<BudgetDbContext> options,
-    ICurrentUserService userService
-) : DbContext(options)
+internal sealed class BudgetDbContext(DbContextOptions<BudgetDbContext> options) : UserScopedDbContext(options)
 {
     public const string Schema = "budget";
 
@@ -44,7 +40,7 @@ internal sealed class BudgetDbContext(
             a.Property(p => p.Type).HasConversion<string>().HasMaxLength(32);
             a.Property(p => p.InitialBalance).HasPrecision(16, 2);
             a.HasIndex(p => new { p.UserId, p.IsArchived });
-            a.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            a.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<Category>(c =>
@@ -54,7 +50,7 @@ internal sealed class BudgetDbContext(
             c.Property(p => p.Kind).HasConversion<string>().HasMaxLength(16);
             c.Property(p => p.Icon).HasMaxLength(16);
             c.HasIndex(p => new { p.UserId, p.Kind });
-            c.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            c.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<CategoryBudget>(b =>
@@ -64,7 +60,7 @@ internal sealed class BudgetDbContext(
             b.Property(p => p.MonthlyLimit).HasPrecision(16, 2);
             b.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(p => new { p.UserId, p.CategoryId }).IsUnique();
-            b.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            b.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<Transaction>(t =>
@@ -89,7 +85,7 @@ internal sealed class BudgetDbContext(
                 .IsDescending(false, true);
             t.HasIndex(p => p.TransferAccountId);
 
-            t.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            t.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<BudgetProfile>(p =>
@@ -97,7 +93,7 @@ internal sealed class BudgetDbContext(
             p.HasKey(x => x.UserId);
             p.Property(x => x.UserId).HasMaxLength(450);
             p.Property(x => x.BaseCurrency).HasConversion<string>().HasMaxLength(8);
-            p.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            p.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<CurrencyRate>(r =>
@@ -106,7 +102,7 @@ internal sealed class BudgetDbContext(
             r.Property(x => x.Currency).HasConversion<string>().HasMaxLength(8);
             r.Property(x => x.RateInBase).HasPrecision(14, 6);
             r.HasIndex(x => new { x.UserId, x.Currency }).IsUnique();
-            r.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            r.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<RecurringTransaction>(r =>
@@ -126,7 +122,7 @@ internal sealed class BudgetDbContext(
             // The job's query: active rules whose next instance has come (or is not computed yet).
             r.HasIndex(p => p.NextOccurrenceAt).HasFilter("is_active = true");
 
-            r.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
+            r.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });
     }
 }

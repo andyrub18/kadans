@@ -1,11 +1,10 @@
 using Kadans.Modules.Billing.Domain;
 using Kadans.SharedKernel.Persistence;
-using Kadans.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kadans.Modules.Billing.Persistence;
 
-internal sealed class BillingDbContext(DbContextOptions<BillingDbContext> options, ICurrentUserService userService) : DbContext(options)
+internal sealed class BillingDbContext(DbContextOptions<BillingDbContext> options) : UserScopedDbContext(options)
 {
     public const string Schema = "billing";
 
@@ -38,7 +37,7 @@ internal sealed class BillingDbContext(DbContextOptions<BillingDbContext> option
             // A purchase belongs to one account.
             s.HasIndex(p => new { p.Store, p.StoreKey }).IsUnique();
             s.HasIndex(p => p.UserId);
-            s.HasQueryFilter(x => x.UserId == userService.UserId);
+            s.HasQueryFilter(x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<FreeAccount>(f =>
@@ -47,7 +46,7 @@ internal sealed class BillingDbContext(DbContextOptions<BillingDbContext> option
             f.HasKey(p => p.UserId).HasName("pk_free_accounts");
             f.Property(p => p.UserId).HasMaxLength(450);
             f.Property(p => p.AddedBy).IsRequired().HasMaxLength(450);
-            f.HasQueryFilter(x => x.UserId == userService.UserId);
+            f.HasQueryFilter(x => x.UserId == CurrentUserId);
         });
     }
 }

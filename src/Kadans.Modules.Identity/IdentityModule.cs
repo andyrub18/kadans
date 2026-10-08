@@ -32,7 +32,8 @@ public sealed class IdentityModule : IModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = KadansDatabase.ConnectionString(configuration);
-        services.AddDbContext<IdentityModuleDbContext>(options =>
+        // Pooled: building a context per request was a tenth of the API's CPU (docs/LOADTEST.md).
+        services.AddDbContextPool<IdentityModuleDbContext>(options =>
             options.UseNpgsql(
                 connectionString,
                 npgsql =>
@@ -40,8 +41,7 @@ public sealed class IdentityModule : IModule
                         "__ef_migrations_history",
                         IdentityModuleDbContext.Schema
                     )
-            ),
-            optionsLifetime: ServiceLifetime.Singleton // built once: the options depend on configuration only
+            )
         );
 
         var lockout = configuration.GetSection("Identity:Lockout");

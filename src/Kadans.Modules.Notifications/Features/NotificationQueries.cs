@@ -12,6 +12,11 @@ namespace Kadans.Modules.Notifications.Features;
 
 internal sealed class NotificationQueries(NotificationsDbContext dbContext, ICurrentUserService currentUser)
 {
+    // The bell's count, behind every Home: compiled once (docs/LOADTEST.md).
+    private static readonly Func<NotificationsDbContext, string, Task<int>> Unread = EF.CompileAsyncQuery(
+        (NotificationsDbContext db, string userId) => db.Notifications.Count(n => n.UserId == userId && n.ReadAt == null)
+    );
+
     public async Task<OneOf<ApplicationError, List<NotificationResponse>>> List(bool unreadOnly, int page, int pageSize)
     {
         if (currentUser.UserId is null)
@@ -35,7 +40,7 @@ internal sealed class NotificationQueries(NotificationsDbContext dbContext, ICur
         if (currentUser.UserId is null)
             return Unauthorized();
 
-        return new UnreadCountResponse(await dbContext.Notifications.CountAsync(n => n.UserId == currentUser.UserId && n.ReadAt == null));
+        return new UnreadCountResponse(await Unread(dbContext, currentUser.UserId));
     }
 
     public async Task<OneOf<ApplicationError, Success>> MarkRead(Guid id)

@@ -51,13 +51,14 @@ internal sealed class AccountService(BudgetDbContext context, ICurrentUserServic
         return ToResponse(account, await BalanceOf(account));
     }
 
+    // The budget screen's first read: compiled once (docs/LOADTEST.md). Read only.
+    private static readonly Func<BudgetDbContext, bool, IAsyncEnumerable<Account>> Accounts = EF.CompileAsyncQuery<BudgetDbContext, bool, Account>(
+        (BudgetDbContext db, bool includeArchived) => db.Accounts.AsNoTracking().Where(a => includeArchived || !a.IsArchived).OrderBy(a => a.CreatedAt)
+    );
+
     public async Task<List<AccountResponse>> List(bool includeArchived = false)
     {
-        var accounts = await context.Accounts
-            .AsNoTracking()
-            .Where(a => includeArchived || !a.IsArchived)
-            .OrderBy(a => a.CreatedAt)
-            .ToListAsync();
+        var accounts = await Accounts(context, includeArchived).ToListAsync();
         var effects = await BalanceEffects(accounts.Select(a => a.Id).ToList());
         return [.. accounts.Select(a => ToResponse(a, a.InitialBalance + effects.GetValueOrDefault(a.Id)))];
     }

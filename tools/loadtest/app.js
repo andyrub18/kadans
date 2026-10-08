@@ -67,6 +67,9 @@ function userIndex() {
   return OFFSET + exec.vu.idInTest - 1;
 }
 
+// As in the app: only a refused refresh ends a session. Busy (503), down or unreachable keeps it for the next try.
+const REFUSED = [400, 401, 403];
+
 function session(index) {
   if (account && account.index === index) return account;
   const res = http.post(`${BASE}/auth/refresh`, JSON.stringify({ refreshToken: `lt-${TAG}-${index}` }), {
@@ -74,7 +77,7 @@ function session(index) {
     tags: { name: 'POST /auth/refresh' },
   });
   if (res.status !== 200) {
-    sessionFailures.add(1);
+    if (REFUSED.includes(res.status)) sessionFailures.add(1);
     return null;
   }
   account = { index, access: res.json('accessToken'), refresh: res.json('refreshToken') };
@@ -87,8 +90,10 @@ function renew() {
     tags: { name: 'POST /auth/refresh' },
   });
   if (res.status !== 200) {
-    sessionFailures.add(1);
-    account = null;
+    if (REFUSED.includes(res.status)) {
+      sessionFailures.add(1);
+      account = null;
+    }
     return false;
   }
   account.access = res.json('accessToken');
@@ -178,32 +183,40 @@ export function setup() {
 }
 
 // ---- an app left open: one hub connection until the end of the test ----
+// The app's way (realtime/KadansRealtime.kt): straight to the WebSocket, no negotiate; after a failed try it waits 1, 2,
+// 5, 10, then 30 s; after a connection that opened and then dropped, 1 s.
+let attempt = 0;
+
+function backoffSeconds(n) {
+  return n <= 1 ? 1 : n === 2 ? 2 : n === 3 ? 5 : n === 4 ? 10 : 30;
+}
+
 export function liveConnection(data) {
+  const left = () => TOTAL_MS - 30000 - (Date.now() - data.start);
   // Near the end, wait for it rather than reconnect for a few seconds.
-  const remaining = TOTAL_MS - 30000 - (Date.now() - data.start);
-  if (remaining < 10000) {
-    sleep(Math.max(1, remaining / 1000 + 30));
+  if (left() < 10000) {
+    sleep(Math.max(1, left() / 1000 + 30));
     return;
   }
-  if (!session(userIndex())) return;
-  const negotiate = http.post(`${BASE}/hubs/kadans/negotiate?negotiateVersion=1`, null, {
-    headers: { Authorization: `Bearer ${account.access}` },
-    tags: { name: 'POST /hubs/kadans/negotiate' },
-  });
-  if (!check(negotiate, { 'negotiate ok': (r) => r.status === 200 })) return;
-
-  const url = `${BASE.replace(/^http/, 'ws')}/hubs/kadans?id=${negotiate.json('connectionToken')}&access_token=${account.access}`;
-  const stayFor = remaining;
-  ws.connect(url, { tags: { name: 'WS /hubs/kadans' } }, (socket) => {
-    socket.on('open', () => socket.send(JSON.stringify({ protocol: 'json', version: 1 }) + '\x1e'));
-    socket.on('message', (data) => {
-      for (const frame of String(data).split('\x1e')) {
-        if (frame.includes('"type":1') && frame.includes('"target":"notification"')) liveNotifications.add(1);
-      }
+  let opened = false;
+  if (session(userIndex())) {
+    const url = `${BASE.replace(/^http/, 'ws')}/hubs/kadans?access_token=${account.access}`;
+    ws.connect(url, { tags: { name: 'WS /hubs/kadans' } }, (socket) => {
+      socket.on('open', () => {
+        opened = true;
+        socket.send(JSON.stringify({ protocol: 'json', version: 1 }) + '\x1e');
+      });
+      socket.on('message', (data) => {
+        for (const frame of String(data).split('\x1e')) {
+          if (frame.includes('"type":1') && frame.includes('"target":"notification"')) liveNotifications.add(1);
+        }
+      });
+      socket.setInterval(() => socket.send(JSON.stringify({ type: 6 }) + '\x1e'), 15000);
+      socket.setTimeout(() => socket.close(), Math.max(1000, left()));
     });
-    socket.setInterval(() => socket.send(JSON.stringify({ type: 6 }) + '\x1e'), 15000);
-    socket.setTimeout(() => socket.close(), stayFor);
-  });
+  }
+  attempt = opened ? 1 : attempt + 1;
+  sleep(Math.min(backoffSeconds(attempt), Math.max(0, left() / 1000)));
 }
 
 // ---- helpers ----

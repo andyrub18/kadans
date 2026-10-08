@@ -254,7 +254,7 @@ ssh -L 3000:127.0.0.1:3000 <you>@<server>     # then http://localhost:3000, user
 ```
 
 - **Dashboard:** the home page after signing in (also Dashboards → Kadans → Kadans).
-- **Alerts:** Alerting → Alert rules (ten, provisioned from `deploy/observability/grafana/provisioning/alerting/`).
+- **Alerts:** Alerting → Alert rules (eleven, provisioned from `deploy/observability/grafana/provisioning/alerting/`).
   Alerting → Contact points → owner → Test sends a test email: do it once after the first start.
 - **Searching logs:** Explore → Loki. Every property of an event is a field, nested ones joined with `_`:
 
@@ -294,6 +294,21 @@ started with `dotnet run` (Development) already sends there.
   429 with `Retry-After` and logs `Rate limit reached by <client> on <request>`
   (`docker compose logs api | grep "Rate limit"`). To change a number, add it to the `api` service's
   `environment` in the compose file, e.g. `RateLimiting__CredentialsPerMinute: "40"`.
+- Server busy (admission control, ARCHITECTURE → Rate limiting): the API works on 32 requests at a time and lets 128
+  more wait up to 2 s; past that it answers 503 "The server is busy" with `Retry-After: 5`, logs `Server busy: <n>
+  request(s) turned away` at most every 10 s, and the "Server busy" alert fires. Once after a burst is survivable;
+  daily means the server is too small for its users (the load test's capacity: docs/LOADTEST.md). The numbers are
+  `Admission__MaxConcurrentRequests`, `Admission__QueueLimit`, `Admission__QueueTimeoutMilliseconds` and
+  `Admission__RetryAfterSeconds` in the `api` service's `environment`. Keep `MaxConcurrentRequests` below the database
+  pool (40): above it, requests wait for a connection instead, up to 15 s, and fail there.
+- Postgres is tuned for this server in the compose file (`db` → `command`: cache, SSD costs, no JIT). With more memory,
+  raise `shared_buffers` to a quarter of it and `effective_cache_size` to three quarters. The costliest queries:
+
+  ```bash
+  docker compose exec db psql -U kadans -d kadans -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements"   # once
+  docker compose exec db psql -U kadans -d kadans -c "SELECT round(total_exec_time) AS ms, calls, left(query, 120)
+    FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10"
+  ```
 - OS updates: `sudo apt update && sudo apt upgrade`, and `unattended-upgrades` for security patches.
 - Certificates: Caddy renews them; keep the `caddy_data` volume.
 - Secrets live only in `deploy/.env` and `deploy/secrets/` on the server (both git-ignored). Changing

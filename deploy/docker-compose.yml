@@ -80,6 +80,27 @@ services:
     image: postgres:17
     restart: unless-stopped
     logging: *logging
+    # Sized for this server (2 vCPU, 4 GB, SSD) by the load test (docs/LOADTEST.md): a quarter of the memory for
+    # Postgres' cache, SSD-priced random reads, no JIT (it slowed the short queries an app makes). pg_stat_statements
+    # names the costliest queries (DEPLOYMENT → Monitoring); it keeps query shapes, never their values.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - jit=off
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    # Docker's 64 MB /dev/shm is too small for Postgres' shared memory at this size.
+    shm_size: 256mb
     environment:
       POSTGRES_DB: kadans
       POSTGRES_USER: kadans

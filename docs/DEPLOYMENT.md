@@ -173,7 +173,8 @@ the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per reque
 - **First start.** nginx answers on port 80 only (Let's Encrypt's challenge, and a redirect to HTTPS for everything
   else) until certbot has the certificate; within a minute of it, nginx serves HTTPS
   (`docker compose logs nginx` → `kadans: new certificate, nginx reloaded`). It needs the DNS record pointing here
-  and port 80 open; until then certbot retries every 15 minutes, and `docker compose logs certbot` says why.
+  and port 80 open; until then certbot retries every 15 minutes (`docker compose restart certbot` tries at once), and
+  `docker compose logs certbot` says why.
 - **Renewal.** certbot checks twice a day and renews well before the end; nginx reloads by itself. The expiry date is
   a metric (`kadans_tls_certificate_expiry_timestamp_seconds`, the dashboard's "Certificate expires in"), and the
   alert "Certificate expiring" fires 14 days before it or when there is no certificate at all.
@@ -183,8 +184,11 @@ the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per reque
   WebSockets for the hub, no version in the `Server` header. It puts the client's own address in `X-Forwarded-For`,
   replacing whatever the client sent: the rate limits are per client, and a client must not pick its own. It asks
   Docker's DNS for the API's address every 10 s, so a recreated API container is found again.
-- **Moving from Caddy** (once, on a server that ran it): `git pull`, then `docker compose up -d --build --remove-orphans`
-  (the orphan is the old `caddy` container). HTTPS is back about a minute later. Once it is,
+- **Moving from Caddy** (once, on a server that ran it): `git pull`, `docker rm -f kadans-caddy-1`, then
+  `docker compose up -d --build --remove-orphans`. Remove Caddy first: it holds ports 80 and 443, and on the first
+  server nginx, started while Caddy still had them, came up running but without its network (no ports, no DNS).
+  `docker port kadans-nginx-1` must list 80 and 443; if it lists nothing,
+  `docker compose up -d --force-recreate --no-deps nginx`. HTTPS is back about a minute later. Once it is,
   `docker volume rm kadans_caddy_data kadans_caddy_config`.
 
 ## Subscriptions

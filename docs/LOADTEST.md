@@ -56,7 +56,7 @@ cd ~/kadans-loadtest/deploy/loadtest
 ./loadtest.sh seed 50000               # ~15 minutes
 ./loadtest.sh sessions run1            # sessions for this run (a run's refreshes rotate them)
 ./loadtest.sh peak 2026-10-08T01:00:00Z 20000
-./loadtest.sh switch-in                # production's API stops; this one takes its place behind Caddy
+./loadtest.sh switch-in                # production's API stops; this one takes its place behind nginx
 ```
 
 Then start the workflow (Actions → Load test, with the session tag), watch the Kadans dashboard (its instance is
@@ -147,6 +147,55 @@ And admission control (ARCHITECTURE → Rate limiting, admission control): at mo
 waiting at most 2 s, the rest answered at once with 503 and `Retry-After`. Past capacity the server now refuses the
 excess and keeps answering the rest at full speed, instead of accepting everything and answering nothing.
 
-### Run 5
+### Run 5, 2026-10-08: run 4's steps with those changes, stopped at 75%
 
-(To come: the same steps with these changes, the peak in the 50% step.)
+The same steps, the peak due at 20:19 in the 50% step and a second one planned in the 100% step. The owner stopped
+the run during the ramp to 75% to rethink the architecture first, so the steps past 50% were not measured.
+
+| Step | Requests/s | p95 | p99 | Server CPU | Memory available |
+|------|-----------:|----:|----:|-----------:|-----------------:|
+| 25% | 122–127 | 11–17 ms | 23–25 ms | 45–49% | 37–43% |
+| 50% | 235–249 | 22–46 ms | 41–237 ms | 72–76% | 19–24% |
+| the peak's minute | 235 | 683 ms | 1.9 s | 85% | 17% |
+| the minute after, ramping to 75% | 266 | 91 ms | 263 ms | 87% | 17% |
+
+The peak passed its target under that load: about 21,100 reminders in the 6 minutes from 20:19 (the 20,000 of the
+peak and the usual ones), none skipped, none later than a minute (p50 4.5 s, p95 11.2 s, p99 14.9 s; run 2 had them
+up to 300 s late), every push handed to the provider, none dropped, 0.5 s from queue to provider at the 95th
+percentile. It cost the requests that minute: their p95 went to 683 ms and admission control turned about 230 of them
+away with 503, its first real use; the next minute was back under 100 ms. No server errors.
+
+Where one request's CPU went at 249 requests a second (`docker stats` each minute): the API 2.4 ms, Caddy 1.1 ms,
+Postgres about 1 ms, the kernel's networking and the monitoring about 1.3 ms. About 5.8 ms in all: two vCPU top out
+near 345 requests a second, and latency climbs from about 280.
+
+### What changed after run 5
+
+Measured on the workstation as before, each piece in turn:
+
+- **The proxy.** The same API behind each proxy, the same load, TLS with the same kind of certificate (ECDSA P-256),
+  HTTP/2, gzip at level 5: Caddy took 1.48 ms of CPU per request (gzip 0.12 of it), nginx 0.74. nginx and certbot
+  replace Caddy (DEPLOYMENT → Proxy and certificates).
+- **The load test now asks for gzip**, as the apps do (OkHttp and iOS send `Accept-Encoding: gzip`): k6 does not by
+  default, so runs 1 to 5 never made the proxy compress anything.
+- **EF Core.** A profile of the API after run 4's changes put EF Core at about a fifth of its CPU: 0.18 ms per
+  request turning LINQ into its cached SQL on every call, 0.18 ms building each DbContext and its internal services,
+  0.12 ms turning rows into objects. JSON was 2% (0.03 ms): nothing to gain there. Dapper would save about 0.4 ms
+  a request but means rewriting every query and giving up the global query filters that keep each user's data
+  apart, so instead:
+  - DbContext pooling, the current user handed to each rented context (`UserScopedDbContext`): 2.44 → 1.84 ms of
+    API CPU per request (−25%). More than building the contexts cost in the profile: fewer allocations also means
+    less garbage collection, which a profile of managed code does not show.
+  - Compiled queries for the five hottest reads (Home's todos, the calendar's two, the bell's count, the accounts):
+    1.84 → 1.65 ms (−10%).
+
+  Each figure is the mean of runs that alternated with the one before it (2.46 and 2.42 ms before; 1.90 and 1.78
+  pooled; 1.72 and 1.57 compiled): one run against another varies by up to 10% on this machine.
+
+So since run 5 the API takes a third less CPU per request and the proxy half: on the server, about 5.8 ms of CPU per
+request should become about 4.5 (API 1.65, nginx 0.6, Postgres 1, the rest 1.3), which would move the point where
+latency climbs from about 280 requests a second to about 350. Run 6 measures it.
+
+### Run 6
+
+(To come once nginx is deployed: run 5's steps through 100%, a peak in the 50% and the 100% steps.)

@@ -69,11 +69,13 @@ function userIndex() {
 
 // As in the app: only a refused refresh ends a session. Busy (503), down or unreachable keeps it for the next try.
 const REFUSED = [400, 401, 403];
+// The app's HTTP engines (OkHttp, Darwin) ask for gzip and the proxy compresses for them: so does every call here.
+const JSON_HEADERS = { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip' };
 
 function session(index) {
   if (account && account.index === index) return account;
   const res = http.post(`${BASE}/auth/refresh`, JSON.stringify({ refreshToken: `lt-${TAG}-${index}` }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     tags: { name: 'POST /auth/refresh' },
   });
   if (res.status !== 200) {
@@ -86,7 +88,7 @@ function session(index) {
 
 function renew() {
   const res = http.post(`${BASE}/auth/refresh`, JSON.stringify({ refreshToken: account.refresh }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: JSON_HEADERS,
     tags: { name: 'POST /auth/refresh' },
   });
   if (res.status !== 200) {
@@ -103,7 +105,7 @@ function renew() {
 
 function call(method, path, name, body) {
   const params = {
-    headers: { Authorization: `Bearer ${account.access}`, 'Content-Type': 'application/json', 'Accept-Language': 'ht' },
+    headers: { ...JSON_HEADERS, Authorization: `Bearer ${account.access}`, 'Accept-Language': 'ht' },
     tags: { name },
   };
   let res = http.request(method, `${BASE}${path}`, body ? JSON.stringify(body) : null, params);

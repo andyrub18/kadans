@@ -5,6 +5,7 @@
 #   ./loadtest.sh seed [users] [peak-at] [peak-count]    fill it (the API must be stopped: `up` leaves it so)
 #   ./loadtest.sh sessions <tag>      a fresh session per account for the next run (k6's SESSION_TAG)
 #   ./loadtest.sh peak <ISO instant> [count]   reminders due within that minute
+#   ./loadtest.sh warmup              start this API off to the side (Caddy cannot reach it) to catch up its jobs
 #   ./loadtest.sh switch-in           production's API stops; this one takes its place behind Caddy
 #   ./loadtest.sh switch-out          and back: this one stops, production's API starts again
 #   ./loadtest.sh report [minutes]    the verdict from Prometheus over the last N minutes (default 20)
@@ -17,6 +18,15 @@ cd "$(dirname "$0")"
 REPO="$(cd ../.. && pwd)"
 PROD="$(cd ../../../kadans/deploy 2>/dev/null && pwd || true)" # the production checkout, next to this one
 compose() { docker compose --env-file .env -f compose.yml "$@"; }
+API=kadans-loadtest-loadtest-api-1
+# This API off production's "api" name, still on its network for Prometheus and Loki. A container keeps the aliases it
+# was given: without this, a stopped API that once took production's place takes a share of its traffic when it starts.
+unpublish() {
+  docker inspect "$API" > /dev/null 2>&1 || return 0
+  docker network disconnect kadans_default "$API" 2> /dev/null || true
+  docker network connect --alias loadtest-api kadans_default "$API"
+}
+published() { docker inspect "$API" --format '{{json (index .NetworkSettings.Networks "kadans_default").Aliases}}' 2> /dev/null | grep -q '"api"'; }
 seeder() {
   docker run --rm --network kadans-loadtest_default -v "$REPO":/src -v kadans-loadtest-nuget:/root/.nuget -w /src \
     mcr.microsoft.com/dotnet/sdk:10.0 dotnet run --project tools/Kadans.LoadTest.Seeder -c Release -- "$@" \
@@ -38,6 +48,13 @@ case "${1:-}" in
     seeder sessions --tag "${2:?a tag, e.g. run1}";;
   peak)
     seeder peak --at "${2:?an ISO instant, e.g. 2026-10-08T01:00:00Z}" --count "${3:-20000}";;
+  warmup)
+    unpublish
+    compose up -d loadtest-db loadtest-api
+    unpublish
+    if published; then echo "refusing: the load-test API still answers to \"api\"" >&2; compose stop loadtest-api; exit 1; fi
+    until compose logs --since 2m loadtest-api 2> /dev/null | grep -q "Application started"; do sleep 2; done
+    echo "warming up, out of Caddy's reach";;
   switch-in)
     docker compose --project-directory "$PROD" -p kadans stop api
     compose up -d loadtest-api
@@ -46,6 +63,7 @@ case "${1:-}" in
     echo "Caddy now sends https://api.kadansplanning.com to the load-test API";;
   switch-out)
     compose stop loadtest-api
+    unpublish
     docker compose --project-directory "$PROD" -p kadans start api
     echo "production's API is back";;
   report)
@@ -71,6 +89,8 @@ ORDER BY total_exec_time DESC LIMIT 15;
 SQL
     ;;
   down)
+    compose stop loadtest-api || true
+    unpublish
     compose down -v || true
     docker compose --project-directory "$PROD" -p kadans start api
     rm -f .env;;

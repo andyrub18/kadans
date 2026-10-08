@@ -8,6 +8,9 @@
 #   ./loadtest.sh switch-in           production's API stops; this one takes its place behind Caddy
 #   ./loadtest.sh switch-out          and back: this one stops, production's API starts again
 #   ./loadtest.sh report [minutes]    the verdict from Prometheus over the last N minutes (default 20)
+#   ./loadtest.sh record <minutes> <file>   in the background: a one-minute report and docker stats every minute,
+#                                     then the costliest queries (pg_stat_statements) when the time is up
+#   ./loadtest.sh queries             the costliest queries since the last reset (pg_stat_statements)
 #   ./loadtest.sh down                everything here goes, data included; production's API runs
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -47,6 +50,26 @@ case "${1:-}" in
     echo "production's API is back";;
   report)
     python3 report.py "${2:-20}";;
+  record)
+    minutes="${2:?minutes}"; file="${3:?a file}"
+    setsid nohup bash -c "
+      end=\$(( \$(date +%s) + $minutes * 60 ))
+      while [ \$(date +%s) -lt \$end ]; do
+        { echo \"===== \$(date -u +%T)\"; python3 report.py 1; docker stats --no-stream --format 'STAT {{.Name}} {{.CPUPerc}} {{.MemUsage}}'; } >> '$file' 2>&1
+        sleep 50
+      done
+      { echo '===== costliest queries'; ./loadtest.sh queries; } >> '$file' 2>&1
+    " > /dev/null 2>&1 < /dev/null &
+    echo "recording to $file for $minutes minutes";;
+  queries)
+    docker exec -i kadans-loadtest-loadtest-db-1 psql -U kadans -d kadans_loadtest -P pager=off <<'SQL'
+SELECT round(total_exec_time::numeric / 1000, 1) AS total_s, calls, round(mean_exec_time::numeric, 2) AS mean_ms,
+       round(total_plan_time::numeric / 1000, 1) AS plan_s, rows, shared_blks_read AS disk_blocks,
+       left(regexp_replace(query, '\s+', ' ', 'g'), 180) AS query
+FROM pg_stat_statements WHERE dbid = (SELECT oid FROM pg_database WHERE datname = 'kadans_loadtest')
+ORDER BY total_exec_time DESC LIMIT 15;
+SQL
+    ;;
   down)
     compose down -v || true
     docker compose --project-directory "$PROD" -p kadans start api

@@ -26,6 +26,8 @@ services:
       - maintenance_work_mem=128MB
       - -c
       - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track_planning=on
     shm_size: 256mb
     environment:
       POSTGRES_DB: kadans_loadtest

@@ -19,9 +19,11 @@ public sealed class TasksModule : IModule
 {
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<TasksDbContext>(options =>
+        var connectionString = KadansDatabase.ConnectionString(configuration);
+        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext).
+        services.AddUserScopedDbContextPool<TasksDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("kadans"),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", TasksDbContext.Schema)
             )
         );

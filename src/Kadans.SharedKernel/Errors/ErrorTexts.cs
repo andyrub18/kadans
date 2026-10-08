@@ -107,6 +107,7 @@ public static class ErrorTexts
         ["10055"] = new("Les abonnements ne sont pas encore disponibles.", "Abònman yo poko disponib."),
         ["10056"] = new("Cet achat n'a pas pu être vérifié.", "Nou pa t ka verifye acha sa a."),
         ["10057"] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
+        ["10058"] = new("Le serveur est surchargé. Réessayez dans un moment.", "Sèvè a twò chaje kounye a. Tann yon ti moman epi eseye ankò."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
@@ -171,6 +172,7 @@ public static class ErrorTexts
         ["This todo has no Pomodoro template attached."] = new("Cette tâche n'a pas de cycle Pomodoro.", "Travay sa a pa gen sik Pomodoro."),
         // --- identity ---
         ["Too many attempts. Try again in a moment."] = new("Trop de tentatives. Réessayez dans un moment.", "Twòp tantativ. Tann yon ti moman epi eseye ankò."),
+        ["The server is busy. Try again in a moment."] = new("Le serveur est surchargé. Réessayez dans un moment.", "Sèvè a twò chaje kounye a. Tann yon ti moman epi eseye ankò."),
         ["Invalid username or password"] = new("Nom d'utilisateur ou mot de passe invalide.", "Non itilizatè oswa modpas la pa bon."),
         ["Invalid refresh token"] = new("Votre session a expiré. Reconnectez-vous.", "Sesyon ou an ekspire. Konekte ankò."),
         ["The current password is not correct."] = new("Le mot de passe actuel n'est pas correct.", "Modpas aktyèl la pa bon."),

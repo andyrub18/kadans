@@ -26,3 +26,6 @@ client_secret*.json
 deploy/.env
 deploy/secrets/
 deploy/backups/
+
+# The load test's generated secrets (deploy/loadtest/loadtest.sh up)
+deploy/loadtest/.env

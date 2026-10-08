@@ -120,6 +120,17 @@ public class ProductionConfigurationTests
     }
 
     [Test]
+    public async Task Simulated_push_runs_only_in_a_load_test()
+    {
+        await Assert.That(Problems(v => v["Push:Provider"] = "Simulated").Single()).Contains("load tests only");
+        await Assert.That(Problems(v =>
+        {
+            v["Push:Provider"] = "Simulated";
+            v["LoadTest:Enabled"] = "true";
+        })).IsEmpty();
+    }
+
+    [Test]
     public async Task The_fake_store_never_runs_in_production()
     {
         await Assert.That(Problems(v => v["Billing:FakeStore:Enabled"] = "true").Single()).Contains("Development only");

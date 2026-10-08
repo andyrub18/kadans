@@ -11,6 +11,7 @@
     <PackageReference Include="OneOf" />
     <PackageReference Include="Resend" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
 </Project>

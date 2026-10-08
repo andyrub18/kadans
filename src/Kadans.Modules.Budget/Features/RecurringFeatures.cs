@@ -75,6 +75,7 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
             TimeZoneId = schedule.AsT1.TimeZoneId,
             StartDate = schedule.AsT1.Start,
         };
+        rule.ScheduleNext();
         context.RecurringTransactions.Add(rule);
         await context.SaveChangesAsync();
         return ToResponse(rule);
@@ -107,6 +108,7 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
         rule.CategoryId = category?.Id;
         rule.Note = request.Note.Trim();
         rule.IsActive = request.IsActive;
+        rule.ScheduleNext();
         rule.UpdatedAt = DateTimeOffset.UtcNow;
         await context.SaveChangesAsync();
         return ToResponse(rule);
@@ -139,52 +141,68 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
 {
     public static readonly JobKey Key = new("recurring-transactions", "budget");
 
+    private const int BatchSize = 500;
+
+    /// <summary>The longest a pass runs; what is left is the next pass's.</summary>
+    private static readonly TimeSpan MaxPass = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Only the rules whose next instance has come (and those that have not computed it yet), batch after batch until
+    /// none is left. It used to walk every active rule in turns, 500 a pass: with 100,000 rules a salary could be
+    /// booked two days late (docs/LOADTEST.md).
+    /// </summary>
     public async Task Execute(IJobExecutionContext jobContext)
     {
-        var now = DateTimeOffset.UtcNow;
-        var due = await dbContext.RecurringTransactions
-            .IgnoreQueryFilters()
-            .Where(r => r.IsActive && (r.GeneratedThrough == null || r.GeneratedThrough < now))
-            // Least recently materialized first (never-materialized rules before all): every active rule is due
-            // on every pass, so without an order a backlog over the Take could skip the same rules each time.
-            .OrderBy(r => r.GeneratedThrough != null)
-            .ThenBy(r => r.GeneratedThrough)
-            .ThenBy(r => r.Id)
-            .Take(500)
-            .ToListAsync(jobContext.CancellationToken);
-
+        var started = DateTimeOffset.UtcNow;
         var created = 0;
-        foreach (var rule in due)
+        var rules = 0;
+
+        while (DateTimeOffset.UtcNow - started < MaxPass)
         {
-            var occurrences = rule.DueOccurrences(now);
-            foreach (var occurredAt in occurrences)
+            var now = DateTimeOffset.UtcNow;
+            var due = await dbContext.RecurringTransactions
+                .IgnoreQueryFilters()
+                .Where(r => r.IsActive && (r.NextOccurrenceAt == null || r.NextOccurrenceAt <= now))
+                .OrderBy(r => r.NextOccurrenceAt != null)
+                .ThenBy(r => r.NextOccurrenceAt)
+                .ThenBy(r => r.Id)
+                .Take(BatchSize)
+                .ToListAsync(jobContext.CancellationToken);
+            if (due.Count == 0)
+                break;
+
+            foreach (var rule in due)
             {
-                dbContext.Transactions.Add(new Transaction
+                var occurrences = rule.DueOccurrences(now);
+                foreach (var occurredAt in occurrences)
                 {
-                    UserId = rule.UserId,
-                    AccountId = rule.AccountId,
-                    Kind = rule.Kind,
-                    Amount = rule.Amount,
-                    Currency = rule.Currency,
-                    OccurredAt = occurredAt,
-                    CategoryId = rule.CategoryId,
-                    Note = rule.Note,
-                    RecurringTransactionId = rule.Id,
-                });
-                created++;
+                    dbContext.Transactions.Add(new Transaction
+                    {
+                        UserId = rule.UserId,
+                        AccountId = rule.AccountId,
+                        Kind = rule.Kind,
+                        Amount = rule.Amount,
+                        Currency = rule.Currency,
+                        OccurredAt = occurredAt,
+                        CategoryId = rule.CategoryId,
+                        Note = rule.Note,
+                        RecurringTransactionId = rule.Id,
+                    });
+                    created++;
+                }
+                rule.Advance(occurrences, now);
             }
-            rule.Advance(occurrences, now);
+
+            await dbContext.SaveChangesAsync(jobContext.CancellationToken);
+            dbContext.ChangeTracker.Clear();
+            rules += due.Count;
+
+            if (due.Count < BatchSize)
+                break;
         }
 
         if (created > 0)
-        {
-            await dbContext.SaveChangesAsync(jobContext.CancellationToken);
-            logger.LogInformation("Recurring budget rules materialized {Count} transaction(s)", created);
-        }
-        else if (due.Count > 0)
-        {
-            await dbContext.SaveChangesAsync(jobContext.CancellationToken);
-        }
+            logger.LogInformation("Recurring budget rules: {Rules} rule(s) looked at, {Count} transaction(s) booked", rules, created);
     }
 }
 

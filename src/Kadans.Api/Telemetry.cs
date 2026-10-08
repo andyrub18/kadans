@@ -111,11 +111,12 @@ internal static class Telemetry
     /// <summary>
     /// One line per request is the metrics' job now: a request is logged when it went wrong (4xx, 5xx, an exception) or
     /// was slow (over a second). The rest is Debug, below the configured minimum, so health checks and the steady
-    /// stream of successful calls stay out of the logs.
+    /// stream of successful calls stay out of the logs. The hub's connections last as long as an app stays open: long
+    /// is normal there, not slow.
     /// </summary>
     internal static LogEventLevel RequestLogLevel(HttpContext context, double elapsedMilliseconds, Exception? exception) =>
         exception is not null || context.Response.StatusCode >= 500 ? LogEventLevel.Error
-        : elapsedMilliseconds > 1000 ? LogEventLevel.Warning
+        : elapsedMilliseconds > 1000 && !context.Request.Path.StartsWithSegments("/hubs") ? LogEventLevel.Warning
         : context.Response.StatusCode >= 400 ? LogEventLevel.Information
         : LogEventLevel.Debug;
 }

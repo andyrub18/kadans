@@ -12,7 +12,9 @@ namespace Kadans.Modules.Tasks.Features.Todos.Occurrences;
 /// <summary>
 /// Sends the "starts soon" reminder for pending occurrences whose <c>NotifyAt</c> has passed,
 /// once each (<c>NotifiedAt</c>). Occurrences that are already long past are skipped silently
-/// rather than delivered late.
+/// rather than delivered late. A pass keeps going, 500 at a time, until nothing is due: a peak
+/// (thousands of people's 08:00) goes out in one pass, each batch with one lookup of its people
+/// and one save, instead of 500 every five seconds, one by one (docs/LOADTEST.md).
 /// </summary>
 [DisallowConcurrentExecution]
 internal sealed class OccurrenceReminderJob(
@@ -29,61 +31,83 @@ internal sealed class OccurrenceReminderJob(
 
     private const int BatchSize = 500;
 
+    /// <summary>The longest a pass runs; whatever is still due is the next pass's, five seconds later.</summary>
+    private static readonly TimeSpan MaxPass = TimeSpan.FromMinutes(2);
+
     public async Task Execute(IJobExecutionContext context)
     {
         var cancellationToken = context.CancellationToken;
-        var now = DateTimeOffset.UtcNow;
-        var staleBefore = now.AddMinutes(-options.Value.ReminderStaleAfterMinutes);
+        var started = DateTimeOffset.UtcNow;
+        var staleBefore = started.AddMinutes(-options.Value.ReminderStaleAfterMinutes);
 
         // Too late to be useful: stamp them so the index stops returning them.
         var stale = await dbContext
             .TodoOccurrences.IgnoreQueryFilters()
-            .Where(o => o.Status == OccurrenceStatus.Pending && o.NotifiedAt == null && o.NotifyAt != null && o.NotifyAt <= now && o.ScheduledAt < staleBefore)
-            .ExecuteUpdateAsync(s => s.SetProperty(o => o.NotifiedAt, now), cancellationToken);
+            .Where(o => o.Status == OccurrenceStatus.Pending && o.NotifiedAt == null && o.NotifyAt != null && o.NotifyAt <= started && o.ScheduledAt < staleBefore)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.NotifiedAt, started), cancellationToken);
         metrics.RemindersStale(stale);
 
-        var due = await dbContext
-            .TodoOccurrences.IgnoreQueryFilters()
-            .Include(o => o.Todo)
-            .Where(o => o.Status == OccurrenceStatus.Pending && o.NotifiedAt == null && o.NotifyAt != null && o.NotifyAt <= now)
-            .OrderBy(o => o.NotifyAt)
-            .Take(BatchSize)
-            .ToListAsync(cancellationToken);
-
-        if (due.Count == 0)
-            return;
-
-        var users = new Dictionary<string, (TimeZoneInfo Zone, string Language)>();
-        foreach (var occurrence in due)
+        var sent = 0;
+        while (DateTimeOffset.UtcNow - started < MaxPass)
         {
-            var todo = occurrence.Todo!;
-            var (timeZone, language) = await UserContextAsync(todo.UserId, users, cancellationToken);
-            var texts = LocalizedTexts.Reminder(language);
-            var local = TimeZoneInfo.ConvertTime(occurrence.ScheduledAt, timeZone);
-            var untilStart = occurrence.ScheduledAt - now;
+            var now = DateTimeOffset.UtcNow;
+            var due = await dbContext
+                .TodoOccurrences.IgnoreQueryFilters()
+                .Include(o => o.Todo)
+                .Where(o => o.Status == OccurrenceStatus.Pending && o.NotifiedAt == null && o.NotifyAt != null && o.NotifyAt <= now)
+                .OrderBy(o => o.NotifyAt)
+                .Take(BatchSize)
+                .ToListAsync(cancellationToken);
+            if (due.Count == 0)
+                break;
 
-            var message = new NotificationMessage(
-                Kind,
-                todo.Title,
-                untilStart > TimeSpan.FromSeconds(30)
-                    ? string.Format(texts.StartsAtFormat, $"{local:HH:mm}", Describe(untilStart, texts))
-                    : string.Format(texts.StartsNowFormat, $"{local:HH:mm}"),
-                new Dictionary<string, string>
-                {
-                    ["todoId"] = todo.Id.ToString(),
-                    ["occurrenceId"] = occurrence.Id.ToString(),
-                    ["scheduledAt"] = occurrence.ScheduledAt.ToString("O"),
-                    ["pomodoroTemplateId"] = todo.PomodoroTemplateId?.ToString() ?? string.Empty,
-                }
-            );
+            var people = await users.FindManyAsync([.. due.Select(o => o.Todo!.UserId).Distinct()], cancellationToken);
+            var reminders = new List<UserNotification>(due.Count);
+            foreach (var occurrence in due)
+            {
+                reminders.Add(new UserNotification(occurrence.Todo!.UserId, Reminder(occurrence, people.GetValueOrDefault(occurrence.Todo.UserId), now)));
+                occurrence.NotifiedAt = now;
+            }
 
-            await dispatcher.DispatchAsync(todo.UserId, message, cancellationToken);
-            occurrence.NotifiedAt = now;
-            metrics.ReminderSent(DateTimeOffset.UtcNow - occurrence.NotifyAt!.Value);
+            await dispatcher.DispatchManyAsync(reminders, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            dbContext.ChangeTracker.Clear();
+
+            var dispatched = DateTimeOffset.UtcNow;
+            foreach (var occurrence in due)
+                metrics.ReminderSent(dispatched - occurrence.NotifyAt!.Value);
+            sent += due.Count;
+
+            if (due.Count < BatchSize)
+                break;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Reminder run: {Count} reminder(s) sent", due.Count);
+        if (sent > 0)
+            logger.LogInformation("Reminder run: {Count} reminder(s) sent in {Seconds:0.0} s", sent, (DateTimeOffset.UtcNow - started).TotalSeconds);
+    }
+
+    private static NotificationMessage Reminder(TodoOccurrence occurrence, UserSummary? user, DateTimeOffset now)
+    {
+        var todo = occurrence.Todo!;
+        var timeZone = user is not null && TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var found) ? found : TimeZoneInfo.Utc;
+        var texts = LocalizedTexts.Reminder(user?.Language ?? "en");
+        var local = TimeZoneInfo.ConvertTime(occurrence.ScheduledAt, timeZone);
+        var untilStart = occurrence.ScheduledAt - now;
+
+        return new NotificationMessage(
+            Kind,
+            todo.Title,
+            untilStart > TimeSpan.FromSeconds(30)
+                ? string.Format(texts.StartsAtFormat, $"{local:HH:mm}", Describe(untilStart, texts))
+                : string.Format(texts.StartsNowFormat, $"{local:HH:mm}"),
+            new Dictionary<string, string>
+            {
+                ["todoId"] = todo.Id.ToString(),
+                ["occurrenceId"] = occurrence.Id.ToString(),
+                ["scheduledAt"] = occurrence.ScheduledAt.ToString("O"),
+                ["pomodoroTemplateId"] = todo.PomodoroTemplateId?.ToString() ?? string.Empty,
+            }
+        );
     }
 
     /// <summary>
@@ -105,17 +129,5 @@ internal sealed class OccurrenceReminderJob(
         return hours == 0
             ? $"{minutes / minutesPerDay} {texts.DayAbbrev}"
             : $"{minutes / minutesPerDay} {texts.DayAbbrev} {hours} {texts.HourAbbrev}";
-    }
-
-    private async Task<(TimeZoneInfo, string)> UserContextAsync(string userId, Dictionary<string, (TimeZoneInfo, string)> cache, CancellationToken cancellationToken)
-    {
-        if (cache.TryGetValue(userId, out var cached))
-            return cached;
-
-        var user = await users.FindAsync(userId, cancellationToken);
-        var timeZone = user is not null && TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var found) ? found : TimeZoneInfo.Utc;
-        var context = (timeZone, user?.Language ?? "en");
-        cache[userId] = context;
-        return context;
     }
 }

@@ -29,6 +29,10 @@ internal static class ProductionConfiguration
         if (!Uri.TryCreate(configuration["Email:LinkBaseUrl"], UriKind.Absolute, out var links) || links.Scheme != Uri.UriSchemeHttps)
             problems.Add("Email:LinkBaseUrl must be the public https URL of this API – emailed links open pages it serves.");
 
+        // Pushes that only pretend to leave would silently cost every reminder on a phone.
+        if (string.Equals(configuration["Push:Provider"], "Simulated", StringComparison.OrdinalIgnoreCase) && !configuration.GetValue<bool>("LoadTest:Enabled"))
+            problems.Add("Push:Provider is Simulated, which sends nothing: it is for load tests only (LoadTest:Enabled, docs/LOADTEST.md).");
+
         if (string.Equals(configuration["Push:Provider"], "Fcm", StringComparison.OrdinalIgnoreCase)
             && string.IsNullOrWhiteSpace(configuration["Push:Firebase:CredentialsJson"]))
         {

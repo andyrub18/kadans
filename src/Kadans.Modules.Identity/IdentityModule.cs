@@ -31,9 +31,11 @@ public sealed class IdentityModule : IModule
 {
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<IdentityModuleDbContext>(options =>
+        var connectionString = KadansDatabase.ConnectionString(configuration);
+        // Pooled: building a context per request was a tenth of the API's CPU (docs/LOADTEST.md).
+        services.AddDbContextPool<IdentityModuleDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("kadans"),
+                connectionString,
                 npgsql =>
                     npgsql.MigrationsHistoryTable(
                         "__ef_migrations_history",

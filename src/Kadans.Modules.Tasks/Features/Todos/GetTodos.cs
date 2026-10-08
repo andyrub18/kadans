@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Contracts;
+using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Errors;
 using Kadans.SharedKernel.Http;
@@ -11,20 +12,42 @@ namespace Kadans.Modules.Tasks.Features.Todos;
 
 internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> options, ILogger<GetTodos> logger)
 {
+    // Home's list and the calendar's two reads run behind almost every screen. Compiled once, they skip EF's
+    // per-call work of turning LINQ into its cached SQL (docs/LOADTEST.md). Read only: no change tracking.
+    private static readonly Func<TasksDbContext, TaskStatus?, int, int, IAsyncEnumerable<Todo>> TodosPage = EF.CompileAsyncQuery(
+        (TasksDbContext db, TaskStatus? status, int skip, int take) => db
+            .Todos.IgnoreQueryFilters(new[] { TasksDbContext.ACTIVE_TODOS_FILTER })
+            .AsNoTracking()
+            .Include(t => t.RecurrenceRule)
+            .Include(t => t.Remarks)
+            .Where(t => status == null || t.Status == status)
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+    );
+
+    // Identity resolution builds each todo once for all its occurrences.
+    private static readonly Func<TasksDbContext, DateTimeOffset, DateTimeOffset, IAsyncEnumerable<TodoOccurrence>> OccurrencesBetween =
+        EF.CompileAsyncQuery(
+            (TasksDbContext db, DateTimeOffset from, DateTimeOffset to) => db
+                .TodoOccurrences.AsNoTrackingWithIdentityResolution()
+                .Include(o => o.Todo)
+                .Where(o => o.ScheduledAt >= from && o.ScheduledAt <= to)
+        );
+
+    private static readonly Func<TasksDbContext, DateTimeOffset, IAsyncEnumerable<Todo>> GeneratedShortOf = EF.CompileAsyncQuery(
+        (TasksDbContext db, DateTimeOffset to) => db
+            .Todos.AsNoTracking()
+            .Include(t => t.RecurrenceRule)
+            .Where(t => t.OccurrencesGeneratedThrough == null || t.OccurrencesGeneratedThrough < to)
+    );
+
     public async Task<OneOf<ApplicationError, List<TodoResponse>>> GetAllTodos(int page, int pageSize, TaskStatus? status)
     {
         if (Paging.Check(page, pageSize) is { } pagingError)
             return pagingError;
 
-        var todos = await dbContext
-            .Todos.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
-            .Include(t => t.RecurrenceRule)
-            .Include(t => t.Remarks)
-            .Where(t => status == null || t.Status == status)
-            .OrderByDescending(t => t.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        var todos = await TodosPage(dbContext, status, (page - 1) * pageSize, pageSize).ToListAsync();
 
         return todos.ConvertAll(t => t.ToResponse());
     }
@@ -33,6 +56,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
     {
         var todo = await dbContext
             .Todos.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTracking()
             .Include(t => t.RecurrenceRule)
             .Include(t => t.Remarks)
             .FirstOrDefaultAsync(t => t.Id == id);
@@ -52,6 +76,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         // The Todo navigation carries the active-todos filter; a finished todo must still list its rows.
         var occurrences = await dbContext
             .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTrackingWithIdentityResolution()
             .Include(o => o.Todo)
             .Where(o => o.TodoId == todoId)
             .OrderBy(o => o.ScheduledAt)
@@ -77,17 +102,10 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         if (to - from > MaxWindow)
             return new ApplicationError(ErrorTypes.InvalidInterval, "The calendar range can be at most a year.");
 
-        var materialized = await dbContext
-            .TodoOccurrences.Include(o => o.Todo)
-            .Where(o => o.ScheduledAt >= from && o.ScheduledAt <= to)
-            .ToListAsync();
-
+        var materialized = await OccurrencesBetween(dbContext, from, to).ToListAsync();
         var result = materialized.ConvertAll(o => o.ToResponse());
 
-        var notFullyGenerated = await dbContext
-            .Todos.Include(t => t.RecurrenceRule)
-            .Where(t => t.OccurrencesGeneratedThrough == null || t.OccurrencesGeneratedThrough < to)
-            .ToListAsync();
+        var notFullyGenerated = await GeneratedShortOf(dbContext, to).ToListAsync();
 
         foreach (var todo in notFullyGenerated)
         {
@@ -116,6 +134,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
 
         var occurrences = await dbContext
             .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_OCCURRENCES_FILTER, TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTrackingWithIdentityResolution()
             .Include(o => o.Todo)
             .Where(o => o.TodoId == todoId)
             .OrderByDescending(o => o.ScheduledAt)

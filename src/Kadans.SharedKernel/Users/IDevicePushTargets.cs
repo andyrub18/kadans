@@ -7,6 +7,9 @@ public interface IDevicePushTargets
 {
     Task<IReadOnlyList<PushTarget>> ForUserAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Many accounts' devices in one query; an account without any is absent.</summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<PushTarget>>> ForUsersAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default);
+
     /// <summary>Forget a token the push provider reported as dead.</summary>
     Task InvalidateAsync(string token, CancellationToken cancellationToken = default);
 }

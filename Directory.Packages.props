@@ -42,6 +42,11 @@
     <PackageVersion Include="Resend" Version="0.15.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Load test">
+    <!-- The seeder's bulk COPY (tools/Kadans.LoadTest.Seeder); the same version EF Core's provider brings. -->
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
   <ItemGroup Label="Testing">
     <!-- An in-process host for middleware tests (rate limiting), no server or port needed. -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />

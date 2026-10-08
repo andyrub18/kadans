@@ -24,6 +24,16 @@ public class TelemetryTests
     }
 
     [Test]
+    public async Task A_hub_connection_is_long_by_nature_not_slow()
+    {
+        var connection = new DefaultHttpContext { Request = { Path = "/hubs/kadans" }, Response = { StatusCode = 101 } };
+        await Assert.That(Telemetry.RequestLogLevel(connection, 80_000, null)).IsEqualTo(LogEventLevel.Debug);
+
+        var failed = new DefaultHttpContext { Request = { Path = "/hubs/kadans" }, Response = { StatusCode = 500 } };
+        await Assert.That(Telemetry.RequestLogLevel(failed, 80_000, null)).IsEqualTo(LogEventLevel.Error);
+    }
+
+    [Test]
     public async Task Every_job_pass_is_timed_with_its_outcome()
     {
         var meters = new ServiceCollection().AddMetrics().BuildServiceProvider().GetRequiredService<IMeterFactory>();

@@ -275,6 +275,10 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("kind");
 
+                    b.Property<DateTimeOffset?>("NextOccurrenceAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_occurrence_at");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -314,7 +318,7 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("GeneratedThrough")
+                    b.HasIndex("NextOccurrenceAt")
                         .HasFilter("is_active = true");
 
                     b.ToTable("recurring_transactions", "budget");

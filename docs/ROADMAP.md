@@ -489,7 +489,24 @@ installing on real devices second, hosting last.
           every job pass. Logs carry no addresses, names or contents. Checked on a local copy of the stack with the
           smoke scripts as traffic: every dashboard query and alert rule runs; stopping the API emailed "The API
           stopped reporting" (summary, description, labels) and starting it again emailed the resolution.
-        - [ ] Seeding script for the target volumes, then the load test and its measurements.
+        - [x] Seeding script and tooling, 2026-10-07: `tools/Kadans.LoadTest.Seeder` writes the target volumes with
+          Postgres `COPY` (50,000 accounts, 9.5 million occurrences), k6 runs from eight GitHub runners, a throwaway
+          API and database sit next to production (`deploy/loadtest/`), and the verdict comes from Prometheus.
+        - [x] Runs 1 to 5, 2026-10-07 and 08 (results: docs/LOADTEST.md). What they changed: reminders drain in
+          batches and push sends 500 per call (the first peak lost 18,615 pushes); prepared statements, a pool of 40
+          and Postgres sized for the server; Budget's job reads only the rules that are due; the API's CPU per
+          request from 3.99 to about 1.6 ms (DbContext options built once, untracked reads, no connection reset, no
+          thread-pool spinning, DbContext pooling, compiled queries); admission control, so that past capacity the
+          API answers 503 "server busy" instead of collapsing; nginx instead of Caddy (half the proxy's CPU); and a
+          bug: a one-time todo created with milliseconds had no occurrence. Of the list above, the horizon job (13 s
+          per 4,000 todos, once an hour) and the calendar's index (1.7 ms a query) measured fine and stay as they
+          are. Run 5, at 50% of the target (about 250 requests a second, p95 under 50 ms), passed the reminder peak:
+          every reminder within a minute (p99 15 s), none dropped. The owner stopped it at 75% to settle the
+          architecture first.
+        - [ ] Run 6 once nginx is deployed: the 75% and 100% steps with load shedding, and a peak under them.
+        - Capacity, decided with the owner on 2026-10-08: this server is for up to about 20,000 users; at about 5,000
+          paying users Kadans moves to a bigger VPS and keeps scaling the monolith up. Reminders move to the phones
+          next (local notifications) for what they bring people – reminders that fire offline – not for the server.
 - [x] Decided 2026-10-01: reminders every 5 s (was 10 s). Measured before the change with a 5-minute lead:
       one-time, daily and lead-edited todos were reminded 0.5 to 5.5 s after their moment, and a todo
       created inside its lead within one pass.
@@ -512,6 +529,7 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
+| SharedKernel: `RecurrenceSchedule` | ~~A start with a fraction of a second (what `new Date().toISOString()` sends) expanded to the whole second before it, which the start itself then filtered out: a one-time todo created that way had no occurrence at all (never in the calendar, never reminded), and a recurring one lost its first. The app sends whole minutes and was not affected~~ fixed 2026-10-08: starts and exceptions are cut to whole seconds, iCalendar's precision. Found by the load test, whose k6 script sends milliseconds |
 | `clients/app`: sign-up and profile | ~~Sign-up sent neither the device time zone nor the app language, and nothing synced them later (Google-created accounts included), so the account stayed on UTC and English: reminders showed the start in UTC ("Starts at 01:28" for a 21:28 start in Port-au-Prince), server texts and emails were English, and focus-stats days and Budget month boundaries followed UTC~~ fixed 2026-10-01: new accounts start with the device's zone and the app's language, and the app brings existing accounts in line at its next start (ships with the next app build) |
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
 | `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |

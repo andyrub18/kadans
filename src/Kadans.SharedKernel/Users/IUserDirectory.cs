@@ -15,6 +15,9 @@ public interface IUserDirectory
 {
     Task<UserSummary?> FindAsync(string userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Many accounts in one query (a job's batch); an unknown id is absent.</summary>
+    Task<IReadOnlyDictionary<string, UserSummary>> FindManyAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// An account by its username, or by its email address once confirmed: anyone can sign up with an address that is
     /// not theirs, so an unconfirmed one names nobody.

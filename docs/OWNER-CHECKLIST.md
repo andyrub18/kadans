@@ -115,8 +115,8 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [x] Resend → Domains → `kadansplanning.com` verified. Still to do: a production API key as
       `RESEND_API_KEY` in `deploy/.env` (`EMAIL_FROM` is already filled in).
 - [x] A server, with DNS `api` → its address.
-- [ ] Cloudflare → DNS: the `api` record must be **DNS only** (grey cloud), not proxied – otherwise Caddy
-      cannot get its certificate (DEPLOYMENT.md → DNS on Cloudflare).
+- [ ] Cloudflare → DNS: the `api` record must be **DNS only** (grey cloud), not proxied – otherwise certbot
+      cannot get the certificate (DEPLOYMENT.md → DNS on Cloudflare).
 - [ ] On the server: `deploy/.env` – it is not in the repository; step 2 of DEPLOYMENT.md → First
       deployment creates it from `.env.example` with generated `POSTGRES_PASSWORD` and `JWT_KEY` – then
       `RESEND_API_KEY` and `GOOGLE_DESKTOP_CLIENT_SECRET` in it, `deploy/secrets/firebase-admin.json` (the

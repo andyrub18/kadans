@@ -163,7 +163,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(http_server_request_duration_seconds_count{job=\"kadans-api\", http_route!~\"/hubs/.*\", http_response_status_code=~\"5..\"}[1h]))",
+          "expr": "sum(increase(http_server_request_duration_seconds_count{job=\"kadans-api\", http_route!~\"/hubs/.*\", kadans_admission!=\"shed\", http_response_status_code=~\"5..\"}[1h]))",
           "instant": true
         }
       ],
@@ -583,7 +583,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{job=\"kadans-api\", http_route!~\"/hubs/.*\", http_response_status_code=~\"[45]..\"}[$__rate_interval])) > 0",
+          "expr": "sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{job=\"kadans-api\", http_route!~\"/hubs/.*\", kadans_admission!=\"shed\", http_response_status_code=~\"[45]..\"}[$__rate_interval])) > 0",
           "legendFormat": "{{http_response_status_code}} {{http_route}}"
         }
       ],
@@ -611,7 +611,135 @@
           "sort": "desc"
         }
       },
-      "description": "4xx are the clients' mistakes (or the rate limiter); 5xx are ours."
+      "description": "4xx are the clients' mistakes (or the rate limiter); 5xx are ours. Requests turned away because the server was busy have their own panel."
+    },
+    {
+      "type": "timeseries",
+      "title": "Turned away (server busy)",
+      "id": 40,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (reason) (increase(kadans_admission_shed_total[1m]))",
+          "legendFormat": "{{reason}} / min"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Requests answered 503 at once because the API was already working on all it can take (Admission in appsettings.json): queue_full, queue_timeout, or a new hub connection while requests waited. Any at all means the server is at capacity (docs/LOADTEST.md)."
+    },
+    {
+      "type": "timeseries",
+      "title": "Waiting for a place",
+      "id": 41,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(kadans_admission_waiting)",
+          "legendFormat": "waiting"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(kadans_admission_wait_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "wait p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "wait p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "description": "Requests queued for a place (Admission:QueueLimit at most), and how long the ones that waited took to get one (right axis)."
     },
     {
       "type": "row",
@@ -622,7 +750,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 30
       },
       "panels": []
     },
@@ -638,7 +766,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 23
+        "y": 31
       },
       "targets": [
         {
@@ -707,7 +835,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 23
+        "y": 31
       },
       "targets": [
         {
@@ -766,7 +894,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 31
+        "y": 39
       },
       "targets": [
         {
@@ -826,7 +954,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 31
+        "y": 39
       },
       "targets": [
         {
@@ -885,7 +1013,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 31
+        "y": 39
       },
       "targets": [
         {
@@ -945,7 +1073,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "targets": [
         {
@@ -996,7 +1124,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 47
       },
       "targets": [
         {
@@ -1052,7 +1180,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 55
       },
       "panels": []
     },
@@ -1068,7 +1196,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 56
       },
       "targets": [
         {
@@ -1119,7 +1247,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 56
       },
       "targets": [
         {
@@ -1166,7 +1294,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 64
       },
       "panels": []
     },
@@ -1182,7 +1310,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "targets": [
         {
@@ -1233,7 +1361,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 57
+        "y": 65
       },
       "targets": [
         {
@@ -1301,7 +1429,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 57
+        "y": 65
       },
       "targets": [
         {
@@ -1369,7 +1497,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 65
+        "y": 73
       },
       "targets": [
         {
@@ -1419,7 +1547,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 65
+        "y": 73
       },
       "targets": [
         {
@@ -1478,7 +1606,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 65
+        "y": 73
       },
       "targets": [
         {
@@ -1526,7 +1654,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 81
       },
       "panels": []
     },
@@ -1540,9 +1668,9 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 5,
         "x": 0,
-        "y": 74
+        "y": 82
       },
       "targets": [
         {
@@ -1600,9 +1728,9 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 74
+        "w": 5,
+        "x": 5,
+        "y": 82
       },
       "targets": [
         {
@@ -1652,9 +1780,9 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 74
+        "w": 5,
+        "x": 10,
+        "y": 82
       },
       "targets": [
         {
@@ -1712,9 +1840,9 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 74
+        "w": 5,
+        "x": 15,
+        "y": 82
       },
       "targets": [
         {
@@ -1760,6 +1888,67 @@
       "description": "Since the last nightly dump was written. Alert after 26 hours."
     },
     {
+      "type": "stat",
+      "title": "Certificate expires in",
+      "id": 42,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 82
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "min(kadans_tls_certificate_expiry_timestamp_seconds) - time()",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 604800
+              },
+              {
+                "color": "green",
+                "value": 1209600
+              }
+            ]
+          },
+          "noValue": "–"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value"
+      },
+      "description": "The HTTPS certificate's remaining life; certbot renews it well before the end. Alert under 14 days."
+    },
+    {
       "type": "timeseries",
       "title": "Server CPU and load",
       "id": 36,
@@ -1771,7 +1960,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 86
       },
       "targets": [
         {
@@ -1830,7 +2019,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 86
       },
       "targets": [
         {
@@ -1886,7 +2075,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 94
       },
       "panels": []
     },
@@ -1902,7 +2091,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 87
+        "y": 95
       },
       "targets": [
         {

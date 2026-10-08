@@ -51,11 +51,21 @@ public sealed class RecurrenceSchedule
     )
     {
         this.pattern = pattern;
-        this.exceptions = [.. exceptions.Select(e => e.ToUniversalTime())];
+        this.exceptions = [.. exceptions.Select(WholeSeconds)];
         Rrule = new RecurrenceRuleSerializer().SerializeToString(pattern)
             ?? throw new InvalidOperationException("Could not serialize recurrence pattern.");
         TimeZoneId = timeZoneId;
-        Start = start.ToUniversalTime();
+        Start = WholeSeconds(start);
+    }
+
+    /// <summary>
+    /// iCalendar times have no fractions of a second, and Ical.Net drops them: a start at 09:00:00.250 expands to
+    /// 09:00:00, before the start itself, and a one-time rule would have no occurrence at all.
+    /// </summary>
+    private static DateTimeOffset WholeSeconds(DateTimeOffset instant)
+    {
+        var utc = instant.ToUniversalTime();
+        return utc.AddTicks(-(utc.Ticks % TimeSpan.TicksPerSecond));
     }
 
     public static OneOf<ApplicationError, RecurrenceSchedule> Create(

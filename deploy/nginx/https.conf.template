@@ -1,0 +1,37 @@
+# The API over HTTPS. Rendered into conf.d/ by 40-kadans-certificate.sh once the certificate exists.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${KADANS_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${KADANS_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${KADANS_DOMAIN}/privkey.pem;
+
+    # Mozilla's "intermediate" profile: TLS 1.2 and 1.3, forward-secret AEAD ciphers only.
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+    # A phone that comes back resumes its session instead of a full handshake, the costly part of TLS.
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    client_max_body_size 1m;
+
+    location / {
+        proxy_pass http://kadans_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        # The client's own address, replacing any X-Forwarded-For it sent: the rate limits are per client, and a
+        # client must not pick its own.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        # The hub pings every 15 s: a connection quiet for two minutes is dead.
+        proxy_read_timeout 120s;
+    }
+}

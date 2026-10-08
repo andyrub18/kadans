@@ -19,9 +19,11 @@ public sealed class NotificationsModule : IModule
 {
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<NotificationsDbContext>(options =>
+        var connectionString = KadansDatabase.ConnectionString(configuration);
+        // Pooled: building a context per request was a tenth of the API's CPU (docs/LOADTEST.md).
+        services.AddDbContextPool<NotificationsDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("kadans"),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", NotificationsDbContext.Schema)
             )
         );
@@ -38,6 +40,8 @@ public sealed class NotificationsModule : IModule
         services.Configure<PushOptions>(pushSection);
         if (string.Equals(pushSection["Provider"], "Fcm", StringComparison.OrdinalIgnoreCase))
             services.AddSingleton<IPushSender, FcmPushSender>();
+        else if (string.Equals(pushSection["Provider"], "Simulated", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IPushSender, SimulatedPushSender>(); // load tests: ProductionConfiguration refuses it elsewhere
         else
             services.AddSingleton<IPushSender, LoggingPushSender>();
 

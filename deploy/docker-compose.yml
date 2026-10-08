@@ -1,5 +1,5 @@
-# Kadans on one machine: Caddy (automatic HTTPS) → API → Postgres, plus a nightly database dump, and the monitoring
-# (Prometheus, Loki, Grafana, node-exporter: docs/ARCHITECTURE.md → Observability).
+# Kadans on one machine: nginx (HTTPS, certificates by certbot) → API → Postgres, plus a nightly database dump, and the
+# monitoring (Prometheus, Loki, Grafana, node-exporter: docs/ARCHITECTURE.md → Observability).
 # Everything host-specific lives in .env (copy .env.example). Guide: docs/DEPLOYMENT.md
 #
 #   docker compose up -d --build        first start, and every update after `git pull`
@@ -16,22 +16,40 @@ x-logging: &logging
     max-file: "5"
 
 services:
-  caddy:
-    image: caddy:2
+  # The proxy (docs/DEPLOYMENT.md → Proxy and certificates): TLS, gzip, WebSockets, HTTP to HTTPS. nginx took half of
+  # Caddy's CPU for the same work (docs/LOADTEST.md); certbot gets and renews the certificate, nginx picks it up.
+  nginx:
+    image: nginx:1.30
     restart: unless-stopped
     logging: *logging
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
     environment:
       KADANS_DOMAIN: ${KADANS_DOMAIN:?set KADANS_DOMAIN in .env, e.g. api.kadansplanning.com}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data # certificates: keep this volume, Let's Encrypt rate-limits re-issuing
-      - caddy_config:/config
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/https.conf.template:/etc/nginx/kadans/https.conf.template:ro
+      - ./nginx/40-kadans-certificate.sh:/docker-entrypoint.d/40-kadans-certificate.sh:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - acme_challenges:/var/www/acme:ro
     depends_on:
       - api
+
+  certbot:
+    image: certbot/certbot:v5.8.0
+    restart: unless-stopped
+    logging: *logging
+    entrypoint: ["/bin/sh", "/kadans/certbot.sh"]
+    environment:
+      KADANS_DOMAIN: ${KADANS_DOMAIN:?}
+    volumes:
+      - ./nginx/certbot.sh:/kadans/certbot.sh:ro
+      - letsencrypt:/etc/letsencrypt # the certificate and the Let's Encrypt account: keep this volume (rate limits)
+      - acme_challenges:/var/www/acme
+      - backup_metrics:/metrics # the certificate's expiry, for node-exporter: an alert fires 14 days before it
+    depends_on:
+      - nginx
 
   api:
     build:
@@ -80,6 +98,27 @@ services:
     image: postgres:17
     restart: unless-stopped
     logging: *logging
+    # Sized for this server (2 vCPU, 4 GB, SSD) by the load test (docs/LOADTEST.md): a quarter of the memory for
+    # Postgres' cache, SSD-priced random reads, no JIT (it slowed the short queries an app makes). pg_stat_statements
+    # names the costliest queries (DEPLOYMENT → Monitoring); it keeps query shapes, never their values.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - jit=off
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+    # Docker's 64 MB /dev/shm is too small for Postgres' shared memory at this size.
+    shm_size: 256mb
     environment:
       POSTGRES_DB: kadans
       POSTGRES_USER: kadans
@@ -203,12 +242,12 @@ services:
       - --collector.textfile.directory=/textfile
     volumes:
       - /:/host:ro,rslave
-      - backup_metrics:/textfile:ro
+      - backup_metrics:/textfile:ro # the backup's and the certificate's metrics
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
+  letsencrypt:
+  acme_challenges:
   prometheus:
   loki:
   grafana:

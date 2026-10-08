@@ -1,15 +1,11 @@
 using Kadans.Modules.Tasks.Domain;
 using Kadans.SharedKernel.Persistence;
-using Kadans.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 using TaskStatus = Kadans.Modules.Tasks.Domain.TaskStatus;
 
 namespace Kadans.Modules.Tasks.Persistence;
 
-internal sealed class TasksDbContext(
-    DbContextOptions<TasksDbContext> options,
-    ICurrentUserService userService
-) : DbContext(options)
+internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) : UserScopedDbContext(options)
 {
     public const string Schema = "tasks";
 
@@ -98,7 +94,7 @@ internal sealed class TasksDbContext(
                 ACTIVE_TODOS_FILTER,
                 todo => todo.Status != TaskStatus.Completed && todo.Status != TaskStatus.Cancelled
             );
-            t.HasQueryFilter(USER_FILTER, todo => todo.UserId == userService.UserId);
+            t.HasQueryFilter(USER_FILTER, todo => todo.UserId == CurrentUserId);
         });
 
         builder.Entity<RecurrenceRule>(r =>
@@ -137,7 +133,7 @@ internal sealed class TasksDbContext(
             t.HasQueryFilter(ACTIVE_OCCURRENCES_FILTER, o => o.Status == OccurrenceStatus.Pending);
             t.HasQueryFilter(
                 USER_FILTER,
-                o => o.Todo != null && o.Todo.UserId == userService.UserId
+                o => o.Todo != null && o.Todo.UserId == CurrentUserId
             );
         });
 
@@ -156,7 +152,7 @@ internal sealed class TasksDbContext(
                 .HasDatabaseName("ix_pomodoro_templates_user_id_created_at_desc")
                 .IsDescending(false, true);
 
-            t.HasQueryFilter(p => p.UserId == userService.UserId);
+            t.HasQueryFilter(p => p.UserId == CurrentUserId);
         });
 
         builder.Entity<PomodoroTemplatePhase>(p =>
@@ -211,7 +207,7 @@ internal sealed class TasksDbContext(
                 .HasDatabaseName("ix_pomodoro_runs_user_id_status_started_at_desc")
                 .IsDescending(false, false, true);
 
-            r.HasQueryFilter(x => x.UserId == userService.UserId);
+            r.HasQueryFilter(x => x.UserId == CurrentUserId);
         });
 
         builder.Entity<PomodoroRunPhase>(p =>

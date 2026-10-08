@@ -16,9 +16,11 @@ public sealed class BudgetModule : IModule
 {
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<BudgetDbContext>(options =>
+        var connectionString = KadansDatabase.ConnectionString(configuration);
+        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext).
+        services.AddUserScopedDbContextPool<BudgetDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("kadans"),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", BudgetDbContext.Schema)
             )
         );

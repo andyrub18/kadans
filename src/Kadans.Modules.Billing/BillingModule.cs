@@ -20,9 +20,11 @@ public sealed class BillingModule : IModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<BillingDbContext>(db =>
+        var connectionString = KadansDatabase.ConnectionString(configuration);
+        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext).
+        services.AddUserScopedDbContextPool<BillingDbContext>(db =>
             db.UseNpgsql(
-                configuration.GetConnectionString("kadans"),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", BillingDbContext.Schema)
             )
         );

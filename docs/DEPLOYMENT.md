@@ -48,14 +48,14 @@ Kadans lives at **`api.kadansplanning.com`** (`deploy/.env.example` is filled in
 ### DNS on Cloudflare: the `api` record is "DNS only"
 
 Cloudflare creates records **proxied** (orange cloud) by default: the name then resolves to Cloudflare's
-addresses, not the server's, and Cloudflare answers in front of it. Caddy expects to be reached directly
-to obtain and renew its certificate, so set the `api` record to **DNS only** (grey cloud) – then the name
+addresses, not the server's, and Cloudflare answers in front of it. Let's Encrypt must reach the server
+directly to issue and renew its certificate, so set the `api` record to **DNS only** (grey cloud) – then the name
 resolves to the server itself (`getent hosts api.<domain>` shows the server's address).
 
 - A `521` with `Server: cloudflare` means Cloudflare cannot reach the server: the stack is not running
   yet, or ports 80/443 are closed. It is not a Kadans error.
 - Nothing in Kadans needs the proxy. To add it later anyway: SSL/TLS mode **Full (strict)**, set only
-  after Caddy has its certificate. Never "Flexible" – Cloudflare would talk plain HTTP to Caddy, which
+  after the server has its certificate. Never "Flexible" – Cloudflare would talk plain HTTP to nginx, which
   redirects to HTTPS, an endless loop. Behind the proxy the API logs Cloudflare's addresses instead of
   the users', and its per-client rate limits would count every user behind the same Cloudflare address as
   one client. So stay DNS only, or first teach the API Cloudflare's client-address header.
@@ -88,8 +88,8 @@ chmod 600 .env
 #    (600 locks it out – "Access to the path '/run/secrets/firebase-admin.json' is denied").
 sudo chown "$USER":1654 secrets/firebase-admin.json && chmod 640 secrets/firebase-admin.json
 
-# 3. Start. The DNS record must already point here (DNS only on Cloudflare): Caddy fetches the
-#    certificate on first start.
+# 3. Start. The DNS record must already point here (DNS only on Cloudflare): certbot fetches the
+#    certificate on first start, and nginx serves HTTPS about a minute later (Proxy and certificates).
 docker compose up -d --build
 docker compose logs -f api      # "applying N migration(s)" on the first start, then "Now listening on"
 ```
@@ -163,6 +163,29 @@ cd kadans && git pull && cd deploy && docker compose up -d --build
 Pending migrations are applied as the new container starts (`Database:MigrateOnStartup`, set by the
 image; the log names each one). Migrations only go forward: to undo a bad release, check out the previous
 commit, and if its schema is older, restore the last dump first.
+
+## Proxy and certificates
+
+nginx terminates TLS in front of the API (`deploy/nginx/`), and certbot gets the Let's Encrypt certificate and
+renews it; both are services in the compose file. Until October 2026 it was Caddy: the load test measured nginx doing
+the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per request (docs/LOADTEST.md).
+
+- **First start.** nginx answers on port 80 only (Let's Encrypt's challenge, and a redirect to HTTPS for everything
+  else) until certbot has the certificate; within a minute of it, nginx serves HTTPS
+  (`docker compose logs nginx` → `kadans: new certificate, nginx reloaded`). It needs the DNS record pointing here
+  and port 80 open; until then certbot retries every 15 minutes, and `docker compose logs certbot` says why.
+- **Renewal.** certbot checks twice a day and renews well before the end; nginx reloads by itself. The expiry date is
+  a metric (`kadans_tls_certificate_expiry_timestamp_seconds`, the dashboard's "Certificate expires in"), and the
+  alert "Certificate expiring" fires 14 days before it or when there is no certificate at all.
+- **Keep the `letsencrypt` volume**: the certificate and the Let's Encrypt account. Re-issuing the same name is
+  rate-limited (5 a week).
+- **What nginx does**: TLS 1.2 and 1.3 (Mozilla's intermediate profile), HTTP/2, gzip for the apps' JSON, HSTS,
+  WebSockets for the hub, no version in the `Server` header. It puts the client's own address in `X-Forwarded-For`,
+  replacing whatever the client sent: the rate limits are per client, and a client must not pick its own. It asks
+  Docker's DNS for the API's address every 10 s, so a recreated API container is found again.
+- **Moving from Caddy** (once, on a server that ran it): `git pull`, then `docker compose up -d --build --remove-orphans`
+  (the orphan is the old `caddy` container). HTTPS is back about a minute later. Once it is,
+  `docker volume rm kadans_caddy_data kadans_caddy_config`.
 
 ## Subscriptions
 
@@ -254,7 +277,7 @@ ssh -L 3000:127.0.0.1:3000 <you>@<server>     # then http://localhost:3000, user
 ```
 
 - **Dashboard:** the home page after signing in (also Dashboards → Kadans → Kadans).
-- **Alerts:** Alerting → Alert rules (ten, provisioned from `deploy/observability/grafana/provisioning/alerting/`).
+- **Alerts:** Alerting → Alert rules (twelve, provisioned from `deploy/observability/grafana/provisioning/alerting/`).
   Alerting → Contact points → owner → Test sends a test email: do it once after the first start.
 - **Searching logs:** Explore → Loki. Every property of an event is a field, nested ones joined with `_`:
 
@@ -287,15 +310,30 @@ started with `dotnet run` (Development) already sends there.
 - Logs: Grafana → Explore → Loki (Monitoring above), or `docker compose logs -f api`: Serilog writes to the console
   too, and Docker keeps 5 × 10 MB per service (`x-logging` in the compose file), so a flood cannot fill the disk.
   Successful, fast requests are not logged; the metrics count them.
-- Rate limits, per client address (the real one: Caddy sets `X-Forwarded-For` itself; IPv6 counts per /64).
+- Rate limits, per client address (the real one: nginx replaces `X-Forwarded-For` with it; IPv6 counts per /64).
   Sign-up, forgot password, resend confirmation and email change: 5 per 15 minutes. Sign-in, 2FA codes and
   password change: 20 a minute. Everything else: 300 a minute. Health checks are never limited. On top of
   that, one confirmation, reset or email-change mail per address every 2 minutes. Over a limit the API answers
   429 with `Retry-After` and logs `Rate limit reached by <client> on <request>`
   (`docker compose logs api | grep "Rate limit"`). To change a number, add it to the `api` service's
   `environment` in the compose file, e.g. `RateLimiting__CredentialsPerMinute: "40"`.
+- Server busy (admission control, ARCHITECTURE → Rate limiting): the API works on 32 requests at a time and lets 128
+  more wait up to 2 s; past that it answers 503 "The server is busy" with `Retry-After: 5`, logs `Server busy: <n>
+  request(s) turned away` at most every 10 s, and the "Server busy" alert fires. Once after a burst is survivable;
+  daily means the server is too small for its users (the load test's capacity: docs/LOADTEST.md). The numbers are
+  `Admission__MaxConcurrentRequests`, `Admission__QueueLimit`, `Admission__QueueTimeoutMilliseconds` and
+  `Admission__RetryAfterSeconds` in the `api` service's `environment`. Keep `MaxConcurrentRequests` below the database
+  pool (40): above it, requests wait for a connection instead, up to 15 s, and fail there.
+- Postgres is tuned for this server in the compose file (`db` → `command`: cache, SSD costs, no JIT). With more memory,
+  raise `shared_buffers` to a quarter of it and `effective_cache_size` to three quarters. The costliest queries:
+
+  ```bash
+  docker compose exec db psql -U kadans -d kadans -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements"   # once
+  docker compose exec db psql -U kadans -d kadans -c "SELECT round(total_exec_time) AS ms, calls, left(query, 120)
+    FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10"
+  ```
 - OS updates: `sudo apt update && sudo apt upgrade`, and `unattended-upgrades` for security patches.
-- Certificates: Caddy renews them; keep the `caddy_data` volume.
+- Certificates: certbot renews them (Proxy and certificates above); keep the `letsencrypt` volume.
 - Secrets live only in `deploy/.env` and `deploy/secrets/` on the server (both git-ignored). Changing
   `JWT_KEY` signs everyone out and invalidates emailed links not yet opened; changing `POSTGRES_PASSWORD`
   in `.env` does not change the password already stored in the database volume.

@@ -170,6 +170,19 @@ public class RecurrenceScheduleTests
     }
 
     [Test]
+    public async Task A_start_with_milliseconds_still_fires_on_its_second()
+    {
+        // What a client sending `new Date().toISOString()` asks for; iCalendar, and so Ical.Net, has whole seconds.
+        var at = Utc(2027, 6, 1, 15, 30).AddMilliseconds(616);
+        var oneTime = RecurrenceSchedule.OneTime(at).AsT1;
+        var daily = Build(new RecurrenceSpec(Frequency.Daily), at);
+
+        await Assert.That(oneTime.Start).IsEqualTo(Utc(2027, 6, 1, 15, 30));
+        await Assert.That(oneTime.GetOccurrences(at.AddDays(-1), at.AddDays(30))).IsEquivalentTo([Utc(2027, 6, 1, 15, 30)]);
+        await Assert.That(daily.GetOccurrences(at.AddDays(-1), at.AddDays(1).AddHours(1))).IsEquivalentTo([Utc(2027, 6, 1, 15, 30), Utc(2027, 6, 2, 15, 30)]);
+    }
+
+    [Test]
     public async Task Indefinite_rule_always_has_a_next_occurrence()
     {
         var schedule = Build(new RecurrenceSpec(Frequency.Hourly), Utc(2027, 1, 1));

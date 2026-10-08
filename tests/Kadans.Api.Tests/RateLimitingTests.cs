@@ -27,7 +27,7 @@ public class RateLimitingTests
         builder.Services.AddKadansRateLimiting(builder.Configuration);
 
         var app = builder.Build();
-        // The test picks the client's address; in production the forwarded-headers middleware sets it from Caddy.
+        // The test picks the client's address; in production the forwarded-headers middleware sets it from nginx.
         app.Use((http, next) =>
         {
             if (http.Request.Headers.TryGetValue(ClientHeader, out var client))

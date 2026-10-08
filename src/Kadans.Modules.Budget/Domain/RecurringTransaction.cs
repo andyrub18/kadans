@@ -29,6 +29,13 @@ internal sealed class RecurringTransaction
     /// <summary>Occurrences up to here have been turned into transactions.</summary>
     public DateTimeOffset? GeneratedThrough { get; set; }
 
+    /// <summary>
+    /// When the next instance falls (after <see cref="GeneratedThrough"/>): what the job selects by, so a rule is
+    /// touched when it has something to book, not on every pass. Null when exhausted or paused, or not computed yet
+    /// (rules from before it was stored; the job computes it on their first pass).
+    /// </summary>
+    public DateTimeOffset? NextOccurrenceAt { get; set; }
+
     /// <summary>False once the rule is exhausted (count/until reached) or the user paused it.</summary>
     public bool IsActive { get; set; } = true;
 
@@ -78,7 +85,12 @@ internal sealed class RecurringTransaction
         GeneratedThrough = materialized.Count == DueCap ? materialized[^1] : now;
         if (IsExhaustedAfter(GeneratedThrough.Value))
             IsActive = false;
+        ScheduleNext();
     }
+
+    /// <summary>After a change to the rule, its booking or its pause: when the job must look at it next.</summary>
+    public void ScheduleNext() =>
+        NextOccurrenceAt = IsActive ? Schedule.GetNextOccurrence(GeneratedThrough ?? StartDate.AddTicks(-1)) : null;
 
     public bool IsExhaustedAfter(DateTimeOffset at) => Schedule.GetNextOccurrence(at) is null;
 }

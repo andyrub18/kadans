@@ -23,11 +23,20 @@ on:
   push:
     branches: [loadtest-run]
 
+# The load is split over several runners: a runner sits behind Azure's outbound address translation, which allows
+# about a thousand simultaneous connections to one address, and every virtual user holds its own. One runner with
+# 5,000 users got 55 hub connections through (docs/LOADTEST.md).
 jobs:
   k6:
-    name: k6
+    name: k6 (shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      SHARDS: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +51,14 @@ jobs:
               echo "HOLD=${{ inputs.hold }}"
             } > tools/loadtest/run.env
           fi
-          grep -E '^[A-Z_]+=' tools/loadtest/run.env | tee -a "$GITHUB_ENV"
+          set -a; . tools/loadtest/run.env; set +a
+          # This shard's share of the users, and its own range of accounts.
+          app=$(( APP_VUS / SHARDS )); live=$(( LIVE_VUS / SHARDS ))
+          {
+            echo "SESSION_TAG=$SESSION_TAG"; echo "RAMP=$RAMP"; echo "HOLD=$HOLD"; echo "STAGES=${STAGES:-}"
+            echo "APP_VUS=$app"; echo "LIVE_VUS=$live"
+            echo "USER_OFFSET=$(( ${{ matrix.shard }} * (app + live) ))"
+          } | tee -a "$GITHUB_ENV"
 
       - name: Run k6
         # The -e after `run` are k6's flags and need KEY=VALUE: a bare KEY is an empty value, not the environment's.
@@ -52,11 +68,11 @@ jobs:
             -v "$PWD/tools/loadtest:/scripts:ro" -v "$PWD/out:/out" grafana/k6:2.3.0 run \
             --summary-export /out/summary.json \
             -e BASE_URL="${BASE_URL:-https://api.kadansplanning.com}" -e SESSION_TAG="$SESSION_TAG" -e APP_VUS="$APP_VUS" \
-            -e LIVE_VUS="$LIVE_VUS" -e RAMP="$RAMP" -e HOLD="$HOLD" -e USER_OFFSET="${USER_OFFSET:-0}" \
+            -e LIVE_VUS="$LIVE_VUS" -e RAMP="$RAMP" -e HOLD="$HOLD" -e STAGES="$STAGES" -e USER_OFFSET="${USER_OFFSET:-0}" \
             /scripts/app.js | tee out/summary.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: k6-${{ github.run_id }}
+          name: k6-${{ github.run_id }}-shard-${{ matrix.shard }}
           path: out/

@@ -1,3 +1,4 @@
+using Kadans.SharedKernel.Persistence;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
 
@@ -10,7 +11,7 @@ internal sealed class PostgresHealthCheck(IConfiguration configuration) : IHealt
     {
         try
         {
-            await using var connection = new NpgsqlConnection(configuration.GetConnectionString("kadans"));
+            await using var connection = new NpgsqlConnection(KadansDatabase.ConnectionString(configuration));
             await connection.OpenAsync(cancellationToken);
             await using var command = new NpgsqlCommand("SELECT 1", connection);
             await command.ExecuteScalarAsync(cancellationToken);

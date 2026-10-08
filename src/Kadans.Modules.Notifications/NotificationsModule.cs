@@ -21,7 +21,7 @@ public sealed class NotificationsModule : IModule
     {
         services.AddDbContext<NotificationsDbContext>(options =>
             options.UseNpgsql(
-                configuration.GetConnectionString("kadans"),
+                KadansDatabase.ConnectionString(configuration),
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", NotificationsDbContext.Schema)
             )
         );

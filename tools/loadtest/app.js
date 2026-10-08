@@ -17,6 +17,17 @@ const APP_VUS = parseInt(__ENV.APP_VUS || '200');
 const LIVE_VUS = parseInt(__ENV.LIVE_VUS || '200');
 const RAMP = __ENV.RAMP || '2m';
 const HOLD = __ENV.HOLD || '10m';
+// Stepped load instead of ramp-and-hold: "3m:25,4m:25,3m:50,4m:50" = 3 minutes up to 25% of the users, 4 held, ...
+const STAGES = __ENV.STAGES || '';
+
+function stages(total) {
+  if (!STAGES) return [{ duration: RAMP, target: total }, { duration: HOLD, target: total }, { duration: '30s', target: 0 }];
+  return STAGES.split(',')
+    .map((s) => s.split(':'))
+    .map(([duration, percent]) => ({ duration, target: Math.round((total * parseInt(percent)) / 100) }))
+    .concat([{ duration: '30s', target: 0 }]);
+}
+const TOTAL_MS = stages(1).reduce((t, s) => t + durationMs(s.duration), 0);
 const OFFSET = parseInt(__ENV.USER_OFFSET || '0');
 
 const liveNotifications = new Counter('kadans_live_notifications');
@@ -28,15 +39,16 @@ export const options = {
       executor: 'ramping-vus',
       exec: 'appUser',
       startVUs: 0,
-      stages: [{ duration: RAMP, target: APP_VUS }, { duration: HOLD, target: APP_VUS }, { duration: '30s', target: 0 }],
+      stages: stages(APP_VUS),
       gracefulRampDown: '20s',
     },
+    // Apps opening over time, as people do, each staying connected to the end.
     live: {
-      executor: 'per-vu-iterations',
+      executor: 'ramping-vus',
       exec: 'liveConnection',
-      vus: LIVE_VUS,
-      iterations: 1,
-      maxDuration: addDurations(RAMP, HOLD, '2m'),
+      startVUs: 0,
+      stages: stages(LIVE_VUS),
+      gracefulRampDown: '5s',
     },
   },
   thresholds: {
@@ -161,8 +173,18 @@ export function appUser() {
   sleep(rand(5, 20));
 }
 
-// ---- an app left open: one hub connection for the whole test ----
-export function liveConnection() {
+export function setup() {
+  return { start: Date.now() };
+}
+
+// ---- an app left open: one hub connection until the end of the test ----
+export function liveConnection(data) {
+  // Near the end, wait for it rather than reconnect for a few seconds.
+  const remaining = TOTAL_MS - 30000 - (Date.now() - data.start);
+  if (remaining < 10000) {
+    sleep(Math.max(1, remaining / 1000 + 30));
+    return;
+  }
   if (!session(userIndex())) return;
   const negotiate = http.post(`${BASE}/hubs/kadans/negotiate?negotiateVersion=1`, null, {
     headers: { Authorization: `Bearer ${account.access}` },
@@ -171,7 +193,7 @@ export function liveConnection() {
   if (!check(negotiate, { 'negotiate ok': (r) => r.status === 200 })) return;
 
   const url = `${BASE.replace(/^http/, 'ws')}/hubs/kadans?id=${negotiate.json('connectionToken')}&access_token=${account.access}`;
-  const stayFor = durationMs(addDurations(RAMP, HOLD));
+  const stayFor = remaining;
   ws.connect(url, { tags: { name: 'WS /hubs/kadans' } }, (socket) => {
     socket.on('open', () => socket.send(JSON.stringify({ protocol: 'json', version: 1 }) + '\x1e'));
     socket.on('message', (data) => {
@@ -192,4 +214,3 @@ function durationMs(s) {
   const m = /^(\d+)(ms|s|m|h)$/.exec(s);
   return parseInt(m[1]) * { ms: 1, s: 1000, m: 60000, h: 3600000 }[m[2]];
 }
-function addDurations(...parts) { return `${parts.reduce((t, p) => t + durationMs(p), 0)}ms`; }

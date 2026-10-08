@@ -149,4 +149,38 @@ public class RecurringTransactionTests
             StartDate = schedule.Start,
         };
     }
+
+    [Test]
+    public async Task A_rule_knows_when_it_next_has_something_to_book()
+    {
+        var rule = MonthlySalary();
+        rule.ScheduleNext();
+        await Assert.That(rule.NextOccurrenceAt).IsEqualTo(Start); // nothing booked yet: its first instance
+
+        // Booked through mid-November: next is December 1st, and the job will not look at it before.
+        var now = new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero);
+        rule.Advance(rule.DueOccurrences(now), now);
+        await Assert.That(rule.NextOccurrenceAt!.Value.Month).IsEqualTo(12);
+        await Assert.That(rule.NextOccurrenceAt.Value.Day).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task A_paused_or_finished_rule_has_no_next_date()
+    {
+        var rule = MonthlySalary();
+        rule.IsActive = false;
+        rule.ScheduleNext();
+        await Assert.That(rule.NextOccurrenceAt).IsNull();
+
+        var schedule = RecurrenceSchedule.Create(new RecurrenceSpec(Frequency.Daily, Count: 2), Start).AsT1;
+        var twice = new RecurringTransaction
+        {
+            UserId = "u1", AccountId = Guid.CreateVersion7(), Kind = TransactionKind.Expense, Amount = 10m, Currency = Currency.Htg,
+            Rrule = schedule.Rrule, TimeZoneId = schedule.TimeZoneId, StartDate = schedule.Start,
+        };
+        var later = Start.AddDays(5);
+        twice.Advance(twice.DueOccurrences(later), later);
+        await Assert.That(twice.IsActive).IsFalse();
+        await Assert.That(twice.NextOccurrenceAt).IsNull();
+    }
 }

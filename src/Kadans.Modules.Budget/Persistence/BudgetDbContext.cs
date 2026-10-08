@@ -123,7 +123,8 @@ internal sealed class BudgetDbContext(
             r.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.SetNull);
 
             // What the materializing job scans.
-            r.HasIndex(p => p.GeneratedThrough).HasFilter("is_active = true");
+            // The job's query: active rules whose next instance has come (or is not computed yet).
+            r.HasIndex(p => p.NextOccurrenceAt).HasFilter("is_active = true");
 
             r.HasQueryFilter(USER_FILTER, x => x.UserId == userService.UserId);
         });

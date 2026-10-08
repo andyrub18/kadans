@@ -96,6 +96,9 @@ internal sealed class FakeUserDirectory : IUserDirectory
     public Task<UserSummary?> FindAsync(string userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(Users.FirstOrDefault(u => u.Id == userId));
 
+    public Task<IReadOnlyDictionary<string, UserSummary>> FindManyAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyDictionary<string, UserSummary>>(Users.Where(u => userIds.Contains(u.Id)).ToDictionary(u => u.Id));
+
     public Task<UserSummary?> FindByLoginAsync(string usernameOrEmail, CancellationToken cancellationToken = default) =>
         Task.FromResult(
             Users.FirstOrDefault(u => string.Equals(u.Username, usernameOrEmail, StringComparison.OrdinalIgnoreCase))

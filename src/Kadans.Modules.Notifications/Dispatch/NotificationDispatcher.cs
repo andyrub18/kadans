@@ -21,31 +21,38 @@ internal sealed class NotificationDispatcher(
     ILogger<NotificationDispatcher> logger
 ) : INotificationDispatcher
 {
-    public async Task DispatchAsync(string userId, NotificationMessage message, CancellationToken cancellationToken = default)
+    public Task DispatchAsync(string userId, NotificationMessage message, CancellationToken cancellationToken = default) =>
+        DispatchManyAsync([new UserNotification(userId, message)], cancellationToken);
+
+    public async Task DispatchManyAsync(IReadOnlyList<UserNotification> notifications, CancellationToken cancellationToken = default)
     {
-        var notification = new Notification
-        {
-            UserId = userId,
-            Kind = message.Kind,
-            Title = message.Title,
-            Body = message.Body,
-            DataJson = message.Data is null ? null : JsonSerializer.Serialize(message.Data),
-        };
-        dbContext.Notifications.Add(notification);
+        var stored = notifications
+            .Select(n => new Notification
+            {
+                UserId = n.UserId,
+                Kind = n.Message.Kind,
+                Title = n.Message.Title,
+                Body = n.Message.Body,
+                DataJson = n.Message.Data is null ? null : JsonSerializer.Serialize(n.Message.Data),
+            })
+            .ToList();
+        dbContext.Notifications.AddRange(stored);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var response = notification.ToResponse();
-
-        try
+        for (var i = 0; i < stored.Count; i++)
         {
-            await realtime.PublishToUserAsync(userId, "notification", response, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Realtime publish failed for user {UserId}", userId);
-        }
+            var userId = notifications[i].UserId;
+            try
+            {
+                await realtime.PublishToUserAsync(userId, "notification", stored[i].ToResponse(), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Realtime publish failed for user {UserId}", userId);
+            }
 
-        pushQueue.Enqueue(new PushRequest(userId, message));
+            pushQueue.Enqueue(new PushRequest(userId, notifications[i].Message));
+        }
     }
 }
 

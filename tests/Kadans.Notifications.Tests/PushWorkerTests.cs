@@ -10,12 +10,24 @@ namespace Kadans.Notifications.Tests;
 
 public class PushWorkerTests
 {
+    /// <summary>Every account has these devices (or, with <paramref name="perUser"/>, its own).</summary>
     private sealed class FakeDevices(params PushTarget[] targets) : IDevicePushTargets
     {
         public List<string> Invalidated { get; } = [];
+        public int Queries { get; private set; }
+        public Dictionary<string, PushTarget[]>? PerUser { get; init; }
+
+        private IReadOnlyList<PushTarget> Of(string userId) => PerUser is null ? targets : PerUser.GetValueOrDefault(userId) ?? [];
 
         public Task<IReadOnlyList<PushTarget>> ForUserAsync(string userId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<PushTarget>>(targets);
+            Task.FromResult(Of(userId));
+
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<PushTarget>>> ForUsersAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default)
+        {
+            Queries++;
+            return Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<PushTarget>>>(
+                userIds.Where(u => Of(u).Count > 0).ToDictionary(u => u, Of));
+        }
 
         public Task InvalidateAsync(string pushToken, CancellationToken cancellationToken = default)
         {
@@ -28,12 +40,14 @@ public class PushWorkerTests
     private sealed class FakeSender(Func<IReadOnlyList<PushTarget>, IReadOnlyList<string>> send) : IPushSender
     {
         public int Calls { get; private set; }
+        public List<int> CallSizes { get; } = [];
 
-        public Task<PushOutcome> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
+        public Task<PushOutcome> SendAsync(IReadOnlyList<PushEnvelope> envelopes, CancellationToken cancellationToken = default)
         {
             Calls++;
-            var dead = send(targets);
-            return Task.FromResult(new PushOutcome(targets.Count - dead.Count, 0, dead));
+            CallSizes.Add(envelopes.Count);
+            var dead = send([.. envelopes.Select(e => e.Target)]);
+            return Task.FromResult(new PushOutcome(envelopes.Count - dead.Count, 0, dead));
         }
     }
 
@@ -43,7 +57,7 @@ public class PushWorkerTests
     public PushWorkerTests() => metrics = new PushMetrics(meters);
 
     private Task Deliver(PushRequest request, IDevicePushTargets devices, IMobileAccess phones, IPushSender sender) =>
-        PushWorker.DeliverAsync(request, devices, phones, sender, metrics, NullLogger.Instance, CancellationToken.None);
+        PushWorker.DeliverAsync([request], devices, phones, sender, metrics, NullLogger.Instance, CancellationToken.None);
 
     private MetricCollector<T> Collect<T>(string instrument) where T : struct => new(meters, PushMetrics.MeterName, instrument);
 
@@ -165,7 +179,7 @@ public class PushWorkerTests
     {
         using var dropped = Collect<long>("kadans.push.dropped");
         using var length = Collect<int>("kadans.push.queue.length");
-        var queue = new PushQueue(metrics);
+        var queue = new PushQueue(metrics, capacity: 1000);
 
         for (var i = 0; i < 1003; i++)
             queue.Enqueue(Request with { UserId = $"user-{i}" });
@@ -176,14 +190,45 @@ public class PushWorkerTests
     }
 
     [Test]
+    public async Task A_batch_is_one_device_lookup_and_500_messages_a_call()
+    {
+        // 1,200 people with a phone each, queued in one go: one lookup, three calls (500, 500, 200).
+        var devices = new FakeDevices
+        {
+            PerUser = Enumerable.Range(0, 1200).ToDictionary(i => $"user-{i}", i => new[] { new PushTarget("Android", $"t{i}") }),
+        };
+        var sender = new FakeSender(_ => []);
+        var batch = Enumerable.Range(0, 1200).Select(i => Request with { UserId = $"user-{i}" }).ToList();
+
+        await PushWorker.DeliverAsync(batch, devices, Phones.Allowed, sender, metrics, NullLogger.Instance, CancellationToken.None);
+
+        await Assert.That(devices.Queries).IsEqualTo(1);
+        await Assert.That(sender.CallSizes).IsEquivalentTo([500, 500, 200]);
+    }
+
+    [Test]
+    public async Task A_peak_fits_in_the_queue_and_comes_out_in_batches()
+    {
+        using var dropped = Collect<long>("kadans.push.dropped");
+        var queue = new PushQueue(metrics);
+        for (var i = 0; i < 20_000; i++)
+            queue.Enqueue(Request with { UserId = $"user-{i}" });
+
+        var first = await queue.ReadBatchAsync(PushWorker.RequestsPerBatch, CancellationToken.None);
+
+        await Assert.That(first.Count).IsEqualTo(500);
+        await Assert.That(dropped.GetMeasurementSnapshot().Count).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task The_simulated_provider_answers_like_firebase_500_messages_a_call()
     {
         var options = Microsoft.Extensions.Options.Options.Create(new PushOptions { Simulated = { LatencyMilliseconds = 40 } });
         var sender = new SimulatedPushSender(options);
-        var targets = Enumerable.Range(0, 1001).Select(i => new PushTarget("Android", $"t{i}")).ToList();
+        var targets = Enumerable.Range(0, 1001).Select(i => new PushEnvelope(new PushTarget("Android", $"t{i}"), Request.Message)).ToList();
 
         var watch = System.Diagnostics.Stopwatch.StartNew();
-        var outcome = await sender.SendAsync(targets, Request.Message);
+        var outcome = await sender.SendAsync(targets);
 
         await Assert.That(outcome.Sent).IsEqualTo(1001);
         await Assert.That(watch.ElapsedMilliseconds).IsGreaterThanOrEqualTo(110); // three calls of 40 ms

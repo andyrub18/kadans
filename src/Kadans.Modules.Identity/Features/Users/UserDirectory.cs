@@ -1,6 +1,7 @@
 using Kadans.Modules.Identity.Domain;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kadans.Modules.Identity.Features.Users;
 
@@ -10,6 +11,12 @@ internal sealed class UserDirectory(UserManager<ApplicationUser> userManager) : 
     {
         var user = await userManager.FindByIdAsync(userId);
         return user is null ? null : Summary(user);
+    }
+
+    public async Task<IReadOnlyDictionary<string, UserSummary>> FindManyAsync(IReadOnlyCollection<string> userIds, CancellationToken cancellationToken = default)
+    {
+        var users = await userManager.Users.Where(u => userIds.Contains(u.Id)).ToListAsync(cancellationToken);
+        return users.ToDictionary(u => u.Id, Summary);
     }
 
     public async Task<UserSummary?> FindByLoginAsync(string usernameOrEmail, CancellationToken cancellationToken = default)

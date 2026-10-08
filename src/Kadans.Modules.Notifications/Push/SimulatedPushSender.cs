@@ -12,13 +12,11 @@ namespace Kadans.Modules.Notifications.Push;
 /// </summary>
 internal sealed class SimulatedPushSender(IOptions<PushOptions> options) : IPushSender
 {
-    internal const int MessagesPerCall = 500;
-
-    public async Task<PushOutcome> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
+    public async Task<PushOutcome> SendAsync(IReadOnlyList<PushEnvelope> envelopes, CancellationToken cancellationToken = default)
     {
-        var calls = (targets.Count + MessagesPerCall - 1) / MessagesPerCall;
+        var calls = (envelopes.Count + IPushSender.MaxPerCall - 1) / IPushSender.MaxPerCall;
         for (var i = 0; i < calls; i++)
             await Task.Delay(options.Value.Simulated.LatencyMilliseconds, cancellationToken);
-        return PushOutcome.AllSent(targets.Count);
+        return PushOutcome.AllSent(envelopes.Count);
     }
 }

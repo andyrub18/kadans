@@ -32,25 +32,23 @@ internal sealed class FcmPushSender : IPushSender
         messaging = FirebaseMessaging.GetMessaging(app);
     }
 
-    public async Task<PushOutcome> SendAsync(IReadOnlyList<PushTarget> targets, NotificationMessage message, CancellationToken cancellationToken = default)
+    public async Task<PushOutcome> SendAsync(IReadOnlyList<PushEnvelope> envelopes, CancellationToken cancellationToken = default)
     {
-        if (targets.Count == 0)
+        if (envelopes.Count == 0)
             return PushOutcome.AllSent(0);
-
-        var data = (message.Data ?? new Dictionary<string, string>())
-            .Concat([new KeyValuePair<string, string>("kind", message.Kind)])
-            .ToDictionary(kv => kv.Key, kv => kv.Value);
 
         // One message per registration token. FirebaseAdmin 3.6 marks Token obsolete in favour of
         // Firebase installation ids (Fid), but the FCM client SDKs still hand apps registration tokens;
         // switch to Fid once the clients register installation ids instead.
 #pragma warning disable CS0618
-        var messages = targets
-            .Select(t => new Message
+        var messages = envelopes
+            .Select(e => new Message
             {
-                Token = t.Token,
-                Notification = new Notification { Title = message.Title, Body = message.Body },
-                Data = data,
+                Token = e.Target.Token,
+                Notification = new Notification { Title = e.Message.Title, Body = e.Message.Body },
+                Data = (e.Message.Data ?? new Dictionary<string, string>())
+                    .Concat([new KeyValuePair<string, string>("kind", e.Message.Kind)])
+                    .ToDictionary(kv => kv.Key, kv => kv.Value),
             })
             .ToList();
 #pragma warning restore CS0618
@@ -66,9 +64,9 @@ internal sealed class FcmPushSender : IPushSender
 
             var code = result.Exception?.MessagingErrorCode;
             if (code is MessagingErrorCode.Unregistered or MessagingErrorCode.InvalidArgument)
-                dead.Add(targets[i].Token);
+                dead.Add(envelopes[i].Target.Token);
             else
-                logger.LogWarning(result.Exception, "FCM send failed for a {Platform} device ({Code})", targets[i].Platform, code);
+                logger.LogWarning(result.Exception, "FCM send failed for a {Platform} device ({Code})", envelopes[i].Target.Platform, code);
         }
 
         logger.LogInformation("FCM: {Success} sent, {Failed} failed, {Dead} dead token(s)", response.SuccessCount, response.FailureCount, dead.Count);

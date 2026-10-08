@@ -327,3 +327,32 @@ groups:
           description: '`docker compose logs backup` says why. DEPLOYMENT → Backups.'
         labels:
           severity: critical
+      - uid: kadans-tls-expiring
+        title: 'Certificate expiring'
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: '(min(kadans_tls_certificate_expiry_timestamp_seconds) - time()) or on() (absent(kadans_tls_certificate_expiry_timestamp_seconds) * 0)'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1209600] }
+        noDataState: OK
+        execErrState: Error
+        for: 1h
+        annotations:
+          summary: 'The HTTPS certificate expires in less than 14 days, or there is none'
+          description: 'certbot renews it well before the end, so renewals are failing: `docker compose logs certbot` says why (the DNS record, port 80, a Let''s Encrypt rate limit). DEPLOYMENT → Proxy and certificates.'
+        labels:
+          severity: critical

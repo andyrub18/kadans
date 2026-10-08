@@ -5,8 +5,8 @@
 #   ./loadtest.sh seed [users] [peak-at] [peak-count]    fill it (the API must be stopped: `up` leaves it so)
 #   ./loadtest.sh sessions <tag>      a fresh session per account for the next run (k6's SESSION_TAG)
 #   ./loadtest.sh peak <ISO instant> [count]   reminders due within that minute
-#   ./loadtest.sh warmup              start this API off to the side (Caddy cannot reach it) to catch up its jobs
-#   ./loadtest.sh switch-in           production's API stops; this one takes its place behind Caddy
+#   ./loadtest.sh warmup              start this API off to the side (nginx cannot reach it) to catch up its jobs
+#   ./loadtest.sh switch-in           production's API stops; this one takes its place behind nginx
 #   ./loadtest.sh switch-out          and back: this one stops, production's API starts again
 #   ./loadtest.sh report [minutes]    the verdict from Prometheus over the last N minutes (default 20)
 #   ./loadtest.sh record <minutes> <file>   in the background: a one-minute report and docker stats every minute,
@@ -54,13 +54,13 @@ case "${1:-}" in
     unpublish
     if published; then echo "refusing: the load-test API still answers to \"api\"" >&2; compose stop loadtest-api; exit 1; fi
     until compose logs --since 2m loadtest-api 2> /dev/null | grep -q "Application started"; do sleep 2; done
-    echo "warming up, out of Caddy's reach";;
+    echo "warming up, out of nginx's reach";;
   switch-in)
     docker compose --project-directory "$PROD" -p kadans stop api
     compose up -d loadtest-api
     docker network disconnect kadans_default kadans-loadtest-loadtest-api-1
     docker network connect --alias api kadans_default kadans-loadtest-loadtest-api-1
-    echo "Caddy now sends https://api.kadansplanning.com to the load-test API";;
+    echo "nginx sends https://api.kadansplanning.com to the load-test API within 10 s";;
   switch-out)
     compose stop loadtest-api
     unpublish

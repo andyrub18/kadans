@@ -29,7 +29,7 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
   Notifications are otherwise thin: the smoke scripts cover the rest.
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions, `DEPLOYMENT.md`, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
-- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (Caddy, API, Postgres, nightly dump,
+- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (nginx with certbot, API, Postgres, nightly dump,
   and the monitoring: Prometheus, Loki, Grafana, node-exporter, configured in `deploy/observability/`).
 
 ## Commands

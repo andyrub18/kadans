@@ -24,8 +24,8 @@ internal sealed class RateLimitingOptions
 }
 
 /// <summary>
-/// ASP.NET Core's rate limiter, partitioned per client. Behind Caddy the forwarded-headers middleware has already
-/// replaced the connection's address with the real client's; Caddy sets X-Forwarded-For itself, so a client cannot
+/// ASP.NET Core's rate limiter, partitioned per client. Behind nginx the forwarded-headers middleware has already
+/// replaced the connection's address with the real client's; nginx sets X-Forwarded-For itself, so a client cannot
 /// pick its own partition. A rejection is a 429 ProblemDetails in the request's language, with Retry-After.
 /// </summary>
 internal static class RateLimiting

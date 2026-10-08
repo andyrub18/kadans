@@ -1,0 +1,42 @@
+# nginx in front of the API (docs/DEPLOYMENT.md → Proxy and certificates). It took half of Caddy's CPU per request
+# for the same work in the load test (docs/LOADTEST.md). The image renders this file into conf.d/ at start
+# (${KADANS_DOMAIN} filled in); https.conf is added once certbot has the certificate (40-kadans-certificate.sh).
+
+server_tokens off;
+
+# Docker's DNS, asked again every 10 s: the API gets a new address whenever its container is recreated.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+upstream kadans_api {
+    zone kadans_api 64k;
+    server api:8080 resolve;
+    keepalive 32;
+}
+
+# The hub's WebSockets carry the upgrade on; every other request reuses a kept-alive connection to the API.
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      '';
+}
+
+# What the apps ask for (OkHttp and iOS send Accept-Encoding: gzip). Level 5, as Caddy did.
+gzip on;
+gzip_comp_level 5;
+gzip_min_length 512;
+gzip_vary on;
+gzip_types application/json application/problem+json text/plain; # text/html is always compressed
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${KADANS_DOMAIN};
+
+    # Let's Encrypt's HTTP-01 challenge: certbot writes the answer, nginx serves it.
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    location / {
+        return 301 https://${KADANS_DOMAIN}$request_uri;
+    }
+}

@@ -1,7 +1,7 @@
 name: Load test
 
 # k6 (tools/loadtest/app.js) from a GitHub runner, against the load-test API that `deploy/loadtest/loadtest.sh
-# switch-in` puts behind production's Caddy (docs/LOADTEST.md). A runner has the cores and the bandwidth a home
+# switch-in` puts behind production's nginx (docs/LOADTEST.md). A runner has the cores and the bandwidth a home
 # connection lacks. Started by hand, or by pushing a `loadtest-run` branch whose tools/loadtest/run.env holds the
 # settings. Never on main's pushes or pull requests.
 on:

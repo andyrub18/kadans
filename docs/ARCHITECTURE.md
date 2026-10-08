@@ -136,8 +136,8 @@ restart loses nothing – and it fixes the deployment shape: **one always-on ins
 never two replicas. Because of that, migrations run at startup in production
 (`Database:MigrateOnStartup`, set by the image) and a deploy is "start the new image". The image is
 host-neutral (environment variables only, port 8080 behind a TLS-terminating proxy whose forwarded
-headers it trusts); `deploy/` is the reference setup for a single VPS (Caddy, API, Postgres, nightly
-dump). Outside Development the process refuses to start on an incomplete configuration. The only state
+headers it trusts); `deploy/` is the reference setup for a single VPS (nginx with certbot, API, Postgres,
+nightly dump). Outside Development the process refuses to start on an incomplete configuration. The only state
 besides Postgres would have been ASP.NET Core's Data Protection key ring (it protects the tokens in emailed
 links, and its default home is a folder inside the container, lost on every update); it lives in the
 Identity schema instead (`data_protection_keys`), encrypted with AES-GCM under a key derived from `Jwt:Key`
@@ -369,11 +369,12 @@ nothing leaves it, and nothing of it is published to the internet.
 - **No personal data in either.** Logs carry user ids, never an address, a name, what someone wrote (a todo's title)
   or a secret; a failed sign-in does not log what was typed. The privacy policy can say so.
 - **Grafana** reads both, with one provisioned dashboard (Kadans: overview, API, reminders and push, jobs, database
-  and runtime, server, logs) and eleven alerts, emailed through Resend's SMTP (`deploy/observability/grafana/`):
+  and runtime, server, logs) and twelve alerts, emailed through Resend's SMTP (`deploy/observability/grafana/`):
   the API silent for 5 minutes, more than 5 server errors in 10 minutes, any request turned away as "server busy"
   in 10 minutes, reminders' p95 over a minute, Pomodoro
   deadlines' p95 over 10 s, any push dropped, over 20% of pushes failing, a job throwing, the disk over 85%, memory
-  under 10%, and no backup for 26 hours. Grafana listens on the server's loopback only: an SSH tunnel reaches it.
+  under 10%, no backup for 26 hours, and the HTTPS certificate within 14 days of its end. Grafana listens on the
+  server's loopback only: an SSH tunnel reaches it.
 - **node-exporter** adds the server: CPU, memory, disk, and the backup's last success.
 - **Cost.** Memory caps: Prometheus and Loki 512 MB, Grafana 768 MB, node-exporter 64 MB, so monitoring cannot starve
   the API or Postgres. The three Go programs also get `GOMEMLIMIT` below their cap, so their garbage collector works

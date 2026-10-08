@@ -65,7 +65,7 @@ services:
       Telemetry__InstanceId: loadtest
     networks:
       - default
-      - kadans # production's network, for Prometheus and Loki; Caddy reaches this API only after `switch-in`
+      - kadans # production's network, for Prometheus and Loki; nginx reaches this API only after `switch-in`
     depends_on:
       loadtest-db:
         condition: service_healthy

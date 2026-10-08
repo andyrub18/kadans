@@ -16,8 +16,10 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         if (Paging.Check(page, pageSize) is { } pagingError)
             return pagingError;
 
+        // Read only: no change tracking (half the work of materializing them, measured in docs/LOADTEST.md).
         var todos = await dbContext
             .Todos.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTracking()
             .Include(t => t.RecurrenceRule)
             .Include(t => t.Remarks)
             .Where(t => status == null || t.Status == status)
@@ -33,6 +35,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
     {
         var todo = await dbContext
             .Todos.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTracking()
             .Include(t => t.RecurrenceRule)
             .Include(t => t.Remarks)
             .FirstOrDefaultAsync(t => t.Id == id);
@@ -52,6 +55,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         // The Todo navigation carries the active-todos filter; a finished todo must still list its rows.
         var occurrences = await dbContext
             .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTrackingWithIdentityResolution()
             .Include(o => o.Todo)
             .Where(o => o.TodoId == todoId)
             .OrderBy(o => o.ScheduledAt)
@@ -77,15 +81,18 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         if (to - from > MaxWindow)
             return new ApplicationError(ErrorTypes.InvalidInterval, "The calendar range can be at most a year.");
 
+        // Read only: no change tracking; identity resolution still builds each todo once for its occurrences.
         var materialized = await dbContext
-            .TodoOccurrences.Include(o => o.Todo)
+            .TodoOccurrences.AsNoTrackingWithIdentityResolution()
+            .Include(o => o.Todo)
             .Where(o => o.ScheduledAt >= from && o.ScheduledAt <= to)
             .ToListAsync();
 
         var result = materialized.ConvertAll(o => o.ToResponse());
 
         var notFullyGenerated = await dbContext
-            .Todos.Include(t => t.RecurrenceRule)
+            .Todos.AsNoTracking()
+            .Include(t => t.RecurrenceRule)
             .Where(t => t.OccurrencesGeneratedThrough == null || t.OccurrencesGeneratedThrough < to)
             .ToListAsync();
 
@@ -116,6 +123,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
 
         var occurrences = await dbContext
             .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_OCCURRENCES_FILTER, TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTrackingWithIdentityResolution()
             .Include(o => o.Todo)
             .Where(o => o.TodoId == todoId)
             .OrderByDescending(o => o.ScheduledAt)

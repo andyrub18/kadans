@@ -67,7 +67,7 @@ internal sealed class TransactionService(
     )
     {
         pageSize = Math.Clamp(pageSize, 1, 200);
-        var query = context.Transactions.AsQueryable();
+        var query = context.Transactions.AsNoTracking();
         if (accountId is { } acc)
             query = query.Where(t => t.AccountId == acc || t.TransferAccountId == acc);
         if (categoryId is not null)
@@ -189,8 +189,8 @@ internal sealed class TransactionService(
             .OrderBy(t => t.Currency)
             .ToList();
 
-        var categories = await context.Categories.Where(c => !c.IsArchived).ToListAsync(cancellationToken);
-        var limits = await context.CategoryBudgets.ToDictionaryAsync(b => b.CategoryId, cancellationToken);
+        var categories = await context.Categories.AsNoTracking().Where(c => !c.IsArchived).ToListAsync(cancellationToken);
+        var limits = await context.CategoryBudgets.AsNoTracking().ToDictionaryAsync(b => b.CategoryId, cancellationToken);
         var spends = rows
             .Where(r => r.CategoryId is not null)
             .GroupBy(r => new { r.CategoryId, r.Currency })
@@ -210,7 +210,7 @@ internal sealed class TransactionService(
             .ToList();
 
         var accountList = await accounts.List();
-        var baseCurrency = (await context.Profiles.FirstOrDefaultAsync(cancellationToken))?.BaseCurrency
+        var baseCurrency = (await context.Profiles.AsNoTracking().FirstOrDefaultAsync(cancellationToken))?.BaseCurrency
             ?? Currency.Htg;
         var rates = await context.CurrencyRates
             .ToDictionaryAsync(r => r.Currency, r => r.RateInBase, cancellationToken);

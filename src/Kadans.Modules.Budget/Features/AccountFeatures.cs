@@ -54,6 +54,7 @@ internal sealed class AccountService(BudgetDbContext context, ICurrentUserServic
     public async Task<List<AccountResponse>> List(bool includeArchived = false)
     {
         var accounts = await context.Accounts
+            .AsNoTracking()
             .Where(a => includeArchived || !a.IsArchived)
             .OrderBy(a => a.CreatedAt)
             .ToListAsync();

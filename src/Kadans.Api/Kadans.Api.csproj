@@ -33,4 +33,10 @@
     <InternalsVisibleTo Include="Kadans.Api.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- An idle thread-pool thread waits for work without spinning first. On the 2 vCPU server the spinning took a third
+         of the API's CPU and saved no latency (docs/LOADTEST.md → What changed). Written to the runtimeconfig.json. -->
+    <RuntimeHostConfigurationOption Include="System.Threading.ThreadPool.UnfairSemaphoreSpinLimit" Value="0" />
+  </ItemGroup>
+
 </Project>

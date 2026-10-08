@@ -31,15 +31,17 @@ public sealed class IdentityModule : IModule
 {
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = KadansDatabase.ConnectionString(configuration);
         services.AddDbContext<IdentityModuleDbContext>(options =>
             options.UseNpgsql(
-                KadansDatabase.ConnectionString(configuration),
+                connectionString,
                 npgsql =>
                     npgsql.MigrationsHistoryTable(
                         "__ef_migrations_history",
                         IdentityModuleDbContext.Schema
                     )
-            )
+            ),
+            optionsLifetime: ServiceLifetime.Singleton // built once: the options depend on configuration only
         );
 
         var lockout = configuration.GetSection("Identity:Lockout");

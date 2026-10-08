@@ -20,7 +20,8 @@ internal sealed class NotificationQueries(NotificationsDbContext dbContext, ICur
             return pagingError;
 
         var items = await dbContext
-            .Notifications.Where(n => n.UserId == currentUser.UserId && (!unreadOnly || n.ReadAt == null))
+            .Notifications.AsNoTracking()
+            .Where(n => n.UserId == currentUser.UserId && (!unreadOnly || n.ReadAt == null))
             .OrderByDescending(n => n.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

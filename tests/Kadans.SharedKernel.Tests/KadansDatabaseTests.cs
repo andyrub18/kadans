@@ -12,6 +12,7 @@ public class KadansDatabaseTests
         await Assert.That(defaults.MaxAutoPrepare).IsEqualTo(50);
         await Assert.That(defaults.AutoPrepareMinUsages).IsEqualTo(2);
         await Assert.That(defaults.MaxPoolSize).IsEqualTo(40);
+        await Assert.That(defaults.NoResetOnClose).IsTrue();
 
         // Set in the connection string: kept.
         var explicitOnes = new NpgsqlConnectionStringBuilder(KadansDatabase.WithDefaults("Host=db;Maximum Pool Size=10;Max Auto Prepare=0"));

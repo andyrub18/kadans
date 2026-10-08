@@ -16,11 +16,13 @@ public sealed class BudgetModule : IModule
 {
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = KadansDatabase.ConnectionString(configuration);
         services.AddDbContext<BudgetDbContext>(options =>
             options.UseNpgsql(
-                KadansDatabase.ConnectionString(configuration),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", BudgetDbContext.Schema)
-            )
+            ),
+            optionsLifetime: ServiceLifetime.Singleton // built once: the options depend on configuration only
         );
 
         var budgetSection = configuration.GetSection(BudgetOptions.SectionName);

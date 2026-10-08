@@ -9,6 +9,8 @@ namespace Kadans.SharedKernel.Persistence;
 /// <item>Statements prepared on the server once used twice: planning was two thirds of a typical query's time.</item>
 /// <item>At most 40 connections: two cores cannot run 100 queries at once, and the 100 of the default only added
 /// contention and memory under load; past 40, a query waits for a connection instead.</item>
+/// <item>No reset when a connection goes back to the pool: Kadans never changes session state, and the reset was one
+/// extra round trip per database use (352,530 of them in a 20-minute run).</item>
 /// </list>
 /// </summary>
 public static class KadansDatabase
@@ -37,6 +39,8 @@ public static class KadansDatabase
             builder.AutoPrepareMinUsages = 2;
         if (!set.Overlaps(["maxpoolsize", "maximumpoolsize"]))
             builder.MaxPoolSize = MaxPoolSize;
+        if (!set.Contains("noresetonclose"))
+            builder.NoResetOnClose = true;
         return builder.ConnectionString;
     }
 }

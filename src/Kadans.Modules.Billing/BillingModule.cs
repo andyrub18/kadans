@@ -20,11 +20,13 @@ public sealed class BillingModule : IModule
 
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = KadansDatabase.ConnectionString(configuration);
         services.AddDbContext<BillingDbContext>(db =>
             db.UseNpgsql(
-                KadansDatabase.ConnectionString(configuration),
+                connectionString,
                 npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", BillingDbContext.Schema)
-            )
+            ),
+            optionsLifetime: ServiceLifetime.Singleton // built once: the options depend on configuration only
         );
 
         var section = configuration.GetSection(BillingOptions.SectionName);

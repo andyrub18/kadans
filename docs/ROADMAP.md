@@ -238,6 +238,11 @@ installing on real devices second, hosting last.
 
 2. Before installing on your own devices
 
+- [x] The logo, 2026-10-09: a clock dial whose four hands spell K (the owner's idea; chosen among five candidates).
+      Every file comes from `branding/generate.py` (branding/README.md): the Android launcher icon with Android 13's
+      themed version, the notification icon, the Play Store icon, the desktop's window, tray and packaged icons, and
+      the splash, the hands winding into the K in one second (Android 12+ in the system splash, the desktop in the
+      app). Checked on an Android 15 emulator: the icon, the splash frame by frame, the notification.
 - [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
 - [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
       `packageVersion 1.0.0`)

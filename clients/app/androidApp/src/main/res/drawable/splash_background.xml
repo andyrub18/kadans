@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The window while the app starts, before Android 12: purple, the finished mark in the middle. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/kadans_purple" />
+    <item android:drawable="@drawable/ic_splash_mark" android:gravity="center" android:width="128dp" android:height="128dp" />
+</layer-list>

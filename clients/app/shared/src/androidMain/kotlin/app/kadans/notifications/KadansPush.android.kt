@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.context.GlobalContext
+import app.kadans.shared.R
+import app.kadans.ui.brand.KadansMark
 
 object KadansPushChannel {
     const val ID = "kadans.default"
@@ -76,7 +78,8 @@ class KadansMessagingService : FirebaseMessagingService() {
             val notification = builder
                 .setContentTitle(title)
                 .setContentText(body)
-                .setSmallIcon(android.R.drawable.ic_popup_reminder)
+                .setSmallIcon(R.drawable.ic_stat_kadans)
+                .setColor(KadansMark.PURPLE_ARGB)
                 .setAutoCancel(true)
                 .build()
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

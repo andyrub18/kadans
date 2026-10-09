@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 and later: the system splash, the hands winding into the K (branding/README.md). -->
+    <style name="Theme.Kadans.Starting" parent="Theme.Kadans">
+        <item name="android:windowSplashScreenBackground">@color/kadans_purple</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/avd_splash</item>
+        <item name="android:windowSplashScreenAnimationDuration">1000</item>
+    </style>
+</resources>

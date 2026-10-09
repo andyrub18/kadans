@@ -199,6 +199,8 @@ Both:
 ## Client (Compose Multiplatform)
 
 - [ ] Google Play / App Store developer accounts when it is time to ship
+- [ ] Play Console → Grow → Store presence → Main store listing: the app icon is `branding/play-store-icon.png`
+      (512 x 512, the logo: branding/README.md). Still to make: the feature graphic (1024 x 500) and phone screenshots.
 - [ ] Play Console → App content → Data safety → "Delete account URL": `https://api.kadansplanning.com/account/delete`
       (the web route Google Play requires; the app has its own in Settings). The form also asks how long deletion
       takes: closed at once, erased after 7 days, out of the backups 14 days after that.

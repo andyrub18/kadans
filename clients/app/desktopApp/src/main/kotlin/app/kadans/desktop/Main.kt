@@ -1,14 +1,16 @@
 package app.kadans.desktop
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
@@ -18,6 +20,8 @@ import androidx.compose.ui.window.rememberWindowState
 import app.kadans.di.initKoin
 import app.kadans.reminders.restoreDesktopReminders
 import app.kadans.ui.App
+import app.kadans.ui.brand.KadansIconPainter
+import app.kadans.ui.brand.KadansSplash
 import app.kadans.ui.rememberAppStrings
 
 fun main() {
@@ -35,7 +39,7 @@ fun main() {
         if (traySupported) {
             Tray(
                 state = rememberTrayState(),
-                icon = KadansDot,
+                icon = remember { KadansIconPainter(small = true) },
                 tooltip = "Kadans",
                 onAction = { windowVisible = true },
                 menu = {
@@ -49,17 +53,17 @@ fun main() {
             onCloseRequest = { if (traySupported) windowVisible = false else exitApplication() },
             visible = windowVisible,
             title = "Kadans",
+            icon = remember { KadansIconPainter() },
             state = rememberWindowState(width = 480.dp, height = 800.dp),
         ) {
-            App()
+            // The splash plays over the app while it loads, once per launch (closing to the tray keeps it played).
+            var splashing by remember { mutableStateOf(true) }
+            Box(Modifier.fillMaxSize()) {
+                App()
+                AnimatedVisibility(visible = splashing, enter = EnterTransition.None, exit = fadeOut(tween(250))) {
+                    KadansSplash(onFinished = { splashing = false })
+                }
+            }
         }
-    }
-}
-
-private val KadansDot = object : Painter() {
-    override val intrinsicSize: Size = Size(16f, 16f)
-
-    override fun DrawScope.onDraw() {
-        drawCircle(Color(0xFF6750A4), radius = size.minDimension / 2, center = Offset(size.width / 2, size.height / 2))
     }
 }

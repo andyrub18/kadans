@@ -1,3 +1,4 @@
+using Kadans.Modules.Tasks.Features.Reminders;
 using Kadans.Modules.Tasks.Features;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
 
@@ -14,7 +15,7 @@ public class OccurrenceReminderJobTests
     public async Task Describe_renders_a_compact_duration(int hours, int minutes, int seconds, string expected)
     {
         var texts = LocalizedTexts.Reminder("en");
-        await Assert.That(OccurrenceReminderJob.Describe(new TimeSpan(hours, minutes, seconds), texts)).IsEqualTo(expected);
+        await Assert.That(ReminderNotification.Describe(new TimeSpan(hours, minutes, seconds), texts)).IsEqualTo(expected);
     }
 
     // The job runs a few seconds after the notify time, so a reminder is always a little short of its lead.
@@ -28,7 +29,7 @@ public class OccurrenceReminderJobTests
     public async Task Describe_rounds_up_so_a_reminder_reads_as_its_lead(int hours, int minutes, int seconds, string expected)
     {
         var texts = LocalizedTexts.Reminder("en");
-        await Assert.That(OccurrenceReminderJob.Describe(new TimeSpan(hours, minutes, seconds), texts)).IsEqualTo(expected);
+        await Assert.That(ReminderNotification.Describe(new TimeSpan(hours, minutes, seconds), texts)).IsEqualTo(expected);
     }
 
     [Test]
@@ -37,7 +38,7 @@ public class OccurrenceReminderJobTests
     public async Task Describe_uses_the_users_unit_words(string language, string quarter, string dayAndTwoHours)
     {
         var texts = LocalizedTexts.Reminder(language);
-        await Assert.That(OccurrenceReminderJob.Describe(new TimeSpan(0, 14, 55), texts)).IsEqualTo(quarter);
-        await Assert.That(OccurrenceReminderJob.Describe(new TimeSpan(1, 1, 59, 50), texts)).IsEqualTo(dayAndTwoHours);
+        await Assert.That(ReminderNotification.Describe(new TimeSpan(0, 14, 55), texts)).IsEqualTo(quarter);
+        await Assert.That(ReminderNotification.Describe(new TimeSpan(1, 1, 59, 50), texts)).IsEqualTo(dayAndTwoHours);
     }
 }

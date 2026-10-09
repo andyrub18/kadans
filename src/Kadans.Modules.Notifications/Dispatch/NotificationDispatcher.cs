@@ -54,6 +54,20 @@ internal sealed class NotificationDispatcher(
             pushQueue.Enqueue(new PushRequest(userId, notifications[i].Message));
         }
     }
+
+    public async Task SignalAsync(string userId, string kind, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await realtime.PublishToUserAsync(userId, kind, new { }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Realtime signal failed for user {UserId}", userId);
+        }
+
+        pushQueue.Enqueue(new PushRequest(userId, new NotificationMessage(kind, string.Empty, string.Empty), Silent: true));
+    }
 }
 
 internal static class NotificationMappings

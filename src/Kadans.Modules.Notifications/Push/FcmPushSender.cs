@@ -37,21 +37,8 @@ internal sealed class FcmPushSender : IPushSender
         if (envelopes.Count == 0)
             return PushOutcome.AllSent(0);
 
-        // One message per registration token. FirebaseAdmin 3.6 marks Token obsolete in favour of
-        // Firebase installation ids (Fid), but the FCM client SDKs still hand apps registration tokens;
-        // switch to Fid once the clients register installation ids instead.
-#pragma warning disable CS0618
-        var messages = envelopes
-            .Select(e => new Message
-            {
-                Token = e.Target.Token,
-                Notification = new Notification { Title = e.Message.Title, Body = e.Message.Body },
-                Data = (e.Message.Data ?? new Dictionary<string, string>())
-                    .Concat([new KeyValuePair<string, string>("kind", e.Message.Kind)])
-                    .ToDictionary(kv => kv.Key, kv => kv.Value),
-            })
-            .ToList();
-#pragma warning restore CS0618
+        var now = DateTimeOffset.UtcNow;
+        var messages = envelopes.Select(e => Build(e, now)).ToList();
 
         var response = await messaging.SendEachAsync(messages, cancellationToken);
 
@@ -71,5 +58,52 @@ internal sealed class FcmPushSender : IPushSender
 
         logger.LogInformation("FCM: {Success} sent, {Failed} failed, {Dead} dead token(s)", response.SuccessCount, response.FailureCount, dead.Count);
         return new PushOutcome(response.SuccessCount, response.FailureCount - dead.Count, dead);
+    }
+
+    /// <summary>
+    /// One device's message. A reminder lives until its start (delivered later it is only noise) and collapses per
+    /// occurrence. To an app that rings reminders itself it is a data message the app shows, so the app can drop one it
+    /// already rang (ARCHITECTURE → "Reminders ring on the phone"); to any other it stays a notification the system
+    /// shows. A silent signal is data only, at normal priority: nothing is shown.
+    /// </summary>
+    internal static Message Build(PushEnvelope envelope, DateTimeOffset now)
+    {
+        var message = envelope.Message;
+        var data = (message.Data ?? new Dictionary<string, string>()).ToDictionary(kv => kv.Key, kv => kv.Value);
+        data["kind"] = message.Kind;
+
+        // One message per registration token. FirebaseAdmin 3.6 marks Token obsolete in favour of Firebase
+        // installation ids (Fid), but the FCM client SDKs still hand apps registration tokens; switch to Fid once the
+        // clients register installation ids instead.
+#pragma warning disable CS0618
+        var token = envelope.Target.Token;
+        if (envelope.Silent)
+            return new Message
+            {
+                Token = token,
+                Data = data,
+                Android = new AndroidConfig { Priority = Priority.Normal, CollapseKey = message.Kind },
+            };
+
+        var notification = new Notification { Title = message.Title, Body = message.Body };
+        if (message.Reminder is not { } reminder)
+            return new Message { Token = token, Notification = notification, Data = data };
+
+        var android = new AndroidConfig
+        {
+            Priority = Priority.High,
+            TimeToLive = reminder.StartsAt > now ? reminder.StartsAt - now : TimeSpan.Zero,
+            CollapseKey = reminder.OccurrenceId.ToString(),
+        };
+        if (envelope.Target.RemindersSyncedAt is not null)
+        {
+            data["title"] = message.Title;
+            data["body"] = message.Body;
+            return new Message { Token = token, Data = data, Android = android };
+        }
+
+        android.Notification = new AndroidNotification { Tag = reminder.OccurrenceId.ToString() };
+        return new Message { Token = token, Notification = notification, Data = data, Android = android };
+#pragma warning restore CS0618
     }
 }

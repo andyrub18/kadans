@@ -507,11 +507,14 @@ installing on real devices second, hosting last.
         - Capacity, decided with the owner on 2026-10-08: this server is for up to about 20,000 users; at about 5,000
           paying users Kadans moves to a bigger VPS and keeps scaling the monolith up. Reminders move to the phones
           next (local notifications) for what they bring people – reminders that fire offline – not for the server.
-- [ ] Reminders ring on the phone, offline included (design: ARCHITECTURE → "Reminders ring on the phone"; proposed
-      2026-10-08, to approve). Agreed with the owner after the load test: the motive is reminders that ring without a
+- [ ] Reminders ring on the phone, offline included (design: ARCHITECTURE → "Reminders ring on the phone"; approved
+      by the owner on 2026-10-09: ask for the exact-alarm permission once, a 7-day window, server first). Agreed after
+      the load test: the motive is reminders that ring without a
       connection, which Haiti's networks make common, not the server's load. The server keeps the rules and the safety
       net (it pushes only where a device may not have the reminder); the phone schedules the next 7 days with the OS.
-      - [ ] Server: the device's reminder window and sync state, the push skip rule, push lifetime, the "changed" signal.
+      - [x] Server, 2026-10-09: the window (`POST /reminders/sync`) and the device's sync state, the account's
+        reminders version, the push skip rule, a push's lifetime and shape, the "reminders changed" signal, the check
+        of one reminder. Changes nothing until an app syncs. Checked by `tools/smoke/reminder_flows.py`.
       - [ ] Android: exact alarms, the permission and its explanation, reboot/update receivers, background refresh.
       - [ ] Desktop: the in-app timer.
       - [ ] iOS, with the iPhone app (needs a Mac).

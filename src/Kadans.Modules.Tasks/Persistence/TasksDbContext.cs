@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Domain;
+using Kadans.Modules.Tasks.Features.Reminders;
 using Kadans.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 using TaskStatus = Kadans.Modules.Tasks.Domain.TaskStatus;
@@ -20,6 +21,78 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
     public DbSet<PomodoroTemplatePhase> PomodoroTemplatePhases => Set<PomodoroTemplatePhase>();
     public DbSet<PomodoroRun> PomodoroRuns => Set<PomodoroRun>();
     public DbSet<PomodoroRunPhase> PomodoroRunPhases => Set<PomodoroRunPhase>();
+    public DbSet<ReminderChange> ReminderChanges => Set<ReminderChange>();
+
+    /// <summary>Tells the account's apps a moment later that its reminders changed; handed over when the context is rented.</summary>
+    internal ReminderSignals? Signals { get; set; }
+
+    // What a phone's reminder window is made of. The jobs' bookkeeping (a reminder stamped sent, the horizon moved on)
+    // changes nothing a phone holds.
+    private static readonly HashSet<string> Bookkeeping = [nameof(TodoOccurrence.NotifiedAt), nameof(Todo.OccurrencesGeneratedThrough)];
+
+    private const string BumpVersion =
+        "INSERT INTO " + Schema + ".reminder_changes (user_id, version, changed_at) VALUES ({0}, 1, {1}) "
+        + "ON CONFLICT (user_id) DO UPDATE SET version = reminder_changes.version + 1, changed_at = EXCLUDED.changed_at";
+
+    /// <summary>
+    /// A person's change to a todo, its rule or an occurrence moves the account's reminders version
+    /// (<see cref="ReminderChange"/>) in the same transaction, and signals its apps. In one place, so no feature can
+    /// forget it; a job has no current user and moves nothing. A window read in one snapshot holds a version exactly
+    /// when it holds the changes up to it.
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        var userId = ChangesReminders();
+        if (userId is null)
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+        var own = Database.CurrentTransaction is null ? await Database.BeginTransactionAsync(cancellationToken) : null;
+        try
+        {
+            await Database.ExecuteSqlRawAsync(BumpVersion, [userId, DateTimeOffset.UtcNow], cancellationToken);
+            var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            if (own is not null)
+                await own.CommitAsync(cancellationToken);
+            Signals?.Changed(userId);
+            return saved;
+        }
+        finally
+        {
+            if (own is not null)
+                await own.DisposeAsync();
+        }
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        var userId = ChangesReminders();
+        if (userId is null)
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+
+        using var own = Database.CurrentTransaction is null ? Database.BeginTransaction() : null;
+        Database.ExecuteSqlRaw(BumpVersion, userId, DateTimeOffset.UtcNow);
+        var saved = base.SaveChanges(acceptAllChangesOnSuccess);
+        own?.Commit();
+        Signals?.Changed(userId);
+        return saved;
+    }
+
+    /// <summary>The person making this save, when it touches what a reminder is made of.</summary>
+    private string? ChangesReminders() =>
+        CurrentUserId is { } userId
+        && ChangeTracker
+            .Entries()
+            .Any(entry =>
+                entry.Entity is Todo or TodoOccurrence or RecurrenceRule
+                && entry.State switch
+                {
+                    EntityState.Added or EntityState.Deleted => true,
+                    EntityState.Modified => entry.Properties.Any(p => p.IsModified && !Bookkeeping.Contains(p.Metadata.Name)),
+                    _ => false,
+                }
+            )
+            ? userId
+            : null;
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -217,6 +290,13 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
 
             p.HasIndex(x => new { x.PomodoroRunId, x.Order })
                 .HasDatabaseName("ix_pomodoro_run_phases_run_order");
+        });
+
+        // One row per account; read across accounts by the reminder job, so no user filter.
+        builder.Entity<ReminderChange>(c =>
+        {
+            c.HasKey(x => x.UserId).HasName("pk_reminder_changes");
+            c.Property(x => x.UserId).HasMaxLength(450);
         });
     }
 }

@@ -135,6 +135,7 @@ public sealed class IdentityModule : IModule
         services.AddSingleton<EmailThrottle>();
         services.AddScoped<DeviceService>();
         services.AddScoped<IDevicePushTargets, DevicePushTargets>();
+        services.AddScoped<IDeviceReminders, DeviceReminders>();
         services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddScoped<UserManagement>();
 

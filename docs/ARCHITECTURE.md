@@ -382,7 +382,7 @@ nothing leaves it, and nothing of it is published to the internet.
   with three browsers opening the dashboard at once); at 256 MB, opening the dashboard got it killed. Traces are not collected (one process, little to follow across); the trace ids in the logs
   are enough to group a request's lines.
 
-### Reminders ring on the phone (proposed 2026-10-08, for the owner's approval)
+### Reminders ring on the phone (approved 2026-10-09; the server's part is built)
 
 Today a reminder is the server's: `OccurrenceReminderJob` finds it due, the dispatcher stores it in the notification
 centre, sends it live to open apps and pushes it through Firebase. A phone that is offline at that minute hears
@@ -391,12 +391,12 @@ app (there is no APNs yet). So the phone rings its reminders itself, and the ser
 safety net. The motive is the people's: the load test showed reminders are a small share of the server's work
 (docs/LOADTEST.md).
 
-1. **The server keeps the rules; the phone gets instants.** `GET /reminders?device={installationId}` returns the
-   account's pending occurrences whose reminder falls in the next 7 days: occurrence and todo ids, notify time, start,
-   and the notification's title and text, written by the same code as a push (the account's language and time zone),
-   so both always read the same. The server records on that device when it synced and how far its window reaches. No
-   second recurrence engine or text formatter on the phone: rescheduled, cancelled and done occurrences are already
-   settled in what it gets. A phone without a subscription gets no window, as it gets no push. (The window is Tasks';
+1. **The server keeps the rules; the phone gets instants.** `POST /reminders/sync`, with the device's installation id,
+   returns the account's pending occurrences whose reminder falls in the next 7 days: occurrence and todo ids, notify
+   time, start, and the notification's title and text, written by the same code as a push (the account's language and
+   time zone), so both always read the same. The server records on that device when it synced, how far its window
+   reaches and which version of the account's reminders it holds. No second recurrence engine or text formatter on
+   the phone: rescheduled, cancelled and done occurrences are already settled in what it gets. A phone without a subscription gets no window, as it gets no push. (The window is Tasks';
    the device's sync state is Identity's, recorded through a SharedKernel interface, as push targets are read.)
 2. **The phone schedules them with the OS.** Android: exact alarms (`setExactAndAllowWhileIdle`), which need the
    "Alarms & reminders" permission – off by default since Android 14, so the app asks once, saying what it is for. A
@@ -408,8 +408,9 @@ safety net. The motive is the people's: the load test showed reminders are a sma
    on iOS), when the server says the account's reminders changed (live over the hub, otherwise a silent push), and
    after a reboot or an app update. It is kept in the app's settings store as it came (a few hundred entries at most).
 4. **The server pushes a reminder only where the device may not have it.** Devices that do not schedule (older
-   versions, no permission, desktop) get the push as today. So does a device whose window is stale: synced before the
-   account's last change, not reaching that notify time, or not synced for 36 hours (its alarms may be gone). In the
+   versions, no permission, desktop) get the push as today. So does a device whose window is stale: holding an older
+   version of the account's reminders, not reaching that notify time, or not synced for 36 hours (its alarms may be
+   gone). In the
    common case nothing is sent twice. When both arrive (a stale phone), they carry the occurrence as their identity
    and the phone shows one: an Android reminder push becomes a data message the app displays itself, so it can drop
    one it has already rung (apps already installed display data messages too).
@@ -421,14 +422,20 @@ safety net. The motive is the people's: the load test showed reminders are a sma
 7. **Signing out, switching accounts, or the paywall closing on a phone** cancels every local reminder. Every sign-out
    path ends in clearing the stored tokens: that is where the app cancels them.
 
-Server changes: `Device` gains `RemindersSyncedAt` and `RemindersThrough`; Tasks keeps a per-account
-`RemindersChangedAt`, moved by every change a person makes to a todo or an occurrence (in one place, the context's
-save, so no path forgets it; the jobs' own bookkeeping, such as stamping a reminder sent, does not move it); the
-reminder job hands the push worker each reminder's notify time and that account's last change, and the worker skips
-covered devices (`kadans_push_skipped_total{reason="on_device"}`); a reminder push lives only until its start (a
-Firebase TTL) and carries the occurrence; a "reminders changed" message (live, and a collapsible silent push); the
-window endpoint and a check of one occurrence. Unchanged: the job and its timing, the bell, desktop's live channel,
-and every app version already installed.
+Server (built): Tasks keeps each account's reminders version (`reminder_changes`), one more for every change a person
+makes to a todo, its rule or an occurrence, in the same transaction as the change: in one place, the context's save,
+so no feature forgets it, and the jobs' own bookkeeping (stamping a reminder sent, moving the horizon) moves nothing.
+`POST /reminders/sync` reads the version and the window in one snapshot (repeatable read) and records on the device
+(`Device.RemindersSyncedAt`, `RemindersThrough`, `RemindersVersion`, through `IDeviceReminders`) exactly what it
+holds: no clock margins, and the phone that made a change and syncs right after holds it. The reminder job hands each
+reminder's notify time, start and account version to the push worker, which skips covered devices
+(`kadans_push_skipped_total{reason="on_device"}`). A reminder push lives until its start (Firebase TTL), collapses per
+occurrence, and is a data message for a phone that rings reminders (the app shows it, or drops one it already rang);
+older apps still get a notification the system shows. A change sends "reminders.changed" two seconds later (gathered
+per account): live on the hub, and a silent push to the phones that ring. `GET /reminders/{occurrenceId}` answers
+whether a reminder is still due; `DELETE /reminders/sync/{installationId}` stops a device. Checked by
+`tools/smoke/reminder_flows.py`. Unchanged: the job and its timing, the bell, desktop's live channel, and every app
+version already installed.
 
 App changes: a `ReminderScheduler` (common: what to schedule, the stored window, which occurrences already rang;
 per platform: the OS calls), the permission and its explanation, a notification channel for reminders, the deep link,

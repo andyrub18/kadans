@@ -233,4 +233,96 @@ public class PushWorkerTests
         await Assert.That(outcome.Sent).IsEqualTo(1001);
         await Assert.That(watch.ElapsedMilliseconds).IsGreaterThanOrEqualTo(110); // three calls of 40 ms
     }
+
+    // ---- reminders that phones ring themselves (ARCHITECTURE → "Reminders ring on the phone") ----
+
+    private static readonly DateTimeOffset Now = new(2026, 10, 9, 12, 0, 0, TimeSpan.Zero);
+
+    private static PushRequest ReminderAt(DateTimeOffset notifyAt, long accountVersion) =>
+        new("user-1", new NotificationMessage("occurrence.due", "Gym", "Starts at 18:00 — in 15 min", null,
+            new ReminderDelivery(Guid.NewGuid(), notifyAt, notifyAt.AddMinutes(15), accountVersion)));
+
+    [Test]
+    public async Task A_reminder_skips_the_phones_that_ring_it_themselves_and_reaches_the_others()
+    {
+        using var skipped = Collect<long>("kadans.push.skipped");
+        var sent = new List<string>();
+        var sender = new FakeSender(targets =>
+        {
+            sent.AddRange(targets.Select(t => t.Token));
+            return [];
+        });
+        var notifyAt = Now.AddHours(2);
+        var devices = new FakeDevices(
+            new PushTarget("Android", "has-it", Now.AddMinutes(-10), Now.AddDays(7), RemindersVersion: 5),
+            new PushTarget("Android", "never-synced"),
+            new PushTarget("Android", "holds-an-older-version", Now.AddMinutes(-10), Now.AddDays(7), RemindersVersion: 4),
+            new PushTarget("Android", "window-too-short", Now.AddMinutes(-10), Now.AddHours(1), RemindersVersion: 5),
+            new PushTarget("Android", "silent-for-two-days", Now.AddHours(-40), Now.AddDays(7), RemindersVersion: 5),
+            new PushTarget("Windows", "desktop-without-sync")
+        );
+
+        await Deliver(ReminderAt(notifyAt, accountVersion: 5), devices, Phones.Allowed, sender);
+
+        await Assert.That(sent).IsEquivalentTo(
+            ["never-synced", "holds-an-older-version", "window-too-short", "silent-for-two-days", "desktop-without-sync"]);
+        await Assert.That(skipped.GetMeasurementSnapshot().Sum(m => m.Value)).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task An_account_that_never_changed_its_reminders_is_covered_by_any_fresh_window()
+    {
+        var target = new PushTarget("Android", "t", Now.AddHours(-1), Now.AddDays(7));
+
+        await Assert.That(PushWorker.Covers(target, ReminderAt(Now.AddHours(2), 0).Message.Reminder!)).IsTrue();
+        await Assert.That(PushWorker.Covers(target, ReminderAt(Now.AddDays(8), 0).Message.Reminder!)).IsFalse();
+        // The window counts for 36 hours after its sync, whatever it reaches.
+        await Assert.That(PushWorker.Covers(target, ReminderAt(Now.AddHours(36), 0).Message.Reminder!)).IsFalse();
+    }
+
+    [Test]
+    public async Task A_silent_signal_reaches_only_the_phones_that_ring_reminders()
+    {
+        var sent = new List<string>();
+        var sender = new FakeSender(targets =>
+        {
+            sent.AddRange(targets.Select(t => t.Token));
+            return [];
+        });
+        var devices = new FakeDevices(new PushTarget("Android", "rings", Now, Now.AddDays(7)), new PushTarget("Android", "older-app"));
+
+        await Deliver(new PushRequest("user-1", new NotificationMessage("reminders.changed", "", ""), Silent: true), devices, Phones.Allowed, sender);
+
+        await Assert.That(sent).IsEquivalentTo(["rings"]);
+    }
+
+    [Test]
+    public async Task Firebase_gets_a_reminder_its_lifetime_and_a_shape_the_app_can_handle()
+    {
+        var reminder = ReminderAt(Now.AddMinutes(-1), 0).Message; // starts 14 minutes from now
+        var occurrence = reminder.Reminder!.OccurrenceId.ToString();
+
+        var toRinger = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", Now, Now.AddDays(7)), reminder), Now);
+        await Assert.That(toRinger.Notification).IsNull(); // the app shows it, or drops it if it already rang
+        await Assert.That(toRinger.Data["title"]).IsEqualTo("Gym");
+        await Assert.That(toRinger.Data["kind"]).IsEqualTo("occurrence.due");
+        await Assert.That(toRinger.Android.TimeToLive).IsEqualTo(TimeSpan.FromMinutes(14));
+        await Assert.That(toRinger.Android.CollapseKey).IsEqualTo(occurrence);
+
+        var toOlderApp = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), reminder), Now);
+        await Assert.That(toOlderApp.Notification!.Title).IsEqualTo("Gym"); // the system shows it, as before
+        await Assert.That(toOlderApp.Android.Notification.Tag).IsEqualTo(occurrence);
+        await Assert.That(toOlderApp.Android.TimeToLive).IsEqualTo(TimeSpan.FromMinutes(14));
+
+        var late = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), ReminderAt(Now.AddMinutes(-20), 0).Message), Now);
+        await Assert.That(late.Android.TimeToLive).IsEqualTo(TimeSpan.Zero); // started already: now or never
+
+        var signal = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", Now, Now), new NotificationMessage("reminders.changed", "", ""), Silent: true), Now);
+        await Assert.That(signal.Notification).IsNull();
+        await Assert.That(signal.Data["kind"]).IsEqualTo("reminders.changed");
+
+        var other = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), Request.Message), Now);
+        await Assert.That(other.Notification!.Body).IsEqualTo("Break — 5 min");
+        await Assert.That(other.Android).IsNull();
+    }
 }

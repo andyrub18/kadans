@@ -28,6 +28,7 @@ services:
     environment:
       KADANS_DOMAIN: ${KADANS_DOMAIN:?set KADANS_DOMAIN in .env, e.g. api.kadansplanning.com}
     volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/templates:/etc/nginx/templates:ro
       - ./nginx/https.conf.template:/etc/nginx/kadans/https.conf.template:ro
       - ./nginx/40-kadans-certificate.sh:/docker-entrypoint.d/40-kadans-certificate.sh:ro

@@ -466,7 +466,7 @@ installing on real devices second, hosting last.
         - [x] Free accounts, kept by an admin with `tools/admin/free_accounts.py` (by username or confirmed address,
           stored by id, no restart): the testers Google requires before production
           (12 for 14 days on a new personal account) and its reviewers never pay, even with subscriptions on.
-- [ ] Performance at scale, the last gate before release: a load test on the finished backend, against a
+- [x] Performance at scale, the last gate before release (passed 2026-10-09, run 6): a load test on the finished backend, against a
       target to confirm (proposed: 50,000 accounts, 250,000 active todos, about 10 million occurrence rows,
       and 20,000 reminders due in the same minute, on the production server: 2 vCPU, 4 GB RAM). Pass when every
       reminder of that peak is stored and handed to push within a minute with none dropped, the main
@@ -503,7 +503,10 @@ installing on real devices second, hosting last.
           are. Run 5, at 50% of the target (about 250 requests a second, p95 under 50 ms), passed the reminder peak:
           every reminder within a minute (p99 15 s), none dropped. The owner stopped it at 75% to settle the
           architecture first.
-        - [ ] Run 6 once nginx is deployed: the 75% and 100% steps with load shedding, and a peak under them.
+        - [x] Run 6, 2026-10-09: the whole target held on 2 vCPU. 100% of the busy hour (about 500 requests a
+          second, 3,000 open apps) at p95 22–50 ms, no server error, 0.4% of requests turned away in the hardest
+          minutes; both 20,000-reminder peaks within a minute (p99 12 s), none dropped. It found nginx's default
+          connection limit (fixed) and about 150 reminders 90–120 s late while nginx was at it (to look at).
         - Capacity, decided with the owner on 2026-10-08: this server is for up to about 20,000 users; at about 5,000
           paying users Kadans moves to a bigger VPS and keeps scaling the monolith up. Reminders move to the phones
           next (local notifications) for what they bring people – reminders that fire offline – not for the server.

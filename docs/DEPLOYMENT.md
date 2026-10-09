@@ -180,7 +180,9 @@ the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per reque
 - **Keep the `letsencrypt` volume**: the certificate and the Let's Encrypt account. Re-issuing the same name is
   rate-limited (5 a week).
 - **What nginx does**: TLS 1.2 and 1.3 (Mozilla's intermediate profile), HTTP/2, gzip for the apps' JSON, HSTS,
-  WebSockets for the hub, no version in the `Server` header. It puts the client's own address in `X-Forwarded-For`,
+  WebSockets for the hub, no version in the `Server` header, no access log (the metrics count requests). Its main
+  configuration (`deploy/nginx/nginx.conf`) allows 16,384 connections per worker: each open app holds one, and nginx
+  a second to the API. The image's default, 1,024, refused new connections past about 1,000 open apps. It puts the client's own address in `X-Forwarded-For`,
   replacing whatever the client sent: the rate limits are per client, and a client must not pick its own. It asks
   Docker's DNS for the API's address every 10 s, so a recreated API container is found again.
 - **Moving from Caddy** (once, on a server that ran it): `git pull`, then `docker compose up -d --build --remove-orphans`

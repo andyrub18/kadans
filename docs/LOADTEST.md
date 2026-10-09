@@ -196,6 +196,40 @@ So since run 5 the API takes a third less CPU per request and the proxy half: on
 request should become about 4.5 (API 1.65, nginx 0.6, Postgres 1, the rest 1.3), which would move the point where
 latency climbs from about 280 requests a second to about 350. Run 6 measures it.
 
-### Run 6
+### Run 6, 2026-10-09: the whole target
 
-(To come once nginx is deployed: run 5's steps through 100%, a peak in the 50% and the 100% steps.)
+Run 5's steps through 100% (2,000 people and 3,000 open apps), on everything above: nginx in production, the API's
+CPU fixes, pooling and compiled queries. A peak of 20,000 reminders was due at 00:20 (the 50% step) and another at
+00:35 (the 100% step). k6 now asked for gzip, as the apps do.
+
+| Step | Requests/s | p95 | Server CPU | Open apps |
+|------|-----------:|----:|-----------:|----------:|
+| 25% | 122–131 | 10–14 ms | 44–46% | 752 |
+| 50% | stalled: nginx's connection limit (below) | | | ~1,000 |
+| 50%, after the fix, the first peak | 237–252 | 20–23 ms | 71–77% | 1,566 |
+| 75% | 298–382 | 19–40 ms | 68–80% | 2,248 |
+| 100% | 463–504 | 22–50 ms | 78–91% | 3,000 |
+| the second peak's minute | 503 | 50 ms | 97% | 3,000 |
+
+Every target held, at twice the traffic run 4 collapsed under, and the server never answered with an error. Over the
+32 minutes: p95 53 ms (the slowest route, the budget's summary, 167 ms), no server error, 1,689 requests (0.4%) turned
+away with "server busy" in the hardest minutes (two minutes of the 100% ramp, each peak, the end of the run).
+40,558 reminders went out, none skipped, p99 11.3 s; every push handed to the provider, none dropped, 0.48 s from
+queue to provider. Both peaks: none later than a minute (p99 8.7 s under 50%, 12.2 s under 100%). The database never
+used more than 27 of its 40 connections; its costliest statement, the calendar's occurrences, averaged 1.6 ms. Memory
+never went under 21% available.
+
+Per request at 500 a second (`docker stats`): the API about 2 ms of CPU, nginx about 0.55 ms while compressing
+(Caddy took 1.1 ms without compressing), Postgres about 0.9 ms. About 3.6 ms in all, against 5.8 ms in run 5: two
+vCPU now carry the whole busy hour of 50,000 accounts.
+
+Two things it found:
+
+- **nginx refused connections past about 1,000 open apps.** The nginx image's main configuration allows 1,024
+  connections per worker in a container limited to 1,024 open files, and each open app holds one connection and
+  nginx a second to the API. From 00:09 new connections were refused ("1024 worker_connections are not enough", 528
+  times), and k6's traffic fell to 5 requests a second while the server sat idle. Raised by hand at 00:19 (16,384 per
+  worker, 65,536 files, a graceful reload: nothing dropped), and for good in `deploy/nginx/nginx.conf`. The image's
+  default also logged every request; nginx logs errors only now.
+- **About 150 reminders (0.4%) went out 90 to 120 s late**, around 00:15, while nginx was at its limit. To look at:
+  the dispatcher waits for each reminder's live send in turn, so one stalled hub connection may hold up the others.

@@ -4,6 +4,7 @@ import app.kadans.api.AuthTokens
 import app.kadans.api.InMemoryTokenStore
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansJson
+import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.ReminderCheckResponse
 import app.kadans.api.model.ReminderWindowResponse
 import app.kadans.api.model.UpdateSelfUserRequest
@@ -255,6 +256,31 @@ class LocalRemindersTests {
         assertEquals(listOf("a", "b"), scheduler.shown)
         assertTrue(reminders.rangHere("b", b.notifyAt))
         assertFalse(reminders.rangHere("b", b.notifyAt + 1.hours), "moved, it rings again")
+    }
+
+    @Test
+    fun a_live_copy_too_late_to_be_of_use_shows_nothing() = test {
+        // The hub's catch-up after a reconnect brings what arrived during the drop: an hour-old reminder is noise.
+        clock = t0 + 2.hours
+        reminders.pushed(reminder("old", t0, startsAt = t0 + 15.minutes))
+        reminders.pushed(reminder("now", t0 + 2.hours - 1.minutes))
+
+        assertEquals(listOf("now"), scheduler.shown)
+    }
+
+    @Test
+    fun a_live_notification_carries_its_reminder() {
+        val live = NotificationResponse(
+            id = "n1", kind = "occurrence.due", title = "Gym", body = "Starts at 18:00 — in 15 min",
+            data = mapOf("todoId" to "t1", "occurrenceId" to "o1", "scheduledAt" to "2026-10-09T18:00:00.0000000+00:00",
+                "notifyAt" to "2026-10-09T17:45:00.0000000+00:00", "pomodoroTemplateId" to ""),
+            createdAt = t0,
+        )
+        assertEquals(
+            UpcomingReminder("o1", "t1", "Gym", "Starts at 18:00 — in 15 min", Instant.parse("2026-10-09T17:45:00Z"), Instant.parse("2026-10-09T18:00:00Z")),
+            LocalReminders.reminderOf(live),
+        )
+        assertEquals(null, LocalReminders.reminderOf(live.copy(kind = "pomodoro.phase")))
     }
 
     @Test

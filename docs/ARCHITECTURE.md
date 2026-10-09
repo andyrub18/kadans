@@ -382,7 +382,7 @@ nothing leaves it, and nothing of it is published to the internet.
   with three browsers opening the dashboard at once); at 256 MB, opening the dashboard got it killed. Traces are not collected (one process, little to follow across); the trace ids in the logs
   are enough to group a request's lines.
 
-### Reminders ring on the phone (approved 2026-10-09; the server and Android are built)
+### Reminders ring on the phone (approved 2026-10-09; the server, Android and desktop are built)
 
 Today a reminder is the server's: `OccurrenceReminderJob` finds it due, the dispatcher stores it in the notification
 centre, sends it live to open apps and pushes it through Firebase. A phone that is offline at that minute hears
@@ -439,7 +439,7 @@ whether a reminder is still due; `DELETE /reminders/sync/{installationId}` stops
 version already installed.
 
 Android (built): `reminders/LocalReminders` (common) keeps the window in the settings store and decides what rings;
-`ReminderScheduler` is the OS's side (Android: `AndroidReminderScheduler`; desktop and iOS have none yet and stay on
+`ReminderScheduler` is the OS's side (Android: `AndroidReminderScheduler`; desktop below; iOS has none yet and stays on
 the push and the hub). What rings is always read from the stored window:
 - **One exact alarm**, the next reminder's (`setExactAndAllowWhileIdle`, far from Android's 500 per app). When it
   rings, every reminder due and not rung here is checked with the server (two seconds at most, in parallel), shown
@@ -452,8 +452,10 @@ the push and the hub). What rings is always read from the stored window:
   (`kadans://todos/{id}`, only with a session), whether the app is open, in the background or stopped.
 - **Pushes**: "occurrence.due" goes through `LocalReminders.pushed` (dropped if it rang here or the session is gone);
   "reminders.changed" fetches the window, always: Android freezes an app in the background, and the server may have
-  dropped a hub connection the app still believes open. The hub's own copy of a reminder rung here only updates the
-  bell.
+  dropped a hub connection the app still believes open. The hub's own copy goes through `pushed` too
+  (`SystemAlerts`): wherever the app shows reminders itself, a reminder shows once, whichever of the alarm, the push
+  or the hub brings it first, and not at all when too late to be of use (a catch-up after a reconnect). Home's
+  snackbar is left for the other live notifications.
 - **The permission**: asked once, with its explanation, when a todo with a reminder is saved and "Alarms & reminders"
   is off (the todo is saved whatever the answer; "Allow" then opens the system's screen; a dismissed dialog asks again
   next time). Settings → "Reminders on this phone" says which way reminders come and opens the screen that turns them
@@ -469,6 +471,17 @@ Checked on an Android 15 emulator against a local API (2026-10-09): the dialog, 
 fetched by itself, a change made elsewhere moving the alarm within seconds, a reminder rung in airplane mode at its
 minute (and the server pushing nothing to that phone), a tap opening the todo (with the app alive and after Android
 had killed it), the alarm back after a reboot, and a sign-out cancelling everything.
+
+Desktop (built): `DesktopReminderScheduler`, a timer in the app for the next reminder, running while the window is
+closed to the tray. It sleeps in steps of 30 s at most on the wall clock, so a computer that slept or had its clock set
+rings on time within one step. The app's start schedules the stored window again (`restoreDesktopReminders`: a
+reminder missed while it was closed rings if still of use), then fetches it. Nothing rings while the app is not
+running, as before (the hub had nothing to deliver to then either). No background job and no permission: while the
+app runs, the hub keeps the window current (each change, each reconnect, at least hourly when its token is renewed),
+and Settings has no reminders section. Reminders show as the desktop's other notifications (`notify-send` or D-Bus
+on Linux, the tray elsewhere); a click opening the todo would need a listener per desktop and is left for later.
+Checked against a local API by `RealDesktopRemindersSmokeTest` (opt-in, `KADANS_API_URL`): a reminder reaches the
+window over the hub, then rings from the timer with the server out of reach (112 ms after its time).
 
 Order: the server first (3–4 days; on its own it changes nothing until an app says it schedules), then Android
 (about a week), desktop (1–2 days), and iOS with the iPhone app on a Mac (3–4 days). Pomodoro's "time's up" could

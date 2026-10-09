@@ -13,7 +13,7 @@ enum class ReminderAccess {
     /** Notifications are off for the app: nothing could show, rung here or pushed. */
     NotificationsOff,
 
-    /** No scheduler on this platform yet (desktop, iOS): the server pushes every reminder, as before. */
+    /** No scheduler on this platform yet (iOS): the server pushes every reminder, as before. */
     Unsupported,
 }
 
@@ -41,7 +41,7 @@ interface ReminderScheduler {
     fun keepFresh(enabled: Boolean)
 }
 
-/** A platform that cannot ring reminders itself: the server's push and the hub stay its channels. */
+/** A platform that cannot ring reminders itself (iOS for now): the server's push and the hub stay its channels. */
 object NoReminderScheduler : ReminderScheduler {
     override fun access() = ReminderAccess.Unsupported
 
@@ -54,5 +54,9 @@ object NoReminderScheduler : ReminderScheduler {
     override fun keepFresh(enabled: Boolean) = Unit
 }
 
-/** This platform's scheduler (Android: AlarmManager). [channelName]: what the system lists reminders under. */
-expect fun platformReminderScheduler(channelName: () -> String): ReminderScheduler
+/**
+ * This platform's scheduler (Android: AlarmManager; desktop: a timer in the app). [channelName]: what the system lists
+ * reminders under. [onDue]: what a timer in the app calls when the next reminder is due ([LocalReminders.ringDue]);
+ * Android's alarm reaches it through its receiver instead.
+ */
+expect fun platformReminderScheduler(channelName: () -> String, onDue: suspend () -> Unit): ReminderScheduler

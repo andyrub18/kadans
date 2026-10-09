@@ -16,11 +16,14 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import app.kadans.di.initKoin
+import app.kadans.reminders.restoreDesktopReminders
 import app.kadans.ui.App
 import app.kadans.ui.rememberAppStrings
 
 fun main() {
     initKoin()
+    // Reminders ring from a timer in the app: what was scheduled before this start rings again (and offline).
+    restoreDesktopReminders()
     application {
         // Closing the window keeps Kadans counting in the background (sessions advance and
         // notifications keep arriving); the tray brings it back. Without tray support the

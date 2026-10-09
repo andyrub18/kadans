@@ -1,9 +1,12 @@
 package app.kadans.notifications
 
+import java.awt.Image
 import java.awt.SystemTray
 import java.awt.Toolkit
 import java.awt.TrayIcon
 import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
 
 /**
  * Linux desktops get a freedesktop notification (`notify-send`, or `gdbus` when libnotify-bin
@@ -23,8 +26,9 @@ actual fun showSystemNotification(title: String, body: String) {
 }
 
 private fun linuxNotify(title: String, body: String) {
+    val icon = iconFile ?: "appointment-soon"
     try {
-        ProcessBuilder("notify-send", "--app-name=Kadans", "--icon=appointment-soon", title, body).start()
+        ProcessBuilder("notify-send", "--app-name=Kadans", "--icon=$icon", title, body).start()
     } catch (_: java.io.IOException) {
         // No libnotify-bin: talk to org.freedesktop.Notifications directly (gdbus ships with GLib).
         ProcessBuilder(
@@ -32,21 +36,33 @@ private fun linuxNotify(title: String, body: String) {
             "--dest", "org.freedesktop.Notifications",
             "--object-path", "/org/freedesktop/Notifications",
             "--method", "org.freedesktop.Notifications.Notify",
-            "Kadans", "0", "appointment-soon", title, body, "[]", "{}", "8000",
+            "Kadans", "0", icon, title, body, "[]", "{}", "8000",
         ).start()
     }
+}
+
+/** The app icon (branding/generate.py), as the image the AWT tray and the balloons show. */
+private val iconImage: BufferedImage? by lazy {
+    runCatching { object {}.javaClass.getResourceAsStream("/kadans-icon.png")?.use(ImageIO::read) }.getOrNull()
+}
+
+/** The icon as a file, for Linux notifications, which take a path: written once per run to the temporary folder. */
+private val iconFile: String? by lazy {
+    runCatching {
+        val image = iconImage ?: return@runCatching null
+        File.createTempFile("kadans-icon", ".png").apply {
+            deleteOnExit()
+            ImageIO.write(image, "png", this)
+        }.absolutePath
+    }.getOrNull()
 }
 
 private val trayIcon: TrayIcon? by lazy {
     runCatching {
         if (!SystemTray.isSupported()) return@runCatching null
         val size = SystemTray.getSystemTray().trayIconSize
-        val image = BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB).apply {
-            val g = createGraphics()
-            g.color = java.awt.Color(0x67, 0x50, 0xA4)
-            g.fillOval(0, 0, size.width, size.height)
-            g.dispose()
-        }
+        val image = iconImage?.getScaledInstance(size.width, size.height, Image.SCALE_SMOOTH)
+            ?: BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB)
         TrayIcon(image, "Kadans").also { SystemTray.getSystemTray().add(it) }
     }.getOrNull()
 }

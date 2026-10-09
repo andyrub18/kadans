@@ -17,6 +17,8 @@ import app.kadans.api.model.UpcomingReminder
 import app.kadans.auth.AndroidActivityHolder
 import app.kadans.config.AndroidAppContext
 import app.kadans.ui.todoLink
+import app.kadans.shared.R
+import app.kadans.ui.brand.KadansMark
 
 // The alarm reaches LocalReminders through ReminderAlarmReceiver, in whatever process Android starts for it.
 actual fun platformReminderScheduler(channelName: () -> String, onDue: suspend () -> Unit): ReminderScheduler =
@@ -72,7 +74,8 @@ internal class AndroidReminderScheduler(private val context: Context, private va
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, CHANNEL_ID)
             else @Suppress("DEPRECATION") Notification.Builder(context).setPriority(Notification.PRIORITY_HIGH).setDefaults(Notification.DEFAULT_ALL)
         val notification = builder
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_stat_kadans)
+            .setColor(KadansMark.PURPLE_ARGB)
             .setContentTitle(reminder.title)
             .setContentText(reminder.body)
             .setStyle(Notification.BigTextStyle().bigText(reminder.body))

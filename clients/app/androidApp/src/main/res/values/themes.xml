@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Kadans" parent="@android:style/Theme.Material.Light.NoActionBar" />
+
+    <!-- While the app starts (before Android 12): the finished mark on purple. MainActivity then switches to
+         Theme.Kadans. Android 12 and later draw their own splash (values-v31). -->
+    <style name="Theme.Kadans.Starting">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app's purple (Material 3 baseline primary): the icon's background and the splash. branding/README.md -->
+    <color name="kadans_purple">#6750A4</color>
+</resources>

@@ -20,6 +20,9 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Kadans"
             packageVersion = "1.0.0"
+            // Drawn by branding/generate.py. macOS needs an .icns, made on a Mac with the DMG (not yet).
+            linux { iconFile.set(project.file("icons/kadans.png")) }
+            windows { iconFile.set(project.file("icons/kadans.ico")) }
         }
     }
 }

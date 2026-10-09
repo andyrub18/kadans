@@ -56,11 +56,21 @@ class KadansApi internal constructor(
     val budget: BudgetApi = BudgetApi(this)
     val notifications: NotificationsApi = NotificationsApi(this)
     val billing: BillingApi = BillingApi(this)
+    val reminders: RemindersApi = RemindersApi(this)
 
     private val _sessionEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     /** The server refused this device's session: the local one is gone, and the person signs in again. */
     val sessionEnded: SharedFlow<Unit> = _sessionEnded.asSharedFlow()
+
+    private val _profileChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** This device changed the account's language or time zone: what the server words for it reads differently now. */
+    val profileChanged: SharedFlow<Unit> = _profileChanged.asSharedFlow()
+
+    internal fun profileChanged() {
+        _profileChanged.tryEmit(Unit)
+    }
 
     internal suspend fun endSession() {
         tokenStore.save(null)
@@ -141,4 +151,9 @@ internal suspend inline fun <reified T> HttpResponse.orThrow(): T {
         null
     }
     throw KadansApiException(status.value, problem)
+}
+
+/** Success with nothing to read (204 No Content); failure → [KadansApiException] as [orThrow]. */
+internal suspend fun HttpResponse.orThrowNoContent() {
+    if (!status.isSuccess()) orThrow<Success>()
 }

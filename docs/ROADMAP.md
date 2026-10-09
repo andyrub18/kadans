@@ -515,7 +515,13 @@ installing on real devices second, hosting last.
       - [x] Server, 2026-10-09: the window (`POST /reminders/sync`) and the device's sync state, the account's
         reminders version, the push skip rule, a push's lifetime and shape, the "reminders changed" signal, the check
         of one reminder. Changes nothing until an app syncs. Checked by `tools/smoke/reminder_flows.py`.
-      - [ ] Android: exact alarms, the permission and its explanation, reboot/update receivers, background refresh.
+      - [x] Android, 2026-10-09: one exact alarm for the next reminder, checked with the server as it rings; the
+        "Alarms & reminders" permission asked once with its explanation when a todo with a reminder is saved, and a
+        Settings section; a channel of its own; a tap opens the todo; reboot, update and permission receivers; a
+        twice-daily refresh job; pushes deduplicated; everything cancelled at sign-out. Checked on an Android 15
+        emulator, a reminder rung in airplane mode included (ARCHITECTURE → "Reminders ring on the phone"). Found
+        on the way: the app's hub client never noticed a server gone quiet, so a connection frozen in the background
+        looked open for minutes; it now reconnects after 30 s of silence, and fetches the window again when it does.
       - [ ] Desktop: the in-app timer.
       - [ ] iOS, with the iPhone app (needs a Mac).
 - [x] Decided 2026-10-01: reminders every 5 s (was 10 s). Measured before the change with a 5-minute lead:

@@ -4,6 +4,7 @@ import app.kadans.api.KadansApi
 import app.kadans.api.KadansJson
 import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.PomodoroRunResponse
+import app.kadans.reminders.LocalReminders
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
@@ -20,14 +21,22 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 sealed interface RealtimeEvent {
     data class NotificationReceived(val notification: NotificationResponse) : RealtimeEvent
 
     data class PomodoroRunChanged(val run: PomodoroRunResponse) : RealtimeEvent
+
+    /** The account's reminders changed (here or on another device): a device that rings them fetches its window again. */
+    data object RemindersChanged : RealtimeEvent
+
+    /** Connected again after a drop: whatever was signalled meanwhile was lost (notifications are caught up from the list). */
+    data object Reconnected : RealtimeEvent
 }
 
 /**
@@ -101,7 +110,10 @@ class KadansRealtime(private val api: KadansApi) {
             send(Frame.Text(SignalRProtocol.HANDSHAKE))
             _connected.value = true
             // Before reading live frames (they wait in the channel), so both paths run one after the other.
-            run.droppedAt?.let { catchUp(since = it, run) }
+            run.droppedAt?.let {
+                catchUp(since = it, run)
+                _events.tryEmit(RealtimeEvent.Reconnected)
+            }
             val buffer = StringBuilder()
             val keepAlive = launch {
                 while (true) {
@@ -110,7 +122,11 @@ class KadansRealtime(private val api: KadansApi) {
                 }
             }
             try {
-                for (frame in incoming) {
+                while (true) {
+                    // The server pings every 15 s. Nothing for 30 s: the connection is gone, though the socket may not
+                    // know it (Android froze the app in the background, the network changed under it). Reconnect.
+                    val received = withTimeoutOrNull(SERVER_TIMEOUT) { incoming.receiveCatching() } ?: return@webSocket
+                    val frame = received.getOrNull() ?: break
                     val text = (frame as? Frame.Text)?.readText() ?: continue
                     for (raw in SignalRProtocol.extractFrames(buffer, text)) {
                         when (val message = SignalRProtocol.parse(raw)) {
@@ -149,6 +165,7 @@ class KadansRealtime(private val api: KadansApi) {
                     RealtimeEvent.PomodoroRunChanged(
                         KadansJson.decodeFromJsonElement(PomodoroRunResponse.serializer(), payload)
                     )
+                LocalReminders.CHANGED_KIND -> RealtimeEvent.RemindersChanged
                 else -> null
             }
         } catch (_: Exception) {
@@ -167,6 +184,9 @@ class KadansRealtime(private val api: KadansApi) {
 
         /** The device's clock may differ from the server's: notifications this much older than the drop count too. */
         internal val CLOCK_MARGIN = 2.minutes
+
+        /** Twice the server's keep-alive (SignalR's 15 s), as SignalR's own clients wait. */
+        internal val SERVER_TIMEOUT = 30.seconds
 
         /** Unread notifications from around the drop on, oldest first, minus those already shown. */
         internal fun missedSince(unread: List<NotificationResponse>, since: Instant, delivered: Set<String>): List<NotificationResponse> =

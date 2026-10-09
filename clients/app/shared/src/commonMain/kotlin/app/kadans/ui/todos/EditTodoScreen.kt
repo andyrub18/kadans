@@ -37,7 +37,13 @@ fun EditTodoScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
-    LaunchedEffect(viewModel) { viewModel.saved.collect { onSaved() } }
+    val permission = rememberReminderPermissionAsk()
+    LaunchedEffect(viewModel) {
+        viewModel.saved.collect {
+            permission.saved()
+            onSaved()
+        }
+    }
 
     if (state.isLoading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -86,10 +92,11 @@ fun EditTodoScreen(
             if (state.error != null || state.errorCode != null) {
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            Button(onClick = viewModel::save, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { permission.beforeSaving(state.notify, viewModel::save) }, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 if (state.isSaving) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.saveChanges)
             }
             TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }
         }
     }
+    ReminderPermissionDialog(permission)
 }

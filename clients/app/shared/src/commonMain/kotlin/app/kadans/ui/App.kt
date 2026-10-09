@@ -23,6 +23,9 @@ import app.kadans.api.TokenStore
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
 import app.kadans.realtime.KadansRealtime
+import app.kadans.reminders.LocalReminders
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import app.kadans.ui.auth.ForgotPasswordScreen
@@ -85,6 +88,9 @@ fun App(deepLink: String? = null) {
                 val tokenStore = koinInject<TokenStore>()
                 var hasSession by remember { mutableStateOf<Boolean?>(null) }
                 LaunchedEffect(Unit) { hasSession = tokenStore.load() != null }
+                // Back in the foreground: the reminders this device rings are fetched again, unless they just were.
+                val localReminders = koinInject<LocalReminders>()
+                LifecycleEventEffect(Lifecycle.Event.ON_START) { localReminders.refresh() }
 
                 when (hasSession) {
                     null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -107,7 +113,7 @@ fun App(deepLink: String? = null) {
 private fun KadansNav(startAtHome: Boolean, languageController: LanguageController, deepLinkRoute: Any? = null) {
     val backStack = remember {
         mutableStateListOf<Any>(if (startAtHome) HomeRoute else LoginRoute).also { stack ->
-            deepLinkRoute?.let { stack.add(it) }
+            deepLinkRoute?.takeIf { opensWith(it, signedIn = startAtHome) }?.let { stack.add(it) }
         }
     }
 
@@ -130,6 +136,14 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
             realtime.stop()
             sessionEnded = true
             resetTo(LoginRoute)
+        }
+    }
+    // A link that reaches the running app (a reminder tapped while it is open) opens on top of where the person is.
+    val tokenStore = koinInject<TokenStore>()
+    LaunchedEffect(Unit) {
+        IncomingLinks.links.collect { link ->
+            val route = parseDeepLink(link) ?: return@collect
+            if (opensWith(route, signedIn = tokenStore.load() != null) && backStack.lastOrNull() != route) backStack.add(route)
         }
     }
 

@@ -1,6 +1,7 @@
 package app.kadans.di
 
 import app.kadans.api.KadansApi
+import app.kadans.api.ClearAwareTokenStore
 import app.kadans.api.TokenStore
 import app.kadans.auth.GoogleSignIn
 import app.kadans.auth.SettingsTokenStore
@@ -9,8 +10,13 @@ import app.kadans.billing.StoreBilling
 import app.kadans.billing.SubscriptionGate
 import app.kadans.billing.platformStoreBilling
 import app.kadans.config.ServerAddress
+import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
+import app.kadans.reminders.LocalReminders
+import app.kadans.reminders.ReminderScheduler
+import app.kadans.reminders.ReminderStore
+import app.kadans.reminders.platformReminderScheduler
 import app.kadans.realtime.KadansRealtime
 import app.kadans.profile.ProfileSync
 import app.kadans.profile.TimeZonePreference
@@ -44,7 +50,11 @@ import org.koin.dsl.module
 
 val appModule = org.koin.dsl.module {
     single<Settings> { Settings() }
-    single<TokenStore> { SettingsTokenStore(get()) }
+    // Signed out by any path: the reminders this device rang itself stop with the session.
+    single<TokenStore> {
+        val koin = getKoin()
+        ClearAwareTokenStore(SettingsTokenStore(get())) { koin.get<LocalReminders>().forget() }
+    }
     single {
         val settings = get<Settings>()
         KadansApi.create(
@@ -56,6 +66,12 @@ val appModule = org.koin.dsl.module {
     single { KadansRealtime(get()) }
     single { SystemAlerts(get()) }
     single { DeviceRegistrar(get(), get()) }
+    single { ReminderStore(get()) }
+    single<ReminderScheduler> {
+        val settings = get<Settings>()
+        platformReminderScheduler { Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders.channelName }
+    }
+    single { LocalReminders(get(), get(), get(), get(), get<KadansRealtime>().events) }
     single { LanguageController(get(), get()) }
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }

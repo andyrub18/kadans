@@ -60,11 +60,14 @@ internal sealed class FcmPushSender : IPushSender
         return new PushOutcome(response.SuccessCount, response.FailureCount - dead.Count, dead);
     }
 
+    /// <summary>The Android app's notification channel for reminders (its <c>AndroidReminderScheduler.CHANNEL_ID</c>).</summary>
+    internal const string RemindersChannel = "kadans.reminders";
+
     /// <summary>
     /// One device's message. A reminder lives until its start (delivered later it is only noise) and collapses per
     /// occurrence. To an app that rings reminders itself it is a data message the app shows, so the app can drop one it
     /// already rang (ARCHITECTURE → "Reminders ring on the phone"); to any other it stays a notification the system
-    /// shows. A silent signal is data only, at normal priority: nothing is shown.
+    /// shows, in the reminders channel. A silent signal is data only, at normal priority: nothing is shown.
     /// </summary>
     internal static Message Build(PushEnvelope envelope, DateTimeOffset now)
     {
@@ -102,7 +105,8 @@ internal sealed class FcmPushSender : IPushSender
             return new Message { Token = token, Data = data, Android = android };
         }
 
-        android.Notification = new AndroidNotification { Tag = reminder.OccurrenceId.ToString() };
+        // The app's reminders channel (urgent: heads-up, sound); an app too old to have it falls back to its default one.
+        android.Notification = new AndroidNotification { Tag = reminder.OccurrenceId.ToString(), ChannelId = RemindersChannel };
         return new Message { Token = token, Notification = notification, Data = data, Android = android };
 #pragma warning restore CS0618
     }

@@ -304,6 +304,9 @@ fun SettingsScreen(
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
+            // ---- Reminders on this phone (where it can ring them; it brings its own divider) ----
+            RemindersSection()
+
             // ---- Subscription (phones; it brings its own divider) ----
             SubscriptionSection()
 

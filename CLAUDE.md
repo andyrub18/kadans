@@ -127,7 +127,7 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `app.kadans.i18n.StringsCatalog` (add the key to the data class and all three instances —
   the compiler enforces completeness); never hardcode UI text in composables. The flat catalog is
   nearly full: the JVM allows 255 parameters per method and the data class's synthetic `copy$default`
-  is already at 246, beyond which the class compiles but fails to load and the app does not start.
+  is already at 248, beyond which the class compiles but fails to load and the app does not start.
   Strings for a new feature area go in their own nested group (see `FocusStatsStrings`, used as
   `s.focusStats.title`); `StringsCatalogSizeTest` fails with that advice before the limit is hit. Server-rendered
   texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
@@ -153,7 +153,9 @@ and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
 iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). Release bundles for Google Play are signed with the owner's
 upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subscriptions in the app go through
 `billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
-acknowledges a purchase. The app talks to `http://localhost:5199`
+acknowledges a purchase. Reminders ring from the phone through `reminders/LocalReminders` (the window the server hands
+out) and `ReminderScheduler` (Android: one exact alarm, its receivers and a refresh job; ARCHITECTURE → "Reminders ring
+on the phone"). The app talks to `http://localhost:5199`
 (desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. `local.properties`
 (untracked) points at the
 Android SDK. Versions are pinned in `gradle/libs.versions.toml` to the combo the official

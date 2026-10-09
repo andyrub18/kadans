@@ -60,7 +60,13 @@ fun CreateTodoScreen(
     var dateTarget by remember { mutableStateOf<DateTarget?>(null) }
     var timeTarget by remember { mutableStateOf<TimeTarget?>(null) }
 
-    LaunchedEffect(viewModel) { viewModel.created.collect { onCreated(it) } }
+    val permission = rememberReminderPermissionAsk()
+    LaunchedEffect(viewModel) {
+        viewModel.created.collect {
+            permission.saved()
+            onCreated(it)
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -241,12 +247,13 @@ fun CreateTodoScreen(
             if (state.error != null || state.errorCode != null) {
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { permission.beforeSaving(state.notify, viewModel::submit) }, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
                 if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.create)
             }
             TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }
         }
     }
+    ReminderPermissionDialog(permission)
 
     val pickingDate = dateTarget
     if (pickingDate != null) {

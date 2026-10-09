@@ -51,11 +51,11 @@ fun NotificationsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onBack) { Text("← " + s.back) }
-                Text(s.notificationsTitle, style = MaterialTheme.typography.titleLarge)
+                Text(s.notifications.title, style = MaterialTheme.typography.titleLarge)
                 TextButton(
                     onClick = viewModel::markAllRead,
                     enabled = (state as? NotificationsUiState.Content)?.unread?.let { it > 0 } == true,
-                ) { Text(s.markAllRead) }
+                ) { Text(s.notifications.markAllRead) }
             }
         },
     ) { padding ->
@@ -79,7 +79,7 @@ fun NotificationsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         if (current.items.isEmpty()) {
-                            item { Text(s.noNotificationsYet, style = MaterialTheme.typography.bodyMedium) }
+                            item { Text(s.notifications.empty, style = MaterialTheme.typography.bodyMedium) }
                         }
                         items(current.items, key = { it.id }) { notification ->
                             NotificationCard(
@@ -96,7 +96,7 @@ fun NotificationsScreen(
                                     onClick = viewModel::loadMore,
                                     enabled = !current.isLoadingMore,
                                     modifier = Modifier.fillMaxWidth(),
-                                ) { Text(s.loadMore) }
+                                ) { Text(s.notifications.loadMore) }
                             }
                         }
                     }

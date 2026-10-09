@@ -13,7 +13,9 @@ import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.RealtimeEvent
 import app.kadans.realtime.SystemAlerts
+import app.kadans.reminders.LocalReminders
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 sealed interface HomeUiState {
@@ -44,6 +47,7 @@ class HomeViewModel(
     private val deviceRegistrar: DeviceRegistrar,
     private val profileSync: ProfileSync,
     private val gate: SubscriptionGate,
+    private val localReminders: LocalReminders,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -74,18 +78,33 @@ class HomeViewModel(
         // Home only exists with a session; the hub connection lives for as long as it does.
         realtime.start()
         alerts.start()
-        viewModelScope.launch { deviceRegistrar.register() }
+        val registered = viewModelScope.launch { deviceRegistrar.register() }
         // The account follows this device: time zone (while followed) and language. Best-effort.
-        viewModelScope.launch { runCatching { profileSync.sync() } }
+        val profiled = viewModelScope.launch { runCatching { profileSync.sync() } }
+        // The reminders this phone rings itself: once it is registered and the account matches it (the reminders'
+        // words follow its language and time zone), and only past the paywall.
+        viewModelScope.launch {
+            registered.join()
+            profiled.join()
+            if (_access.first { it != HomeAccess.Checking } == HomeAccess.Open) localReminders.refresh() else localReminders.forget()
+        }
         viewModelScope.launch {
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {
-                    _liveNotifications.emit(event.notification)
+                    // A reminder this phone already rang itself: the hub's copy only updates the bell.
+                    if (!rangHere(event.notification)) _liveNotifications.emit(event.notification)
                     _unread.value += 1 // instant; quietRefresh below replaces it with the server's count
                     quietRefresh()
                 }
             }
         }
+    }
+
+    private fun rangHere(notification: NotificationResponse): Boolean {
+        if (notification.kind != LocalReminders.DUE_KIND) return false
+        val occurrenceId = notification.data?.get("occurrenceId") ?: return false
+        val notifyAt = notification.data["notifyAt"]?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return false
+        return localReminders.rangHere(occurrenceId, notifyAt)
     }
 
     fun refresh() {

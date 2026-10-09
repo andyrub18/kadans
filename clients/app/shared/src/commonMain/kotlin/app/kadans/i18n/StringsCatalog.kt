@@ -209,6 +209,31 @@ data class PaywallStrings(
     fun endsOn(date: String): String = endsOnFormat.replace("{date}", date)
 }
 
+/** The notification centre. A feature group (moved out of the flat catalog to keep it clear of the JVM limit). */
+data class NotificationStrings(
+    val title: String,
+    val markAllRead: String,
+    val empty: String,
+    val loadMore: String,
+)
+
+/**
+ * Reminders this phone rings itself (ARCHITECTURE → "Reminders ring on the phone"): asking for "Alarms & reminders",
+ * the Settings section, and the name the system lists reminders under. A feature group.
+ */
+data class ReminderStrings(
+    val permissionTitle: String,
+    val permissionText: String,
+    val allow: String,
+    val notNow: String,
+    val section: String,
+    val ringsHere: String,
+    val exactAlarmsOff: String,
+    val notificationsOff: String,
+    val openSettings: String,
+    val channelName: String,
+)
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -222,10 +247,8 @@ data class StringsCatalog(
     val pomodoro: PomodoroStrings,
     val deletion: DeletionStrings,
     val paywall: PaywallStrings,
-    val notificationsTitle: String,
-    val markAllRead: String,
-    val noNotificationsYet: String,
-    val loadMore: String,
+    val reminders: ReminderStrings,
+    val notifications: NotificationStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

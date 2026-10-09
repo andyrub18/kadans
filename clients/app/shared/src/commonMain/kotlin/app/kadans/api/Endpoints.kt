@@ -81,7 +81,8 @@ class AccountApi internal constructor(private val api: KadansApi) {
     suspend fun me(): UserResponse = api.http.get("users/me").orThrow()
 
     suspend fun update(request: UpdateSelfUserRequest): UserResponse =
-        api.http.put("users/me") { setBody(request) }.orThrow()
+        api.http.put("users/me") { setBody(request) }.orThrow<UserResponse>()
+            .also { if (request.language != null || request.timeZone != null) api.profileChanged() }
 
     suspend fun changePassword(currentPassword: String, newPassword: String) {
         api.http.put("users/me/password") { setBody(ChangePasswordRequest(currentPassword, newPassword)) }
@@ -374,6 +375,21 @@ class NotificationsApi internal constructor(private val api: KadansApi) {
 
     suspend fun markAllRead() {
         api.http.put("notifications/read-all").orThrow<Success>()
+    }
+}
+
+/** The reminders this device rings itself (ARCHITECTURE → "Reminders ring on the phone"). */
+class RemindersApi internal constructor(private val api: KadansApi) {
+    /** The next days' reminders; the server then pushes this device only what it may not have. */
+    suspend fun sync(installationId: String, days: Int? = null): ReminderWindowResponse =
+        api.http.post("reminders/sync") { setBody(ReminderSyncRequest(installationId, days)) }.orThrow()
+
+    /** Asked as an alarm rings: is this reminder still due? */
+    suspend fun check(occurrenceId: String): ReminderCheckResponse = api.http.get("reminders/$occurrenceId").orThrow()
+
+    /** This device rings nothing itself any more: the server pushes every reminder to it again. */
+    suspend fun stop(installationId: String) {
+        api.http.delete("reminders/sync/$installationId").orThrowNoContent()
     }
 }
 

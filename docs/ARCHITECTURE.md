@@ -382,7 +382,7 @@ nothing leaves it, and nothing of it is published to the internet.
   with three browsers opening the dashboard at once); at 256 MB, opening the dashboard got it killed. Traces are not collected (one process, little to follow across); the trace ids in the logs
   are enough to group a request's lines.
 
-### Reminders ring on the phone (approved 2026-10-09; the server's part is built)
+### Reminders ring on the phone (approved 2026-10-09; the server and Android are built)
 
 Today a reminder is the server's: `OccurrenceReminderJob` finds it due, the dispatcher stores it in the notification
 centre, sends it live to open apps and pushes it through Firebase. A phone that is offline at that minute hears
@@ -404,9 +404,10 @@ safety net. The motive is the people's: the load test showed reminders are a sma
    (`UNUserNotificationCenter`). Desktop: a timer in the app, which keeps running in the tray. A tap opens the todo
    (a new deep link: today a notification opens nothing in particular).
 3. **The window is kept current**: when the app starts or comes back to the foreground, after the person's own
-   changes, after a change of language or time zone, by a background job twice a day (WorkManager; background refresh
-   on iOS), when the server says the account's reminders changed (live over the hub, otherwise a silent push), and
-   after a reboot or an app update. It is kept in the app's settings store as it came (a few hundred entries at most).
+   changes, after a change of language or time zone, by a background job twice a day (JobScheduler on Android: one
+   periodic job needs no library; background refresh on iOS), when the server says the account's reminders changed
+   (live over the hub, otherwise a silent push), when the hub is back after a drop, and after a reboot or an app
+   update. It is kept in the app's settings store as it came (a few hundred entries at most).
 4. **The server pushes a reminder only where the device may not have it.** Devices that do not schedule (older
    versions, no permission, desktop) get the push as today. So does a device whose window is stale: holding an older
    version of the account's reminders, not reaching that notify time, or not synced for 36 hours (its alarms may be
@@ -437,9 +438,37 @@ whether a reminder is still due; `DELETE /reminders/sync/{installationId}` stops
 `tools/smoke/reminder_flows.py`. Unchanged: the job and its timing, the bell, desktop's live channel, and every app
 version already installed.
 
-App changes: a `ReminderScheduler` (common: what to schedule, the stored window, which occurrences already rang;
-per platform: the OS calls), the permission and its explanation, a notification channel for reminders, the deep link,
-foreground hooks (none exist today), WorkManager, and receivers for alarms, reboot and app updates on Android.
+Android (built): `reminders/LocalReminders` (common) keeps the window in the settings store and decides what rings;
+`ReminderScheduler` is the OS's side (Android: `AndroidReminderScheduler`; desktop and iOS have none yet and stay on
+the push and the hub). What rings is always read from the stored window:
+- **One exact alarm**, the next reminder's (`setExactAndAllowWhileIdle`, far from Android's 500 per app). When it
+  rings, every reminder due and not rung here is checked with the server (two seconds at most, in parallel), shown
+  unless no longer due (a moved one fetches the window again), and the next alarm is set. A reminder rings late (a
+  phone that was off) until its event starts, or ten minutes after its time when that is later; never twice
+  (`occurrence@notifyAt` remembered three days, so a moved one rings again).
+- **Notifications**: their own channel, `kadans.reminders` (urgent: heads-up, sound; named in the app's language),
+  tagged with the occurrence as Firebase tags the push it shows, so one replaces the other. A system-shown reminder
+  push goes to that channel too (an app too old to have it falls back to its default one). A tap opens the todo
+  (`kadans://todos/{id}`, only with a session), whether the app is open, in the background or stopped.
+- **Pushes**: "occurrence.due" goes through `LocalReminders.pushed` (dropped if it rang here or the session is gone);
+  "reminders.changed" fetches the window, always: Android freezes an app in the background, and the server may have
+  dropped a hub connection the app still believes open. The hub's own copy of a reminder rung here only updates the
+  bell.
+- **The permission**: asked once, with its explanation, when a todo with a reminder is saved and "Alarms & reminders"
+  is off (the todo is saved whatever the answer; "Allow" then opens the system's screen; a dismissed dialog asks again
+  next time). Settings → "Reminders on this phone" says which way reminders come and opens the screen that turns them
+  on. Revoking it in the system settings stops the app and its alarms: the next sync (the app's next start, a change,
+  the twice-daily job) tells the server, which in the meantime still trusts the window, for 36 hours at most.
+- **Receivers** (not exported): the alarm; boot, app update and the permission granted (`restore`: the stored window is
+  scheduled again, then fetched); and a persisted JobScheduler job every 12 hours with a network, only while this
+  phone rings reminders and has access (an empty window that reaches no further than now keeps no job alive).
+- **Sign-out**: every path ends in `save(null)` on the token store (`ClearAwareTokenStore`), which cancels the alarm and
+  the job and clears the window; a fetch begun before it lands nowhere. The paywall does the same.
+
+Checked on an Android 15 emulator against a local API (2026-10-09): the dialog, the permission granted and the window
+fetched by itself, a change made elsewhere moving the alarm within seconds, a reminder rung in airplane mode at its
+minute (and the server pushing nothing to that phone), a tap opening the todo (with the app alive and after Android
+had killed it), the alarm back after a reboot, and a sign-out cancelling everything.
 
 Order: the server first (3–4 days; on its own it changes nothing until an app says it schedules), then Android
 (about a week), desktop (1–2 days), and iOS with the iPhone app on a Mac (3–4 days). Pomodoro's "time's up" could
@@ -534,7 +563,8 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   persistent connection is the primary channel there), Web Push later if a web client appears. A hub
   connection is authorized once, when it opens. It closes when its access token expires and at once when
   its session ends. The app reconnects with a fresh token and catches up on the unread notifications that
-  arrived during the gap, so a reminder never falls into it.
+  arrived during the gap, so a reminder never falls into it. The server pings every 15 s; an app that hears nothing
+  for 30 s reconnects (a connection Android froze in the background looks open long after the server dropped it).
 - Durable scheduling via Quartz.NET (in-memory job store: every job is an idempotent periodic
   scan, so nothing needs to survive a restart). Implemented in Phase 4: `OccurrenceReminderJob` scans
   `notify_at <= now AND notified_at IS NULL`, builds the message in the user's time zone

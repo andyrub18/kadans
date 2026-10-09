@@ -312,6 +312,7 @@ public class PushWorkerTests
         var toOlderApp = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), reminder), Now);
         await Assert.That(toOlderApp.Notification!.Title).IsEqualTo("Gym"); // the system shows it, as before
         await Assert.That(toOlderApp.Android.Notification.Tag).IsEqualTo(occurrence);
+        await Assert.That(toOlderApp.Android.Notification.ChannelId).IsEqualTo("kadans.reminders");
         await Assert.That(toOlderApp.Android.TimeToLive).IsEqualTo(TimeSpan.FromMinutes(14));
 
         var late = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), ReminderAt(Now.AddMinutes(-20), 0).Message), Now);

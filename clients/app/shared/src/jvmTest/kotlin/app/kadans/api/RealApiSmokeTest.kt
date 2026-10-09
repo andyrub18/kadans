@@ -16,8 +16,8 @@ class RealApiSmokeTest {
             println("KADANS_API_URL not set; skipping live API smoke test")
             return
         }
-        val user = System.getenv("KADANS_API_USER") ?: "admin"
-        val password = System.getenv("KADANS_API_PASSWORD") ?: "Admin123!"
+        val user = System.getenv("KADANS_API_USER") ?: "smoke"
+        val password = System.getenv("KADANS_API_PASSWORD") ?: "Smoke123!"
 
         runBlocking {
             val api = KadansApi.create(baseUrl)

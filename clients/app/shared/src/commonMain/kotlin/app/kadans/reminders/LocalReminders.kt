@@ -2,6 +2,7 @@ package app.kadans.reminders
 
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
+import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.ReminderCheckResponse
 import app.kadans.api.model.ReminderWindowResponse
 import app.kadans.api.model.UpcomingReminder
@@ -150,9 +151,13 @@ class LocalReminders(
         }
     }
 
-    /** A push brought it (this device's window was stale, or never had it): shown unless it already rang here. */
+    /**
+     * A push or the hub brought it (this device's window was stale or never had it, or the hub was first): shown
+     * unless it already rang here, or it is too late to be of use (a catch-up after a reconnect).
+     */
     suspend fun pushed(reminder: UpcomingReminder) = ringing.withLock {
         if (api.tokenStore.load() == null) return@withLock // it outlived the session it was sent to
+        if (now() >= lastUseful(reminder)) return@withLock
         state.withLock {
             if (store.rang(reminder.occurrenceId, reminder.notifyAt)) return@withLock
             scheduler.show(reminder)
@@ -170,6 +175,11 @@ class LocalReminders(
         sync()
     }
 
+    /** [restore], from a place that cannot wait for it: the desktop app starting (its timers died with it). */
+    fun restoreSoon() {
+        scope.launch { attempt { restore() } }
+    }
+
     /** Signed out, or the paywall closed the app: nothing rings here any more, and nothing of the account stays. */
     suspend fun forget() {
         // Whatever cancels the caller (a sign-out leaving its screen), the alarms go.
@@ -184,8 +194,14 @@ class LocalReminders(
         }
     }
 
-    /** This occurrence's reminder, at this time, already rang here: the hub's copy only updates the bell. */
+    /** This occurrence's reminder, at this time, already rang here. */
     fun rangHere(occurrenceId: String, notifyAt: Instant): Boolean = store.rang(occurrenceId, notifyAt)
+
+    /**
+     * This platform shows reminders itself (Android, desktop): whichever brings one first (its alarm or timer, a push,
+     * the hub) shows it, once, through [pushed]. Elsewhere the hub's copy is shown as any live notification.
+     */
+    fun showsReminders(): Boolean = scheduler.access() != ReminderAccess.Unsupported
 
     fun access(): ReminderAccess = scheduler.access()
 
@@ -261,5 +277,20 @@ class LocalReminders(
         val FRESH = 5.minutes
 
         fun lastUseful(reminder: UpcomingReminder): Instant = maxOf(reminder.startsAt, reminder.notifyAt + LATE)
+
+        /** The reminder a live notification carries (`ReminderNotification.Message`), or null for any other kind. */
+        fun reminderOf(notification: NotificationResponse): UpcomingReminder? {
+            if (notification.kind != DUE_KIND) return null
+            val data = notification.data ?: return null
+            val startsAt = data["scheduledAt"]?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
+            return UpcomingReminder(
+                occurrenceId = data["occurrenceId"] ?: return null,
+                todoId = data["todoId"] ?: return null,
+                title = notification.title,
+                body = notification.body,
+                notifyAt = data["notifyAt"]?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: startsAt,
+                startsAt = startsAt,
+            )
+        }
     }
 }

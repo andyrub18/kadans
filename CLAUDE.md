@@ -153,9 +153,10 @@ and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
 iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). Release bundles for Google Play are signed with the owner's
 upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subscriptions in the app go through
 `billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
-acknowledges a purchase. Reminders ring from the phone through `reminders/LocalReminders` (the window the server hands
-out) and `ReminderScheduler` (Android: one exact alarm, its receivers and a refresh job; ARCHITECTURE → "Reminders ring
-on the phone"). The app talks to `http://localhost:5199`
+acknowledges a purchase. Reminders ring from the device through `reminders/LocalReminders` (the window the server hands
+out) and `ReminderScheduler` (Android: one exact alarm, its receivers and a refresh job; desktop: a timer in the app;
+ARCHITECTURE → "Reminders ring on the phone"). With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
+:shared:jvmTest` also runs the live checks against it (the hub, the desktop's reminders; ~2 min, as `smoke`). The app talks to `http://localhost:5199`
 (desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. `local.properties`
 (untracked) points at the
 Android SDK. Versions are pinned in `gradle/libs.versions.toml` to the combo the official

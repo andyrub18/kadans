@@ -18,7 +18,8 @@ import kotlinx.coroutines.withTimeout
 
 /**
  * Live check of the hand-rolled SignalR client when KADANS_API_URL is set (dev:
- * http://localhost:5199); silently skipped otherwise so CI needs no server.
+ * http://localhost:5199; user KADANS_API_USER / KADANS_API_PASSWORD, default smoke / Smoke123!: admin has MFA in
+ * dev); silently skipped otherwise so CI needs no server.
  */
 class RealRealtimeSmokeTest {
     @Test
@@ -27,8 +28,8 @@ class RealRealtimeSmokeTest {
             println("KADANS_API_URL not set; skipping live realtime smoke test")
             return
         }
-        val user = System.getenv("KADANS_API_USER") ?: "admin"
-        val password = System.getenv("KADANS_API_PASSWORD") ?: "Admin123!"
+        val user = System.getenv("KADANS_API_USER") ?: "smoke"
+        val password = System.getenv("KADANS_API_PASSWORD") ?: "Smoke123!"
 
         runBlocking {
             val api = KadansApi.create(baseUrl)
@@ -100,8 +101,8 @@ class RealRealtimeSmokeTest {
             println("KADANS_SMOKE_SLOW not set; skipping the slow hands-free smoke")
             return
         }
-        val user = System.getenv("KADANS_API_USER") ?: "admin"
-        val password = System.getenv("KADANS_API_PASSWORD") ?: "Admin123!"
+        val user = System.getenv("KADANS_API_USER") ?: "smoke"
+        val password = System.getenv("KADANS_API_PASSWORD") ?: "Smoke123!"
 
         runBlocking {
             val api = KadansApi.create(baseUrl)

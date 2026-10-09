@@ -525,8 +525,11 @@ installing on real devices second, hosting last.
         emulator, a reminder rung in airplane mode included (ARCHITECTURE → "Reminders ring on the phone"). Found
         on the way: the app's hub client never noticed a server gone quiet, so a connection frozen in the background
         looked open for minutes; it now reconnects after 30 s of silence, and fetches the window again when it does.
-      - [ ] Desktop: the in-app timer.
-      - [ ] iOS, with the iPhone app (needs a Mac).
+      - [x] Desktop, 2026-10-09: a timer in the app for the next reminder (it keeps running in the tray, and rings on
+        time after the computer slept), the stored window rung again when the app starts, and one notification per
+        reminder whichever of the timer or the hub is first (on Android too, with the alarm and the push). Checked
+        against a local API with the server out of reach (`RealDesktopRemindersSmokeTest`).
+      - [ ] iOS, with the iPhone app (needs a Mac; the owner has none for now).
 - [x] Decided 2026-10-01: reminders every 5 s (was 10 s). Measured before the change with a 5-minute lead:
       one-time, daily and lead-edited todos were reminded 0.5 to 5.5 s after their moment, and a todo
       created inside its lead within one pass.

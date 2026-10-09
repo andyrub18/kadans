@@ -18,7 +18,8 @@ import app.kadans.auth.AndroidActivityHolder
 import app.kadans.config.AndroidAppContext
 import app.kadans.ui.todoLink
 
-actual fun platformReminderScheduler(channelName: () -> String): ReminderScheduler =
+// The alarm reaches LocalReminders through ReminderAlarmReceiver, in whatever process Android starts for it.
+actual fun platformReminderScheduler(channelName: () -> String, onDue: suspend () -> Unit): ReminderScheduler =
     AndroidReminderScheduler(AndroidAppContext.context, channelName)
 
 /**

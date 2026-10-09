@@ -15,7 +15,6 @@ import app.kadans.realtime.RealtimeEvent
 import app.kadans.realtime.SystemAlerts
 import app.kadans.reminders.LocalReminders
 import kotlin.time.Clock
-import kotlin.time.Instant
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,20 +90,15 @@ class HomeViewModel(
         viewModelScope.launch {
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {
-                    // A reminder this phone already rang itself: the hub's copy only updates the bell.
-                    if (!rangHere(event.notification)) _liveNotifications.emit(event.notification)
+                    // A reminder, where this device shows reminders itself, is a system notification (SystemAlerts):
+                    // here it only updates the bell.
+                    val reminder = LocalReminders.reminderOf(event.notification)
+                    if (reminder == null || !localReminders.showsReminders()) _liveNotifications.emit(event.notification)
                     _unread.value += 1 // instant; quietRefresh below replaces it with the server's count
                     quietRefresh()
                 }
             }
         }
-    }
-
-    private fun rangHere(notification: NotificationResponse): Boolean {
-        if (notification.kind != LocalReminders.DUE_KIND) return false
-        val occurrenceId = notification.data?.get("occurrenceId") ?: return false
-        val notifyAt = notification.data["notifyAt"]?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return false
-        return localReminders.rangHere(occurrenceId, notifyAt)
     }
 
     fun refresh() {

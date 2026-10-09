@@ -64,12 +64,16 @@ val appModule = org.koin.dsl.module {
         )
     }
     single { KadansRealtime(get()) }
-    single { SystemAlerts(get()) }
+    single { SystemAlerts(get(), get()) }
     single { DeviceRegistrar(get(), get()) }
     single { ReminderStore(get()) }
     single<ReminderScheduler> {
         val settings = get<Settings>()
-        platformReminderScheduler { Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders.channelName }
+        val koin = getKoin()
+        platformReminderScheduler(
+            channelName = { Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders.channelName },
+            onDue = { koin.get<LocalReminders>().ringDue() },
+        )
     }
     single { LocalReminders(get(), get(), get(), get(), get<KadansRealtime>().events) }
     single { LanguageController(get(), get()) }

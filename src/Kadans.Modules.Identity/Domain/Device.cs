@@ -27,6 +27,17 @@ internal sealed class Device
     /// </summary>
     public Guid? SessionId { get; set; }
     public string? AppVersion { get; set; }
+
+    /// <summary>
+    /// When this device last fetched its reminder window to ring reminders itself, and how far that window reaches
+    /// (ARCHITECTURE → "Reminders ring on the phone"); both null for a device that does not. The push skips a reminder
+    /// such a device already has.
+    /// </summary>
+    public DateTimeOffset? RemindersSyncedAt { get; set; }
+    public DateTimeOffset? RemindersThrough { get; set; }
+
+    /// <summary>The account's reminders version that window holds (Tasks counts one per change a person makes).</summary>
+    public long RemindersVersion { get; set; }
     public DateTimeOffset RegisteredAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;
 }

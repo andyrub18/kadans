@@ -13,6 +13,7 @@ internal sealed class PushMetrics
     private readonly Meter meter;
     private readonly Counter<long> dropped;
     private readonly Counter<long> withheld;
+    private readonly Counter<long> skipped;
     private readonly Counter<long> messages;
     private readonly Histogram<double> delay;
 
@@ -21,6 +22,11 @@ internal sealed class PushMetrics
         meter = meters.Create(MeterName);
         dropped = meter.CreateCounter<long>("kadans.push.dropped", "{push}", "Pushes the full queue dropped (the oldest goes first)");
         withheld = meter.CreateCounter<long>("kadans.push.withheld", "{device}", "Phones left out of a push: the account has no subscription");
+        skipped = meter.CreateCounter<long>(
+            "kadans.push.skipped",
+            "{device}",
+            "Devices left out of a reminder's push because they ring it themselves, by reason (on_device)"
+        );
         messages = meter.CreateCounter<long>("kadans.push.messages", "{message}", "Messages handed to the push provider, one per device, by result (sent, failed, dead)");
         delay = meter.CreateHistogram<double>(
             "kadans.push.delay",
@@ -37,6 +43,8 @@ internal sealed class PushMetrics
     public void Dropped() => dropped.Add(1);
 
     public void Withheld(int phones) => withheld.Add(phones);
+
+    public void SkippedOnDevice(int devices) => skipped.Add(devices, new KeyValuePair<string, object?>("reason", "on_device"));
 
     public void Delivered(TimeSpan sinceQueued) => delay.Record(sinceQueued.TotalSeconds);
 

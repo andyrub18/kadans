@@ -63,6 +63,8 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
+`python3 tools/smoke/reminder_flows.py <api log>` for the reminders phones ring themselves (their window, the push
+skipping a phone that has the reminder and reaching one whose window is stale);
 `python3 tools/smoke/billing_flows.py` for subscriptions in Development (the status the app reads, the fake store, a
 Google purchase refused without a key, Google's notification endpoint refusing what Google did not sign);
 `python3 tools/smoke/deletion_flows.py <api log>` for deleting a todo and an account (the app's way and the web page's,
@@ -73,7 +75,7 @@ connection go, a push token moves to the next account on the phone);
 deadline: it races a client against the server and fails if the phase change is more than 1 s late; a manual run
 alongside must get one "time's up" within 1 s, an early "ran out" must change nothing, and a session moved to end
 ~65 s later must finish there by itself);
-the task, notification, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
+the task, notification, reminder, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/admin/free_accounts.py add|remove|list` keeps the free accounts (an admin's task, DEPLOYMENT →
 Subscriptions → Free accounts); `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category limits, summary and

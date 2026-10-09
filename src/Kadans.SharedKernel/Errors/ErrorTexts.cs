@@ -192,6 +192,7 @@ public static class ErrorTexts
         ["Unable to resolve current user."] = new("Vous devez être connecté.", "Ou dwe konekte."),
         ["User is not authenticated."] = new("Vous devez être connecté.", "Ou dwe konekte."),
         ["User must be authenticated to create a todo."] = new("Vous devez être connecté pour créer une tâche.", "Ou dwe konekte pou kreye yon travay."),
+        ["User must be authenticated."] = new("Vous devez être connecté.", "Ou dwe konekte."),
         ["This email address is already in use."] = new("Cette adresse e-mail est déjà utilisée.", "Adrès imèl sa a deja itilize."),
         ["The confirmation link is invalid or expired."] = new("Le lien de confirmation est invalide ou expiré.", "Lyen konfimasyon an pa valab oswa li ekspire."),
         ["The reset link is invalid or expired."] = new("Le lien de réinitialisation est invalide ou expiré.", "Lyen reyinisyalizasyon an pa valab oswa li ekspire."),

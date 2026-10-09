@@ -1,5 +1,5 @@
 using Kadans.Modules.Tasks.Domain;
-using Kadans.Modules.Tasks.Features;
+using Kadans.Modules.Tasks.Features.Reminders;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Notifications;
 using Kadans.SharedKernel.Users;
@@ -27,7 +27,7 @@ internal sealed class OccurrenceReminderJob(
 ) : IJob
 {
     public static readonly JobKey Key = new("occurrence-reminder", "tasks");
-    public const string Kind = "occurrence.due";
+    public const string Kind = ReminderNotification.Kind;
 
     private const int BatchSize = 500;
 
@@ -61,11 +61,23 @@ internal sealed class OccurrenceReminderJob(
             if (due.Count == 0)
                 break;
 
-            var people = await users.FindManyAsync([.. due.Select(o => o.Todo!.UserId).Distinct()], cancellationToken);
+            var accounts = due.Select(o => o.Todo!.UserId).Distinct().ToList();
+            var people = await users.FindManyAsync(accounts, cancellationToken);
+            // A phone whose window holds the account's latest version rings these itself: the push skips it.
+            var versions = await dbContext
+                .ReminderChanges.Where(c => accounts.Contains(c.UserId))
+                .ToDictionaryAsync(c => c.UserId, c => c.Version, cancellationToken);
             var reminders = new List<UserNotification>(due.Count);
             foreach (var occurrence in due)
             {
-                reminders.Add(new UserNotification(occurrence.Todo!.UserId, Reminder(occurrence, people.GetValueOrDefault(occurrence.Todo.UserId), now)));
+                var userId = occurrence.Todo!.UserId;
+                var message = ReminderNotification.Message(
+                    occurrence,
+                    people.GetValueOrDefault(userId),
+                    now,
+                    versions.GetValueOrDefault(userId)
+                );
+                reminders.Add(new UserNotification(userId, message));
                 occurrence.NotifiedAt = now;
             }
 
@@ -84,50 +96,5 @@ internal sealed class OccurrenceReminderJob(
 
         if (sent > 0)
             logger.LogInformation("Reminder run: {Count} reminder(s) sent in {Seconds:0.0} s", sent, (DateTimeOffset.UtcNow - started).TotalSeconds);
-    }
-
-    private static NotificationMessage Reminder(TodoOccurrence occurrence, UserSummary? user, DateTimeOffset now)
-    {
-        var todo = occurrence.Todo!;
-        var timeZone = user is not null && TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var found) ? found : TimeZoneInfo.Utc;
-        var texts = LocalizedTexts.Reminder(user?.Language ?? "en");
-        var local = TimeZoneInfo.ConvertTime(occurrence.ScheduledAt, timeZone);
-        var untilStart = occurrence.ScheduledAt - now;
-
-        return new NotificationMessage(
-            Kind,
-            todo.Title,
-            untilStart > TimeSpan.FromSeconds(30)
-                ? string.Format(texts.StartsAtFormat, $"{local:HH:mm}", Describe(untilStart, texts))
-                : string.Format(texts.StartsNowFormat, $"{local:HH:mm}"),
-            new Dictionary<string, string>
-            {
-                ["todoId"] = todo.Id.ToString(),
-                ["occurrenceId"] = occurrence.Id.ToString(),
-                ["scheduledAt"] = occurrence.ScheduledAt.ToString("O"),
-                ["pomodoroTemplateId"] = todo.PomodoroTemplateId?.ToString() ?? string.Empty,
-            }
-        );
-    }
-
-    /// <summary>
-    /// "15 min", "2 h 05 min", "3 d 4 h" — unit words from the user's language. Rounded up to the minute: the job
-    /// runs a few seconds after the notify time, when a 15-minute lead is 14 min 5x s away, and must still read
-    /// "15 min" (and an hour "1 h", not "59 min").
-    /// </summary>
-    internal static string Describe(TimeSpan span, ReminderTexts texts)
-    {
-        const long minutesPerDay = 24 * 60;
-        var minutes = Math.Max(1L, (long)Math.Ceiling(span.TotalMinutes));
-        if (minutes < 60)
-            return $"{minutes} {texts.MinuteAbbrev}";
-        if (minutes < minutesPerDay)
-            return minutes % 60 == 0
-                ? $"{minutes / 60} {texts.HourAbbrev}"
-                : $"{minutes / 60} {texts.HourAbbrev} {minutes % 60:00} {texts.MinuteAbbrev}";
-        var hours = minutes % minutesPerDay / 60;
-        return hours == 0
-            ? $"{minutes / minutesPerDay} {texts.DayAbbrev}"
-            : $"{minutes / minutesPerDay} {texts.DayAbbrev} {hours} {texts.HourAbbrev}";
     }
 }

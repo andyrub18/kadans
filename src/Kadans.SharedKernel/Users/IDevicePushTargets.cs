@@ -1,6 +1,15 @@
 namespace Kadans.SharedKernel.Users;
 
-public sealed record PushTarget(string Platform, string Token);
+/// <param name="RemindersSyncedAt">When the device last fetched its reminder window to ring itself; null if it does not.</param>
+/// <param name="RemindersThrough">How far that window reaches.</param>
+/// <param name="RemindersVersion">The account's reminders version that window holds.</param>
+public sealed record PushTarget(
+    string Platform,
+    string Token,
+    DateTimeOffset? RemindersSyncedAt = null,
+    DateTimeOffset? RemindersThrough = null,
+    long RemindersVersion = 0
+);
 
 /// <summary>Push tokens of a user's registered devices (implemented by Identity, consumed by Notifications).</summary>
 public interface IDevicePushTargets

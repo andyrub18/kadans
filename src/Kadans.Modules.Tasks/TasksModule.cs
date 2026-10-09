@@ -2,6 +2,7 @@ using Kadans.Modules.Tasks.Features;
 using Kadans.Modules.Tasks.Features.Pomodoro;
 using Kadans.Modules.Tasks.Features.Todos;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
+using Kadans.Modules.Tasks.Features.Reminders;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz;
 
 namespace Kadans.Modules.Tasks;
@@ -20,13 +22,20 @@ public sealed class TasksModule : IModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = KadansDatabase.ConnectionString(configuration);
-        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext).
-        services.AddUserScopedDbContextPool<TasksDbContext>(options =>
-            options.UseNpgsql(
-                connectionString,
-                npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", TasksDbContext.Schema)
-            )
+        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext), and reports the reminders it
+        // changes to the apps (ReminderSignals).
+        services.AddSingleton<ReminderSignals>();
+        services.AddHostedService<ReminderSignaller>();
+        services.AddUserScopedDbContextPool<TasksDbContext>(
+            options =>
+                options.UseNpgsql(
+                    connectionString,
+                    npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", TasksDbContext.Schema)
+                ),
+            (provider, context) => context.Signals = provider.GetRequiredService<ReminderSignals>()
         );
+        services.AddScoped<ReminderWindows>();
+        services.TryAddSingleton(TimeProvider.System);
 
         var tasksSection = configuration.GetSection(TasksOptions.SectionName);
         services.Configure<TasksOptions>(tasksSection);
@@ -91,5 +100,6 @@ public sealed class TasksModule : IModule
         endpoints.MapTodoRoutes();
         endpoints.MapOccurrenceRoutes();
         endpoints.MapPomodoroRoutes();
+        endpoints.MapReminderRoutes();
     }
 }

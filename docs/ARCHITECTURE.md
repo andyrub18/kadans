@@ -382,6 +382,69 @@ nothing leaves it, and nothing of it is published to the internet.
   with three browsers opening the dashboard at once); at 256 MB, opening the dashboard got it killed. Traces are not collected (one process, little to follow across); the trace ids in the logs
   are enough to group a request's lines.
 
+### Reminders ring on the phone (approved 2026-10-09; the server's part is built)
+
+Today a reminder is the server's: `OccurrenceReminderJob` finds it due, the dispatcher stores it in the notification
+centre, sends it live to open apps and pushes it through Firebase. A phone that is offline at that minute hears
+nothing, and hears it late when it comes back; in Haiti that is common. An iPhone hears nothing at all outside the
+app (there is no APNs yet). So the phone rings its reminders itself, and the server stays the source of truth and the
+safety net. The motive is the people's: the load test showed reminders are a small share of the server's work
+(docs/LOADTEST.md).
+
+1. **The server keeps the rules; the phone gets instants.** `POST /reminders/sync`, with the device's installation id,
+   returns the account's pending occurrences whose reminder falls in the next 7 days: occurrence and todo ids, notify
+   time, start, and the notification's title and text, written by the same code as a push (the account's language and
+   time zone), so both always read the same. The server records on that device when it synced, how far its window
+   reaches and which version of the account's reminders it holds. No second recurrence engine or text formatter on
+   the phone: rescheduled, cancelled and done occurrences are already settled in what it gets. A phone without a subscription gets no window, as it gets no push. (The window is Tasks';
+   the device's sync state is Identity's, recorded through a SharedKernel interface, as push targets are read.)
+2. **The phone schedules them with the OS.** Android: exact alarms (`setExactAndAllowWhileIdle`), which need the
+   "Alarms & reminders" permission – off by default since Android 14, so the app asks once, saying what it is for. A
+   phone without it schedules nothing and stays on push, as today. iOS: the 64 soonest local notifications
+   (`UNUserNotificationCenter`). Desktop: a timer in the app, which keeps running in the tray. A tap opens the todo
+   (a new deep link: today a notification opens nothing in particular).
+3. **The window is kept current**: when the app starts or comes back to the foreground, after the person's own
+   changes, after a change of language or time zone, by a background job twice a day (WorkManager; background refresh
+   on iOS), when the server says the account's reminders changed (live over the hub, otherwise a silent push), and
+   after a reboot or an app update. It is kept in the app's settings store as it came (a few hundred entries at most).
+4. **The server pushes a reminder only where the device may not have it.** Devices that do not schedule (older
+   versions, no permission, desktop) get the push as today. So does a device whose window is stale: holding an older
+   version of the account's reminders, not reaching that notify time, or not synced for 36 hours (its alarms may be
+   gone). In the
+   common case nothing is sent twice. When both arrive (a stale phone), they carry the occurrence as their identity
+   and the phone shows one: an Android reminder push becomes a data message the app displays itself, so it can drop
+   one it has already rung (apps already installed display data messages too).
+5. **The notification centre stays the server's.** The job still stores every reminder and sends it live to open
+   apps; on a device that rang it already, the live event only updates the bell.
+6. **A local alarm for something changed elsewhere** (deleted, moved or done on the desktop while the phone slept):
+   the "changed" signal re-syncs the phone, and an alarm that rings while online first checks its occurrence (two
+   seconds at most) and stays quiet if it is no longer due. Offline it rings: the phone cannot know better.
+7. **Signing out, switching accounts, or the paywall closing on a phone** cancels every local reminder. Every sign-out
+   path ends in clearing the stored tokens: that is where the app cancels them.
+
+Server (built): Tasks keeps each account's reminders version (`reminder_changes`), one more for every change a person
+makes to a todo, its rule or an occurrence, in the same transaction as the change: in one place, the context's save,
+so no feature forgets it, and the jobs' own bookkeeping (stamping a reminder sent, moving the horizon) moves nothing.
+`POST /reminders/sync` reads the version and the window in one snapshot (repeatable read) and records on the device
+(`Device.RemindersSyncedAt`, `RemindersThrough`, `RemindersVersion`, through `IDeviceReminders`) exactly what it
+holds: no clock margins, and the phone that made a change and syncs right after holds it. The reminder job hands each
+reminder's notify time, start and account version to the push worker, which skips covered devices
+(`kadans_push_skipped_total{reason="on_device"}`). A reminder push lives until its start (Firebase TTL), collapses per
+occurrence, and is a data message for a phone that rings reminders (the app shows it, or drops one it already rang);
+older apps still get a notification the system shows. A change sends "reminders.changed" two seconds later (gathered
+per account): live on the hub, and a silent push to the phones that ring. `GET /reminders/{occurrenceId}` answers
+whether a reminder is still due; `DELETE /reminders/sync/{installationId}` stops a device. Checked by
+`tools/smoke/reminder_flows.py`. Unchanged: the job and its timing, the bell, desktop's live channel, and every app
+version already installed.
+
+App changes: a `ReminderScheduler` (common: what to schedule, the stored window, which occurrences already rang;
+per platform: the OS calls), the permission and its explanation, a notification channel for reminders, the deep link,
+foreground hooks (none exist today), WorkManager, and receivers for alarms, reboot and app updates on Android.
+
+Order: the server first (3–4 days; on its own it changes nothing until an app says it schedules), then Android
+(about a week), desktop (1–2 days), and iOS with the iPhone app on a Mac (3–4 days). Pomodoro's "time's up" could
+move the same way later.
+
 ### Client: Compose Multiplatform
 
 Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/Linux) from one

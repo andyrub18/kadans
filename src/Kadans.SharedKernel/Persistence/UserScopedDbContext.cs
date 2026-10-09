@@ -37,8 +37,14 @@ public static class UserScopedDbContexts
     /// <summary>
     /// The context from a pool, scoped as <c>AddDbContext</c> would register it, each scope's instance seeing that
     /// scope's user: requests their caller, jobs no one (they read across users with <c>IgnoreQueryFilters</c>).
+    /// <paramref name="onRent"/> hands it anything else it needs, from singletons: a scoped service would outlive its
+    /// scope in a pooled context.
     /// </summary>
-    public static IServiceCollection AddUserScopedDbContextPool<TContext>(this IServiceCollection services, Action<DbContextOptionsBuilder> options)
+    public static IServiceCollection AddUserScopedDbContextPool<TContext>(
+        this IServiceCollection services,
+        Action<DbContextOptionsBuilder> options,
+        Action<IServiceProvider, TContext>? onRent = null
+    )
         where TContext : UserScopedDbContext
     {
         services.AddPooledDbContextFactory<TContext>(options);
@@ -46,6 +52,7 @@ public static class UserScopedDbContexts
         {
             var context = provider.GetRequiredService<IDbContextFactory<TContext>>().CreateDbContext();
             context.CurrentUser = provider.GetRequiredService<ICurrentUserService>();
+            onRent?.Invoke(provider, context);
             return context;
         });
         return services;

@@ -5,7 +5,9 @@ using Kadans.SharedKernel.Users;
 
 namespace Kadans.Modules.Notifications.Push;
 
-internal sealed record PushRequest(string UserId, NotificationMessage Message)
+/// <param name="Silent">A signal for the apps (<see cref="INotificationDispatcher.SignalAsync"/>), not a notification: only
+/// phones that ring their own reminders understand it.</param>
+internal sealed record PushRequest(string UserId, NotificationMessage Message, bool Silent = false)
 {
     /// <summary>When it was queued (<see cref="Stopwatch"/> ticks): how long a push waits is a measured number.</summary>
     public long QueuedAt { get; init; } = Stopwatch.GetTimestamp();
@@ -96,8 +98,15 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
     }
 
     /// <summary>
+    /// How long a device's reminder window counts after its sync. A phone syncs twice a day; one that has not for this
+    /// long may have lost its alarms (the app removed, killed by the system), so the push takes over again.
+    /// </summary>
+    internal static readonly TimeSpan WindowLifetime = TimeSpan.FromHours(36);
+
+    /// <summary>
     /// Send to the users' devices and retire the tokens the provider reports dead. Never throws. Phones only for an
-    /// account with a subscription (<see cref="IMobileAccess"/>): reminders on a phone are what it pays for.
+    /// account with a subscription (<see cref="IMobileAccess"/>): reminders on a phone are what it pays for. A reminder
+    /// skips the devices that ring it themselves (<see cref="Covers"/>); a silent signal goes only to those.
     /// </summary>
     internal static async Task DeliverAsync(
         IReadOnlyList<PushRequest> batch,
@@ -123,7 +132,20 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
                     targets = [.. targets.Where(t => !IsPhone(t))];
                     metrics.Withheld(phones);
                 }
-                envelopes.AddRange(targets.Select(t => new PushEnvelope(t, request.Message)));
+                if (request.Silent)
+                {
+                    targets = [.. targets.Where(t => t.RemindersSyncedAt is not null)];
+                }
+                else if (request.Message.Reminder is { } reminder)
+                {
+                    var onDevice = targets.Count(t => Covers(t, reminder));
+                    if (onDevice > 0)
+                    {
+                        targets = [.. targets.Where(t => !Covers(t, reminder))];
+                        metrics.SkippedOnDevice(onDevice);
+                    }
+                }
+                envelopes.AddRange(targets.Select(t => new PushEnvelope(t, request.Message, request.Silent)));
             }
 
             foreach (var call in envelopes.Chunk(IPushSender.MaxPerCall))
@@ -151,4 +173,15 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
     }
 
     private static bool IsPhone(PushTarget target) => target.Platform is "Android" or "Ios";
+
+    /// <summary>
+    /// The device rings this reminder itself: its window holds the account's latest reminders version, was fetched not
+    /// too long ago, and reaches the notify time (ARCHITECTURE → "Reminders ring on the phone").
+    /// </summary>
+    internal static bool Covers(PushTarget target, ReminderDelivery reminder) =>
+        target.RemindersSyncedAt is { } synced
+        && target.RemindersVersion >= reminder.AccountVersion
+        && reminder.NotifyAt <= Min(target.RemindersThrough ?? synced, synced + WindowLifetime);
+
+    private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
 }

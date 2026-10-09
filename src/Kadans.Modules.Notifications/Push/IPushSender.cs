@@ -4,7 +4,8 @@ using Kadans.SharedKernel.Users;
 namespace Kadans.Modules.Notifications.Push;
 
 /// <summary>One message for one device.</summary>
-internal sealed record PushEnvelope(PushTarget Target, NotificationMessage Message);
+/// <param name="Silent">A signal for the app, shown to no one (<see cref="PushRequest.Silent"/>).</param>
+internal sealed record PushEnvelope(PushTarget Target, NotificationMessage Message, bool Silent = false);
 
 internal interface IPushSender
 {

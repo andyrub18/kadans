@@ -1,7 +1,7 @@
 # Kadans
 
 Personal "life cadence" app: scheduled & recurring tasks with attached Pomodoro sessions,
-notifications, and a personal budget (multi-currency, HTG/USD first). Backend is ASP.NET Core
+notifications, and a personal budget (multi-currency: HTG, USD, EUR, CAD, DOP, MXN; each account in its own). Backend is ASP.NET Core
 (.NET 10) + Postgres; the client is a Compose Multiplatform app (Android, iOS, desktop) in
 `clients/app`. All feature phases are done; the project is in V1 release hardening (see
 `docs/ROADMAP.md`, Phase 8).

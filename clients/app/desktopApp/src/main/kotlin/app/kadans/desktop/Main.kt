@@ -1,11 +1,5 @@
 package app.kadans.desktop
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,7 +7,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.unit.Density
@@ -32,7 +25,7 @@ import app.kadans.tray.StatusNotifierTray
 import app.kadans.tray.TrayAction
 import app.kadans.ui.App
 import app.kadans.ui.brand.KadansIconPainter
-import app.kadans.ui.brand.KadansSplash
+import app.kadans.ui.brand.SplashOver
 import app.kadans.ui.currentAppStrings
 import app.kadans.ui.rememberAppStrings
 import java.awt.Desktop
@@ -129,13 +122,7 @@ fun main(args: Array<String> = emptyArray()) {
             // Asked for again while already open: in front of the other windows.
             LaunchedEffect(raised) { if (raised > 0) window.toFront() }
             // The splash plays over the app while it loads, once per launch (closing to the tray keeps it played).
-            var splashing by remember { mutableStateOf(true) }
-            Box(Modifier.fillMaxSize()) {
-                App()
-                AnimatedVisibility(visible = splashing, enter = EnterTransition.None, exit = fadeOut(tween(250))) {
-                    KadansSplash(onFinished = { splashing = false })
-                }
-            }
+            SplashOver { App() }
         }
     }
 }

@@ -43,7 +43,9 @@ Not yet: the macOS `.icns` (made on a Mac, with the DMG) and the iPhone app's ic
 ## The splash: "Wind"
 
 Every hand starts at 12 and winds forward at its own speed (the upper arm twice round, the others once) before
-settling into the K: time running, then the name. One second, eased with `cubic-bezier(0.2, 0.78, 0.25, 1)`.
-Android 12 and later play it in the system splash (`avd_splash.xml`, held until it has finished, and skipped when
-animations are off); the desktop plays the same in the app as it opens (`KadansSplash`). Before Android 12 the splash
-is the finished mark on purple.
+settling into the K: time running, then the name. One second, eased with `cubic-bezier(0.2, 0.78, 0.25, 1)`; then the
+K is held 0.7 s so the name is read, not glimpsed, and the splash fades in 0.3 s (`KadansMark.HOLD_MS`, `FADE_MS`).
+Android 12 and later play it in the system splash (`avd_splash.xml`; `MainActivity` keeps it until the hold has ended,
+counted from the animation's start, slowed or skipped with the system's animations); the desktop plays the same in the
+app as it opens (`SplashOver`). Before Android 12 the splash is the finished mark on purple, which the app keeps for
+the same hold and fade. A start slower than the splash is never padded.

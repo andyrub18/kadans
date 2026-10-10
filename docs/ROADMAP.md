@@ -263,8 +263,9 @@ installing on real devices second, hosting last.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
-        "Toutes les", the ten-year end, the wrapping "Ends" chips, the budget's day picker. So far only rendered offscreen
-        at 360 dp.
+        "Toutes les", the ten-year end, the wrapping "Ends" chips, the budget's day picker, and the budget form's limits
+        (#69: the count, the date pickers, amounts kept to two decimals, and the number keyboard, which only a phone
+        shows). So far only rendered offscreen at 360 dp.
       - Desktop only, already covered on Android: the tray and closing to it (#70; the phone rings from its exact alarm
         with the app closed, #65), one instance (Android runs one by itself), the notification balloons, and opening with
         the session (the phone puts the alarm back after a reboot: #65's boot receiver).

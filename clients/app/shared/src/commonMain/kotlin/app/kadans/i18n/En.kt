@@ -76,6 +76,9 @@ val EnglishStrings = StringsCatalog(
         neverFalls = "This rule falls on no date in the next ten years.",
         countLimit = "At most 5,000 times.",
         startWithinAYear = "A repeating movement can start at most a year ago.",
+        startPassed = "This time has already passed.",
+        editKeepsTouched = "Occurrences you moved, completed or annotated stay as they are.",
+        madeElsewhere = "This rule has parts the app cannot show: changing it here replaces it.",
     ),
     pomodoro = PomodoroStrings(
         endsAtFormat = "Ends at %s",

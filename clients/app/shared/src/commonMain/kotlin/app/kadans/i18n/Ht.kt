@@ -76,6 +76,9 @@ val CreoleStrings = StringsCatalog(
         neverFalls = "Règ sa a pa tonbe sou okenn dat nan dis lane k ap vini yo.",
         countLimit = "5 000 fwa pou pi plis.",
         startWithinAYear = "Yon mouvman ki repete pa ka kòmanse plis pase yon ane de sa.",
+        startPassed = "Lè sa a gentan pase.",
+        editKeepsTouched = "Fwa ou te deplase, fini oswa mete yon nòt yo rete jan yo ye a.",
+        madeElsewhere = "Règ sa a gen pati aplikasyon an pa ka montre: si ou chanje l isit la, ou ranplase l.",
     ),
     pomodoro = PomodoroStrings(
         endsAtFormat = "Ap fini a %s",

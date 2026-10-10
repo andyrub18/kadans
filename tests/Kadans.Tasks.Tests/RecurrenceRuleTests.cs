@@ -48,4 +48,26 @@ public class RecurrenceRuleTests
 
         await Assert.That(rule.IsT0).IsTrue();
     }
+
+    [Test]
+    public async Task What_is_left_of_a_counted_rule_is_read_from_the_rule()
+    {
+        // Ten days from Start at 09:00: by Start + 3 days at noon, four have come.
+        var rule = RecurrenceRule.Create(Frequency.Daily, Start, count: 10).AsT1;
+
+        await Assert.That(rule.RemainingAfter(Start.AddDays(-1))).IsEqualTo(10);
+        await Assert.That(rule.RemainingAfter(Start.AddDays(3).AddHours(3))).IsEqualTo(6);
+        await Assert.That(rule.RemainingAfter(Start.AddDays(30))).IsEqualTo(0);
+        await Assert.That(RecurrenceRule.Create(Frequency.Daily, Start).AsT1.RemainingAfter(Start.AddDays(3))).IsNull();
+    }
+
+    [Test]
+    public async Task An_exception_counts_as_a_time_that_came()
+    {
+        var rule = RecurrenceRule.Create(Frequency.Daily, Start, count: 10).AsT1;
+        rule.AddException(Start.AddDays(1));
+
+        // Days 0, 2 and 3 came, day 1 was skipped: still four of the ten used, as COUNT counts before exceptions.
+        await Assert.That(rule.RemainingAfter(Start.AddDays(3).AddHours(3))).IsEqualTo(6);
+    }
 }

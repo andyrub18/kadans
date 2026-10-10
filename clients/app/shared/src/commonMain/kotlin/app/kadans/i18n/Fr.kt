@@ -76,6 +76,9 @@ val FrenchStrings = StringsCatalog(
         neverFalls = "Cette règle ne tombe sur aucune date dans les dix prochaines années.",
         countLimit = "5 000 fois au maximum.",
         startWithinAYear = "Un mouvement répété peut commencer au plus il y a un an.",
+        startPassed = "Ce moment est déjà passé.",
+        editKeepsTouched = "Les occurrences que vous avez déplacées, terminées ou annotées restent telles quelles.",
+        madeElsewhere = "Cette règle a des parties que l'app ne sait pas afficher : la modifier ici la remplace.",
     ),
     pomodoro = PomodoroStrings(
         endsAtFormat = "Se termine à %s",

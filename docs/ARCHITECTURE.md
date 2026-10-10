@@ -477,7 +477,8 @@ closed to the tray. It sleeps in steps of 30 s at most on the wall clock, so a c
 rings on time within one step. The app's start schedules the stored window again (`restoreDesktopReminders`: a
 reminder missed while it was closed rings if still of use), then fetches it. Nothing rings while the app is not
 running, as before (the hub had nothing to deliver to then either). No background job and no permission: while the
-app runs, the hub keeps the window current (each change, each reconnect, at least hourly when its token is renewed),
+app runs, the hub keeps the window current (each change, each reconnect, at least hourly when its token is renewed;
+a change made on the device itself fetches it at once, `KadansApi.remindersChanged`),
 and Settings has no reminders section. Reminders show as the desktop's other notifications (`notify-send` or D-Bus
 on Linux, the tray elsewhere); a click opening the todo would need a listener per desktop and is left for later.
 Checked against a local API by `RealDesktopRemindersSmokeTest` (opt-in, `KADANS_API_URL`): a reminder reaches the
@@ -576,7 +577,9 @@ panel), so CI needs no desktop.
 - **Per-occurrence overrides**: cancel / reschedule / complete act only on occurrence rows
   (`Status`, `ScheduledAt` vs `OriginalScheduledAt`, `RescheduledAt`, `CompletedAt`, `CancelledAt`,
   reasons, `Remarks`, `NotifiedAt`). Changing the rule regenerates untouched future rows and keeps
-  touched ones. This is the Google Calendar model. (Implemented in Phase 3: `OccurrencePlanner` is the
+  touched ones. This is the Google Calendar model. The app's edit screen sends a new rule only once it is changed,
+  starting at the next untouched occurrence's first time still ahead (today's later times stay), and a counted rule
+  keeps the times it had left (`remaining`, computed from the rule by `GET /todos/{id}`: occurrence rows age out). (Implemented in Phase 3: `OccurrencePlanner` is the
   pure part, `OccurrenceGenerator` writes rows, `OccurrenceHorizonJob` keeps every active todo ahead of
   `Tasks:OccurrenceHorizonDays`; `Todo.OccurrencesGeneratedThrough` records progress, `MaxValue` meaning a
   bounded rule is exhausted.)

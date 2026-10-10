@@ -12,6 +12,7 @@ import app.kadans.api.model.Frequency
 import app.kadans.i18n.StringsCatalog
 import app.kadans.ui.mondayFirstDays
 import app.kadans.ui.toApi
+import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -137,9 +138,12 @@ data class CreateTodoUiState(
     /** The wall-clock time the rule ends at on [untilDate]. */
     val untilClock: LocalTime get() = untilTime ?: END_OF_DAY
 
-    val canSubmit: Boolean
-        get() = title.isNotBlank() && date != null && interval >= CreateTodoViewModel.minInterval(frequency) && timesShareMinute &&
-            (mode == TodoMode.OneTime || (endValid && !neverFalls && !severalMonthsNeedEveryYear)) && !isLoading
+    /** The date, time and rule can be sent, whatever the title (the edit screen has its own): see also ruleReady. */
+    val ruleValid: Boolean
+        get() = date != null && interval >= CreateTodoViewModel.minInterval(frequency) && timesShareMinute &&
+            (mode == TodoMode.OneTime || (endValid && !neverFalls && !severalMonthsNeedEveryYear))
+
+    val canSubmit: Boolean get() = title.isNotBlank() && ruleValid && !isLoading
 }
 
 class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
@@ -154,7 +158,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
 
     fun submit() {
         val current = _state.value
-        if (!current.canSubmit) return
+        if (!current.canSubmit || !ruleReady(current, TimeZone.currentSystemDefault(), Clock.System.now())) return
 
         _state.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
@@ -192,9 +196,41 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
         fun effectiveTime(state: CreateTodoUiState): LocalTime =
             state.times.minOrNull() ?: state.time
 
-        /** The first occurrence's wall-clock date/time is meant in the user's zone; the API takes instants. */
-        fun startInstant(state: CreateTodoUiState, timeZone: TimeZone): Instant =
-            LocalDateTime(state.firstDate!!, effectiveTime(state)).toInstant(timeZone)
+        /**
+         * The first moment the todo falls on. One-time, minute and hourly: the date and time picked. Daily and slower: the
+         * first day the rule falls on from the date picked, at its first time still ahead of [now]. "3 times a day" set up
+         * at 15:00 starts at 20:00 that day (BYHOUR covers the rest), and an edited rule keeps the day's times to come.
+         * Null when nothing is ahead within the ten years a rule may run.
+         */
+        fun firstStart(state: CreateTodoUiState, timeZone: TimeZone, now: Instant): LocalDateTime? {
+            val picked = state.date ?: return null
+            if (state.mode == TodoMode.OneTime || state.frequency == Frequency.Minutely || state.frequency == Frequency.Hourly) {
+                return LocalDateTime(picked, state.time)
+            }
+            val clock = state.times.ifEmpty { listOf(state.time) }.sorted()
+            return generateSequence(picked) { it.plus(1, DateTimeUnit.DAY) }
+                .takeWhile { it <= RuleLimits.latestEnd(picked) }
+                .filter(state::fallsOn)
+                .flatMap { day -> clock.asSequence().map { LocalDateTime(day, it) } }
+                .firstOrNull { it.toInstant(timeZone) > now }
+        }
+
+        /** The first moment as the API takes it: an instant, the wall clock meant in the user's zone. */
+        fun startInstant(state: CreateTodoUiState, timeZone: TimeZone, now: Instant = Clock.System.now()): Instant =
+            firstStart(state, timeZone, now)!!.toInstant(timeZone)
+
+        /** Picked for a moment already gone: a one-time todo or a minute or hourly rule (the others move to one ahead). */
+        fun startPassed(state: CreateTodoUiState, timeZone: TimeZone, now: Instant): Boolean =
+            firstStart(state, timeZone, now)?.let { it.toInstant(timeZone) <= now } ?: false
+
+        /** The date, time and rule can go at [now]: valid, starting ahead of now, and not ending before they start. */
+        fun ruleReady(state: CreateTodoUiState, timeZone: TimeZone, now: Instant): Boolean {
+            if (!state.ruleValid) return false
+            val start = firstStart(state, timeZone, now) ?: return false
+            if (start.toInstant(timeZone) <= now) return false
+            val until = state.untilDate?.let { LocalDateTime(it, state.untilClock) }
+            return state.mode == TodoMode.OneTime || state.endMode != EndMode.OnDate || until == null || until >= start
+        }
 
         /** A tap on a day picks or drops it, starting from the days shown; the last one stays. */
         fun toggleDay(state: CreateTodoUiState, day: ApiDayOfWeek): CreateTodoUiState {
@@ -243,21 +279,21 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
         }
 
         /** The rule as it would be sent, in words, once it falls on a date; an end still being filled in is left out. */
-        fun ruleInWords(state: CreateTodoUiState, s: StringsCatalog, timeZone: TimeZone): String? {
-            if (state.mode != TodoMode.Recurring || state.firstDate == null) return null
+        fun ruleInWords(state: CreateTodoUiState, s: StringsCatalog, timeZone: TimeZone, now: Instant = Clock.System.now()): String? {
+            if (state.mode != TodoMode.Recurring || firstStart(state, timeZone, now) == null) return null
             val complete = if (state.endMode == EndMode.OnDate && state.untilDate == null) state.copy(endMode = EndMode.Never) else state
-            return RuleSummary.describe(buildRecurring(complete, timeZone).recurrenceRule, s)
+            return RuleSummary.describe(buildRecurring(complete, timeZone, now).recurrenceRule, s)
         }
 
-        fun buildOneTime(state: CreateTodoUiState, timeZone: TimeZone) = CreateOneTimeTodo(
+        fun buildOneTime(state: CreateTodoUiState, timeZone: TimeZone, now: Instant = Clock.System.now()) = CreateOneTimeTodo(
             title = state.title.trim(),
             description = state.description.trim(),
             notificationEnabled = state.notify,
             notifyBeforeInMinutes = state.notifyBefore,
-            dueDate = startInstant(state, timeZone),
+            dueDate = startInstant(state, timeZone, now),
         )
 
-        fun buildRecurring(state: CreateTodoUiState, timeZone: TimeZone): CreateRecurringTodo {
+        fun buildRecurring(state: CreateTodoUiState, timeZone: TimeZone, now: Instant = Clock.System.now()): CreateRecurringTodo {
             // "3 times a day": RRULE's BYHOUR×BYMINUTE is a cross product, so the UI keeps
             // all times on the same minute and we send the hour list once.
             val severalTimes = state.frequency in SEVERAL_TIMES && state.times.size > 1
@@ -269,7 +305,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                 notifyBeforeInMinutes = state.notifyBefore,
                 recurrenceRule = CreateRecurrenceRule(
                     frequency = days.frequency,
-                    startDate = startInstant(state, timeZone),
+                    startDate = startInstant(state, timeZone, now),
                     interval = state.interval,
                     byHour = if (severalTimes) state.times.map { it.hour }.distinct().sorted() else null,
                     byMinute = if (severalTimes) listOf(state.times.first().minute) else null,

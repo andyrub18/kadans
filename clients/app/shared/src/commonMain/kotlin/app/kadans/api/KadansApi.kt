@@ -72,6 +72,19 @@ class KadansApi internal constructor(
         _profileChanged.tryEmit(Unit)
     }
 
+    private val _remindersChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /**
+     * This device changed a todo or an occurrence (created, edited, moved, done, skipped, cancelled, deleted): the
+     * reminders it rings are fetched again at once, without waiting for the hub's signal, which a dropped connection
+     * would only bring at its return.
+     */
+    val remindersChanged: SharedFlow<Unit> = _remindersChanged.asSharedFlow()
+
+    internal fun remindersChanged() {
+        _remindersChanged.tryEmit(Unit)
+    }
+
     internal suspend fun endSession() {
         tokenStore.save(null)
         _sessionEnded.tryEmit(Unit)

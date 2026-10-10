@@ -119,6 +119,22 @@ internal sealed class RecurrenceRule
     public IReadOnlyList<DateTimeOffset> GetOccurrences(DateTimeOffset from, DateTimeOffset to, int limit = RecurrenceSchedule.MaxOccurrences) =>
         Schedule.GetOccurrences(from, to, limit);
 
+    /// <summary>
+    /// For a rule with a count: how many of its times are still to come after <paramref name="now"/>, what an edit that
+    /// starts the rule afresh keeps so it ends where it would have. Null without a count. An exception counts as a time
+    /// that came, as RFC 5545 counts COUNT before removing exceptions. Read from the rule, not from the occurrence rows,
+    /// which retention removes.
+    /// </summary>
+    public int? RemainingAfter(DateTimeOffset now)
+    {
+        if (Count is not { } count)
+            return null;
+        if (now < StartDate)
+            return count;
+        var came = Schedule.GetOccurrences(StartDate, now, limit: count).Count + Exceptions.Count(e => e >= StartDate && e <= now);
+        return Math.Max(0, count - came);
+    }
+
     public DateTimeOffset? GetNextOccurrence() => GetNextOccurrence(DateTimeOffset.UtcNow);
 
     public DateTimeOffset? GetNextOccurrence(DateTimeOffset after) =>

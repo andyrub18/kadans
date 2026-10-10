@@ -64,7 +64,11 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         if (todo is null)
             return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {id} not found");
 
-        return todo.ToResponse();
+        // What is left of a counted rule: the edit form starts the rule afresh with that many times.
+        var response = todo.ToResponse();
+        return response.RecurrenceRule is { Count: not null } rule
+            ? response with { RecurrenceRule = rule with { Remaining = todo.RecurrenceRule!.RemainingAfter(DateTimeOffset.UtcNow) } }
+            : response;
     }
 
     /// <summary>Pending occurrences of one todo, soonest first.</summary>

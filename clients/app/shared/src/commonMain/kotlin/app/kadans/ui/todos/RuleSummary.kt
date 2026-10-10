@@ -40,7 +40,7 @@ internal object RuleSummary {
         val zone = runCatching { TimeZone.of(rule.timeZoneId) }.getOrNull()
         val words = zone?.let {
             if (rule.isOneTime) s.oneTime + " · " + moment(rule.startDate, it, s)
-            else parse(rule)?.let { parts -> words(parts, rule.startDate.toLocalDateTime(it), it, s) }
+            else parts(rule)?.let { parts -> words(parts, rule.startDate.toLocalDateTime(it), it, s) }
         } ?: rule.rrule
         // The rule's times are its own zone's wall clock: say which when this device is elsewhere.
         return if (rule.timeZoneId == deviceZone.id) words else "$words · ${rule.timeZoneId}"
@@ -89,7 +89,15 @@ internal object RuleSummary {
         else -> s.repeat.weekdayNames[mondayFirstDays.indexOf(kind.days.single())]
     }
 
-    private fun parse(rule: RecurrenceRuleResponse): Parts? {
+    /** Whether every part of a stored rule can be put in words, so the edit form can show it. */
+    fun canWord(rule: RecurrenceRuleResponse): Boolean {
+        val zone = runCatching { TimeZone.of(rule.timeZoneId) }.getOrNull() ?: return false
+        // Any language does: the question is whether a sentence exists.
+        return parts(rule)?.let { words(it, rule.startDate.toLocalDateTime(zone), zone, app.kadans.i18n.EnglishStrings) } != null
+    }
+
+    /** A stored rule's parts, read back from its RRULE; null with a part this does not word. */
+    fun parts(rule: RecurrenceRuleResponse): Parts? {
         val parts = rule.rrule.removePrefix("RRULE:").split(';').filter { it.isNotBlank() }.associate { part ->
             part.substringBefore('=').uppercase() to part.substringAfter('=', "")
         }

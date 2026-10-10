@@ -165,6 +165,12 @@ data class RepeatStrings(
     val countLimit: String,
     /** Under the date of a repeating budget movement: the server's limit. */
     val startWithinAYear: String,
+    /** Under the date and time: a one-time todo (or an hourly rule) set to a moment already gone. */
+    val startPassed: String,
+    /** The edit screen, once its rule is changed: what the server keeps (ARCHITECTURE → Recurrence). */
+    val editKeepsTouched: String,
+    /** The edit screen, for a rule made through the API with parts the form cannot show. */
+    val madeElsewhere: String,
 ) {
     fun every(frequency: Frequency, interval: Int): String {
         if (interval == 1) {

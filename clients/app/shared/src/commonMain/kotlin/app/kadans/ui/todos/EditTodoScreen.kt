@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.i18n.LocalStrings
+import kotlin.time.Clock
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -74,6 +75,17 @@ fun EditTodoScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            // A recurring todo's rule, as the create form shows it, from the next occurrence on. Left alone, it is not sent.
+            state.rule?.let { rule ->
+                if (!state.ruleWorded) {
+                    Text(s.repeat.madeElsewhere, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                WhenSection(rule, viewModel::updateRule, zone = state.ruleZone)
+                if (state.ruleChanged) {
+                    Text(s.repeat.editKeepsTouched, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -92,7 +104,14 @@ fun EditTodoScreen(
             if (state.error != null || state.errorCode != null) {
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            Button(onClick = { permission.beforeSaving(state.notify, viewModel::save) }, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
+            val ruleReady = !state.ruleChanged || state.rule?.let {
+                CreateTodoViewModel.ruleReady(it, state.ruleZone, Clock.System.now())
+            } == true
+            Button(
+                onClick = { permission.beforeSaving(state.notify, viewModel::save) },
+                enabled = state.canSave && ruleReady,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 if (state.isSaving) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.saveChanges)
             }
             TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }

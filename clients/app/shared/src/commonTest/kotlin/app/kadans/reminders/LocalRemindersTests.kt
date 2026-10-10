@@ -122,6 +122,7 @@ class LocalRemindersTests {
                     val answer = answers[id] ?: ReminderCheckResponse(id, due = true, notifyAt = window.firstOrNull { it.occurrenceId == id }?.notifyAt)
                     respond(KadansJson.encodeToString(ReminderCheckResponse.serializer(), answer), HttpStatusCode.OK, jsonHeaders)
                 }
+                call == "PUT /occurrences/o9/complete" -> respond("{}", HttpStatusCode.OK, jsonHeaders)
                 call == "PUT /users/me" ->
                     respond("""{"id":"u1","username":"alice","timeZone":"America/Port-au-Prince","language":"fr"}""", HttpStatusCode.OK, jsonHeaders)
                 call.startsWith("PUT /users/me/devices/") -> {
@@ -421,6 +422,17 @@ class LocalRemindersTests {
         eventually("a change signalled live") { fetches() == before + 1 }
         events.emit(RealtimeEvent.Reconnected) // what was signalled during the drop was lost
         eventually("back after a drop") { fetches() == before + 2 }
+    }
+
+    @Test
+    fun a_change_made_here_fetches_the_window_without_waiting_for_the_hub() = test {
+        reminders.sync()
+        val before = fetches()
+
+        // Done from this phone, the hub's signal never arriving (a dropped connection): the window is fetched anyway.
+        api.todos.completeOccurrence("o9")
+
+        eventually("the window is fetched again") { fetches() == before + 1 }
     }
 
     @Test

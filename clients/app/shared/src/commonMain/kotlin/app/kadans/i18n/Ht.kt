@@ -42,7 +42,6 @@ val CreoleStrings = StringsCatalog(
         hoursBeforeFormat = "%d èdtan anvan",
         oneDayBefore = "1 jou anvan",
         daysBeforeFormat = "%d jou anvan",
-        countLimit = "5 000 fwa pou pi plis.",
     ),
     repeat = RepeatStrings(
         everyMinute = "Chak minit",
@@ -75,6 +74,8 @@ val CreoleStrings = StringsCatalog(
         monthsLabel = "Nan mwa sa yo",
         severalMonthsEveryYear = "Ak plizyè mwa, yon jou tankou « dezyèm dimanch » repete chak ane.",
         neverFalls = "Règ sa a pa tonbe sou okenn dat nan dis lane k ap vini yo.",
+        countLimit = "5 000 fwa pou pi plis.",
+        startWithinAYear = "Yon mouvman ki repete pa ka kòmanse plis pase yon ane de sa.",
     ),
     pomodoro = PomodoroStrings(
         endsAtFormat = "Ap fini a %s",

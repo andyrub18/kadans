@@ -25,14 +25,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import app.kadans.ui.mondayFirstDays
 import app.kadans.ui.toApi
 import app.kadans.ui.todos.EndMode
+import app.kadans.ui.todos.RuleLimits
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.todayIn
 import kotlinx.datetime.toLocalDateTime
 
 data class BudgetAddUiState(
@@ -55,6 +61,8 @@ data class BudgetAddUiState(
     val count: Int? = null,
     val untilDate: LocalDate? = null,
     val byDays: Set<ApiDayOfWeek> = emptySet(),
+    /** Where the server's limits count from: a repeating movement starts at most a year before today. */
+    val today: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
@@ -76,16 +84,41 @@ data class BudgetAddUiState(
             BudgetTransactionKind.Transfer -> emptyList()
         }
 
+    /** Incomes and expenses repeat; transfers are one-off (the server repeats no transfer). */
+    val repeating: Boolean get() = repeat && kind != BudgetTransactionKind.Transfer
+
+    /** The days a weekly movement repeats on, as the day picker shows them: the ones picked, else the date's. */
+    val weekDays: Set<ApiDayOfWeek> get() = byDays.ifEmpty { setOfNotNull(date?.dayOfWeek?.toApi()) }
+
+    /** The first one: a weekly movement starts on its first chosen day from the date picked, as todos do. */
+    val firstDate: LocalDate?
+        get() = date?.let { picked ->
+            if (!repeating || frequency != Frequency.Weekly) picked
+            else (0..6).map { picked.plus(it, DateTimeUnit.DAY) }.first { it.dayOfWeek.toApi() in weekDays }
+        }
+
+    /** The server refuses a repeating movement that starts more than a year ago; the start picker offers no earlier day. */
+    val earliestStart: LocalDate get() = today.minus(1, DateTimeUnit.YEAR).plus(1, DateTimeUnit.DAY)
+
+    /** A date picked before "Repeat" was turned on can be older: said under the date, and not sent. */
+    val startTooOld: Boolean get() = repeating && date != null && date < earliestStart
+
+    /** More repeats than the server accepts: said under the field, and not sent. */
+    val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > RuleLimits.MAX_COUNT
+
     val endValid: Boolean
         get() = when (endMode) {
             EndMode.Never -> true
-            EndMode.AfterCount -> (count ?: 0) > 0
-            EndMode.OnDate -> untilDate != null && (date == null || untilDate >= date)
+            EndMode.AfterCount -> (count ?: 0) in 1..RuleLimits.MAX_COUNT
+            // The same day or later, and at most ten years after the first one (the end picker offers no other day).
+            EndMode.OnDate -> untilDate != null && (firstDate ?: today).let { first ->
+                untilDate >= first && untilDate <= RuleLimits.latestEnd(first)
+            }
         }
 
     val canSubmit: Boolean
         get() = !isSaving && account != null && (amount ?: 0.0) > 0.0 &&
-            (!repeat || kind == BudgetTransactionKind.Transfer || endValid) &&
+            (!repeating || (endValid && !startTooOld)) &&
             (kind != BudgetTransactionKind.Transfer ||
                 (transferAccount != null && (!crossCurrency || (received ?: 0.0) > 0.0)))
 
@@ -138,6 +171,7 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                         ?: accounts.firstOrNull()?.id,
                     transferAccountId = current.transferAccountId?.takeIf { id -> accounts.any { it.id == id } },
                     date = current.date ?: today,
+                    today = today,
                     isLoading = false,
                 )
             } catch (e: KadansApiException) {
@@ -156,13 +190,14 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
         val current = _state.value
         val account = current.account ?: return
         val amount = current.amount ?: return
-        // Noon local: an unambiguous "that day" instant regardless of DST edges.
-        val occurredAt: Instant = current.date?.atStartOfDayIn(timeZone)?.plus(12.hours)
+        // Noon local: an unambiguous "that day" instant regardless of DST edges. A repeating one starts on its first day.
+        val occurredAt: Instant = (if (current.repeating) current.firstDate else current.date)
+            ?.atStartOfDayIn(timeZone)?.plus(12.hours)
             ?: Clock.System.now()
         _state.value = current.copy(isSaving = true, error = null, errorCode = null)
         viewModelScope.launch {
             try {
-                if (current.repeat && current.kind != BudgetTransactionKind.Transfer) {
+                if (current.repeating) {
                     api.budget.createRecurring(
                         CreateRecurringTransaction(
                             accountId = account.id,
@@ -174,11 +209,7 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                                 interval = current.interval,
                                 byMonthDay = if (current.frequency == Frequency.Monthly)
                                     current.date?.let { listOf(it.day) } else null,
-                                byDayOfWeek = when {
-                                    current.frequency != Frequency.Weekly -> null
-                                    current.byDays.isNotEmpty() -> current.byDays.sorted()
-                                    else -> current.date?.let { listOf(it.dayOfWeek.toApi()) }
-                                },
+                                byDayOfWeek = if (current.frequency == Frequency.Weekly) mondayFirstDays.filter { it in current.weekDays } else null,
                                 count = current.count.takeIf { current.endMode == EndMode.AfterCount },
                                 // Inclusive end of the picked day, so that day's occurrence counts.
                                 until = if (current.endMode == EndMode.OnDate)
@@ -224,6 +255,14 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isSaving = false, errorCode = "network")
             }
+        }
+    }
+
+    internal companion object {
+        /** A tap on a day picks or drops it, starting from the days shown; the last one stays. */
+        fun toggleDay(state: BudgetAddUiState, day: ApiDayOfWeek): BudgetAddUiState {
+            val days = state.weekDays.let { if (day in it) it - day else it + day }
+            return if (days.isEmpty()) state else state.copy(byDays = days)
         }
     }
 }

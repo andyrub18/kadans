@@ -572,7 +572,7 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
-| `clients/app`: budget's recurring form | No limits on the repeat count or the end date: more than 5,000 times or an end more than ten years away is refused by the server, with its message, after the form was filled. Open: to fix with the budget wording rework, the way the todo form does it |
+| `clients/app`: budget's movement form | ~~The server's limits were not in the form: a repeat count over 5,000, an end more than ten years after the start, a repeating start more than a year ago, an amount with three decimals or above a trillion. Each was refused by the server, with its message, after the form was filled~~ fixed 2026-10-09: the fields keep within them (the count says "At most 5,000 times", the date pickers offer only days the server takes, the amount fields keep two decimals and twelve digits), and a weekly movement starts on its first chosen day, as todos do. Checked at each boundary against a local API |
 | `clients/app`: forms on narrow phones | At 360 dp in French and Kreyòl, the date and time fields' "Choisir" / "Chwazi" button leaves the value too little room and it wraps ("2026-10-1" over "0"). Open: open the picker by tapping the field, without the button |
 | `clients/app`: todo screen | ~~The rule showed as RRULE text and each occurrence as a UTC instant (`2026-10-12T10:30:00Z` for a 06:30 alarm in Port-au-Prince)~~ fixed 2026-10-09: the rule in words, the occurrences in the device's time |
 | `clients/app`: French interval sentence | ~~"Tous les 2 semaines", "Tous les 5 minutes": one plural prefix for every unit, whatever its gender~~ fixed 2026-10-09: one whole phrase per unit |

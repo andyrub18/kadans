@@ -104,7 +104,7 @@ data class CreateTodoUiState(
         val picked = date ?: return@lazy null
         if (mode == TodoMode.OneTime) return@lazy picked
         generateSequence(picked) { it.plus(1, DateTimeUnit.DAY) }
-            .takeWhile { it <= CreateTodoViewModel.latestEnd(picked) }
+            .takeWhile { it <= RuleLimits.latestEnd(picked) }
             .firstOrNull(::fallsOn)
     }
 
@@ -119,18 +119,18 @@ data class CreateTodoUiState(
         get() = frequency == Frequency.Yearly && dayRule == DayRule.ByWeekday && effectiveMonths.size > 1 && interval > 1
 
     /** More repeats than the server accepts: shown under the field, and the form cannot be sent. */
-    val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > CreateTodoViewModel.MAX_COUNT
+    val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > RuleLimits.MAX_COUNT
 
     val endValid: Boolean
         get() = when (endMode) {
             EndMode.Never -> true
-            EndMode.AfterCount -> (count ?: 0) in 1..CreateTodoViewModel.MAX_COUNT
+            EndMode.AfterCount -> (count ?: 0) in 1..RuleLimits.MAX_COUNT
             // The end is a moment, not a day: "every 2 hours until Friday 18:00". It cannot precede the first
             // time, nor come more than ten years after it (the server's limit; the date picker enforces it too).
             EndMode.OnDate -> untilDate != null && firstDate.let { first ->
                 first == null ||
                     LocalDateTime(untilDate, untilClock) >= LocalDateTime(first, times.minOrNull() ?: time) &&
-                    untilDate <= CreateTodoViewModel.latestEnd(first)
+                    untilDate <= RuleLimits.latestEnd(first)
             }
         }
 
@@ -176,10 +176,6 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
     }
 
     internal companion object {
-        /** The server's limits for a new rule (RecurrenceSchedule): the form never offers more. */
-        const val MAX_COUNT = 5_000
-        const val MAX_YEARS = 10
-
         /** Every 5 minutes at most; every other frequency starts at 1. */
         fun minInterval(frequency: Frequency): Int = if (frequency == Frequency.Minutely) 5 else 1
 
@@ -192,12 +188,6 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
             interval = state.interval.coerceAtLeast(minInterval(frequency)),
             times = if (frequency in SEVERAL_TIMES) state.times else emptyList(),
         )
-
-        /**
-         * The last day a rule starting on [start] may end on. The server allows ten years from the first instant, so an
-         * end on that same day ten years later, at the end of the day the form defaults to, would be refused.
-         */
-        fun latestEnd(start: LocalDate): LocalDate = start.plus(MAX_YEARS, DateTimeUnit.YEAR).minus(1, DateTimeUnit.DAY)
 
         fun effectiveTime(state: CreateTodoUiState): LocalTime =
             state.times.minOrNull() ?: state.time

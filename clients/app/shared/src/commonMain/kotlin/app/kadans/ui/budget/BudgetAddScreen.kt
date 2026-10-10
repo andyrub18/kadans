@@ -1,6 +1,7 @@
 package app.kadans.ui.budget
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -32,12 +33,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.DateRange
 import app.kadans.ui.WeekDayPicker
 import app.kadans.ui.todos.EndMode
+import app.kadans.ui.todos.RuleLimits
+import app.kadans.ui.todos.RuleSummary
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -106,18 +111,21 @@ fun BudgetAddScreen(
                 }
             }
 
+            // Two decimals and below a trillion, as the server takes them: the field keeps no more.
             OutlinedTextField(
                 value = state.amountText,
-                onValueChange = { v -> viewModel.update { it.copy(amountText = v) } },
+                onValueChange = { v -> viewModel.update { it.copy(amountText = amountInput(v)) } },
                 label = { Text(s.amountLabel + (state.account?.let { " (" + it.currency.name.uppercase() + ")" } ?: "")) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
 
             if (state.crossCurrency) {
                 OutlinedTextField(
                     value = state.receivedText,
-                    onValueChange = { v -> viewModel.update { it.copy(receivedText = v) } },
+                    onValueChange = { v -> viewModel.update { it.copy(receivedText = amountInput(v)) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     label = { Text(s.receivedAmount + (state.transferAccount?.let { " (" + it.currency.name.uppercase() + ")" } ?: "")) },
                     singleLine = true,
                     placeholder = { state.suggestedReceived()?.let { Text(formatAmount(it)) } },
@@ -156,6 +164,8 @@ fun BudgetAddScreen(
                 readOnly = true,
                 label = { Text(s.dueDate) },
                 trailingIcon = { TextButton(onClick = { dateTarget = BudgetDateTarget.Start }) { Text(s.pick) } },
+                isError = state.startTooOld,
+                supportingText = if (state.startTooOld) ({ Text(s.repeat.startWithinAYear) }) else null,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -188,13 +198,17 @@ fun BudgetAddScreen(
                         OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
                     }
                     if (state.frequency == Frequency.Weekly) {
+                        // The date's own day is chosen until others are; the last one stays (as in the todo form).
                         Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
-                        WeekDayPicker(
-                            state.byDays,
-                            onToggle = { day ->
-                                viewModel.update { it.copy(byDays = if (day in it.byDays) it.byDays - day else it.byDays + day) }
-                            },
-                        )
+                        WeekDayPicker(state.weekDays, onToggle = { day -> viewModel.update { BudgetAddViewModel.toggleDay(it, day) } })
+                        val first = state.firstDate
+                        if (first != null && first != state.date) {
+                            Text(
+                                s.repeat.firstTime(RuleSummary.day(first, s)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     Text(s.ends, style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -218,9 +232,12 @@ fun BudgetAddScreen(
                         EndMode.AfterCount ->
                             OutlinedTextField(
                                 value = state.count?.toString() ?: "",
-                                onValueChange = { v -> viewModel.update { it.copy(count = v.toIntOrNull()) } },
+                                onValueChange = { v -> viewModel.update { it.copy(count = RuleLimits.countInput(v)) } },
                                 label = { Text(s.howManyTimes) },
                                 singleLine = true,
+                                isError = state.countTooHigh,
+                                supportingText = if (state.countTooHigh) ({ Text(s.repeat.countLimit) }) else null,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         EndMode.OnDate ->
@@ -250,7 +267,15 @@ fun BudgetAddScreen(
 
     val target = dateTarget
     if (target != null) {
-        val pickerState = rememberDatePickerState()
+        // Only days the server accepts. A one-off movement can be on any day; a repeating one starts at most a year ago
+        // and ends between its first day and ten years after it.
+        val first = state.firstDate ?: state.today
+        val range = when {
+            target == BudgetDateTarget.Until -> DateRange(first, RuleLimits.latestEnd(first))
+            state.repeating -> DateRange(state.earliestStart, null)
+            else -> DateRange(null, null)
+        }
+        val pickerState = rememberDatePickerState(selectableDates = range)
         DatePickerDialog(
             onDismissRequest = { dateTarget = null },
             confirmButton = {

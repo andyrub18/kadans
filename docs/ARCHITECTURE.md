@@ -526,7 +526,9 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   "the second Sunday" in several months is a MONTHLY rule kept to those months, because a YEARLY BYSETPOS counts
   across all the year's Sundays; it can only repeat every year (the contract takes no ordinal BYDAY such as `2SU`).
   The app only looks for that first day; the server expands everything. Budget rules take days of the week and of
-  the month only (`BudgetRecurrence`).
+  the month only (`BudgetRecurrence`); the budget form keeps within the same limits (`RuleLimits`: 5,000 times, ten
+  years) and the budget's own (a repeating movement starts at most a year ago; amounts keep two decimals, under a
+  trillion).
 - **Materialized occurrences with a rolling horizon**: a scheduled job guarantees every active
   rule has occurrences generated through `now + 30 days`. Past and near future = table (truth);
   far future = computed preview only.

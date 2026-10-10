@@ -516,11 +516,23 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
 - **The installed app** (`packageDeb`): the runtime image adds `jdk.security.auth` and `jdk.net` (dbus-java's login and
   socket options). The main class is `kadans.Kadans`, so the window's X11 class is `kadans-Kadans`, the name of the
   launcher jpackage installs (it writes no `StartupWMClass`): that is how docks match the window to its icon.
+- **Opening with the session** (`startup/StartAtLogin`), so reminders ring after a restart without opening Kadans.
+  Installed builds only: jpackage's launcher names itself in `jpackage.app-path`, and a Gradle run has no launcher a
+  session could start. The session starts it with `--background`: hidden in the tray, or minimized without one; a
+  Kadans already running is left as it is (a quiet `SingleInstance` claim). Linux: `~/.config/autostart/kadans.desktop`,
+  the way JetBrains Toolbox starts on COSMIC, with `TryExec` so an uninstalled Kadans is skipped, and an entry hidden in
+  the desktop's settings (`Hidden=true`) reads as off. Windows: a value under `HKCU\…\Run`, imported from a .reg file so
+  the quoted path survives, and read as off when Windows' own startup settings turned it off (not run on Windows yet).
+  macOS: with the Mac build. The first run of an installed app turns it on (Settings → This computer turns it off);
+  later runs rewrite an entry still there, for the app may have moved, and never bring back one the person removed.
+  Phones need none of it: Android puts the next reminder's alarm back after a reboot itself.
 
 Checked on COSMIC (Pop!_OS 24.04), from Gradle and from the packaged runtime: the icon in the panel, close hides, the
 icon's click and the menu bring the window back, Quit ends the app and removes the icon, and a second start shows the
-first. `StatusNotifierTrayTests` replays it against a private bus (dbus-java's own daemon and a fake panel), so CI needs
-no desktop. Not done: starting Kadans with the session, so reminders ring after a reboot without opening it.
+first. Opening with the session, from the packaged runtime: the first run writes the entry, the entry's own command
+starts Kadans hidden with its tray icon, a second such start leaves it alone, an entry removed stays removed and a stale
+one is rewritten. `StatusNotifierTrayTests` replays the tray against a private bus (dbus-java's own daemon and a fake
+panel), so CI needs no desktop.
 
 ## Domain designs
 

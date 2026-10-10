@@ -11,7 +11,8 @@ structure: all UI and logic live in `shared` (a KMP library); `androidApp`, `des
 ```
 
 The desktop app closes to the tray and runs once per user: while a Kadans runs (an installed one included, they share
-their settings), `:desktopApp:run` shows that one's window and exits. Quit it from its tray icon first.
+their settings), `:desktopApp:run` shows that one's window and exits. Quit it from its tray icon first. An installed build
+also opens with the session (Settings → This computer); a Gradle run never registers itself.
 
 **Continue with Google** appears on the Login screen only when the server publishes the client id this
 platform needs (`GET /auth/providers`; setup in `docs/OWNER-CHECKLIST.md`). Desktop opens the system

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -31,8 +32,18 @@ class SingleInstanceTests {
         val shown = CountDownLatch(1)
         assertEquals(SingleInstance.Claim.Only, instance().claim(onShow = { shown.countDown() }))
 
-        assertEquals(SingleInstance.Claim.AskedOther, instance().claim(onShow = {}))
+        assertEquals(SingleInstance.Claim.Other, instance().claim(onShow = {}))
         assertTrue(shown.await(5, TimeUnit.SECONDS), "the first Kadans was asked to show its window")
+    }
+
+    @Test
+    fun a_quiet_start_leaves_the_running_kadans_as_it_is() {
+        val shown = CountDownLatch(1)
+        assertEquals(SingleInstance.Claim.Only, instance().claim(onShow = { shown.countDown() }))
+
+        // The session opening Kadans in the background while one already runs: nothing pops up.
+        assertEquals(SingleInstance.Claim.Other, instance().claim(onShow = {}, showOther = false))
+        assertFalse(shown.await(500, TimeUnit.MILLISECONDS))
     }
 
     @Test
@@ -42,7 +53,7 @@ class SingleInstanceTests {
         val shown = CountDownLatch(1)
 
         assertEquals(SingleInstance.Claim.Only, instance().claim(onShow = { shown.countDown() }))
-        assertEquals(SingleInstance.Claim.AskedOther, instance().claim(onShow = {}))
+        assertEquals(SingleInstance.Claim.Other, instance().claim(onShow = {}))
         assertTrue(shown.await(5, TimeUnit.SECONDS))
     }
 

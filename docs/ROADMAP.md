@@ -256,8 +256,21 @@ installing on real devices second, hosting last.
       second copy ringing every reminder twice. The installed app: the runtime gets the two modules D-Bus needs, the
       window's X11 class matches its launcher (dock icon), and it sits under Office in the menu. On Windows and macOS
       the notification balloons no longer add a second tray icon. ARCHITECTURE → "The desktop app: in the tray, once".
-- [ ] Proposed: start Kadans with the session, hidden in the tray, so reminders ring after a reboot without opening it
-      (XDG autostart on Linux, the Run key on Windows, a login item on macOS), with a switch in Settings.
+- [x] Kadans opens with the session, 2026-10-09, hidden in the tray, so reminders ring after a restart without opening
+      it. Installed builds only; on from the first run, with a switch in Settings → This computer. Linux: an XDG
+      autostart entry (checked on COSMIC); Windows: the Run key (not run on Windows yet); macOS: with the Mac build.
+      ARCHITECTURE → "The desktop app: in the tray, once".
+- [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
+      - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
+        month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
+        "Toutes les", the ten-year end, the wrapping "Ends" chips, the budget's day picker. So far only rendered offscreen
+        at 360 dp.
+      - Desktop only, already covered on Android: the tray and closing to it (#70; the phone rings from its exact alarm
+        with the app closed, #65), one instance (Android runs one by itself), the notification balloons, and opening with
+        the session (the phone puts the alarm back after a reboot: #65's boot receiver).
+      - Later, on both: the splash, which the owner finds too quick (the desktop's is `KadansSplash`, Android 12+'s is the
+        system splash, `avd_splash`: two drawings of one animation, to change together); the date and time fields at
+        360 dp in French and Kreyòl; editing a todo's rule.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

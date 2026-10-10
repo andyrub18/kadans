@@ -1,5 +1,7 @@
 package app.kadans.di
 
+import app.kadans.startup.StartAtLogin
+import app.kadans.startup.platformStartAtLogin
 import app.kadans.api.KadansApi
 import app.kadans.api.ClearAwareTokenStore
 import app.kadans.api.TokenStore
@@ -81,6 +83,7 @@ val appModule = org.koin.dsl.module {
     single { PomodoroPreference(get()) }
     single { ProfileSync(get(), get(), get()) }
     single<StoreBilling> { platformStoreBilling() }
+    single<StartAtLogin> { platformStartAtLogin() }
     single { SubscriptionGate(get(), get()) }
     single<GoogleSignIn> {
         val language = get<LanguageController>()

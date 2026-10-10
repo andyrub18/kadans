@@ -112,6 +112,92 @@ data class TodoFormStrings(
     }
 }
 
+/**
+ * How a rule repeats, in words: the forms' "Every 2 weeks" and a todo's rule. Whole phrases, not a prefix and a unit:
+ * French agrees with the unit ("Tous les 2 jours", "Toutes les 2 semaines"). A feature group.
+ */
+data class RepeatStrings(
+    val everyMinute: String,
+    val everyHour: String,
+    val everyDay: String,
+    val everyWeek: String,
+    val everyMonth: String,
+    val everyYear: String,
+    /** `%d` = how many. */
+    val everyMinutesFormat: String,
+    val everyHoursFormat: String,
+    val everyDaysFormat: String,
+    val everyWeeksFormat: String,
+    val everyMonthsFormat: String,
+    val everyYearsFormat: String,
+    /** `%d` = the day of the month a monthly rule falls on. */
+    val monthDayFormat: String,
+    /** `%d` = how many times in all. */
+    val countFormat: String,
+    /** `%s` = the last date. */
+    val untilFormat: String,
+    /** `%s` = the date a weekly rule first falls on, when it is not the date picked. */
+    val firstTimeFormat: String,
+    /** Monthly and yearly: the day picked by its date ("the 15th") or by its day of the week ("the second Tuesday"). */
+    val byDate: String,
+    val byWeekday: String,
+    /** The day grid's last cell (BYMONTHDAY -1). */
+    val lastDay: String,
+    /** The rule's words for the last day alone. */
+    val onLastDay: String,
+    /** `%s` = several days of the month, "1, 15, last". */
+    val monthDaysFormat: String,
+    /** First to fifth, then last (BYSETPOS 1–5, -1), as written inside a sentence. */
+    val ordinals: List<String>,
+    /** Monday first, as written inside a sentence. */
+    val weekdayNames: List<String>,
+    /** What "the second …" counts besides a day of the week (BYDAY): any day, Monday to Friday, Saturday and Sunday. */
+    val kindDay: String,
+    val kindWeekday: String,
+    val kindWeekendDay: String,
+    /** `%1` = an ordinal, `%2` = a day: "the second Tuesday", "the last weekday". */
+    val onTheFormat: String,
+    val monthsLabel: String,
+    /** Under the interval: "the second Sunday" in several months can only repeat every year (see buildRecurring). */
+    val severalMonthsEveryYear: String,
+    /** The rule picked falls on no date the server would keep ("the 30th of February"). */
+    val neverFalls: String,
+) {
+    fun every(frequency: Frequency, interval: Int): String {
+        if (interval == 1) {
+            return when (frequency) {
+                Frequency.Minutely -> everyMinute
+                Frequency.Hourly -> everyHour
+                Frequency.Daily -> everyDay
+                Frequency.Weekly -> everyWeek
+                Frequency.Monthly -> everyMonth
+                Frequency.Yearly -> everyYear
+            }
+        }
+        val format = when (frequency) {
+            Frequency.Minutely -> everyMinutesFormat
+            Frequency.Hourly -> everyHoursFormat
+            Frequency.Daily -> everyDaysFormat
+            Frequency.Weekly -> everyWeeksFormat
+            Frequency.Monthly -> everyMonthsFormat
+            Frequency.Yearly -> everyYearsFormat
+        }
+        return format.replace("%d", "$interval")
+    }
+
+    fun monthDay(day: Int): String = monthDayFormat.replace("%d", "$day")
+
+    fun count(times: Int): String = countFormat.replace("%d", "$times")
+
+    fun until(date: String): String = untilFormat.replace("%s", date)
+
+    fun firstTime(date: String): String = firstTimeFormat.replace("%s", date)
+
+    fun monthDays(days: String): String = monthDaysFormat.replace("%s", days)
+
+    fun onThe(ordinal: String, day: String): String = onTheFormat.replace("%1", ordinal).replace("%2", day)
+}
+
 /** Pomodoro: when a session ends by itself, and the cycle builder. A feature group (the flat catalog is full). */
 data class PomodoroStrings(
     /** `%s` = a clock time. */
@@ -244,6 +330,7 @@ data class StringsCatalog(
     val account: AccountStrings,
     val timeZone: TimeZoneStrings,
     val todoForm: TodoFormStrings,
+    val repeat: RepeatStrings,
     val pomodoro: PomodoroStrings,
     val deletion: DeletionStrings,
     val paywall: PaywallStrings,
@@ -299,15 +386,6 @@ data class StringsCatalog(
     val create: String,
     val cancel: String,
     val ok: String,
-    // every N unit
-    val everySingularPrefix: String,
-    val everyPluralPrefix: String,
-    val unitMinute: String, val unitMinutes: String,
-    val unitHour: String, val unitHours: String,
-    val unitDay: String, val unitDays: String,
-    val unitWeek: String, val unitWeeks: String,
-    val unitMonth: String, val unitMonths: String,
-    val unitYear: String, val unitYears: String,
     // frequencies + statuses
     val freqMinutely: String,
     val freqHourly: String,
@@ -484,18 +562,6 @@ data class StringsCatalog(
     val errAccountArchived: String,
     val errGeneric: String,
 ) {
-    fun every(frequency: Frequency, interval: Int): String {
-        val (singular, plural) = when (frequency) {
-            Frequency.Minutely -> unitMinute to unitMinutes
-            Frequency.Hourly -> unitHour to unitHours
-            Frequency.Daily -> unitDay to unitDays
-            Frequency.Weekly -> unitWeek to unitWeeks
-            Frequency.Monthly -> unitMonth to unitMonths
-            Frequency.Yearly -> unitYear to unitYears
-        }
-        return if (interval == 1) "$everySingularPrefix $singular" else "$everyPluralPrefix $interval $plural"
-    }
-
     fun frequencyName(frequency: Frequency): String = when (frequency) {
         Frequency.Minutely -> freqMinutely
         Frequency.Hourly -> freqHourly

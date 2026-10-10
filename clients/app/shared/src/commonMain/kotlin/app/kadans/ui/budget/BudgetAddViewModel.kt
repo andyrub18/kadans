@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DayOfWeek
+import app.kadans.ui.toApi
 import app.kadans.ui.todos.EndMode
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -226,14 +226,4 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
             }
         }
     }
-}
-
-private fun DayOfWeek.toApi(): ApiDayOfWeek = when (this) {
-    DayOfWeek.SUNDAY -> ApiDayOfWeek.Sunday
-    DayOfWeek.MONDAY -> ApiDayOfWeek.Monday
-    DayOfWeek.TUESDAY -> ApiDayOfWeek.Tuesday
-    DayOfWeek.WEDNESDAY -> ApiDayOfWeek.Wednesday
-    DayOfWeek.THURSDAY -> ApiDayOfWeek.Thursday
-    DayOfWeek.FRIDAY -> ApiDayOfWeek.Friday
-    DayOfWeek.SATURDAY -> ApiDayOfWeek.Saturday
 }

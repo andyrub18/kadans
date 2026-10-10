@@ -33,10 +33,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.WeekDayPicker
 import app.kadans.ui.todos.EndMode
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
@@ -184,27 +184,20 @@ fun BudgetAddScreen(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(onClick = { viewModel.update { it.copy(interval = (it.interval - 1).coerceAtLeast(1)) } }) { Text("−") }
-                        Text(s.every(state.frequency, state.interval), style = MaterialTheme.typography.titleMedium)
+                        Text(s.repeat.every(state.frequency, state.interval), style = MaterialTheme.typography.titleMedium)
                         OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
                     }
                     if (state.frequency == Frequency.Weekly) {
                         Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            mondayFirstDays.forEachIndexed { index, day ->
-                                FilterChip(
-                                    selected = day in state.byDays,
-                                    onClick = {
-                                        viewModel.update {
-                                            it.copy(byDays = if (day in it.byDays) it.byDays - day else it.byDays + day)
-                                        }
-                                    },
-                                    label = { Text(s.weekdayShort[index]) },
-                                )
-                            }
-                        }
+                        WeekDayPicker(
+                            state.byDays,
+                            onToggle = { day ->
+                                viewModel.update { it.copy(byDays = if (day in it.byDays) it.byDays - day else it.byDays + day) }
+                            },
+                        )
                     }
                     Text(s.ends, style = MaterialTheme.typography.labelLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = state.endMode == EndMode.Never,
                             onClick = { viewModel.update { it.copy(endMode = EndMode.Never) } },
@@ -280,8 +273,3 @@ fun BudgetAddScreen(
 }
 
 private enum class BudgetDateTarget { Start, Until }
-
-private val mondayFirstDays = listOf(
-    ApiDayOfWeek.Monday, ApiDayOfWeek.Tuesday, ApiDayOfWeek.Wednesday, ApiDayOfWeek.Thursday,
-    ApiDayOfWeek.Friday, ApiDayOfWeek.Saturday, ApiDayOfWeek.Sunday,
-)

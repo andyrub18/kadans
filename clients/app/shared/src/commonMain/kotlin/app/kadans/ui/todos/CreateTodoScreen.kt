@@ -47,6 +47,8 @@ import app.kadans.i18n.LocalStrings
 import app.kadans.ui.DateRange
 import app.kadans.ui.MonthDayPicker
 import app.kadans.ui.MonthPicker
+import app.kadans.ui.PickerField
+import app.kadans.ui.PickerKind
 import app.kadans.ui.WeekDayPicker
 import app.kadans.ui.capitalized
 import org.koin.compose.viewmodel.koinViewModel
@@ -111,23 +113,22 @@ fun CreateTodoScreen(
                 )
             }
 
+            // Tapped anywhere, the fields open their pickers: the value keeps the room a "Pick" button used to take.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
+                PickerField(
                     value = state.date?.toString() ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn) },
-                    placeholder = { Text(s.pickADate) },
-                    trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Start }) { Text(s.pick) } },
+                    label = if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn,
+                    kind = PickerKind.Date,
+                    onPick = { dateTarget = DateTarget.Start },
+                    placeholder = s.pickADate,
                     modifier = Modifier.weight(1.4f),
                 )
                 if (state.times.isEmpty()) {
-                    OutlinedTextField(
+                    PickerField(
                         value = state.time.formatted(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(s.timeLabel) },
-                        trailingIcon = { TextButton(onClick = { timeTarget = TimeTarget.Start }) { Text(s.pick) } },
+                        label = s.timeLabel,
+                        kind = PickerKind.Time,
+                        onPick = { timeTarget = TimeTarget.Start },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -268,30 +269,24 @@ fun CreateTodoScreen(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     EndMode.OnDate -> {
-                        OutlinedTextField(
+                        PickerField(
                             value = state.untilDate?.toString() ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(s.lastOccurrenceOn) },
-                            placeholder = { Text(s.pickLastDay) },
-                            trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Until }) { Text(s.pick) } },
+                            label = s.lastOccurrenceOn,
+                            kind = PickerKind.Date,
+                            onPick = { dateTarget = DateTarget.Until },
+                            placeholder = s.pickLastDay,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         // A date alone ends the rule with that day; a time makes it a precise moment.
-                        OutlinedTextField(
-                                value = state.untilTime?.formatted() ?: s.endOfDay,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(s.lastOccurrenceAt) },
-                                trailingIcon = {
-                                    Row {
-                                        if (state.untilTime != null) {
-                                            TextButton(onClick = { viewModel.update { it.copy(untilTime = null) } }) { Text(s.endOfDay) }
-                                        }
-                                        TextButton(onClick = { timeTarget = TimeTarget.Until }) { Text(s.pick) }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
+                        PickerField(
+                            value = state.untilTime?.formatted() ?: s.endOfDay,
+                            label = s.lastOccurrenceAt,
+                            kind = PickerKind.Time,
+                            onPick = { timeTarget = TimeTarget.Until },
+                            extra = if (state.untilTime == null) null else {
+                                { TextButton(onClick = { viewModel.update { it.copy(untilTime = null) } }) { Text(s.endOfDay) } }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     EndMode.Never -> {}

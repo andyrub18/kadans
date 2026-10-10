@@ -381,7 +381,6 @@ data class StringsCatalog(
     val dueDate: String,
     val firstOn: String,
     val timeLabel: String,
-    val pick: String,
     val pickADate: String,
     val timesThatDay: String,
     val addTime: String,

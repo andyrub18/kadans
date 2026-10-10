@@ -129,7 +129,7 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `app.kadans.i18n.StringsCatalog` (add the key to the data class and all three instances —
   the compiler enforces completeness); never hardcode UI text in composables. The flat catalog is
   nearly full: the JVM allows 255 parameters per method and the data class's synthetic `copy$default`
-  is at 235, beyond 255 the class compiles but fails to load and the app does not start.
+  is at 232, beyond 255 the class compiles but fails to load and the app does not start.
   Strings for a new feature area go in their own nested group (see `FocusStatsStrings`, used as
   `s.focusStats.title`); `StringsCatalogSizeTest` fails with that advice before the limit is hit. A sentence
   with a number is one whole phrase per case (`RepeatStrings`: "Toutes les %d semaines", "Tous les %d jours"),

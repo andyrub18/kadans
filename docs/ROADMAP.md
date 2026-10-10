@@ -278,15 +278,15 @@ installing on real devices second, hosting last.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
-        "Toutes les", the ten-year end, the wrapping "Ends" chips, the budget's day picker, and the budget form's limits
-        (#69: the count, the date pickers, amounts kept to two decimals, and the number keyboard, which only a phone
-        shows). So far only rendered offscreen at 360 dp.
+        "Toutes les", the ten-year end, the wrapping "Ends" chips and the budget's day picker; then the budget form's
+        limits (the count, the date pickers, amounts kept to two decimals, and the number keyboard, which only a phone
+        shows) and the date and time fields opened by a tap, with a calendar or a clock instead of "Choisir" (both after
+        #69 and #70, which were merged before them). So far only rendered offscreen at 360 dp.
       - Desktop only, already covered on Android: the tray and closing to it (#70; the phone rings from its exact alarm
         with the app closed, #65), one instance (Android runs one by itself), the notification balloons, and opening with
         the session (the phone puts the alarm back after a reboot: #65's boot receiver).
       - Later, on both: the splash, which the owner finds too quick (the desktop's is `KadansSplash`, Android 12+'s is the
-        system splash, `avd_splash`: two drawings of one animation, to change together); the date and time fields at
-        360 dp in French and Kreyòl; editing a todo's rule.
+        system splash, `avd_splash`: two drawings of one animation, to change together); editing a todo's rule.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 
@@ -598,7 +598,7 @@ Nice-to-have hardening
 | Where | Problem |
 |-------|---------|
 | `clients/app`: budget's movement form | ~~The server's limits were not in the form: a repeat count over 5,000, an end more than ten years after the start, a repeating start more than a year ago, an amount with three decimals or above a trillion. Each was refused by the server, with its message, after the form was filled~~ fixed 2026-10-09: the fields keep within them (the count says "At most 5,000 times", the date pickers offer only days the server takes, the amount fields keep two decimals and twelve digits), and a weekly movement starts on its first chosen day, as todos do. Checked at each boundary against a local API |
-| `clients/app`: forms on narrow phones | At 360 dp in French and Kreyòl, the date and time fields' "Choisir" / "Chwazi" button leaves the value too little room and it wraps ("2026-10-1" over "0"). Open: open the picker by tapping the field, without the button |
+| `clients/app`: forms on narrow phones | ~~At 360 dp in French and Kreyòl, the date and time fields' "Choisir" / "Chwazi" button left the value too little room and it wrapped ("2026-10-1" over "0")~~ fixed 2026-10-10: a date or time field opens its picker when tapped anywhere (or with Enter or Space), and a calendar or a clock replaces the button (`PickerField`: the todo form, the budget form, moving an occurrence) |
 | `clients/app`: todo screen | ~~The rule showed as RRULE text and each occurrence as a UTC instant (`2026-10-12T10:30:00Z` for a 06:30 alarm in Port-au-Prince)~~ fixed 2026-10-09: the rule in words, the occurrences in the device's time |
 | `clients/app`: French interval sentence | ~~"Tous les 2 semaines", "Tous les 5 minutes": one plural prefix for every unit, whatever its gender~~ fixed 2026-10-09: one whole phrase per unit |
 | `clients/app`: create-todo end date | ~~The form offered an end on the day ten years after the start; at its default end of that day it is past the server's ten years from the first instant, and the server refused it~~ fixed 2026-10-09: the last end day offered is the day before |

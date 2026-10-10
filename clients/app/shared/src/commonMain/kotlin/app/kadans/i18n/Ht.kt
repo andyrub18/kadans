@@ -192,7 +192,7 @@ val CreoleStrings = StringsCatalog(
     noTodosYet = "Poko gen tach.", refresh = "Aktyalize", signOut = "Dekonekte", cycles = "Sik yo", retry = "Eseye ankò",
     newTodo = "Nouvo tach", titleLabel = "Tit", descriptionOptional = "Deskripsyon (si ou vle)",
     oneTime = "Yon sèl fwa", recurring = "Ki repete", dueDate = "Dat limit", firstOn = "Premye fwa a",
-    timeLabel = "Lè", pick = "Chwazi", pickADate = "Chwazi yon dat",
+    timeLabel = "Lè", pickADate = "Chwazi yon dat",
     timesThatDay = "Lè yo nan jounen an (pou « 3 fwa pa jou »)", addTime = "+ Ajoute yon lè",
     sameMinuteError = "Tout lè yo dwe gen menm minit — pa egzanp 8:00, 14:00, 20:00 (se yon limit règ repetisyon an).",
     ends = "Li fini", endNever = "Janm", endAfterCount = "Apre yon kantite fwa", endOnDate = "Nan yon dat",

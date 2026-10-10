@@ -192,7 +192,7 @@ val FrenchStrings = StringsCatalog(
     noTodosYet = "Pas encore de tâches.", refresh = "Actualiser", signOut = "Se déconnecter", cycles = "Cycles", retry = "Réessayer",
     newTodo = "Nouvelle tâche", titleLabel = "Titre", descriptionOptional = "Description (facultatif)",
     oneTime = "Unique", recurring = "Récurrente", dueDate = "Date d'échéance", firstOn = "Première fois le",
-    timeLabel = "Heure", pick = "Choisir", pickADate = "Choisir une date",
+    timeLabel = "Heure", pickADate = "Choisir une date",
     timesThatDay = "Heures dans la journée (pour « 3 fois par jour »)", addTime = "+ Ajouter une heure",
     sameMinuteError = "Toutes les heures doivent partager les mêmes minutes — p. ex. 8:00, 14:00, 20:00 (contrainte de la règle de récurrence).",
     ends = "Se termine", endNever = "Jamais", endAfterCount = "Après un nombre de fois", endOnDate = "À une date",

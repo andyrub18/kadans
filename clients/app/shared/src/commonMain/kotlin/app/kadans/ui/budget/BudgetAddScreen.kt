@@ -39,6 +39,8 @@ import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.DateRange
+import app.kadans.ui.PickerField
+import app.kadans.ui.PickerKind
 import app.kadans.ui.WeekDayPicker
 import app.kadans.ui.todos.EndMode
 import app.kadans.ui.todos.RuleLimits
@@ -158,14 +160,13 @@ fun BudgetAddScreen(
                 }
             }
 
-            OutlinedTextField(
+            PickerField(
                 value = state.date?.toString() ?: "",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text(s.dueDate) },
-                trailingIcon = { TextButton(onClick = { dateTarget = BudgetDateTarget.Start }) { Text(s.pick) } },
+                label = s.dueDate,
+                kind = PickerKind.Date,
+                onPick = { dateTarget = BudgetDateTarget.Start },
                 isError = state.startTooOld,
-                supportingText = if (state.startTooOld) ({ Text(s.repeat.startWithinAYear) }) else null,
+                supportingText = if (state.startTooOld) s.repeat.startWithinAYear else null,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -241,13 +242,12 @@ fun BudgetAddScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         EndMode.OnDate ->
-                            OutlinedTextField(
+                            PickerField(
                                 value = state.untilDate?.toString() ?: "",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(s.lastOccurrenceOn) },
-                                placeholder = { Text(s.pickLastDay) },
-                                trailingIcon = { TextButton(onClick = { dateTarget = BudgetDateTarget.Until }) { Text(s.pick) } },
+                                label = s.lastOccurrenceOn,
+                                kind = PickerKind.Date,
+                                onPick = { dateTarget = BudgetDateTarget.Until },
+                                placeholder = s.pickLastDay,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         EndMode.Never -> {}

@@ -192,7 +192,7 @@ val EnglishStrings = StringsCatalog(
     noTodosYet = "No todos yet.", refresh = "Refresh", signOut = "Sign out", cycles = "Cycles", retry = "Retry",
     newTodo = "New todo", titleLabel = "Title", descriptionOptional = "Description (optional)",
     oneTime = "One-time", recurring = "Recurring", dueDate = "Due date", firstOn = "First on",
-    timeLabel = "Time", pick = "Pick", pickADate = "Pick a date",
+    timeLabel = "Time", pickADate = "Pick a date",
     timesThatDay = "Times that day (for “3 times a day”)", addTime = "+ Add time",
     sameMinuteError = "All daily times must share the same minutes — e.g. 8:00, 14:00, 20:00 (a recurrence-rule constraint).",
     ends = "Ends", endNever = "Never", endAfterCount = "After a number of times", endOnDate = "On a date",

@@ -84,6 +84,9 @@ kotlin {
         jvmMain.dependencies {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.swing)
+            // The Linux tray (StatusNotifierItem): D-Bus in pure Java, over the JDK's own Unix sockets
+            implementation(libs.dbus.java.core)
+            implementation(libs.dbus.java.transport.native.unixsocket)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

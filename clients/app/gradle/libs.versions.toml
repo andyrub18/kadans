@@ -19,6 +19,7 @@ androidx-credentials = "1.6.0"
 googleid = "1.2.1"
 play-billing = "9.1.0"
 google-services = "4.4.2"
+dbus-java = "5.2.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -57,6 +58,8 @@ play-billing = { module = "com.android.billingclient:billing-ktx", version.ref =
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "androidx-navigation3" }
+dbus-java-core = { module = "com.github.hypfvieh:dbus-java-core", version.ref = "dbus-java" }
+dbus-java-transport-native-unixsocket = { module = "com.github.hypfvieh:dbus-java-transport-native-unixsocket", version.ref = "dbus-java" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

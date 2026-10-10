@@ -262,6 +262,17 @@ installing on real devices second, hosting last.
 - [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
       `packageVersion 1.0.0`)
 - [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
+- [x] The desktop app stays in the tray on Linux, 2026-10-09 (found testing on Pop!_OS 24.04: closing the window quit
+      Kadans, so nothing rang until it was opened again). COSMIC shows only the freedesktop tray (StatusNotifierItem
+      over D-Bus); AWT's tray speaks only XEmbed, so the app saw no tray and quit on close by design. Now
+      `tray/StatusNotifierTray` publishes the icon and its menu (Open Kadans / Quit, in the app's language) with
+      dbus-java, registering again when the panel restarts; AWT's tray stays for Windows, macOS and XEmbed desktops.
+      Kadans runs once per user (`desktop/SingleInstance`): a second start shows the running window instead of a
+      second copy ringing every reminder twice. The installed app: the runtime gets the two modules D-Bus needs, the
+      window's X11 class matches its launcher (dock icon), and it sits under Office in the menu. On Windows and macOS
+      the notification balloons no longer add a second tray icon. ARCHITECTURE → "The desktop app: in the tray, once".
+- [ ] Proposed: start Kadans with the session, hidden in the tray, so reminders ring after a reboot without opening it
+      (XDG autostart on Linux, the Run key on Windows, a login item on macOS), with a switch in Settings.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 
@@ -580,6 +591,10 @@ Nice-to-have hardening
 | SharedKernel: `RecurrenceSchedule` | ~~A start with a fraction of a second (what `new Date().toISOString()` sends) expanded to the whole second before it, which the start itself then filtered out: a one-time todo created that way had no occurrence at all (never in the calendar, never reminded), and a recurring one lost its first. The app sends whole minutes and was not affected~~ fixed 2026-10-08: starts and exceptions are cut to whole seconds, iCalendar's precision. Found by the load test, whose k6 script sends milliseconds |
 | `clients/app`: sign-up and profile | ~~Sign-up sent neither the device time zone nor the app language, and nothing synced them later (Google-created accounts included), so the account stayed on UTC and English: reminders showed the start in UTC ("Starts at 01:28" for a 21:28 start in Port-au-Prince), server texts and emails were English, and focus-stats days and Budget month boundaries followed UTC~~ fixed 2026-10-01: new accounts start with the device's zone and the app's language, and the app brings existing accounts in line at its next start (ships with the next app build) |
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |
+| Desktop on COSMIC (and GNOME without the AppIndicator extension) | ~~No tray: AWT's tray needs XEmbed, so closing the window quit Kadans and nothing rang until it was opened again~~ fixed 2026-10-09: the freedesktop tray over D-Bus |
+| Desktop: a second start | ~~Ran a second copy: two live connections, and every reminder rang twice~~ fixed 2026-10-09: the second start shows the first one's window and exits |
+| Desktop on Windows and macOS | ~~The first notification balloon added a second Kadans icon next to the tray's own~~ fixed 2026-10-09: balloons use the app's icon (not run on those systems yet) |
+| Desktop: the installed `.deb` | ~~The window's X11 class (`app-kadans-desktop-MainKt`) matched no launcher, so docks showed a generic icon, and the menu listed Kadans under "Unknown"~~ fixed 2026-10-09: the class is the launcher's name, under Office |
 | `tools/smoke/*_flows.py` | ~~task, notification and pomodoro scripts logged in as `admin`, which has MFA in the dev database, and crashed on the challenge~~ fixed 2026-09-17: they default to the `smoke` user like the budget script, `[username] [password]` override |
 | `tools/smoke/identity_flows.py` | ~~Not re-runnable: it registers `alice` and never removes her, so a second run against the same database fails at step one (`DuplicateUserName`)~~ fixed 2026-09-18: a fresh `alice<timestamp>` per run |
 | Budget: `RecurringTransactionJob` | ~~Took 500 due rules per pass with no order (EF warned "row limiting operator without an 'OrderBy'" in the production log). Every active rule is due on every pass, so past 500 rules the same ones could be skipped each time~~ fixed 2026-09-30: least recently materialized first, never-materialized before all |

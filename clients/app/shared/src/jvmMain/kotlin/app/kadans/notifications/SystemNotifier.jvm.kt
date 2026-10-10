@@ -19,7 +19,7 @@ actual fun showSystemNotification(title: String, body: String) {
         if ("linux" in os) {
             linuxNotify(title, body)
         } else {
-            trayIcon?.displayMessage(title, body, TrayIcon.MessageType.INFO)
+            balloonIcon()?.displayMessage(title, body, TrayIcon.MessageType.INFO)
         }
     }
     runCatching { Toolkit.getDefaultToolkit().beep() }
@@ -57,9 +57,15 @@ private val iconFile: String? by lazy {
     }.getOrNull()
 }
 
-private val trayIcon: TrayIcon? by lazy {
+/** The app's own tray icon (the window's, with its menu) when it shows one; a second icon would sit next to it. */
+private fun balloonIcon(): TrayIcon? = runCatching {
+    if (!SystemTray.isSupported()) return null
+    SystemTray.getSystemTray().trayIcons.firstOrNull() ?: ownTrayIcon
+}.getOrNull()
+
+/** For balloons when the app shows no tray icon of its own. */
+private val ownTrayIcon: TrayIcon? by lazy {
     runCatching {
-        if (!SystemTray.isSupported()) return@runCatching null
         val size = SystemTray.getSystemTray().trayIconSize
         val image = iconImage?.getScaledInstance(size.width, size.height, Image.SCALE_SMOOTH)
             ?: BufferedImage(size.width, size.height, BufferedImage.TYPE_INT_ARGB)

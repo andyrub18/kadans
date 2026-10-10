@@ -43,6 +43,7 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.WeekDayPicker
 import org.koin.compose.viewmodel.koinViewModel
 
 private enum class TimeTarget { Start, ExtraTime, Until }
@@ -145,10 +146,24 @@ fun CreateTodoScreen(
                         enabled = state.interval > CreateTodoViewModel.minInterval(state.frequency),
                     ) { Text("−") }
                     Text(
-                        s.every(state.frequency, state.interval),
+                        s.repeat.every(state.frequency, state.interval),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
+                }
+
+                if (state.frequency == Frequency.Weekly) {
+                    // "Monday to Friday": the first date's own day is chosen until others are; the last one stays.
+                    Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
+                    WeekDayPicker(state.weekDays, onToggle = { day -> viewModel.update { CreateTodoViewModel.toggleDay(it, day) } })
+                    val first = state.firstDate
+                    if (first != null && first != state.date) {
+                        Text(
+                            s.repeat.firstTime(RuleSummary.day(first, s)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
                 if (state.frequency == Frequency.Daily) {
@@ -173,7 +188,7 @@ fun CreateTodoScreen(
                 }
 
                 Text(s.ends, style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = state.endMode == EndMode.Never,
                         onClick = { viewModel.update { it.copy(endMode = EndMode.Never) } },
@@ -257,9 +272,9 @@ fun CreateTodoScreen(
 
     val pickingDate = dateTarget
     if (pickingDate != null) {
-        // Only dates the server accepts: a start from today on, an end between the start and ten years after it.
+        // Only dates the server accepts: a start from today on, an end between the first occurrence and ten years after it.
         val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
-        val first = if (pickingDate == DateTarget.Until) state.date ?: today else today
+        val first = if (pickingDate == DateTarget.Until) state.firstDate ?: today else today
         val last = if (pickingDate == DateTarget.Until) CreateTodoViewModel.latestEnd(first) else null
         val pickerState = rememberDatePickerState(selectableDates = DateRange(first, last))
         DatePickerDialog(

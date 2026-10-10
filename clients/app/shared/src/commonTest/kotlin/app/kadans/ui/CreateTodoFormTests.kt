@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
@@ -13,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -81,14 +83,76 @@ class CreateTodoFormTests {
     }
 
     @Test
-    fun an_end_date_is_at_most_ten_years_after_the_start() {
+    fun an_end_date_is_within_ten_years_of_the_start() {
         val start = LocalDate(2027, 1, 4)
         val byDate = recurring().copy(endMode = EndMode.OnDate)
 
-        assertEquals(LocalDate(2037, 1, 4), CreateTodoViewModel.latestEnd(start))
-        assertTrue(byDate.copy(untilDate = LocalDate(2037, 1, 4)).canSubmit)
-        assertFalse(byDate.copy(untilDate = LocalDate(2037, 1, 5)).canSubmit)
+        // The server counts ten years from the first instant (09:00): ending at 23:59 ten years later is past it.
+        assertEquals(LocalDate(2037, 1, 3), CreateTodoViewModel.latestEnd(start))
+        assertTrue(byDate.copy(untilDate = LocalDate(2037, 1, 3)).canSubmit)
+        assertFalse(byDate.copy(untilDate = LocalDate(2037, 1, 4)).canSubmit)
         assertFalse(byDate.copy(untilDate = LocalDate(2027, 1, 3)).canSubmit)
+    }
+
+    @Test
+    fun a_weekly_rule_falls_on_the_first_dates_day_until_others_are_picked() {
+        val weekly = recurring().copy(frequency = Frequency.Weekly) // 2027-01-04 is a Monday
+
+        assertEquals(setOf(ApiDayOfWeek.Monday), weekly.weekDays)
+        assertEquals(LocalDate(2027, 1, 4), weekly.firstDate)
+        assertEquals(listOf(ApiDayOfWeek.Monday), CreateTodoViewModel.buildRecurring(weekly, portAuPrince).recurrenceRule.byDayOfWeek)
+        // Other frequencies send no days, whatever was picked while on Weekly.
+        val daily = weekly.copy(frequency = Frequency.Daily, byDays = setOf(ApiDayOfWeek.Friday))
+        assertEquals(null, CreateTodoViewModel.buildRecurring(daily, portAuPrince).recurrenceRule.byDayOfWeek)
+        assertEquals(LocalDate(2027, 1, 4), daily.firstDate)
+    }
+
+    @Test
+    fun monday_to_friday_picked_on_a_saturday_starts_on_monday() {
+        val workdays = setOf(ApiDayOfWeek.Friday, ApiDayOfWeek.Monday, ApiDayOfWeek.Wednesday, ApiDayOfWeek.Tuesday, ApiDayOfWeek.Thursday)
+        val alarm = recurring().copy(frequency = Frequency.Weekly, date = LocalDate(2027, 1, 2), time = LocalTime(6, 30), byDays = workdays)
+
+        assertEquals(LocalDate(2027, 1, 4), alarm.firstDate)
+        val rule = CreateTodoViewModel.buildRecurring(alarm, portAuPrince).recurrenceRule
+        // The start is the first occurrence (RFC 5545): Monday 06:30 in Port-au-Prince, UTC−5 in January.
+        assertEquals(Instant.parse("2027-01-04T11:30:00Z"), rule.startDate)
+        assertEquals(
+            listOf(ApiDayOfWeek.Monday, ApiDayOfWeek.Tuesday, ApiDayOfWeek.Wednesday, ApiDayOfWeek.Thursday, ApiDayOfWeek.Friday),
+            rule.byDayOfWeek,
+        )
+        assertEquals(Frequency.Weekly, rule.frequency)
+    }
+
+    @Test
+    fun a_day_chip_toggles_from_what_is_shown_and_the_last_day_stays() {
+        val weekly = recurring().copy(frequency = Frequency.Weekly) // shows Monday, the first date's day
+
+        val withTuesday = CreateTodoViewModel.toggleDay(weekly, ApiDayOfWeek.Tuesday)
+        assertEquals(setOf(ApiDayOfWeek.Monday, ApiDayOfWeek.Tuesday), withTuesday.weekDays)
+        val tuesdayOnly = CreateTodoViewModel.toggleDay(withTuesday, ApiDayOfWeek.Monday)
+        assertEquals(setOf(ApiDayOfWeek.Tuesday), tuesdayOnly.weekDays)
+        assertEquals(LocalDate(2027, 1, 5), tuesdayOnly.firstDate)
+        assertEquals(tuesdayOnly, CreateTodoViewModel.toggleDay(tuesdayOnly, ApiDayOfWeek.Tuesday))
+        // Before a date is picked nothing is shown, and the first tap picks that day.
+        val noDate = weekly.copy(date = null)
+        assertEquals(emptySet(), noDate.weekDays)
+        assertEquals(setOf(ApiDayOfWeek.Sunday), CreateTodoViewModel.toggleDay(noDate, ApiDayOfWeek.Sunday).weekDays)
+    }
+
+    @Test
+    fun an_end_before_the_first_chosen_day_is_refused() {
+        val fromSaturday = recurring().copy(
+            frequency = Frequency.Weekly,
+            date = LocalDate(2027, 1, 2),
+            byDays = setOf(ApiDayOfWeek.Monday, ApiDayOfWeek.Wednesday),
+            endMode = EndMode.OnDate,
+        )
+
+        assertFalse(fromSaturday.copy(untilDate = LocalDate(2027, 1, 3)).canSubmit)
+        assertTrue(fromSaturday.copy(untilDate = LocalDate(2027, 1, 4)).canSubmit)
+        // Ten years count from that Monday too.
+        assertTrue(fromSaturday.copy(untilDate = LocalDate(2037, 1, 3)).canSubmit)
+        assertFalse(fromSaturday.copy(untilDate = LocalDate(2037, 1, 4)).canSubmit)
     }
 
     @Test

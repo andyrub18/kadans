@@ -243,6 +243,18 @@ installing on real devices second, hosting last.
       themed version, the notification icon, the Play Store icon, the desktop's window, tray and packaged icons, and
       the splash, the hands winding into the K in one second (Android 12+ in the system splash, the desktop in the
       app). Checked on an Android 15 emulator: the icon, the splash frame by frame, the notification.
+- [x] Weekly todos on chosen days, 2026-10-09 (found testing the desktop app: "Monday to Friday" could not be made,
+      though the API always could). A weekly rule shows the seven days as one row of toggles (the budget's recurring
+      form uses the same picker now); the first date's own day is chosen until others are, and the last one stays.
+      The rule starts on its first chosen day from the date picked, as RFC 5545 wants ("First time: Mon 2026-10-12"
+      says so when it moves). Ical.Net already skipped a start off the rule, so no stored rule is wrong. The todo
+      screen reads its rule in words ("Every week · Mon–Fri · 07:00", in each language; a rule with parts the app
+      does not word, made through the API, still shows its RRULE) and its occurrences in the device's time
+      ("Mon 2026-10-12 06:30" instead of a UTC instant). On the way: the French interval sentence agrees with its
+      unit ("Toutes les 2 semaines"; whole phrases in a `RepeatStrings` group, which also frees 13 slots of the flat
+      catalog), an end exactly ten years after the start is no longer offered (the server refused it), and the
+      "Ends" chips wrap on narrow phones instead of squeezing the last one. Checked against a local API: Mon–Fri at
+      06:30 in Port-au-Prince, weeks of occurrences on weekdays only.
 - [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
 - [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
       `packageVersion 1.0.0`)
@@ -557,6 +569,11 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
+| `clients/app`: budget's recurring form | No limits on the repeat count or the end date: more than 5,000 times or an end more than ten years away is refused by the server, with its message, after the form was filled. Open: to fix with the budget wording rework, the way the todo form does it |
+| `clients/app`: forms on narrow phones | At 360 dp in French and Kreyòl, the date and time fields' "Choisir" / "Chwazi" button leaves the value too little room and it wraps ("2026-10-1" over "0"). Open: open the picker by tapping the field, without the button |
+| `clients/app`: todo screen | ~~The rule showed as RRULE text and each occurrence as a UTC instant (`2026-10-12T10:30:00Z` for a 06:30 alarm in Port-au-Prince)~~ fixed 2026-10-09: the rule in words, the occurrences in the device's time |
+| `clients/app`: French interval sentence | ~~"Tous les 2 semaines", "Tous les 5 minutes": one plural prefix for every unit, whatever its gender~~ fixed 2026-10-09: one whole phrase per unit |
+| `clients/app`: create-todo end date | ~~The form offered an end on the day ten years after the start; at its default end of that day it is past the server's ten years from the first instant, and the server refused it~~ fixed 2026-10-09: the last end day offered is the day before |
 | SharedKernel: `RecurrenceSchedule` | ~~A start with a fraction of a second (what `new Date().toISOString()` sends) expanded to the whole second before it, which the start itself then filtered out: a one-time todo created that way had no occurrence at all (never in the calendar, never reminded), and a recurring one lost its first. The app sends whole minutes and was not affected~~ fixed 2026-10-08: starts and exceptions are cut to whole seconds, iCalendar's precision. Found by the load test, whose k6 script sends milliseconds |
 | `clients/app`: sign-up and profile | ~~Sign-up sent neither the device time zone nor the app language, and nothing synced them later (Google-created accounts included), so the account stayed on UTC and English: reminders showed the start in UTC ("Starts at 01:28" for a 21:28 start in Port-au-Prince), server texts and emails were English, and focus-stats days and Budget month boundaries followed UTC~~ fixed 2026-10-01: new accounts start with the device's zone and the app's language, and the app brings existing accounts in line at its next start (ships with the next app build) |
 | `clients/app` `ui/todos/EditTodoViewModel.kt` | ~~`save()` leaves `isSaving = true` on success; with ViewModels outliving nav entries the second edit of a todo shows a stuck spinner and re-sends a stale `pomodoroTemplateId`~~ fixed 2026-09-17: ViewModels are scoped to their nav entry (`rememberViewModelStoreNavEntryDecorator`) |

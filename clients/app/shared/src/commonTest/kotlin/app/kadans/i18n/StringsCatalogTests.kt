@@ -20,14 +20,18 @@ class StringsCatalogTests {
 
     @Test
     fun intervalSentencesFollowEachLanguagesGrammar() {
-        assertEquals("Every day", EnglishStrings.every(Frequency.Daily, 1))
-        assertEquals("Every 2 hours", EnglishStrings.every(Frequency.Hourly, 2))
-        // French switches determiner between singular and plural.
-        assertEquals("Chaque jour", FrenchStrings.every(Frequency.Daily, 1))
-        assertEquals("Tous les 2 heures", FrenchStrings.every(Frequency.Hourly, 2))
+        assertEquals("Every day", EnglishStrings.repeat.every(Frequency.Daily, 1))
+        assertEquals("Every 2 hours", EnglishStrings.repeat.every(Frequency.Hourly, 2))
+        assertEquals("Every 3 weeks", EnglishStrings.repeat.every(Frequency.Weekly, 3))
+        // French switches determiner between singular and plural, and agrees with the unit's gender.
+        assertEquals("Chaque jour", FrenchStrings.repeat.every(Frequency.Daily, 1))
+        assertEquals("Tous les 2 jours", FrenchStrings.repeat.every(Frequency.Daily, 2))
+        assertEquals("Toutes les 2 heures", FrenchStrings.repeat.every(Frequency.Hourly, 2))
+        assertEquals("Toutes les 2 semaines", FrenchStrings.repeat.every(Frequency.Weekly, 2))
+        assertEquals("Chaque année", FrenchStrings.repeat.every(Frequency.Yearly, 1))
         // Creole nouns don't inflect for number.
-        assertEquals("Chak jou", CreoleStrings.every(Frequency.Daily, 1))
-        assertEquals("Chak 2 jou", CreoleStrings.every(Frequency.Daily, 2))
+        assertEquals("Chak jou", CreoleStrings.repeat.every(Frequency.Daily, 1))
+        assertEquals("Chak 2 jou", CreoleStrings.repeat.every(Frequency.Daily, 2))
     }
 
     @Test

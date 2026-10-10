@@ -4,13 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
+import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.CreateOneTimeTodo
 import app.kadans.api.model.CreateRecurrenceRule
 import app.kadans.api.model.CreateRecurringTodo
 import app.kadans.api.model.Frequency
+import app.kadans.ui.mondayFirstDays
+import app.kadans.ui.toApi
 import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -50,11 +54,27 @@ data class CreateTodoUiState(
     val untilTime: LocalTime? = null,
     /** Extra wall-clock times for "N times a day" (Daily only); empty = the single [time]. */
     val times: List<LocalTime> = emptyList(),
+    /** Weekly only: the days picked ("Monday to Friday"). None picked = the first date's own day, a plain weekly rule. */
+    val byDays: Set<ApiDayOfWeek> = emptySet(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val errorCode: String? = null,
 ) {
     val timesShareMinute: Boolean get() = times.map { it.minute }.distinct().size <= 1
+
+    /** The days a weekly rule repeats on, as the day picker shows them: the ones picked, else the first date's. */
+    val weekDays: Set<ApiDayOfWeek> get() = byDays.ifEmpty { setOfNotNull(date?.dayOfWeek?.toApi()) }
+
+    /**
+     * The day of the first occurrence. A weekly rule starts on its first chosen day from [date] on ("Monday to Friday"
+     * picked on a Saturday starts on Monday): RFC 5545 wants the start to be an occurrence, and COUNT counts from it.
+     */
+    val firstDate: LocalDate?
+        get() = if (mode == TodoMode.Recurring && frequency == Frequency.Weekly) {
+            date?.let { picked -> (0..6).map { picked.plus(it, DateTimeUnit.DAY) }.first { it.dayOfWeek.toApi() in weekDays } }
+        } else {
+            date
+        }
 
     /** More repeats than the server accepts: shown under the field, and the form cannot be sent. */
     val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > CreateTodoViewModel.MAX_COUNT
@@ -65,9 +85,11 @@ data class CreateTodoUiState(
             EndMode.AfterCount -> (count ?: 0) in 1..CreateTodoViewModel.MAX_COUNT
             // The end is a moment, not a day: "every 2 hours until Friday 18:00". It cannot precede the first
             // time, nor come more than ten years after it (the server's limit; the date picker enforces it too).
-            EndMode.OnDate -> untilDate != null &&
-                (date == null || LocalDateTime(untilDate, untilClock) >= LocalDateTime(date, times.minOrNull() ?: time)) &&
-                (date == null || untilDate <= CreateTodoViewModel.latestEnd(date))
+            EndMode.OnDate -> untilDate != null && firstDate.let { first ->
+                first == null ||
+                    LocalDateTime(untilDate, untilClock) >= LocalDateTime(first, times.minOrNull() ?: time) &&
+                    untilDate <= CreateTodoViewModel.latestEnd(first)
+            }
         }
 
     /** The wall-clock time the rule ends at on [untilDate]. */
@@ -126,15 +148,24 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
             times = if (frequency == Frequency.Daily) state.times else emptyList(),
         )
 
-        /** The last day a rule starting on [start] may end on. */
-        fun latestEnd(start: LocalDate): LocalDate = start.plus(MAX_YEARS, DateTimeUnit.YEAR)
+        /**
+         * The last day a rule starting on [start] may end on. The server allows ten years from the first instant, so an
+         * end on that same day ten years later, at the end of the day the form defaults to, would be refused.
+         */
+        fun latestEnd(start: LocalDate): LocalDate = start.plus(MAX_YEARS, DateTimeUnit.YEAR).minus(1, DateTimeUnit.DAY)
 
         fun effectiveTime(state: CreateTodoUiState): LocalTime =
             state.times.minOrNull() ?: state.time
 
-        /** The picked wall-clock date/time is meant in the user's zone; the API takes instants. */
+        /** The first occurrence's wall-clock date/time is meant in the user's zone; the API takes instants. */
         fun startInstant(state: CreateTodoUiState, timeZone: TimeZone): Instant =
-            LocalDateTime(state.date!!, effectiveTime(state)).toInstant(timeZone)
+            LocalDateTime(state.firstDate!!, effectiveTime(state)).toInstant(timeZone)
+
+        /** A tap on a day picks or drops it, starting from the days shown; the last one stays. */
+        fun toggleDay(state: CreateTodoUiState, day: ApiDayOfWeek): CreateTodoUiState {
+            val days = state.weekDays.let { if (day in it) it - day else it + day }
+            return if (days.isEmpty()) state else state.copy(byDays = days)
+        }
 
         fun buildOneTime(state: CreateTodoUiState, timeZone: TimeZone) = CreateOneTimeTodo(
             title = state.title.trim(),
@@ -159,6 +190,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                     interval = state.interval,
                     byHour = if (daily) state.times.map { it.hour }.distinct().sorted() else null,
                     byMinute = if (daily) listOf(state.times.first().minute) else null,
+                    byDayOfWeek = if (state.frequency == Frequency.Weekly) mondayFirstDays.filter { it in state.weekDays } else null,
                     count = if (state.endMode == EndMode.AfterCount) state.count else null,
                     // RRULE's UNTIL is inclusive. Without a picked time it is the end of that day in the
                     // user's zone, so the whole last day counts; with one, an occurrence at exactly that
@@ -169,19 +201,6 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                     timeZone = timeZone.id,
                 ),
             )
-        }
-
-        /** "Every day", "Every 2 hours" — the stepper's sentence. */
-        fun everyLabel(frequency: Frequency, interval: Int): String {
-            val unit = when (frequency) {
-                Frequency.Minutely -> "minute"
-                Frequency.Hourly -> "hour"
-                Frequency.Daily -> "day"
-                Frequency.Weekly -> "week"
-                Frequency.Monthly -> "month"
-                Frequency.Yearly -> "year"
-            }
-            return if (interval == 1) "Every $unit" else "Every $interval ${unit}s"
         }
     }
 }

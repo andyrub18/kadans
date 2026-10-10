@@ -99,7 +99,7 @@ private fun Detail(
         content.todo.recurrenceRule?.let { rule ->
             item {
                 Text(
-                    "${rule.rrule} · ${rule.timeZoneId}",
+                    RuleSummary.describe(rule, s, kotlinx.datetime.TimeZone.currentSystemDefault()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -271,7 +271,10 @@ private fun OccurrenceRow(
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(occurrence.scheduledAt.toString(), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    RuleSummary.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault(), s),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Text(
                     s.occurrenceStatusName(occurrence.status) + if (occurrence.isRescheduled) " · " + s.moved else "",
                     style = MaterialTheme.typography.labelMedium,

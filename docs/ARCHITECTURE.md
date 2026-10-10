@@ -493,6 +493,35 @@ Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/
 codebase, which matches the requirement of reliable background timers + OS notifications on
 desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 
+### The desktop app: in the tray, once
+
+Closing the window hides it: the timer that rings reminders, the live connection and a running focus session go on, and
+the tray icon brings the window back ("Open Kadans") or quits. The menu follows the app's language.
+
+- **Linux: the freedesktop tray.** A StatusNotifierItem on the session bus, its menu over `com.canonical.dbusmenu`
+  (`tray/StatusNotifierTray`). That is what COSMIC, KDE Plasma and GNOME with the AppIndicator extension (Ubuntu's
+  default) show. AWT's `SystemTray` speaks only the older XEmbed protocol, which COSMIC does not host at all: there it
+  reported no tray, and closing the window quit Kadans (found on Pop!_OS 24.04, 2026-10-09). D-Bus comes from
+  dbus-java (MIT, pure Java over the JDK's own Unix sockets, no native code; JetBrains Toolbox shows its tray the same
+  way). The icon registers again when the panel restarts. Without a host showing items, Kadans uses AWT's tray, and
+  without any tray the close button quits, as before, so the app is never left running invisible.
+- **Elsewhere: AWT's tray**, which is the system's own on Windows and macOS. Notification balloons use that same icon
+  (they used to add a second one). macOS: clicking the Dock icon shows the window again (untested: no Mac yet).
+- **One Kadans per user** (`desktop/SingleInstance`): a lock file the system releases however the process ends, and a
+  Unix socket beside it, in a folder only the user can open (`$XDG_RUNTIME_DIR/kadans` on Linux). A second start, such
+  as the launcher clicked while Kadans sits in the tray, connects, the first shows its window, and the second exits.
+  Without it, a second copy would hold a second live connection and ring every reminder twice. Dev and installed builds
+  share their settings, so they share the lock. Nothing about it can stop Kadans from starting: no usable folder, no
+  lock.
+- **The installed app** (`packageDeb`): the runtime image adds `jdk.security.auth` and `jdk.net` (dbus-java's login and
+  socket options). The main class is `kadans.Kadans`, so the window's X11 class is `kadans-Kadans`, the name of the
+  launcher jpackage installs (it writes no `StartupWMClass`): that is how docks match the window to its icon.
+
+Checked on COSMIC (Pop!_OS 24.04), from Gradle and from the packaged runtime: the icon in the panel, close hides, the
+icon's click and the menu bring the window back, Quit ends the app and removes the icon, and a second start shows the
+first. `StatusNotifierTrayTests` replays it against a private bus (dbus-java's own daemon and a fake panel), so CI needs
+no desktop. Not done: starting Kadans with the session, so reminders ring after a reboot without opening it.
+
 ## Domain designs
 
 ### Recurrence (SharedKernel – used by Tasks and by Budget periods / recurring transactions)

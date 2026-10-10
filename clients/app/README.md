@@ -10,6 +10,9 @@ structure: all UI and logic live in `shared` (a KMP library); `androidApp`, `des
 # iOS: open iosApp/iosApp.xcodeproj in Xcode (macOS only)
 ```
 
+The desktop app closes to the tray and runs once per user: while a Kadans runs (an installed one included, they share
+their settings), `:desktopApp:run` shows that one's window and exits. Quit it from its tray icon first.
+
 **Continue with Google** appears on the Login screen only when the server publishes the client id this
 platform needs (`GET /auth/providers`; setup in `docs/OWNER-CHECKLIST.md`). Desktop opens the system
 browser and listens on a throwaway `127.0.0.1` port (loopback + PKCE), then lets the server exchange the

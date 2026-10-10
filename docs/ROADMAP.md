@@ -275,18 +275,31 @@ installing on real devices second, hosting last.
       it. Installed builds only; on from the first run, with a switch in Settings → This computer. Linux: an XDG
       autostart entry (checked on COSMIC); Windows: the Run key (not run on Windows yet); macOS: with the Mac build.
       ARCHITECTURE → "The desktop app: in the tray, once".
+- [x] Editing a todo's rule, 2026-10-10: the edit screen shows a recurring todo's rule as the create form would make it
+      (days, dates, positions, months, times, the end) and sends it only once it is changed. It starts from the next
+      occurrence nobody moved, at its first time still ahead (a rule with 08:00, 14:00 and 20:00 edited at 15:00 starts at
+      20:00 that day, which is kept); a counted rule keeps the times it had left, which the server now reads from the
+      rule (`remaining` on `GET /todos/{id}`: past rows are not counted, retention removes them). The server keeps every
+      occurrence someone moved, completed or annotated and regenerates the rest, so a moved one can sit beside the new
+      rule's on its day (the owner's choice; the screen says so). A rule made through the API with parts the form cannot
+      show says it would be replaced. On the way: the create form no longer sends a start already gone (a one-time todo
+      for a past time says so; a rule with several times set up in the afternoon starts at the next one), and every
+      change made on a device fetches its reminders at once, without waiting for the hub's signal (`remindersChanged`).
+      Checked against a local API: an edit as the app makes it keeps the moved occurrence, drops the old times and
+      creates the new ones.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
         "Toutes les", the ten-year end, the wrapping "Ends" chips and the budget's day picker; then the budget form's
         limits (the count, the date pickers, amounts kept to two decimals, and the number keyboard, which only a phone
         shows) and the date and time fields opened by a tap, with a calendar or a clock instead of "Choisir" (both after
-        #69 and #70, which were merged before them). So far only rendered offscreen at 360 dp.
+        #69 and #70, which were merged before them); then editing a todo's rule and the reminders fetched at once after a
+        change on the phone. So far only rendered offscreen at 360 dp.
       - Desktop only, already covered on Android: the tray and closing to it (#70; the phone rings from its exact alarm
         with the app closed, #65), one instance (Android runs one by itself), the notification balloons, and opening with
         the session (the phone puts the alarm back after a reboot: #65's boot receiver).
       - Later, on both: the splash, which the owner finds too quick (the desktop's is `KadansSplash`, Android 12+'s is the
-        system splash, `avd_splash`: two drawings of one animation, to change together); editing a todo's rule.
+        system splash, `avd_splash`: two drawings of one animation, to change together).
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

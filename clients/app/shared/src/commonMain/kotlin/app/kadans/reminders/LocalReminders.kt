@@ -71,11 +71,12 @@ class LocalReminders(
         // Requests made while a fetch runs collapse into one more fetch after it. A failed fetch never stops the next.
         scope.launch { for (request in requests) attempt { sync() } }
         // The account's reminders changed (here or elsewhere), the hub is back after a drop that may have lost that
-        // signal, or this device changed the account's language or time zone, which the reminders' words follow. From
-        // the start, so a change made as the app opens is not missed.
+        // signal, this device changed a todo (its own saves don't wait for the hub), or this device changed the
+        // account's language or time zone, which the reminders' words follow. From the start, so a change made as the
+        // app opens is not missed.
         scope.launch {
             val signals = realtimeEvents.filter { it is RealtimeEvent.RemindersChanged || it is RealtimeEvent.Reconnected }
-            merge(signals, api.profileChanged).collect { syncSoon() }
+            merge(signals, api.profileChanged, api.remindersChanged).collect { syncSoon() }
         }
     }
 

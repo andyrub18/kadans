@@ -155,25 +155,27 @@ class TodosApi internal constructor(private val api: KadansApi) {
     suspend fun get(id: String): TodoResponse = api.http.get("todos/$id").orThrow()
 
     suspend fun createOneTime(request: CreateOneTimeTodo): TodoResponse =
-        api.http.post("todos/one-time") { setBody(request) }.orThrow()
+        api.http.post("todos/one-time") { setBody(request) }.orThrow<TodoResponse>().also { api.remindersChanged() }
 
     suspend fun createRecurring(request: CreateRecurringTodo): TodoResponse =
-        api.http.post("todos/recurring") { setBody(request) }.orThrow()
+        api.http.post("todos/recurring") { setBody(request) }.orThrow<TodoResponse>().also { api.remindersChanged() }
 
     suspend fun update(id: String, request: UpdateTodo): TodoResponse =
-        api.http.put("todos/$id") { setBody(request) }.orThrow()
+        api.http.put("todos/$id") { setBody(request) }.orThrow<TodoResponse>().also { api.remindersChanged() }
 
     /** For good, with its occurrences, remarks and focus history (unlike [cancel]). */
     suspend fun delete(id: String) {
         api.http.delete("todos/$id").orThrow<Success>()
+        api.remindersChanged()
     }
 
     suspend fun cancel(id: String, reason: String = "") {
         api.http.put("todos/$id/cancel") { setBody(CancelRequest(reason)) }.orThrow<Success>()
+        api.remindersChanged()
     }
 
     suspend fun rescheduleNext(id: String, request: RescheduleOccurrence): TodoOccurrenceResponse =
-        api.http.put("todos/$id/reschedule") { setBody(request) }.orThrow()
+        api.http.put("todos/$id/reschedule") { setBody(request) }.orThrow<TodoOccurrenceResponse>().also { api.remindersChanged() }
 
     suspend fun addRemark(id: String, remark: String) {
         api.http.post("todos/$id/remarks") { setBody(AddRemark(remark)) }.orThrow<Success>()
@@ -200,14 +202,16 @@ class TodosApi internal constructor(private val api: KadansApi) {
 
     suspend fun completeOccurrence(occurrenceId: String) {
         api.http.put("occurrences/$occurrenceId/complete").orThrow<Success>()
+        api.remindersChanged()
     }
 
     suspend fun cancelOccurrence(occurrenceId: String, reason: String = "") {
         api.http.put("occurrences/$occurrenceId/cancel") { setBody(CancelRequest(reason)) }.orThrow<Success>()
+        api.remindersChanged()
     }
 
     suspend fun rescheduleOccurrence(occurrenceId: String, request: RescheduleOccurrence): TodoOccurrenceResponse =
-        api.http.put("occurrences/$occurrenceId/reschedule") { setBody(request) }.orThrow()
+        api.http.put("occurrences/$occurrenceId/reschedule") { setBody(request) }.orThrow<TodoOccurrenceResponse>().also { api.remindersChanged() }
 }
 
 class PomodoroApi internal constructor(private val api: KadansApi) {

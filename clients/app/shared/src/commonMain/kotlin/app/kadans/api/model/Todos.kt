@@ -90,6 +90,8 @@ data class RecurrenceRuleResponse(
     val until: Instant? = null,
     val isOneTime: Boolean = false,
     val exceptions: List<Instant> = emptyList(),
+    /** With a count, the times still to come (sent when one todo is read: the edit form prefills it). */
+    val remaining: Int? = null,
 )
 
 @Serializable

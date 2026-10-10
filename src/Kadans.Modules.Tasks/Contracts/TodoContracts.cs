@@ -13,7 +13,9 @@ public sealed record RecurrenceRuleResponse(
     int? Count,
     DateTimeOffset? Until,
     bool IsOneTime,
-    IReadOnlyList<DateTimeOffset> Exceptions
+    IReadOnlyList<DateTimeOffset> Exceptions,
+    /// <summary>With a count, the times still to come (only when one todo is read: what its edit form prefills).</summary>
+    int? Remaining = null
 );
 
 public sealed record TodoRemarkResponse(

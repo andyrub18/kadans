@@ -312,20 +312,18 @@ private fun RescheduleDialog(
         title = { Text(s.rescheduleTitle) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                androidx.compose.material3.OutlinedTextField(
+                app.kadans.ui.PickerField(
                     value = date.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(s.dueDate) },
-                    trailingIcon = { TextButton(onClick = { pickingDate = true }) { Text(s.pick) } },
+                    label = s.dueDate,
+                    kind = app.kadans.ui.PickerKind.Date,
+                    onPick = { pickingDate = true },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                androidx.compose.material3.OutlinedTextField(
+                app.kadans.ui.PickerField(
                     value = time.hour.toString().padStart(2, '0') + ":" + time.minute.toString().padStart(2, '0'),
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(s.timeLabel) },
-                    trailingIcon = { TextButton(onClick = { pickingTime = true }) { Text(s.pick) } },
+                    label = s.timeLabel,
+                    kind = app.kadans.ui.PickerKind.Time,
+                    onPick = { pickingTime = true },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 androidx.compose.material3.OutlinedTextField(

@@ -101,7 +101,6 @@ data class TodoFormStrings(
     val oneDayBefore: String,
     /** `%d` = days. */
     val daysBeforeFormat: String,
-    val countLimit: String,
 ) {
     /** "At the start", "15 min before", "1 h before", "1 day before", "2 days before". */
     fun reminderLead(minutes: Int): String = when {
@@ -162,6 +161,10 @@ data class RepeatStrings(
     val severalMonthsEveryYear: String,
     /** The rule picked falls on no date the server would keep ("the 30th of February"). */
     val neverFalls: String,
+    /** Under "How many times": the server's limit. */
+    val countLimit: String,
+    /** Under the date of a repeating budget movement: the server's limit. */
+    val startWithinAYear: String,
 ) {
     fun every(frequency: Frequency, interval: Int): String {
         if (interval == 1) {
@@ -295,6 +298,15 @@ data class PaywallStrings(
     fun endsOn(date: String): String = endsOnFormat.replace("{date}", date)
 }
 
+/** The desktop app's own words: its tray menu, and opening with the session (Settings → This computer). A feature group. */
+data class DesktopStrings(
+    val trayOpen: String,
+    val trayQuit: String,
+    val section: String,
+    val startAtLogin: String,
+    val startAtLoginHint: String,
+)
+
 /** The notification centre. A feature group (moved out of the flat catalog to keep it clear of the JVM limit). */
 data class NotificationStrings(
     val title: String,
@@ -336,6 +348,7 @@ data class StringsCatalog(
     val paywall: PaywallStrings,
     val reminders: ReminderStrings,
     val notifications: NotificationStrings,
+    val desktop: DesktopStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,
@@ -368,7 +381,6 @@ data class StringsCatalog(
     val dueDate: String,
     val firstOn: String,
     val timeLabel: String,
-    val pick: String,
     val pickADate: String,
     val timesThatDay: String,
     val addTime: String,
@@ -529,9 +541,6 @@ data class StringsCatalog(
     val recentTransactions: String,
     val noTransactionsYet: String,
     val deleteWord: String,
-    // desktop tray
-    val trayOpen: String,
-    val trayQuit: String,
     // forgot / reset password
     val forgotPassword: String,
     val forgotTitle: String,

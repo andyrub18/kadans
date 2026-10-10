@@ -307,6 +307,9 @@ fun SettingsScreen(
             // ---- Reminders on this phone (where it can ring them; it brings its own divider) ----
             RemindersSection()
 
+            // ---- This computer: opening with the session (installed desktop app; it brings its own divider) ----
+            StartAtLoginSection()
+
             // ---- Subscription (phones; it brings its own divider) ----
             SubscriptionSection()
 

@@ -8,5 +8,5 @@ package kadans
  */
 object Kadans {
     @JvmStatic
-    fun main(args: Array<String>) = app.kadans.desktop.main()
+    fun main(args: Array<String>) = app.kadans.desktop.main(args)
 }

@@ -1,6 +1,7 @@
 package app.kadans.ui.todos
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,6 @@ import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.Frequency
 import kotlin.time.Clock
@@ -43,8 +44,11 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.DateRange
 import app.kadans.ui.MonthDayPicker
 import app.kadans.ui.MonthPicker
+import app.kadans.ui.PickerField
+import app.kadans.ui.PickerKind
 import app.kadans.ui.WeekDayPicker
 import app.kadans.ui.capitalized
 import org.koin.compose.viewmodel.koinViewModel
@@ -109,23 +113,22 @@ fun CreateTodoScreen(
                 )
             }
 
+            // Tapped anywhere, the fields open their pickers: the value keeps the room a "Pick" button used to take.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
+                PickerField(
                     value = state.date?.toString() ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn) },
-                    placeholder = { Text(s.pickADate) },
-                    trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Start }) { Text(s.pick) } },
+                    label = if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn,
+                    kind = PickerKind.Date,
+                    onPick = { dateTarget = DateTarget.Start },
+                    placeholder = s.pickADate,
                     modifier = Modifier.weight(1.4f),
                 )
                 if (state.times.isEmpty()) {
-                    OutlinedTextField(
+                    PickerField(
                         value = state.time.formatted(),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text(s.timeLabel) },
-                        trailingIcon = { TextButton(onClick = { timeTarget = TimeTarget.Start }) { Text(s.pick) } },
+                        label = s.timeLabel,
+                        kind = PickerKind.Time,
+                        onPick = { timeTarget = TimeTarget.Start },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -257,38 +260,33 @@ fun CreateTodoScreen(
                     EndMode.AfterCount ->
                         OutlinedTextField(
                             value = state.count?.toString() ?: "",
-                            onValueChange = { v -> viewModel.update { it.copy(count = v.filter(Char::isDigit).take(6).toIntOrNull()) } },
+                            onValueChange = { v -> viewModel.update { it.copy(count = RuleLimits.countInput(v)) } },
                             label = { Text(s.howManyTimes) },
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             isError = state.countTooHigh,
-                            supportingText = if (state.countTooHigh) ({ Text(s.todoForm.countLimit) }) else null,
+                            supportingText = if (state.countTooHigh) ({ Text(s.repeat.countLimit) }) else null,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     EndMode.OnDate -> {
-                        OutlinedTextField(
+                        PickerField(
                             value = state.untilDate?.toString() ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(s.lastOccurrenceOn) },
-                            placeholder = { Text(s.pickLastDay) },
-                            trailingIcon = { TextButton(onClick = { dateTarget = DateTarget.Until }) { Text(s.pick) } },
+                            label = s.lastOccurrenceOn,
+                            kind = PickerKind.Date,
+                            onPick = { dateTarget = DateTarget.Until },
+                            placeholder = s.pickLastDay,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         // A date alone ends the rule with that day; a time makes it a precise moment.
-                        OutlinedTextField(
-                                value = state.untilTime?.formatted() ?: s.endOfDay,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text(s.lastOccurrenceAt) },
-                                trailingIcon = {
-                                    Row {
-                                        if (state.untilTime != null) {
-                                            TextButton(onClick = { viewModel.update { it.copy(untilTime = null) } }) { Text(s.endOfDay) }
-                                        }
-                                        TextButton(onClick = { timeTarget = TimeTarget.Until }) { Text(s.pick) }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
+                        PickerField(
+                            value = state.untilTime?.formatted() ?: s.endOfDay,
+                            label = s.lastOccurrenceAt,
+                            kind = PickerKind.Time,
+                            onPick = { timeTarget = TimeTarget.Until },
+                            extra = if (state.untilTime == null) null else {
+                                { TextButton(onClick = { viewModel.update { it.copy(untilTime = null) } }) { Text(s.endOfDay) } }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     EndMode.Never -> {}
@@ -340,7 +338,7 @@ fun CreateTodoScreen(
         // Only dates the server accepts: a start from today on, an end between the first occurrence and ten years after it.
         val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
         val first = if (pickingDate == DateTarget.Until) state.firstDate ?: today else today
-        val last = if (pickingDate == DateTarget.Until) CreateTodoViewModel.latestEnd(first) else null
+        val last = if (pickingDate == DateTarget.Until) RuleLimits.latestEnd(first) else null
         val pickerState = rememberDatePickerState(selectableDates = DateRange(first, last))
         DatePickerDialog(
             onDismissRequest = { dateTarget = null },
@@ -385,14 +383,6 @@ fun CreateTodoScreen(
             text = { TimePicker(state = timeState) },
         )
     }
-}
-
-/** The DatePicker speaks UTC-midnight millis; these bounds are calendar days. */
-private class DateRange(private val first: LocalDate, private val last: LocalDate?) : SelectableDates {
-    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
-        LocalDate.fromEpochDays((utcTimeMillis / 86_400_000L).toInt()).let { it >= first && (last == null || it <= last) }
-
-    override fun isSelectableYear(year: Int): Boolean = year >= first.year && (last == null || year <= last.year)
 }
 
 private fun LocalTime.formatted(): String =

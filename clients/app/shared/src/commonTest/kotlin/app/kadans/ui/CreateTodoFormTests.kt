@@ -12,6 +12,7 @@ import app.kadans.ui.todos.DayRule
 import app.kadans.ui.todos.EndMode
 import app.kadans.ui.todos.Ordinal
 import app.kadans.ui.todos.ReminderLeads
+import app.kadans.ui.todos.RuleLimits
 import app.kadans.ui.todos.TodoMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -97,7 +98,7 @@ class CreateTodoFormTests {
         val byDate = recurring().copy(endMode = EndMode.OnDate)
 
         // The server counts ten years from the first instant (09:00): ending at 23:59 ten years later is past it.
-        assertEquals(LocalDate(2037, 1, 3), CreateTodoViewModel.latestEnd(start))
+        assertEquals(LocalDate(2037, 1, 3), RuleLimits.latestEnd(start))
         assertTrue(byDate.copy(untilDate = LocalDate(2037, 1, 3)).canSubmit)
         assertFalse(byDate.copy(untilDate = LocalDate(2037, 1, 4)).canSubmit)
         assertFalse(byDate.copy(untilDate = LocalDate(2027, 1, 3)).canSubmit)

@@ -26,6 +26,8 @@ import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import app.kadans.di.initKoin
 import app.kadans.reminders.restoreDesktopReminders
+import app.kadans.startup.StartAtLogin
+import app.kadans.startup.applyStartAtLogin
 import app.kadans.tray.StatusNotifierTray
 import app.kadans.tray.TrayAction
 import app.kadans.ui.App
@@ -39,13 +41,15 @@ import java.awt.desktop.AppReopenedListener
 import java.awt.image.BufferedImage
 import kotlinx.coroutines.channels.Channel
 
-fun main() {
+fun main(args: Array<String> = emptyArray()) {
+    // The session opening Kadans at sign-in (StartAtLogin): no window, the tray only.
+    val background = StartAtLogin.BACKGROUND in args
     // What the tray, a second start and the Dock ask of the window, from their own threads.
     val requests = Channel<TrayAction>(Channel.UNLIMITED)
 
-    when (SingleInstance().claim(onShow = { requests.trySend(TrayAction.Open) })) {
+    when (SingleInstance().claim(onShow = { requests.trySend(TrayAction.Open) }, showOther = !background)) {
         SingleInstance.Claim.Only -> Unit
-        SingleInstance.Claim.AskedOther -> return println("Kadans is already running: its window is shown.")
+        SingleInstance.Claim.Other -> return if (background) Unit else println("Kadans is already running: its window is shown.")
         SingleInstance.Claim.OtherUnreachable ->
             return System.err.println("Kadans is already running but does not answer. Quit it from its tray icon, then start it again.")
     }
@@ -53,6 +57,8 @@ fun main() {
     initKoin()
     // Reminders ring from a timer in the app: what was scheduled before this start rings again (and offline).
     restoreDesktopReminders()
+    // An installed Kadans opens with the session from its first run on (Settings → This computer turns it off).
+    applyStartAtLogin()
 
     // Linux desktops host the freedesktop tray (COSMIC, KDE Plasma, GNOME with AppIndicator); AWT's tray speaks only
     // XEmbed, which they no longer host. Elsewhere AWT's tray is the system's own.
@@ -61,8 +67,8 @@ fun main() {
     val linuxTray = if (!linux) null else StatusNotifierTray.start(
         title = "Kadans",
         icons = TRAY_ICON_SIZES.map(::trayIcon),
-        openLabel = firstStrings.trayOpen,
-        quitLabel = firstStrings.trayQuit,
+        openLabel = firstStrings.desktop.trayOpen,
+        quitLabel = firstStrings.desktop.trayQuit,
         onAction = { requests.trySend(it) },
     )
 
@@ -73,15 +79,16 @@ fun main() {
         }
     }
 
+    // Closing the window keeps Kadans counting in the background (sessions advance, reminders ring, notifications
+    // arrive); the tray brings it back. Without any tray the close button must still quit, or the app would be stranded
+    // invisible, and a start in the background shows the window minimized instead of hiding it.
+    val awtTray = linuxTray == null && SystemTray.isSupported()
+    val hasTray = linuxTray != null || awtTray
+
     application {
-        // Closing the window keeps Kadans counting in the background (sessions advance, reminders ring, notifications
-        // arrive); the tray brings it back. Without any tray the close button must still quit, or the app would be
-        // stranded invisible.
-        val awtTray = remember { linuxTray == null && SystemTray.isSupported() }
-        val hasTray = linuxTray != null || awtTray
-        var windowVisible by remember { mutableStateOf(true) }
+        var windowVisible by remember { mutableStateOf(!(background && hasTray)) }
         var raised by remember { mutableIntStateOf(0) }
-        val windowState = rememberWindowState(width = 480.dp, height = 800.dp)
+        val windowState = rememberWindowState(isMinimized = background && !hasTray, width = 480.dp, height = 800.dp)
         val strings = rememberAppStrings()
 
         LaunchedEffect(Unit) {
@@ -96,7 +103,7 @@ fun main() {
                 }
             }
         }
-        LaunchedEffect(strings) { linuxTray?.setLabels(strings.trayOpen, strings.trayQuit) }
+        LaunchedEffect(strings) { linuxTray?.setLabels(strings.desktop.trayOpen, strings.desktop.trayQuit) }
         DisposableEffect(Unit) { onDispose { linuxTray?.close() } }
 
         if (awtTray) {
@@ -106,8 +113,8 @@ fun main() {
                 tooltip = "Kadans",
                 onAction = { requests.trySend(TrayAction.Open) },
                 menu = {
-                    Item(strings.trayOpen, onClick = { requests.trySend(TrayAction.Open) })
-                    Item(strings.trayQuit, onClick = ::exitApplication)
+                    Item(strings.desktop.trayOpen, onClick = { requests.trySend(TrayAction.Open) })
+                    Item(strings.desktop.trayQuit, onClick = ::exitApplication)
                 },
             )
         }

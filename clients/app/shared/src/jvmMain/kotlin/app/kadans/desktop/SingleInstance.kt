@@ -32,8 +32,8 @@ class SingleInstance(private val dir: Path? = privateDir(), private val answerWi
         /** No other Kadans: run. */
         Only,
 
-        /** Another Kadans runs and was asked to show its window: leave. */
-        AskedOther,
+        /** Another Kadans runs, and was asked to show its window unless the start was a quiet one: leave. */
+        Other,
 
         /** Another Kadans holds the lock but never answered: leave (a second copy would ring every reminder twice). */
         OtherUnreachable,
@@ -42,8 +42,11 @@ class SingleInstance(private val dir: Path? = privateDir(), private val answerWi
     private var lock: FileChannel? = null
     private var server: ServerSocketChannel? = null
 
-    /** [onShow] runs on a background thread each time another start asks. */
-    fun claim(onShow: () -> Unit): Claim {
+    /**
+     * [onShow] runs on a background thread each time another start asks. A quiet start ([showOther] false: the session
+     * opening Kadans in the background) leaves a running Kadans as it is instead of showing its window.
+     */
+    fun claim(onShow: () -> Unit, showOther: Boolean = true): Claim {
         val folder = dir ?: return Claim.Only
         val socket = folder.resolve("instance.sock")
         val channel = try {
@@ -62,7 +65,7 @@ class SingleInstance(private val dir: Path? = privateDir(), private val answerWi
         }
         if (held == null) {
             channel.close()
-            return if (askToShow(socket)) Claim.AskedOther else Claim.OtherUnreachable
+            return if (!showOther || askToShow(socket)) Claim.Other else Claim.OtherUnreachable
         }
         lock = channel
         server = listen(socket, onShow)

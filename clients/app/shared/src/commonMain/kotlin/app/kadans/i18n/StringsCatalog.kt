@@ -295,6 +295,15 @@ data class PaywallStrings(
     fun endsOn(date: String): String = endsOnFormat.replace("{date}", date)
 }
 
+/** The desktop app's own words: its tray menu, and opening with the session (Settings → This computer). A feature group. */
+data class DesktopStrings(
+    val trayOpen: String,
+    val trayQuit: String,
+    val section: String,
+    val startAtLogin: String,
+    val startAtLoginHint: String,
+)
+
 /** The notification centre. A feature group (moved out of the flat catalog to keep it clear of the JVM limit). */
 data class NotificationStrings(
     val title: String,
@@ -336,6 +345,7 @@ data class StringsCatalog(
     val paywall: PaywallStrings,
     val reminders: ReminderStrings,
     val notifications: NotificationStrings,
+    val desktop: DesktopStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,
@@ -529,9 +539,6 @@ data class StringsCatalog(
     val recentTransactions: String,
     val noTransactionsYet: String,
     val deleteWord: String,
-    // desktop tray
-    val trayOpen: String,
-    val trayQuit: String,
     // forgot / reset password
     val forgotPassword: String,
     val forgotTitle: String,

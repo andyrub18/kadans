@@ -18,8 +18,12 @@ import kotlinx.datetime.toLocalDateTime
 internal object RuleDraft {
     class Draft(val state: CreateTodoUiState, val worded: Boolean)
 
+    /** The zone a rule's times are in: its own, or the device's for one this device's tz database doesn't know. */
+    fun zoneOf(rule: RecurrenceRuleResponse): TimeZone =
+        runCatching { TimeZone.of(rule.timeZoneId) }.getOrElse { TimeZone.currentSystemDefault() }
+
     fun of(rule: RecurrenceRuleResponse, firstOn: LocalDate): Draft {
-        val zone = runCatching { TimeZone.of(rule.timeZoneId) }.getOrDefault(TimeZone.UTC)
+        val zone = zoneOf(rule)
         val start = rule.startDate.toLocalDateTime(zone)
         val until = rule.until?.toLocalDateTime(zone)
         val base = CreateTodoUiState(

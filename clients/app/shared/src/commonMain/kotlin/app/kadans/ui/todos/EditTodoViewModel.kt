@@ -33,6 +33,11 @@ data class EditTodoUiState(
     val ruleWorded: Boolean = true,
     /** The rule is sent only once the person changed it: otherwise it stays exactly as stored. */
     val ruleChanged: Boolean = false,
+    /**
+     * The zone the rule's times are in, its own: shown and sent in it, so a computer set to another zone (a trip, a
+     * misconfigured clock) moves nothing. A new todo takes the device's.
+     */
+    val ruleZone: TimeZone = TimeZone.currentSystemDefault(),
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val error: String? = null,
@@ -48,16 +53,15 @@ class EditTodoViewModel(private val api: KadansApi, private val todoId: String) 
     private val _saved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val saved: SharedFlow<Unit> = _saved.asSharedFlow()
 
-    private val timeZone = TimeZone.currentSystemDefault()
-
     init {
         viewModelScope.launch {
             try {
                 val todo = api.todos.get(todoId)
                 val stored = todo.recurrenceRule?.takeUnless { it.isOneTime }
+                val zone = stored?.let(RuleDraft::zoneOf) ?: TimeZone.currentSystemDefault()
                 val draft = stored?.let {
                     val now = Clock.System.now()
-                    RuleDraft.of(it, firstOn(api.todos.occurrences(todoId, pageSize = 20), now, timeZone))
+                    RuleDraft.of(it, firstOn(api.todos.occurrences(todoId, pageSize = 20), now, zone))
                 }
                 _state.value = EditTodoUiState(
                     todo = todo,
@@ -67,6 +71,7 @@ class EditTodoViewModel(private val api: KadansApi, private val todoId: String) 
                     notifyBefore = todo.notifyBeforeInMinutes,
                     rule = draft?.state,
                     ruleWorded = draft?.worded ?: true,
+                    ruleZone = zone,
                     isLoading = false,
                 )
             } catch (e: KadansApiException) {
@@ -93,7 +98,7 @@ class EditTodoViewModel(private val api: KadansApi, private val todoId: String) 
         val todo = current.todo ?: return
         val now = Clock.System.now()
         val rule = current.rule?.takeIf { current.ruleChanged }
-        if (rule != null && !CreateTodoViewModel.ruleReady(rule, timeZone, now)) return
+        if (rule != null && !CreateTodoViewModel.ruleReady(rule, current.ruleZone, now)) return
         _state.value = current.copy(isSaving = true, error = null, errorCode = null)
         viewModelScope.launch {
             try {
@@ -107,7 +112,7 @@ class EditTodoViewModel(private val api: KadansApi, private val todoId: String) 
                         pomodoroTemplateId = todo.pomodoroTemplateId,
                         // A changed rule replaces the stored one from its first moment; the server keeps every occurrence
                         // someone moved, completed or annotated, and regenerates the rest.
-                        recurrenceRule = rule?.let { CreateTodoViewModel.buildRecurring(it, timeZone, now).recurrenceRule },
+                        recurrenceRule = rule?.let { CreateTodoViewModel.buildRecurring(it, current.ruleZone, now).recurrenceRule },
                         notifyBeforeInMinutes = current.notifyBefore,
                     ),
                 )

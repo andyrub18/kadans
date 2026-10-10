@@ -243,6 +243,8 @@ class EditTodoRuleTests {
         val changed = Json.parseToJsonElement(sent.last()).jsonObject["recurrenceRule"]!!.jsonObject
         assertEquals(6, changed["byDayOfWeek"]!!.jsonArray.size)
         assertEquals(12, changed["count"]!!.jsonPrimitive.content.toInt())
+        // 07:00 in the rule's own zone, whatever zone this machine is in (CI's is UTC).
+        assertEquals("America/Port-au-Prince", changed["timeZone"]!!.jsonPrimitive.content)
         assertEquals(Instant.parse("2027-01-12T12:00:00Z"), Instant.parse(changed["startDate"]!!.jsonPrimitive.content))
     }
 }

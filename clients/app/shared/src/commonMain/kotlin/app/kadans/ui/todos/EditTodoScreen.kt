@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.i18n.LocalStrings
 import kotlin.time.Clock
-import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -81,7 +80,7 @@ fun EditTodoScreen(
                 if (!state.ruleWorded) {
                     Text(s.repeat.madeElsewhere, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                WhenSection(rule, viewModel::updateRule)
+                WhenSection(rule, viewModel::updateRule, zone = state.ruleZone)
                 if (state.ruleChanged) {
                     Text(s.repeat.editKeepsTouched, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -106,7 +105,7 @@ fun EditTodoScreen(
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             val ruleReady = !state.ruleChanged || state.rule?.let {
-                CreateTodoViewModel.ruleReady(it, TimeZone.currentSystemDefault(), Clock.System.now())
+                CreateTodoViewModel.ruleReady(it, state.ruleZone, Clock.System.now())
             } == true
             Button(
                 onClick = { permission.beforeSaving(state.notify, viewModel::save) },

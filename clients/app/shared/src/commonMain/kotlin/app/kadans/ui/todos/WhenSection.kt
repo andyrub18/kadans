@@ -49,12 +49,16 @@ private enum class DateTarget { Start, Until }
 
 /**
  * When a todo happens: its date and time and, for a recurring one, how it repeats and ends, with the rule read back
- * in words. The create form and the edit screen both use it; [update] changes [state].
+ * in words. The create form and the edit screen both use it; [update] changes [state]. Times are wall clock in [zone]:
+ * the device's for a new todo, the rule's own when one is edited.
  */
 @Composable
-internal fun WhenSection(state: CreateTodoUiState, update: ((CreateTodoUiState) -> CreateTodoUiState) -> Unit) {
+internal fun WhenSection(
+    state: CreateTodoUiState,
+    update: ((CreateTodoUiState) -> CreateTodoUiState) -> Unit,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+) {
     val s = LocalStrings.current
-    val zone = TimeZone.currentSystemDefault()
     val now = Clock.System.now()
     var dateTarget by remember { mutableStateOf<DateTarget?>(null) }
     var timeTarget by remember { mutableStateOf<TimeTarget?>(null) }

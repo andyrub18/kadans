@@ -282,7 +282,8 @@ installing on real devices second, hosting last.
       rule (`remaining` on `GET /todos/{id}`: past rows are not counted, retention removes them). The server keeps every
       occurrence someone moved, completed or annotated and regenerates the rest, so a moved one can sit beside the new
       rule's on its day (the owner's choice; the screen says so). A rule made through the API with parts the form cannot
-      show says it would be replaced. On the way: the create form no longer sends a start already gone (a one-time todo
+      show says it would be replaced. The rule is shown and sent in its own time zone, not the device's: a phone on a
+      trip edits "07:00 in Port-au-Prince" without moving it (CI runs in UTC and caught the first version). On the way: the create form no longer sends a start already gone (a one-time todo
       for a past time says so; a rule with several times set up in the afternoon starts at the next one), and every
       change made on a device fetches its reminders at once, without waiting for the hub's signal (`remindersChanged`).
       Checked against a local API: an edit as the app makes it keeps the moved occurrence, drops the old times and

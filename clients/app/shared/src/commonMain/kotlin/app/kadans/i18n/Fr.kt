@@ -42,7 +42,6 @@ val FrenchStrings = StringsCatalog(
         hoursBeforeFormat = "%d h avant",
         oneDayBefore = "1 jour avant",
         daysBeforeFormat = "%d jours avant",
-        countLimit = "5 000 fois au maximum.",
     ),
     repeat = RepeatStrings(
         everyMinute = "Chaque minute",
@@ -75,6 +74,8 @@ val FrenchStrings = StringsCatalog(
         monthsLabel = "Les mois",
         severalMonthsEveryYear = "Avec plusieurs mois, un jour comme « le deuxième dimanche » se répète chaque année.",
         neverFalls = "Cette règle ne tombe sur aucune date dans les dix prochaines années.",
+        countLimit = "5 000 fois au maximum.",
+        startWithinAYear = "Un mouvement répété peut commencer au plus il y a un an.",
     ),
     pomodoro = PomodoroStrings(
         endsAtFormat = "Se termine à %s",

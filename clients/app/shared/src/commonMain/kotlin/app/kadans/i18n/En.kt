@@ -42,7 +42,6 @@ val EnglishStrings = StringsCatalog(
         hoursBeforeFormat = "%d h before",
         oneDayBefore = "1 day before",
         daysBeforeFormat = "%d days before",
-        countLimit = "At most 5,000 times.",
     ),
     repeat = RepeatStrings(
         everyMinute = "Every minute",
@@ -75,6 +74,8 @@ val EnglishStrings = StringsCatalog(
         monthsLabel = "In months",
         severalMonthsEveryYear = "With several months, a day like “the second Sunday” repeats every year.",
         neverFalls = "This rule falls on no date in the next ten years.",
+        countLimit = "At most 5,000 times.",
+        startWithinAYear = "A repeating movement can start at most a year ago.",
     ),
     pomodoro = PomodoroStrings(
         endsAtFormat = "Ends at %s",

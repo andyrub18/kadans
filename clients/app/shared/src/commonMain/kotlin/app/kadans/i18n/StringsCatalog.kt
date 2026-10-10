@@ -101,7 +101,6 @@ data class TodoFormStrings(
     val oneDayBefore: String,
     /** `%d` = days. */
     val daysBeforeFormat: String,
-    val countLimit: String,
 ) {
     /** "At the start", "15 min before", "1 h before", "1 day before", "2 days before". */
     fun reminderLead(minutes: Int): String = when {
@@ -162,6 +161,10 @@ data class RepeatStrings(
     val severalMonthsEveryYear: String,
     /** The rule picked falls on no date the server would keep ("the 30th of February"). */
     val neverFalls: String,
+    /** Under "How many times": the server's limit. */
+    val countLimit: String,
+    /** Under the date of a repeating budget movement: the server's limit. */
+    val startWithinAYear: String,
 ) {
     fun every(frequency: Frequency, interval: Int): String {
         if (interval == 1) {

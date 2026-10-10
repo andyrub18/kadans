@@ -138,6 +138,30 @@ data class RepeatStrings(
     val untilFormat: String,
     /** `%s` = the date a weekly rule first falls on, when it is not the date picked. */
     val firstTimeFormat: String,
+    /** Monthly and yearly: the day picked by its date ("the 15th") or by its day of the week ("the second Tuesday"). */
+    val byDate: String,
+    val byWeekday: String,
+    /** The day grid's last cell (BYMONTHDAY -1). */
+    val lastDay: String,
+    /** The rule's words for the last day alone. */
+    val onLastDay: String,
+    /** `%s` = several days of the month, "1, 15, last". */
+    val monthDaysFormat: String,
+    /** First to fifth, then last (BYSETPOS 1–5, -1), as written inside a sentence. */
+    val ordinals: List<String>,
+    /** Monday first, as written inside a sentence. */
+    val weekdayNames: List<String>,
+    /** What "the second …" counts besides a day of the week (BYDAY): any day, Monday to Friday, Saturday and Sunday. */
+    val kindDay: String,
+    val kindWeekday: String,
+    val kindWeekendDay: String,
+    /** `%1` = an ordinal, `%2` = a day: "the second Tuesday", "the last weekday". */
+    val onTheFormat: String,
+    val monthsLabel: String,
+    /** Under the interval: "the second Sunday" in several months can only repeat every year (see buildRecurring). */
+    val severalMonthsEveryYear: String,
+    /** The rule picked falls on no date the server would keep ("the 30th of February"). */
+    val neverFalls: String,
 ) {
     fun every(frequency: Frequency, interval: Int): String {
         if (interval == 1) {
@@ -168,6 +192,10 @@ data class RepeatStrings(
     fun until(date: String): String = untilFormat.replace("%s", date)
 
     fun firstTime(date: String): String = firstTimeFormat.replace("%s", date)
+
+    fun monthDays(days: String): String = monthDaysFormat.replace("%s", days)
+
+    fun onThe(ordinal: String, day: String): String = onTheFormat.replace("%1", ordinal).replace("%2", day)
 }
 
 /** Pomodoro: when a session ends by itself, and the cycle builder. A feature group (the flat catalog is full). */

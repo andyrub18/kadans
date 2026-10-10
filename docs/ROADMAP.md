@@ -243,18 +243,21 @@ installing on real devices second, hosting last.
       themed version, the notification icon, the Play Store icon, the desktop's window, tray and packaged icons, and
       the splash, the hands winding into the K in one second (Android 12+ in the system splash, the desktop in the
       app). Checked on an Android 15 emulator: the icon, the splash frame by frame, the notification.
-- [x] Weekly todos on chosen days, 2026-10-09 (found testing the desktop app: "Monday to Friday" could not be made,
-      though the API always could). A weekly rule shows the seven days as one row of toggles (the budget's recurring
-      form uses the same picker now); the first date's own day is chosen until others are, and the last one stays.
-      The rule starts on its first chosen day from the date picked, as RFC 5545 wants ("First time: Mon 2026-10-12"
-      says so when it moves). Ical.Net already skipped a start off the rule, so no stored rule is wrong. The todo
-      screen reads its rule in words ("Every week · Mon–Fri · 07:00", in each language; a rule with parts the app
-      does not word, made through the API, still shows its RRULE) and its occurrences in the device's time
-      ("Mon 2026-10-12 06:30" instead of a UTC instant). On the way: the French interval sentence agrees with its
+- [x] Every rule part the server takes, in the todo form, 2026-10-09 (found testing the desktop app: "Monday to Friday"
+      could not be made, though the API always could). Weekly: the seven days as one row of toggles (the budget's
+      recurring form uses the same picker now). Monthly: by date (a grid of 1–31 and "Last day": BYMONTHDAY) or by day of
+      the week ("the first … fifth / last" Monday … Sunday, day, weekday or weekend day: BYDAY + BYSETPOS). Yearly: the
+      months (BYMONTH), then either. Several times a day from daily to yearly (BYHOUR × BYMINUTE). Every picker starts
+      from the date picked, so a rule left alone falls on it; the last choice stays. The rule starts on the first day it
+      falls on from the date picked, as RFC 5545 wants ("First time: Fri 2026-10-30" says so when it moves), and one
+      that falls on no day in ten years is not sent. ARCHITECTURE → Recurrence. The form and the todo screen read the
+      rule in words ("Every month · the last weekday · 18:00", in each language; a rule with parts the app does not
+      word, made through the API, still shows its RRULE), and the occurrences in the device's time ("Mon 2026-10-12
+      06:30" instead of a UTC instant). Checked against a local API: ten rule shapes, each on the dates worked out by
+      hand. On the way: the French interval sentence agrees with its
       unit ("Toutes les 2 semaines"; whole phrases in a `RepeatStrings` group, which also frees 13 slots of the flat
       catalog), an end exactly ten years after the start is no longer offered (the server refused it), and the
-      "Ends" chips wrap on narrow phones instead of squeezing the last one. Checked against a local API: Mon–Fri at
-      06:30 in Port-au-Prince, weeks of occurrences on weekdays only.
+      "Ends" chips wrap on narrow phones instead of squeezing the last one.
 - [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
 - [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
       `packageVersion 1.0.0`)

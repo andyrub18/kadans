@@ -86,12 +86,73 @@ class RuleSummaryTests {
     }
 
     @Test
-    fun a_part_the_app_cannot_word_shows_the_rule_itself() {
-        val lastFriday = rule("FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1", Frequency.Monthly)
-        assertEquals("FREQ=MONTHLY;BYDAY=FR;BYSETPOS=-1", RuleSummary.describe(lastFriday, EnglishStrings, portAuPrince))
+    fun monthly_days_read_as_dates() {
+        val payday = rule("FREQ=MONTHLY;BYMONTHDAY=1,15", Frequency.Monthly)
+        assertEquals("Every month · on days 1, 15 · 07:00", RuleSummary.describe(payday, EnglishStrings, portAuPrince))
+        assertEquals("Chaque mois · les 1, 15 · 07:00", RuleSummary.describe(payday, FrenchStrings, portAuPrince))
+        assertEquals("Chak mwa · jou 1, 15 yo · 07:00", RuleSummary.describe(payday, CreoleStrings, portAuPrince))
 
-        val firstMonday = rule("FREQ=MONTHLY;BYDAY=1MO", Frequency.Monthly)
-        assertEquals("FREQ=MONTHLY;BYDAY=1MO", RuleSummary.describe(firstMonday, EnglishStrings, portAuPrince))
+        assertEquals(
+            "Every month · on the last day · 07:00",
+            RuleSummary.describe(rule("FREQ=MONTHLY;BYMONTHDAY=-1", Frequency.Monthly), EnglishStrings, portAuPrince),
+        )
+        assertEquals(
+            "Every month · on days 1, last · 07:00",
+            RuleSummary.describe(rule("FREQ=MONTHLY;BYMONTHDAY=1,-1", Frequency.Monthly), EnglishStrings, portAuPrince),
+        )
+    }
+
+    @Test
+    fun a_position_reads_as_the_nth_day() {
+        val closing = rule("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1", Frequency.Monthly)
+        assertEquals("Every month · the last weekday · 07:00", RuleSummary.describe(closing, EnglishStrings, portAuPrince))
+        assertEquals("Chaque mois · le dernier jour de semaine · 07:00", RuleSummary.describe(closing, FrenchStrings, portAuPrince))
+        assertEquals("Chak mwa · dènye jou travay · 07:00", RuleSummary.describe(closing, CreoleStrings, portAuPrince))
+
+        assertEquals(
+            "Every 2 months · the last Friday · 07:00",
+            RuleSummary.describe(rule("FREQ=MONTHLY;INTERVAL=2;BYDAY=FR;BYSETPOS=-1", Frequency.Monthly, interval = 2), EnglishStrings, portAuPrince),
+        )
+        assertEquals(
+            "Every month · the first day · 07:00",
+            RuleSummary.describe(rule("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR,SA,SU;BYSETPOS=1", Frequency.Monthly), EnglishStrings, portAuPrince),
+        )
+    }
+
+    @Test
+    fun yearly_rules_name_their_months() {
+        val mothersDay = rule("FREQ=YEARLY;BYDAY=SU;BYMONTH=5;BYSETPOS=2", Frequency.Yearly)
+        assertEquals("Every year · May · the second Sunday · 07:00", RuleSummary.describe(mothersDay, EnglishStrings, portAuPrince))
+        assertEquals("Chaque année · mai · le deuxième dimanche · 07:00", RuleSummary.describe(mothersDay, FrenchStrings, portAuPrince))
+        assertEquals("Chak ane · me · dezyèm dimanch · 07:00", RuleSummary.describe(mothersDay, CreoleStrings, portAuPrince))
+
+        val quarterly = rule("FREQ=YEARLY;BYMONTH=1,4,7,10;BYMONTHDAY=1", Frequency.Yearly)
+        assertEquals("Every year · January, April, July, October · on day 1 · 07:00", RuleSummary.describe(quarterly, EnglishStrings, portAuPrince))
+
+        // The day left to the start (the 4th) is said too.
+        assertEquals(
+            "Every 2 years · March · on day 4 · 07:00",
+            RuleSummary.describe(rule("FREQ=YEARLY;INTERVAL=2;BYMONTH=3", Frequency.Yearly, interval = 2), EnglishStrings, portAuPrince),
+        )
+        // How the form sends "the first Monday" of several months: it reads as the yearly rule it is.
+        assertEquals(
+            "Every year · January, June · the first Monday · 07:00",
+            RuleSummary.describe(rule("FREQ=MONTHLY;BYDAY=MO;BYMONTH=1,6;BYSETPOS=1", Frequency.Monthly), EnglishStrings, portAuPrince),
+        )
+    }
+
+    @Test
+    fun a_part_the_app_cannot_word_shows_the_rule_itself() {
+        listOf(
+            "FREQ=MONTHLY;BYDAY=1MO" to Frequency.Monthly, // an ordinal inside BYDAY
+            "FREQ=MONTHLY;BYDAY=MO" to Frequency.Monthly, // every Monday of the month
+            "FREQ=MONTHLY;BYDAY=MO,WE;BYSETPOS=1" to Frequency.Monthly, // the first of Monday and Wednesday
+            "FREQ=YEARLY;BYMONTHDAY=15" to Frequency.Yearly, // the 15th of every month, in a yearly rule
+            "FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO" to Frequency.Yearly,
+            "FREQ=MONTHLY;BYMONTHDAY=-2" to Frequency.Monthly,
+        ).forEach { (rrule, frequency) ->
+            assertEquals(rrule, RuleSummary.describe(rule(rrule, frequency), EnglishStrings, portAuPrince))
+        }
     }
 
     @Test

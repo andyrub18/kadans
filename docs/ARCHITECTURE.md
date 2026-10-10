@@ -518,6 +518,15 @@ desktop and real push on mobile. Web is a possible later bonus (Wasm target).
   its last instance. A calendar request covers at most a year. Ical.Net replays hourly and minute
   rules from their start (about 0.5 ms per day of age at every 5 minutes) but fast-forwards daily
   and slower ones. If dense rules ever become common, re-anchor their start.
+- **The app builds rules the way calendar apps offer them** (the create-todo form; `RulePattern`, `RuleSummary`).
+  Weekly: the days (BYDAY). Monthly: by date, several days and the last one (BYMONTHDAY, -1), or by day of the week,
+  "the first … fifth / last" Monday … Sunday, day, weekday or weekend day (BYDAY + BYSETPOS, Apple Calendar's set).
+  Yearly: the months (BYMONTH), then either. Every choice starts from the date picked, and the start sent is the first
+  day the rule falls on from it; a rule falling on no day within its ten years is not sent. One choice is rewritten:
+  "the second Sunday" in several months is a MONTHLY rule kept to those months, because a YEARLY BYSETPOS counts
+  across all the year's Sundays; it can only repeat every year (the contract takes no ordinal BYDAY such as `2SU`).
+  The app only looks for that first day; the server expands everything. Budget rules take days of the week and of
+  the month only (`BudgetRecurrence`).
 - **Materialized occurrences with a rolling horizon**: a scheduled job guarantees every active
   rule has occurrences generated through `now + 30 days`. Past and near future = table (truth);
   far future = computed preview only.

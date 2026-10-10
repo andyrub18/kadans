@@ -43,7 +43,10 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.MonthDayPicker
+import app.kadans.ui.MonthPicker
 import app.kadans.ui.WeekDayPicker
+import app.kadans.ui.capitalized
 import org.koin.compose.viewmodel.koinViewModel
 
 private enum class TimeTarget { Start, ExtraTime, Until }
@@ -151,22 +154,67 @@ fun CreateTodoScreen(
                     )
                     OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
                 }
+                if (state.severalMonthsNeedEveryYear) {
+                    Text(s.repeat.severalMonthsEveryYear, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
 
+                // What the date picked does not say, the pickers do: each starts from that date (its weekday, its day of
+                // the month, its month), so a rule left alone falls on it. A last choice cannot be dropped.
                 if (state.frequency == Frequency.Weekly) {
-                    // "Monday to Friday": the first date's own day is chosen until others are; the last one stays.
                     Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
                     WeekDayPicker(state.weekDays, onToggle = { day -> viewModel.update { CreateTodoViewModel.toggleDay(it, day) } })
-                    val first = state.firstDate
-                    if (first != null && first != state.date) {
-                        Text(
-                            s.repeat.firstTime(RuleSummary.day(first, s)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                }
+
+                if (state.frequency == Frequency.Yearly) {
+                    Text(s.repeat.monthsLabel, style = MaterialTheme.typography.labelLarge)
+                    MonthPicker(state.effectiveMonths, onToggle = { month -> viewModel.update { CreateTodoViewModel.toggleMonth(it, month) } })
+                }
+
+                if (state.frequency == Frequency.Monthly || state.frequency == Frequency.Yearly) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = state.dayRule == DayRule.ByDate,
+                            onClick = { viewModel.update { it.copy(dayRule = DayRule.ByDate) } },
+                            label = { Text(s.repeat.byDate) },
                         )
+                        FilterChip(
+                            selected = state.dayRule == DayRule.ByWeekday,
+                            onClick = { viewModel.update { it.copy(dayRule = DayRule.ByWeekday) } },
+                            label = { Text(s.repeat.byWeekday) },
+                        )
+                    }
+                    when (state.dayRule) {
+                        DayRule.ByDate ->
+                            MonthDayPicker(state.effectiveMonthDays, onToggle = { day -> viewModel.update { CreateTodoViewModel.toggleMonthDay(it, day) } })
+                        DayRule.ByWeekday -> {
+                            // "The second Tuesday", "the last weekday": which one, then which day.
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Ordinal.entries.forEach { ordinal ->
+                                    FilterChip(
+                                        selected = state.effectiveOrdinal == ordinal,
+                                        onClick = { viewModel.update { it.copy(ordinal = ordinal) } },
+                                        label = { Text(s.repeat.ordinals[ordinal.ordinal].capitalized()) },
+                                    )
+                                }
+                            }
+                            WeekDayPicker(
+                                selected = state.effectiveKind.days.singleOrNull()?.let { setOf(it) } ?: emptySet(),
+                                onToggle = { day -> viewModel.update { it.copy(dayKind = DayKind.of(day)) } },
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                DayKind.Groups.forEach { kind ->
+                                    FilterChip(
+                                        selected = state.effectiveKind == kind,
+                                        onClick = { viewModel.update { it.copy(dayKind = kind) } },
+                                        label = { Text(RuleSummary.kindName(kind, s).capitalized()) },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
-                if (state.frequency == Frequency.Daily) {
+                if (state.frequency in CreateTodoViewModel.SEVERAL_TIMES) {
                     Text(s.timesThatDay, style = MaterialTheme.typography.labelLarge)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.times.sorted().forEach { t ->
@@ -244,6 +292,23 @@ fun CreateTodoScreen(
                         )
                     }
                     EndMode.Never -> {}
+                }
+
+                // The rule as it will be sent, in words, and where it starts when that is not the date picked.
+                val words = remember(state, s) { CreateTodoViewModel.ruleInWords(state, s, TimeZone.currentSystemDefault()) }
+                if (words != null) {
+                    Text(words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                }
+                val first = state.firstDate
+                if (first != null && first != state.date) {
+                    Text(
+                        s.repeat.firstTime(RuleSummary.day(first, s)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (state.neverFalls) {
+                    Text(s.repeat.neverFalls, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
 

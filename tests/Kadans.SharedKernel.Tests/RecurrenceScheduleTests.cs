@@ -103,6 +103,59 @@ public class RecurrenceScheduleTests
     }
 
     [Test]
+    public async Task Monthly_last_weekday_via_set_position()
+    {
+        // The app's "the last weekday": BYDAY Monday to Friday, BYSETPOS -1.
+        var schedule = Build(
+            new RecurrenceSpec(
+                Frequency.Monthly,
+                ByDay: [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday],
+                BySetPos: [-1],
+                Count: 4
+            ),
+            Utc(2027, 1, 29, 9)
+        );
+
+        var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2028, 1, 1));
+
+        await Assert.That(occurrences).IsEquivalentTo(
+            [Utc(2027, 1, 29, 9), Utc(2027, 2, 26, 9), Utc(2027, 3, 31, 9), Utc(2027, 4, 30, 9)]
+        );
+    }
+
+    [Test]
+    public async Task A_monthly_set_position_kept_to_some_months_counts_within_each_month()
+    {
+        // The app's "the first Monday" of January and June. A yearly BYSETPOS would count across all the year's
+        // Mondays (January's first only), so the app sends a monthly rule limited to those months.
+        var schedule = Build(
+            new RecurrenceSpec(Frequency.Monthly, ByDay: [DayOfWeek.Monday], ByMonth: [1, 6], BySetPos: [1]),
+            Utc(2027, 1, 4, 9)
+        );
+
+        var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2028, 12, 31));
+
+        await Assert.That(occurrences).IsEquivalentTo(
+            [Utc(2027, 1, 4, 9), Utc(2027, 6, 7, 9), Utc(2028, 1, 3, 9), Utc(2028, 6, 5, 9)]
+        );
+    }
+
+    [Test]
+    public async Task Yearly_rule_in_some_months_on_a_day()
+    {
+        var schedule = Build(
+            new RecurrenceSpec(Frequency.Yearly, ByMonthDay: [1], ByMonth: [1, 4, 7, 10], Count: 5),
+            Utc(2027, 4, 1, 9)
+        );
+
+        var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2029, 1, 1));
+
+        await Assert.That(occurrences).IsEquivalentTo(
+            [Utc(2027, 4, 1, 9), Utc(2027, 7, 1, 9), Utc(2027, 10, 1, 9), Utc(2028, 1, 1, 9), Utc(2028, 4, 1, 9)]
+        );
+    }
+
+    [Test]
     public async Task Monthly_negative_month_day_means_end_of_month()
     {
         var schedule = Build(

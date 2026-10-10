@@ -288,6 +288,16 @@ installing on real devices second, hosting last.
       change made on a device fetches its reminders at once, without waiting for the hub's signal (`remindersChanged`).
       Checked against a local API: an edit as the app makes it keeps the moved occurrence, drops the old times and
       creates the new ones.
+- [x] The splash, held, 2026-10-10 (the owner found it too quick: the logo "appears but disappears fast"). The hands
+      still wind for one second; then the K is held 0.7 s and the splash fades in 0.3 s (`KadansMark.HOLD_MS`,
+      `FADE_MS`), on the desktop (`SplashOver`), on Android 12+ (the system splash, held by `MainActivity`) and now
+      before Android 12 too, whose still K used to vanish the moment the app drew: the app keeps it as long, then
+      fades. The splash takes clicks and taps meanwhile, so none lands on the app beneath it. On the way, a bug since
+      the logo: Android gives the icon animation's start in wall-clock time, which `MainActivity` read as uptime, so the
+      splash was always held a fixed time after the app was ready (a slow start showed it for 4 s); it now counts from
+      the animation's start, and a start slower than the splash is not padded. Checked offscreen on the desktop (the
+      timing, clicks swallowed until the fade ends) and on the Android 15 emulator with a timing probe (warm starts end
+      at 2.0 s, a 1.9 s cold start fades at once). Before Android 12: offscreen only (no image for it here).
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
@@ -299,8 +309,8 @@ installing on real devices second, hosting last.
       - Desktop only, already covered on Android: the tray and closing to it (#70; the phone rings from its exact alarm
         with the app closed, #65), one instance (Android runs one by itself), the notification balloons, and opening with
         the session (the phone puts the alarm back after a reboot: #65's boot receiver).
-      - Later, on both: the splash, which the owner finds too quick (the desktop's is `KadansSplash`, Android 12+'s is the
-        system splash, `avd_splash`: two drawings of one animation, to change together).
+      - Done on both: the splash held 0.7 s with the K, then faded (above). To look at on a phone before Android 12: the
+        still K handed from the window to the app without a jump, and the status bar over it.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

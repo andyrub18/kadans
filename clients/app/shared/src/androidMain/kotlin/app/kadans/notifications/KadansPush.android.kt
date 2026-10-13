@@ -101,6 +101,7 @@ class KadansMessagingService : FirebaseMessagingService() {
                 body = message.notification?.body ?: data["body"] ?: "",
                 notifyAt = data["notifyAt"]?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: startsAt,
                 startsAt = startsAt,
+                pomodoroTemplateId = data["pomodoroTemplateId"]?.ifBlank { null },
             )
         }
     }

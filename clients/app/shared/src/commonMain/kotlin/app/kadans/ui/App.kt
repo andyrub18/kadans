@@ -74,7 +74,14 @@ data object BudgetAddRoute
 data class TodoDetailRoute(val todoId: String)
 data class EditTodoRoute(val todoId: String)
 /** [finishAtMillis]: when a new session should end by itself (epoch ms); null leaves the default, 12 hours. */
-data class PomodoroRoute(val todoId: String, val loop: Boolean = true, val handsFree: Boolean = false, val finishAtMillis: Long? = null)
+/** [startsOne]: false for a link, which shows the session running (or the last one) and never starts another. */
+data class PomodoroRoute(
+    val todoId: String,
+    val loop: Boolean = true,
+    val handsFree: Boolean = false,
+    val finishAtMillis: Long? = null,
+    val startsOne: Boolean = true,
+)
 
 @Composable
 fun App(deepLink: String? = null) {
@@ -308,6 +315,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         loop = key.loop,
                         handsFree = key.handsFree,
                         finishAtMillis = key.finishAtMillis,
+                        startsOne = key.startsOne,
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

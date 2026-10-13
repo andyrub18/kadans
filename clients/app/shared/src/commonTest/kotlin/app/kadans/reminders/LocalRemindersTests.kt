@@ -60,6 +60,7 @@ class LocalRemindersTests {
     private class FakeScheduler(var access: ReminderAccess = ReminderAccess.Ready) : ReminderScheduler {
         var scheduled: List<String> = emptyList()
         val shown = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
         var fresh = false
         val opened = mutableListOf<ReminderAccess>()
 
@@ -75,6 +76,7 @@ class LocalRemindersTests {
 
         override fun show(reminder: UpcomingReminder) {
             shown += reminder.occurrenceId
+            bodies += reminder.body
         }
 
         override fun keepFresh(enabled: Boolean) {
@@ -94,6 +96,16 @@ class LocalRemindersTests {
         var window: List<UpcomingReminder> = emptyList()
         val answers = mutableMapOf<String, ReminderCheckResponse>()
         var checksHang = false
+
+        /** Each check's occurrence and the reminder time it asked about. */
+        val checked = mutableListOf<Pair<String, Instant?>>()
+
+        /** "Start focus": the session's answer, or the problem's error code; the query of each start. */
+        var startRefusedWith: String? = null
+        val starts = mutableListOf<String>()
+
+        /** "Done": the problem's error code, or null for done. */
+        var completeRefusedWith: String? = null
 
         /** When set, a window fetch waits for it: what happens meanwhile happens mid-fetch. */
         var fetchArrived: CompletableDeferred<Unit>? = null
@@ -119,10 +131,27 @@ class LocalRemindersTests {
                 call.startsWith("GET /reminders/") -> {
                     if (checksHang) awaitCancellation()
                     val id = path.substringAfterLast('/')
-                    val answer = answers[id] ?: ReminderCheckResponse(id, due = true, notifyAt = window.firstOrNull { it.occurrenceId == id }?.notifyAt)
+                    lock.withLock { checked += id to request.url.parameters["at"]?.let(Instant::parse) }
+                    val mine = window.filter { it.occurrenceId == id }
+                    val answer = answers[id] ?: ReminderCheckResponse(id, due = true, notifyAt = mine.firstOrNull()?.notifyAt, startsAt = mine.firstOrNull()?.startsAt)
                     respond(KadansJson.encodeToString(ReminderCheckResponse.serializer(), answer), HttpStatusCode.OK, jsonHeaders)
                 }
-                call == "PUT /occurrences/o9/complete" -> respond("{}", HttpStatusCode.OK, jsonHeaders)
+                call.startsWith("POST /todos/") && path.endsWith("/pomodoro/start") -> {
+                    lock.withLock { starts += request.url.encodedQuery }
+                    when (val code = startRefusedWith) {
+                        null -> respond(
+                            """{"id":"run-1","todoId":"todo-a","status":"Active","currentPhaseIndex":0,""" +
+                                """"startedAt":"2026-10-09T12:00:00Z","updatedAt":"2026-10-09T12:00:00Z","occurrenceId":"a"}""",
+                            HttpStatusCode.OK,
+                            jsonHeaders,
+                        )
+                        else -> respond("""{"title":"Refused","status":400,"errorCode":"$code"}""", HttpStatusCode.BadRequest, jsonHeaders)
+                    }
+                }
+                call.startsWith("PUT /occurrences/") && path.endsWith("/complete") -> when (val code = completeRefusedWith) {
+                    null -> respond("{}", HttpStatusCode.OK, jsonHeaders)
+                    else -> respond("""{"title":"Refused","status":400,"errorCode":"$code"}""", HttpStatusCode.BadRequest, jsonHeaders)
+                }
                 call == "PUT /users/me" ->
                     respond("""{"id":"u1","username":"alice","timeZone":"America/Port-au-Prince","language":"fr"}""", HttpStatusCode.OK, jsonHeaders)
                 call.startsWith("PUT /users/me/devices/") -> {
@@ -149,7 +178,10 @@ class LocalRemindersTests {
         var clock = t0
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val events = MutableSharedFlow<RealtimeEvent>(extraBufferCapacity = 4)
-        val reminders = LocalReminders(api, DeviceRegistrar(api, settings), scheduler, store, events, { clock }, scope, 200.milliseconds)
+        val reminders = LocalReminders(
+            api, DeviceRegistrar(api, settings), scheduler, store, events, { clock }, scope, 200.milliseconds,
+            snoozedText = { reminder, now -> "${reminder.title}, again at $now" },
+        )
 
         suspend fun fetches() = server.calls().count { it == "POST /reminders/sync" }
     }
@@ -214,7 +246,8 @@ class LocalRemindersTests {
         server.window = listOf(reminder("done", t0 + 1.minutes), reminder("moved", t0 + 1.minutes))
         reminders.sync()
         server.answers["done"] = ReminderCheckResponse("done", due = false)
-        server.answers["moved"] = ReminderCheckResponse("moved", due = true, notifyAt = t0 + 3.hours)
+        // Moved: its reminder at this time is none of its reminders any more; they are now hours later.
+        server.answers["moved"] = ReminderCheckResponse("moved", due = false, notifyAt = t0 + 3.hours, startsAt = t0 + 3.hours + 15.minutes)
         val before = fetches()
 
         clock = t0 + 1.minutes
@@ -490,5 +523,135 @@ class LocalRemindersTests {
             scheduler.access = access
             assertFalse(reminders.shouldOfferPermission(), "$access")
         }
+    }
+
+    /** An occurrence starting at 12:06, reminded at 12:01: its two reminders, as the server's window holds them. */
+    private fun twoReminders(id: String = "a", template: String? = null): List<UpcomingReminder> {
+        val early = reminder(id, t0 + 1.minutes, startsAt = t0 + 6.minutes).copy(pomodoroTemplateId = template)
+        return listOf(early, early.copy(notifyAt = t0 + 6.minutes, body = "Starts now (12:06)"))
+    }
+
+    @Test
+    fun an_occurrence_rings_before_its_start_and_at_it_each_checked_by_its_time() = test {
+        server.window = twoReminders()
+        reminders.sync()
+
+        clock = t0 + 1.minutes
+        reminders.ringDue()
+        clock = t0 + 6.minutes
+        reminders.ringDue()
+        reminders.ringDue()
+
+        assertEquals(listOf("Starts at 12:15 — in 15 min", "Starts now (12:06)"), scheduler.bodies)
+        assertEquals(listOf("a" to t0 + 1.minutes, "a" to t0 + 6.minutes), server.checked.toList())
+    }
+
+    @Test
+    fun while_its_focus_session_runs_a_reminder_stays_quiet_and_fetches_nothing() = test {
+        server.window = twoReminders()
+        reminders.sync()
+        // Started on the desktop a moment ago: neither of its times is due, and neither moved.
+        server.answers["a"] = ReminderCheckResponse("a", due = false, notifyAt = t0 + 1.minutes, startsAt = t0 + 6.minutes)
+        val before = fetches()
+
+        clock = t0 + 6.minutes
+        reminders.ringDue()
+
+        assertEquals(emptyList(), scheduler.shown)
+        delay(300)
+        assertEquals(before, fetches(), "nothing moved: no new window")
+    }
+
+    @Test
+    fun in_ten_minutes_it_rings_again_read_afresh_and_its_starts_now_waits_with_it() = test {
+        val (early, _) = twoReminders()
+        server.window = twoReminders()
+        reminders.sync()
+        clock = t0 + 1.minutes
+        reminders.ringDue()
+
+        reminders.snooze(early)
+        assertEquals(listOf("a"), scheduler.scheduled, "only the reminder put off is ahead")
+        clock = t0 + 6.minutes
+        reminders.ringDue() // "starts now" falls inside the ten minutes: it waits with the one put off
+        clock = t0 + 11.minutes
+        reminders.ringDue()
+
+        assertEquals(listOf("Starts at 12:15 — in 15 min", "Title a, again at ${t0 + 11.minutes}"), scheduler.bodies)
+        assertEquals("a" to t0 + 1.minutes, server.checked.last(), "checked as the reminder it was")
+        assertEquals(emptyList(), store.snoozed())
+        assertEquals(emptyList(), scheduler.scheduled)
+    }
+
+    @Test
+    fun a_reminder_put_off_reads_as_it_is_then() {
+        val strings = app.kadans.i18n.Language.En.catalog.reminders
+        val zone = kotlinx.datetime.TimeZone.UTC
+        val putOff = reminder("a", t0 + 1.minutes, startsAt = t0 + 6.minutes)
+
+        assertEquals("Starts at 12:06", LocalReminders.snoozedBody(putOff, t0 + 5.minutes, strings, zone))
+        assertEquals("Started at 12:06", LocalReminders.snoozedBody(putOff, t0 + 11.minutes, strings, zone))
+    }
+
+    @Test
+    fun done_or_started_from_its_notification_its_other_reminders_stay_quiet_offline_too() = test {
+        server.window = twoReminders()
+        reminders.sync()
+        clock = t0 + 1.minutes
+        reminders.ringDue()
+
+        reminders.settled("a")
+        server.reachable = false
+        clock = t0 + 6.minutes
+        reminders.ringDue()
+
+        assertEquals(listOf("a"), scheduler.shown)
+        assertEquals(emptyList(), scheduler.scheduled)
+    }
+
+    @Test
+    fun start_focus_starts_the_todos_session_for_that_occurrence_and_quiets_its_starts_now() = test {
+        val (early, _) = twoReminders(template = "tpl")
+        server.window = twoReminders(template = "tpl")
+        reminders.sync()
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings))
+
+        val result = actions.startFocus(early)
+
+        assertEquals("run-1", (result as ReminderActions.Result.FocusStarted).run?.id)
+        val query = server.starts.single()
+        assertTrue("occurrenceId=a" in query && "autoAdvance=true" in query && "loop=true" in query, query)
+        assertEquals(emptyList(), scheduler.scheduled, "its reminders stay quiet here")
+    }
+
+    @Test
+    fun a_session_already_running_counts_as_started_and_one_done_elsewhere_as_done() = test {
+        val (early, _) = twoReminders(template = "tpl")
+        server.window = twoReminders(template = "tpl")
+        reminders.sync()
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings))
+
+        server.startRefusedWith = "10030" // PomodoroAlreadyActiveForTodo
+        assertEquals(ReminderActions.Result.FocusStarted(null), actions.startFocus(early))
+        server.completeRefusedWith = "10005" // TaskAlreadyCompleted
+        assertEquals(ReminderActions.Result.Done, actions.done(early))
+        server.completeRefusedWith = "10020" // TaskAlreadyCancelled
+        assertEquals(ReminderActions.Result.Done, actions.done(early))
+    }
+
+    @Test
+    fun a_button_that_fails_leaves_the_reminders_ringing() = test {
+        val (early, _) = twoReminders()
+        server.window = twoReminders()
+        reminders.sync()
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings))
+
+        server.completeRefusedWith = "10012" // any other refusal
+        assertEquals(ReminderActions.Result.Failed, actions.done(early))
+        server.reachable = false
+        assertEquals(ReminderActions.Result.Failed, actions.done(early))
+        assertEquals(ReminderActions.Result.Failed, actions.startFocus(early))
+
+        assertEquals(listOf("a", "a"), scheduler.scheduled, "both still to ring")
     }
 }

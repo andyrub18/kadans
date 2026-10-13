@@ -222,10 +222,17 @@ data class PomodoroStrings(
     val builderLongBreak: String,
     val builderFill: String,
     val cycleLimits: String,
+    /** A session's end asks about the occurrence it was for. `%s` = the todo's title. */
+    val doneWithFormat: String,
+    val markDone: String,
+    val notYet: String,
+    val markedDone: String,
 ) {
     fun endsAt(time: String): String = endsAtFormat.replace("%s", time)
 
     fun endsTomorrowAt(time: String): String = endsTomorrowAtFormat.replace("%s", time)
+
+    fun doneWith(title: String): String = doneWithFormat.replace("%s", title)
 }
 
 /** Deleting the account (closed now, erased after 7 days unless kept) and deleting one todo. A feature group. */
@@ -323,7 +330,7 @@ data class NotificationStrings(
 
 /**
  * Reminders this phone rings itself (ARCHITECTURE → "Reminders ring on the phone"): asking for "Alarms & reminders",
- * the Settings section, and the name the system lists reminders under. A feature group.
+ * the Settings section, the name the system lists reminders under, and a reminder's buttons. A feature group.
  */
 data class ReminderStrings(
     val permissionTitle: String,
@@ -336,7 +343,22 @@ data class ReminderStrings(
     val notificationsOff: String,
     val openSettings: String,
     val channelName: String,
-)
+    /** A reminder's buttons: a focus todo's starts its session, any other's marks it done; both can wait 10 minutes. */
+    val startFocus: String,
+    val done: String,
+    val snooze: String,
+    /** A reminder rung again after "In 10 min", read afresh. `%s` = its start, a clock time. */
+    val startsAtFormat: String,
+    val startedAtFormat: String,
+    /** "Start focus" pressed: the session runs. */
+    val focusStarted: String,
+    /** A button whose request failed (offline, signed out): the reminder stays, with its buttons. */
+    val actionFailed: String,
+) {
+    fun startsAt(time: String): String = startsAtFormat.replace("%s", time)
+
+    fun startedAt(time: String): String = startedAtFormat.replace("%s", time)
+}
 
 data class StringsCatalog(
     // auth

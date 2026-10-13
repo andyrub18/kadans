@@ -18,6 +18,7 @@ import app.kadans.push.DeviceRegistrar
 import app.kadans.reminders.LocalReminders
 import app.kadans.reminders.ReminderScheduler
 import app.kadans.reminders.ReminderStore
+import app.kadans.reminders.ReminderActions
 import app.kadans.reminders.platformReminderScheduler
 import app.kadans.realtime.KadansRealtime
 import app.kadans.profile.ProfileSync
@@ -73,11 +74,21 @@ val appModule = org.koin.dsl.module {
         val settings = get<Settings>()
         val koin = getKoin()
         platformReminderScheduler(
-            channelName = { Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders.channelName },
+            strings = { Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders },
             onDue = { koin.get<LocalReminders>().ringDue() },
         )
     }
-    single { LocalReminders(get(), get(), get(), get(), get<KadansRealtime>().events) }
+    single {
+        val settings = get<Settings>()
+        LocalReminders(
+            get(), get(), get(), get(), get<KadansRealtime>().events,
+            snoozedText = { reminder, now ->
+                val strings = Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders
+                LocalReminders.snoozedBody(reminder, now, strings, kotlinx.datetime.TimeZone.currentSystemDefault())
+            },
+        )
+    }
+    single { ReminderActions(get(), get(), get()) }
     single { LanguageController(get(), get()) }
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }
@@ -110,8 +121,8 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::CreateTodoViewModel)
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }
     factory { (todoId: String) -> EditTodoViewModel(get(), todoId) }
-    factory { (todoId: String, loop: Boolean, handsFree: Boolean, finishAtMillis: Long?) ->
-        PomodoroViewModel(get(), get(), todoId, loop, handsFree, finishAtMillis?.let(kotlin.time.Instant::fromEpochMilliseconds))
+    factory { (todoId: String, loop: Boolean, handsFree: Boolean, finishAtMillis: Long?, startsOne: Boolean) ->
+        PomodoroViewModel(get(), get(), todoId, loop, handsFree, finishAtMillis?.let(kotlin.time.Instant::fromEpochMilliseconds), startsOne)
     }
 }
 

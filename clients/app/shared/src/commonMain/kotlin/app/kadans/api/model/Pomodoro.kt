@@ -74,8 +74,11 @@ data class PomodoroRunResponse(
     val startedAt: Instant,
     val pausedAt: Instant? = null,
     val completedAt: Instant? = null,
-    val updatedAt: Instant,    /** When the session ends by itself unless finished sooner (12 hours after the start by default). */
+    val updatedAt: Instant,
+    /** When the session ends by itself unless finished sooner (12 hours after the start by default). */
     val finishAt: Instant? = null,
+    /** The occurrence the session is for: its end offers to mark it done. Null when none was near its start. */
+    val occurrenceId: String? = null,
 )
 
 @Serializable

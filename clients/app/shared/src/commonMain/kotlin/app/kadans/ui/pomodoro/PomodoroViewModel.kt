@@ -6,6 +6,7 @@ import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.CreatePomodoroPhase
 import app.kadans.api.model.CreatePomodoroTemplate
+import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroRunStatus
@@ -21,6 +22,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlin.time.Duration.Companion.minutes
+
+/**
+ * A finished session's occurrence while it is still pending: the end asks whether it is done ([marked] once it is).
+ * [title]: the todo's. [errorCode], [error]: why marking it failed (offline), shown under the question.
+ */
+data class DonePrompt(
+    val occurrenceId: String,
+    val title: String,
+    val marked: Boolean = false,
+    val errorCode: String? = null,
+    val error: String? = null,
+)
 
 sealed interface PomodoroUiState {
     data object Loading : PomodoroUiState
@@ -38,9 +51,17 @@ class PomodoroViewModel(
     private val handsFree: Boolean = false,
     /** When the session should end by itself; null: the server's default, 12 hours after the start. */
     private val finishAt: kotlin.time.Instant? = null,
+    /** False when a link opened the screen: it shows the session running, or the last one, and never starts another. */
+    private val startsOne: Boolean = true,
 ) : ViewModel() {
     private val _state = MutableStateFlow<PomodoroUiState>(PomodoroUiState.Loading)
     val state: StateFlow<PomodoroUiState> = _state.asStateFlow()
+
+    private val _donePrompt = MutableStateFlow<DonePrompt?>(null)
+    val donePrompt: StateFlow<DonePrompt?> = _donePrompt.asStateFlow()
+
+    /** The run whose end was already asked about: a session ends once, and is asked about once. */
+    private var askedFor: String? = null
 
     init {
         realtime.start() // idempotent — the focus screen must not depend on Home having done it
@@ -69,7 +90,8 @@ class PomodoroViewModel(
             } catch (e: KadansApiException) {
                 when {
                     e.errorCode != "10028" -> fail(e)
-                    _state.value is PomodoroUiState.Loading -> startInternal()
+                    _state.value is PomodoroUiState.Loading && startsOne -> startInternal()
+                    _state.value is PomodoroUiState.Loading -> if (!resync()) fail(e)
                     // else: keep showing the finished session
                 }
             } catch (e: Exception) {
@@ -204,6 +226,46 @@ class PomodoroViewModel(
 
     private fun adopt(run: PomodoroRunResponse) {
         _state.value = PomodoroUiState.Session(run, remainingOf(run, Clock.System.now()))
+        if (_donePrompt.value != null && run.status != PomodoroRunStatus.Completed) _donePrompt.value = null // another cycle
+        askAboutItsOccurrence(run)
+    }
+
+    /**
+     * A session that completed (finished, or ended by itself) asks about the occurrence it was for, if still pending:
+     * marking it done there saves a trip to the todo. Not after "End session", which says nothing was finished.
+     */
+    private fun askAboutItsOccurrence(run: PomodoroRunResponse) {
+        val occurrenceId = run.occurrenceId ?: return
+        if (run.status != PomodoroRunStatus.Completed || askedFor == run.id) return
+        askedFor = run.id
+        viewModelScope.launch {
+            val occurrence = runCatching { api.todos.occurrence(occurrenceId) }.getOrNull() ?: return@launch
+            if (occurrence.status == OccurrenceStatus.Pending) _donePrompt.value = DonePrompt(occurrenceId, occurrence.todoTitle)
+        }
+    }
+
+    /** "Mark it done": one done or cancelled elsewhere meanwhile reads as done all the same. */
+    fun markDone() {
+        val prompt = _donePrompt.value?.takeIf { !it.marked } ?: return
+        viewModelScope.launch {
+            try {
+                api.todos.completeOccurrence(prompt.occurrenceId)
+            } catch (e: KadansApiException) {
+                if (e.errorCode != "10005" && e.errorCode != "10020") {
+                    _donePrompt.value = prompt.copy(errorCode = e.errorCode, error = e.message)
+                    return@launch
+                }
+            } catch (_: Exception) {
+                _donePrompt.value = prompt.copy(errorCode = "network", error = null)
+                return@launch
+            }
+            _donePrompt.value = prompt.copy(marked = true, errorCode = null, error = null)
+        }
+    }
+
+    /** "Not yet": the occurrence stays as it is. */
+    fun notYet() {
+        _donePrompt.value = null
     }
 
     private fun fail(e: Exception) {

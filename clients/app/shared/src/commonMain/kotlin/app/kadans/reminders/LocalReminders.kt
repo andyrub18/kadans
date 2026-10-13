@@ -6,6 +6,7 @@ import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.ReminderCheckResponse
 import app.kadans.api.model.ReminderWindowResponse
 import app.kadans.api.model.UpcomingReminder
+import app.kadans.i18n.ReminderStrings
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.RealtimeEvent
 import kotlin.coroutines.cancellation.CancellationException
@@ -30,6 +31,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * The reminders this device rings itself (ARCHITECTURE → "Reminders ring on the phone"). The server writes them and
@@ -49,6 +52,8 @@ class LocalReminders(
     private val now: () -> Instant = { Clock.System.now() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val checkWithin: Duration = CHECK_WITHIN,
+    /** What a reminder rung again after "In 10 min" says at that time ("Starts at 09:00", "Started at 09:00"). */
+    private val snoozedText: (UpcomingReminder, Instant) -> String = { reminder, _ -> reminder.body },
 ) {
     /** One window fetch at a time. */
     private val fetching = Mutex()
@@ -130,8 +135,9 @@ class LocalReminders(
 
     /**
      * The alarm rang: shows every reminder now due that has not rung here. When the server answers within two
-     * seconds, one no longer due at that time (deleted, done or moved on another device since the window was
-     * fetched) stays quiet; offline, it rings: the phone cannot know better. Then the next alarm is set.
+     * seconds, one no longer due at its time stays quiet: deleted, done or moved on another device since the window was
+     * fetched, or a focus session on the todo runs (the person has begun). Offline, it rings: the phone cannot know
+     * better. Then the next alarm is set.
      */
     suspend fun ringDue() = ringing.withLock {
         val (started, due) = state.withLock { session to due(now()) }
@@ -142,14 +148,34 @@ class LocalReminders(
             due.forEachIndexed { i, reminder ->
                 val answer = answers[i]
                 when {
-                    answer == null || (answer.due && answer.notifyAt == reminder.notifyAt) -> scheduler.show(reminder)
-                    answer.due -> moved = true // its new time comes with the next window
+                    answer == null || answer.due -> scheduler.show(shown(reminder))
+                    // Still pending, but this time is none of its reminders any more: its new times come with the next window.
+                    answer.notifyAt != null && reminder.moment != answer.notifyAt && reminder.moment != answer.startsAt -> moved = true
                 }
             }
             store.markRung(due, now())
+            store.saveSnoozed(store.snoozed().filterNot { it in due })
             reschedule()
             if (moved) syncSoon()
         }
+    }
+
+    /**
+     * "In 10 min": the reminder rings again then, read afresh (it may say "started" by then), unless its occurrence is
+     * done or gone by then. Until then this occurrence rings nothing else here: its "starts now" waits with it.
+     */
+    suspend fun snooze(reminder: UpcomingReminder) = state.withLock {
+        val again = reminder.copy(notifyAt = now() + SNOOZE, snoozedFrom = reminder.moment)
+        store.markRung(store.window().filter { it.occurrenceId == reminder.occurrenceId && it.notifyAt <= again.notifyAt }, now())
+        store.saveSnoozed(store.snoozed().filterNot { it.occurrenceId == reminder.occurrenceId } + again)
+        reschedule()
+    }
+
+    /** Done, or its focus session started, from a reminder's button: its other reminders stay quiet here, offline too. */
+    suspend fun settled(occurrenceId: String) = state.withLock {
+        store.markRung((store.window() + store.snoozed()).filter { it.occurrenceId == occurrenceId }, now())
+        store.saveSnoozed(store.snoozed().filterNot { it.occurrenceId == occurrenceId })
+        reschedule()
     }
 
     /**
@@ -220,8 +246,13 @@ class LocalReminders(
     /** Due now and not rung here, oldest first. */
     private fun due(at: Instant) = ringing(at).filter { it.notifyAt <= at }
 
-    /** What still has to ring, from the stored window: not rung here, and not too late to be of use. */
-    private fun ringing(at: Instant) = store.unrung(store.window()).filter { at < lastUseful(it) }.sortedBy { it.notifyAt }
+    /** What still has to ring, from the stored window and what was put off: not rung here, and not too late to be of use. */
+    private fun ringing(at: Instant) =
+        store.unrung(store.window() + store.snoozed()).filter { at < lastUseful(it) }.sortedBy { it.notifyAt }
+
+    /** As it shows now: one put off is read afresh. */
+    private fun shown(reminder: UpcomingReminder) =
+        if (reminder.snoozedFrom == null) reminder else reminder.copy(body = snoozedText(reminder, now()))
 
     /** Under [state]. */
     private fun reschedule() = scheduler.schedule(ringing(now()))
@@ -248,7 +279,7 @@ class LocalReminders(
     /** Each reminder's answer, asked together; null for one the server did not answer in time. */
     private suspend fun checks(due: List<UpcomingReminder>): List<ReminderCheckResponse?> = coroutineScope {
         due.map { reminder ->
-            async { withTimeoutOrNull(checkWithin) { attempt { api.reminders.check(reminder.occurrenceId) } } }
+            async { withTimeoutOrNull(checkWithin) { attempt { api.reminders.check(reminder.occurrenceId, reminder.moment) } } }
         }.awaitAll()
     }
 
@@ -277,7 +308,17 @@ class LocalReminders(
         /** The foreground fetches the window again only when the last fetch is older than this. */
         val FRESH = 5.minutes
 
+        /** "In 10 min". */
+        val SNOOZE = 10.minutes
+
         fun lastUseful(reminder: UpcomingReminder): Instant = maxOf(reminder.startsAt, reminder.notifyAt + LATE)
+
+        /** A reminder rung again after "In 10 min", as it reads at [now]: "Starts at 09:00", or "Started at 09:00". */
+        fun snoozedBody(reminder: UpcomingReminder, now: Instant, strings: ReminderStrings, zone: TimeZone): String {
+            val start = reminder.startsAt.toLocalDateTime(zone).time
+            val clock = "${start.hour.toString().padStart(2, '0')}:${start.minute.toString().padStart(2, '0')}"
+            return if (now < reminder.startsAt) strings.startsAt(clock) else strings.startedAt(clock)
+        }
 
         /** The reminder a live notification carries (`ReminderNotification.Message`), or null for any other kind. */
         fun reminderOf(notification: NotificationResponse): UpcomingReminder? {
@@ -291,6 +332,7 @@ class LocalReminders(
                 body = notification.body,
                 notifyAt = data["notifyAt"]?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: startsAt,
                 startsAt = startsAt,
+                pomodoroTemplateId = data["pomodoroTemplateId"]?.ifBlank { null },
             )
         }
     }

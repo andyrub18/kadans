@@ -28,7 +28,12 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
 
     // What a phone's reminder window is made of. The jobs' bookkeeping (a reminder stamped sent, the horizon moved on)
     // changes nothing a phone holds.
-    private static readonly HashSet<string> Bookkeeping = [nameof(TodoOccurrence.NotifiedAt), nameof(Todo.OccurrencesGeneratedThrough)];
+    private static readonly HashSet<string> Bookkeeping =
+    [
+        nameof(TodoOccurrence.NotifiedAt),
+        nameof(TodoOccurrence.StartNotifiedAt),
+        nameof(Todo.OccurrencesGeneratedThrough),
+    ];
 
     private const string BumpVersion =
         "INSERT INTO " + Schema + ".reminder_changes (user_id, version, changed_at) VALUES ({0}, 1, {1}) "
@@ -198,10 +203,12 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
                 .HasDatabaseName("ix_todo_occurrences_scheduled_at_pending")
                 .HasFilter("status = 'Pending'");
 
-            // What the reminder job scans.
+            // What the reminder job scans: the reminders before the start, then the "starts now" ones.
             t.HasIndex(o => o.NotifyAt)
                 .HasDatabaseName("ix_todo_occurrences_notify_due")
                 .HasFilter("status = 'Pending' AND notified_at IS NULL AND notify_at IS NOT NULL");
+            t.HasIndex(o => o.ScheduledAt, "ix_todo_occurrences_start_due")
+                .HasFilter("status = 'Pending' AND start_notified_at IS NULL AND notify_at IS NOT NULL");
 
             t.HasQueryFilter(ACTIVE_OCCURRENCES_FILTER, o => o.Status == OccurrenceStatus.Pending);
             t.HasQueryFilter(
@@ -247,6 +254,13 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
                 .WithMany()
                 .HasForeignKey(x => x.TodoId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // The occurrence a session is for, so its end can offer to mark it done. Gone (retention, a rule edited),
+            // the session stays without it.
+            r.HasOne<TodoOccurrence>()
+                .WithMany()
+                .HasForeignKey(x => x.OccurrenceId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             r.HasMany(x => x.Phases)
                 .WithOne()

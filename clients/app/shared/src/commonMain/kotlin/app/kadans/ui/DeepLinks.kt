@@ -24,8 +24,16 @@ fun parseDeepLink(link: String?): Any? {
             }
             else -> null
         }
-        // A reminder's todo. Only an id: anything else in the path is not a link this app made.
-        "todos" -> Uuid.parseOrNull(path)?.let { TodoDetailRoute(it.toString()) }
+        // A reminder's todo, or its focus session. Only an id: anything else in the path is not a link this app made.
+        "todos" -> {
+            val parts = path.split('/')
+            val todoId = Uuid.parseOrNull(parts[0])?.toString() ?: return null
+            when (parts.drop(1)) {
+                emptyList<String>() -> TodoDetailRoute(todoId)
+                listOf("focus") -> PomodoroRoute(todoId, startsOne = false)
+                else -> null
+            }
+        }
         else -> null
     }
 }
@@ -33,8 +41,11 @@ fun parseDeepLink(link: String?): Any? {
 /** What a reminder opens when tapped: its todo. */
 fun todoLink(todoId: String): String = "kadans://todos/$todoId"
 
-/** Whether [route] may open now: a todo needs a session, a password reset does not. */
-fun opensWith(route: Any, signedIn: Boolean): Boolean = route !is TodoDetailRoute || signedIn
+/** What a focus session started from a reminder opens: the session (it shows the one running). */
+fun focusLink(todoId: String): String = "kadans://todos/$todoId/focus"
+
+/** Whether [route] may open now: a todo or its session needs a session, a password reset does not. */
+fun opensWith(route: Any, signedIn: Boolean): Boolean = (route !is TodoDetailRoute && route !is PomodoroRoute) || signedIn
 
 /**
  * Links that reach the app while it runs (Android: a reminder tapped with the app open). Kept until the navigation

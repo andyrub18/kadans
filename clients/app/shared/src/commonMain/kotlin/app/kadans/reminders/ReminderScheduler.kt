@@ -1,6 +1,7 @@
 package app.kadans.reminders
 
 import app.kadans.api.model.UpcomingReminder
+import app.kadans.i18n.ReminderStrings
 
 /** Whether this device can ring reminders itself, and if not, what the person could turn on. */
 enum class ReminderAccess {
@@ -34,7 +35,10 @@ interface ReminderScheduler {
      */
     fun schedule(reminders: List<UpcomingReminder>)
 
-    /** Shows the reminder now: its alarm rang, or a push brought it. A tap opens its todo. */
+    /**
+     * Shows the reminder now: its alarm rang, or a push brought it. A tap opens its todo; its buttons ([ReminderActions])
+     * start a focus todo's session or mark any other done, and put it off 10 minutes, where the platform shows buttons.
+     */
     fun show(reminder: UpcomingReminder)
 
     /** A background refresh of the window twice a day, while this device rings reminders. */
@@ -55,8 +59,8 @@ object NoReminderScheduler : ReminderScheduler {
 }
 
 /**
- * This platform's scheduler (Android: AlarmManager; desktop: a timer in the app). [channelName]: what the system lists
- * reminders under. [onDue]: what a timer in the app calls when the next reminder is due ([LocalReminders.ringDue]);
- * Android's alarm reaches it through its receiver instead.
+ * This platform's scheduler (Android: AlarmManager; desktop: a timer in the app). [strings]: the words in the app's
+ * language (what the system lists reminders under, a reminder's buttons). [onDue]: what a timer in the app calls when the
+ * next reminder is due ([LocalReminders.ringDue]); Android's alarm reaches it through its receiver instead.
  */
-expect fun platformReminderScheduler(channelName: () -> String, onDue: suspend () -> Unit): ReminderScheduler
+expect fun platformReminderScheduler(strings: () -> ReminderStrings, onDue: suspend () -> Unit): ReminderScheduler

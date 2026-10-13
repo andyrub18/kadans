@@ -36,8 +36,14 @@ internal sealed class TodoOccurrence
     /// <summary>When the reminder is due (<c>ScheduledAt - lead time</c>); null when notifications are off.</summary>
     public DateTimeOffset? NotifyAt { get; private set; }
 
-    /// <summary>Stamped by the reminder job so a reminder is sent once.</summary>
+    /// <summary>Stamped by the reminder job so the reminder at <see cref="NotifyAt"/> is sent once.</summary>
     public DateTimeOffset? NotifiedAt { get; set; }
+
+    /// <summary>
+    /// Stamped by the reminder job so the "starts now" reminder at <see cref="ScheduledAt"/> is sent once (it rings
+    /// whenever notifications are on; a reminder sent at or after the start stamps both).
+    /// </summary>
+    public DateTimeOffset? StartNotifiedAt { get; set; }
 
     public bool IsPending => Status == OccurrenceStatus.Pending;
     public bool IsRescheduled => RescheduledAt is not null;
@@ -77,8 +83,9 @@ internal sealed class TodoOccurrence
         ScheduledAt = newDate;
         RescheduledAt = now;
         RescheduleReason = string.IsNullOrWhiteSpace(reason) ? null : reason;
-        // A moved occurrence deserves a fresh reminder.
+        // A moved occurrence deserves fresh reminders.
         NotifiedAt = null;
+        StartNotifiedAt = null;
         if (Todo is not null)
             RefreshNotifyAt(Todo);
         return new Success();
@@ -86,6 +93,24 @@ internal sealed class TodoOccurrence
 
     public void RefreshNotifyAt(Todo todo) =>
         NotifyAt = todo.NotificationEnabled ? ScheduledAt - todo.NotificationLeadTime : null;
+
+    /// <summary>
+    /// The moment the reminder going out at <paramref name="now"/> stands for: the start once it has come (it reads
+    /// "starts now"), else the notify time.
+    /// </summary>
+    public DateTimeOffset ReminderMoment(DateTimeOffset now) => NotifyAt is { } notifyAt && now < ScheduledAt ? notifyAt : ScheduledAt;
+
+    /// <summary>
+    /// The reminder due at <paramref name="now"/> went out, or was settled without being sent. Once the start has come
+    /// it is the "starts now" one, and stands for an earlier one never sent (the server was down, the todo was made
+    /// inside its lead).
+    /// </summary>
+    public void MarkReminded(DateTimeOffset now)
+    {
+        NotifiedAt ??= now;
+        if (ScheduledAt <= now)
+            StartNotifiedAt ??= now;
+    }
 
     private ApplicationError? NotPending() =>
         Status switch

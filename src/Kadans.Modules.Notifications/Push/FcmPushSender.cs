@@ -64,8 +64,8 @@ internal sealed class FcmPushSender : IPushSender
     internal const string RemindersChannel = "kadans.reminders";
 
     /// <summary>
-    /// One device's message. A reminder lives until its start (delivered later it is only noise) and collapses per
-    /// occurrence. To an app that rings reminders itself it is a data message the app shows, so the app can drop one it
+    /// One device's message. A reminder lives as long as it is of use (its start, or ten minutes after a "starts now";
+    /// delivered later it is only noise) and collapses per occurrence: the later of its two reminders replaces the first. To an app that rings reminders itself it is a data message the app shows, so the app can drop one it
     /// already rang (ARCHITECTURE → "Reminders ring on the phone"); to any other it stays a notification the system
     /// shows, in the reminders channel. A silent signal is data only, at normal priority: nothing is shown.
     /// </summary>
@@ -95,7 +95,7 @@ internal sealed class FcmPushSender : IPushSender
         var android = new AndroidConfig
         {
             Priority = Priority.High,
-            TimeToLive = reminder.StartsAt > now ? reminder.StartsAt - now : TimeSpan.Zero,
+            TimeToLive = reminder.UsefulUntil > now ? reminder.UsefulUntil - now : TimeSpan.Zero,
             CollapseKey = reminder.OccurrenceId.ToString(),
         };
         if (envelope.Target.RemindersSyncedAt is not null)

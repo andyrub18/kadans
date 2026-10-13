@@ -24,6 +24,7 @@ import app.kadans.startup.applyStartAtLogin
 import app.kadans.tray.StatusNotifierTray
 import app.kadans.tray.TrayAction
 import app.kadans.ui.App
+import app.kadans.ui.IncomingLinks
 import app.kadans.ui.brand.KadansIconPainter
 import app.kadans.ui.brand.SplashOver
 import app.kadans.ui.currentAppStrings
@@ -65,6 +66,9 @@ fun main(args: Array<String> = emptyArray()) {
         onAction = { requests.trySend(it) },
     )
 
+    // A reminder's notification clicked (Linux): the window comes forward, on its todo.
+    DesktopWindow.show = { requests.trySend(TrayAction.Open) }
+
     // macOS: clicking the Dock icon of a Kadans closed to the menu bar shows its window again.
     runCatching {
         if (Desktop.getDesktop().isSupported(Desktop.Action.APP_EVENT_REOPENED)) {
@@ -104,7 +108,11 @@ fun main(args: Array<String> = emptyArray()) {
                 state = rememberTrayState(),
                 icon = remember { KadansIconPainter(small = true) },
                 tooltip = "Kadans",
-                onAction = { requests.trySend(TrayAction.Open) },
+                onAction = {
+                    requests.trySend(TrayAction.Open)
+                    // A reminder's balloon, clicked just after it showed, reaches only this action: its todo opens.
+                    ReminderBalloon.takeClick()?.let(IncomingLinks::open)
+                },
                 menu = {
                     Item(strings.desktop.trayOpen, onClick = { requests.trySend(TrayAction.Open) })
                     Item(strings.desktop.trayQuit, onClick = ::exitApplication)

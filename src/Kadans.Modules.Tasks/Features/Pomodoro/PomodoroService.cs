@@ -150,7 +150,14 @@ internal sealed class PomodoroService(
     }
 
     /// <param name="finishAt">When the session ends by itself; null: <see cref="PomodoroRun.DefaultSpan"/> after the start.</param>
-    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(Guid todoId, bool autoAdvance, bool loop, DateTimeOffset? finishAt = null)
+    /// <param name="occurrenceId">The occurrence the session is for (a reminder's "Start focus"); else the nearest is found.</param>
+    public async Task<OneOf<ApplicationError, PomodoroRunResponse>> StartRun(
+        Guid todoId,
+        bool autoAdvance,
+        bool loop,
+        DateTimeOffset? finishAt = null,
+        Guid? occurrenceId = null
+    )
     {
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
@@ -161,7 +168,8 @@ internal sealed class PomodoroService(
             return endError;
 
         var todo = await context
-            .Todos.Include(t => t.PomodoroTemplate)
+            .Todos.Include(t => t.RecurrenceRule)
+            .Include(t => t.PomodoroTemplate)
                 .ThenInclude(t => t!.Phases)
             // Template phases + the todo's owned remarks are two collection loads: split them.
             .AsSplitQuery()
@@ -182,7 +190,8 @@ internal sealed class PomodoroService(
         if (hasActiveRun)
             return new ApplicationError(ErrorTypes.PomodoroAlreadyActiveForTodo, "This todo already has an active Pomodoro run.");
 
-        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, now, loop, finishAt);
+        var occurrence = await OccurrenceForSession(todo, occurrenceId, now);
+        var run = PomodoroRun.Start(todo, todo.PomodoroTemplate.Phases, userId, autoAdvance, now, loop, finishAt, occurrence);
 
         if (todo.Status == TaskStatus.Scheduled)
             todo.UpdateStatus(TaskStatus.Started);
@@ -192,6 +201,35 @@ internal sealed class PomodoroService(
         logger.LogInformation("Started pomodoro run {RunId} on todo {TodoId} (autoAdvance: {AutoAdvance})", run.Id, todoId, autoAdvance);
         deadlines.Pulse(); // a new deadline exists: the watcher may have to wake up sooner
         return await PublishAsync(run);
+    }
+
+    /// <summary>
+    /// The pending occurrence a session starting at <paramref name="now"/> is for (<see cref="SessionOccurrence"/>): one
+    /// named that is no longer pending, or belongs to another todo, links nothing rather than refusing the session.
+    /// </summary>
+    private async Task<Guid?> OccurrenceForSession(Todo todo, Guid? named, DateTimeOffset now)
+    {
+        var pending = context.TodoOccurrences.Where(o => o.TodoId == todo.Id); // the active filter keeps pending ones
+        if (named is { } id)
+            return await pending.AnyAsync(o => o.Id == id) ? id : null;
+        if (todo.RecurrenceRule.IsOneTime)
+            return await pending.OrderBy(o => o.ScheduledAt).Select(o => (Guid?)o.Id).FirstOrDefaultAsync();
+
+        var before = await pending
+            .Where(o => o.ScheduledAt <= now && o.ScheduledAt >= now - SessionOccurrence.Near)
+            .OrderByDescending(o => o.ScheduledAt)
+            .Select(o => new { o.Id, o.ScheduledAt })
+            .FirstOrDefaultAsync();
+        var after = await pending
+            .Where(o => o.ScheduledAt > now && o.ScheduledAt <= now + SessionOccurrence.Near)
+            .OrderBy(o => o.ScheduledAt)
+            .Select(o => new { o.Id, o.ScheduledAt })
+            .FirstOrDefaultAsync();
+        return SessionOccurrence.Nearest(
+            before is null ? null : (before.Id, before.ScheduledAt),
+            after is null ? null : (after.Id, after.ScheduledAt),
+            now
+        );
     }
 
     public async Task<OneOf<ApplicationError, PomodoroRunResponse>> GetActiveRun(Guid todoId)

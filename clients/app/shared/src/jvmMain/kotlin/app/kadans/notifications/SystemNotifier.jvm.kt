@@ -25,8 +25,11 @@ actual fun showSystemNotification(title: String, body: String) {
     runCatching { Toolkit.getDefaultToolkit().beep() }
 }
 
+/** The app's icon for a Linux notification (a file the server reads), or a themed stand-in. */
+internal val notificationIcon: String get() = iconFile ?: "appointment-soon"
+
 private fun linuxNotify(title: String, body: String) {
-    val icon = iconFile ?: "appointment-soon"
+    val icon = notificationIcon
     try {
         ProcessBuilder("notify-send", "--app-name=Kadans", "--icon=$icon", title, body).start()
     } catch (_: java.io.IOException) {

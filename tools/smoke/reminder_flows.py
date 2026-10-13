@@ -9,12 +9,12 @@ Push:Provider=Log is needed: through Firebase, the fake tokens die at their firs
 be told from a phone whose token was retired.
 
 Registers two phones: "ringer" fetches its reminder window, "other" does not. A todo whose reminder falls a minute
-later then shows: the window and its words, the check of one reminder, the silent "reminders changed" signal to the
-ringer only, and the reminder's push skipping the ringer (it has it) but reaching the other phone. A second todo,
+later then shows: the window with its two reminders (before the start and "starts now") and their words, the check of
+a reminder by its time, the silent "reminders changed" signal to the ringer only, and the reminder's push skipping the ringer (it has it) but reaching the other phone. A second todo,
 made after the ringer's last sync, is pushed to the ringer too: its window no longer holds the account's latest
 version. A cancelled reminder is no longer due; stopping clears the window. Standard library only; takes ~2.5 min.
 """
-import json, re, sys, time, urllib.request, urllib.error, datetime as dt, uuid
+import json, re, sys, time, urllib.parse, urllib.request, urllib.error, datetime as dt, uuid
 LOG = sys.argv[1]; BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"
 USER = sys.argv[3] if len(sys.argv) > 3 else "smoke"
 PASSWORD = sys.argv[4] if len(sys.argv) > 4 else "Smoke123!"
@@ -95,14 +95,23 @@ C("the change was signalled to the phones that ring (silent push)", len(signals)
 s, window = call("POST", "/reminders/sync", {"installationId": ringer}, T)
 mine = [r for r in window.get("reminders", [])] if s == 200 else []
 mine = [r for r in mine if r["todoId"] == todo_id]
-C("the ringer's new window holds it", len(mine) == 1, len(mine))
+C("the ringer's new window holds its two reminders", len(mine) == 2, len(mine))
 reminder = mine[0] if mine else {}
+at_start = mine[1] if len(mine) > 1 else {}
 C("with its words", reminder.get("title") == f"Smoke ring {stamp}" and "15 min" in reminder.get("body", ""), reminder.get("body"))
 notify_at = parse_iso(reminder["notifyAt"]) if reminder else utcnow()
 C("ringing 15 minutes before the start", reminder and parse_iso(reminder["startsAt"]) - notify_at == dt.timedelta(minutes=15), reminder.get("startsAt"))
+C("then at the start itself, \"starts now\" (no minutes left to count)",
+  at_start and at_start["notifyAt"] == at_start["startsAt"] and "min" not in at_start.get("body", "min"), at_start.get("body"))
 
-s, check = call("GET", f"/reminders/{reminder.get('occurrenceId', uuid.uuid4())}", token=T)
-C("its check says it is due, at that time", s == 200 and check.get("due") is True and parse_iso(check["notifyAt"]) == notify_at, check)
+occurrence = reminder.get("occurrenceId", uuid.uuid4())
+s, check = call("GET", f"/reminders/{occurrence}", token=T)
+C("its check (an app from before \"starts now\") says it is due, at that time", s == 200 and check.get("due") is True and parse_iso(check["notifyAt"]) == notify_at, check)
+for label, at in (("before the start", reminder.get("notifyAt", "")), ("at the start", at_start.get("notifyAt", ""))):
+    s, check = call("GET", f"/reminders/{occurrence}?at={urllib.parse.quote(at)}", token=T)
+    C(f"asked with its time, the reminder {label} is due", s == 200 and check.get("due") is True, check)
+s, check = call("GET", f"/reminders/{occurrence}?at={urllib.parse.quote(iso(notify_at + dt.timedelta(minutes=5)))}", token=T)
+C("a time that is not one of its reminders is not due (moved, or the lead changed)", s == 200 and check.get("due") is False and check.get("startsAt"), check)
 
 print("== the reminder's push skips the ringer")
 time.sleep(max(0, (notify_at - utcnow()).total_seconds()) + 12)
@@ -124,6 +133,8 @@ s, _ = call("PUT", f"/todos/{todo_id}/cancel", {"reason": "smoke"}, T)
 C("first todo cancelled", s == 200, s)
 s, check = call("GET", f"/reminders/{reminder.get('occurrenceId', uuid.uuid4())}", token=T)
 C("its reminder is no longer due", s == 200 and check.get("due") is False, check)
+s, check = call("GET", f"/reminders/{occurrence}?at={urllib.parse.quote(at_start.get('notifyAt', ''))}", token=T)
+C("nor its \"starts now\"", s == 200 and check.get("due") is False and check.get("notifyAt") is None, check)
 s, _ = call("DELETE", f"/reminders/sync/{ringer}", token=T)
 C("stopping answers 204", s == 204, s)
 for tid in (todo_id, todo2.get("id")):

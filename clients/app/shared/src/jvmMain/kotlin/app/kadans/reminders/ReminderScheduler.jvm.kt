@@ -1,6 +1,7 @@
 package app.kadans.reminders
 
 import app.kadans.api.model.UpcomingReminder
+import app.kadans.i18n.ReminderStrings
 import app.kadans.notifications.showSystemNotification
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -14,14 +15,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
-actual fun platformReminderScheduler(channelName: () -> String, onDue: suspend () -> Unit): ReminderScheduler =
-    DesktopReminderScheduler(onDue)
+actual fun platformReminderScheduler(strings: () -> ReminderStrings, onDue: suspend () -> Unit): ReminderScheduler {
+    val notices = DesktopReminderNotices(strings)
+    return DesktopReminderScheduler(onDue, show = notices::show)
+}
 
 /**
  * The desktop app's reminders (ARCHITECTURE → "Reminders ring on the phone"): a timer in the app, for the next reminder,
  * which keeps running while the window is closed to the tray. It rings offline as on a phone; it does not ring while
  * the app is not running (the hub has nothing to deliver to then either), and the stored window is scheduled again
- * when the app starts ([restoreDesktopReminders]). Shown as the desktop's other notifications are.
+ * when the app starts ([restoreDesktopReminders]). Shown with the reminder's buttons where the desktop has them
+ * ([DesktopReminderNotices]).
  *
  * No background job: while the app runs, the hub keeps the window current (each change, each reconnect, at least
  * hourly when the access token is renewed).
@@ -30,6 +34,7 @@ internal class DesktopReminderScheduler(
     private val onDue: suspend () -> Unit,
     private val now: () -> Instant = { Clock.System.now() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    private val show: (UpcomingReminder) -> Unit = { showSystemNotification(it.title, it.body) },
 ) : ReminderScheduler {
     private var timer: Job? = null
 
@@ -53,7 +58,7 @@ internal class DesktopReminderScheduler(
         }
     }
 
-    override fun show(reminder: UpcomingReminder) = showSystemNotification(reminder.title, reminder.body)
+    override fun show(reminder: UpcomingReminder) = show.invoke(reminder)
 
     override fun keepFresh(enabled: Boolean) = Unit
 

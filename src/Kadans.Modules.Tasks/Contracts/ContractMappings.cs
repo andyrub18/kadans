@@ -125,7 +125,8 @@ internal static class ContractMappings
                 run.PausedAt,
                 run.CompletedAt,
                 run.UpdatedAt,
-                run.FinishBy
+                run.FinishBy,
+                run.OccurrenceId
             );
     }
 

@@ -33,6 +33,15 @@ class DeepLinkTests {
     }
 
     @Test
+    fun aFocusSessionStartedFromAReminderOpensItWithoutStartingAnother() {
+        val id = "3f2b8c1e-9a4d-4e6b-8c2a-7d5e1f0a9b3c"
+        assertEquals(PomodoroRoute(id, startsOne = false), parseDeepLink(focusLink(id)))
+        assertNull(parseDeepLink("kadans://todos/$id/focus/again"))
+        assertNull(parseDeepLink("kadans://todos/$id/elsewhere"))
+        assertFalse(opensWith(PomodoroRoute(id, startsOne = false), signedIn = false))
+    }
+
+    @Test
     fun aTodoOpensOnlyWithASession() {
         assertTrue(opensWith(TodoDetailRoute("x"), signedIn = true))
         assertFalse(opensWith(TodoDetailRoute("x"), signedIn = false))

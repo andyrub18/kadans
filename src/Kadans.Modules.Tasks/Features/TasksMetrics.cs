@@ -18,6 +18,7 @@ internal sealed class TasksMetrics
 
     private readonly Counter<long> remindersSent;
     private readonly Counter<long> remindersStale;
+    private readonly Counter<long> remindersSkipped;
     private readonly Histogram<double> reminderLateness;
     private readonly Histogram<double> pomodoroLateness;
 
@@ -26,6 +27,11 @@ internal sealed class TasksMetrics
         var meter = meters.Create(MeterName);
         remindersSent = meter.CreateCounter<long>("kadans.reminders.sent", "{reminder}", "Reminders handed to the notification dispatcher");
         remindersStale = meter.CreateCounter<long>("kadans.reminders.stale", "{reminder}", "Reminders skipped because their occurrence was already long past");
+        remindersSkipped = meter.CreateCounter<long>(
+            "kadans.reminders.skipped",
+            "{reminder}",
+            "Reminders not sent because the person had begun: a focus session on the todo was running"
+        );
         reminderLateness = meter.CreateHistogram<double>("kadans.reminder.lateness", "s", "From a reminder's notify time to its dispatch", advice: Lateness);
         pomodoroLateness = meter.CreateHistogram<double>(
             "kadans.pomodoro.deadline.lateness",
@@ -45,6 +51,12 @@ internal sealed class TasksMetrics
     {
         if (count > 0)
             remindersStale.Add(count);
+    }
+
+    public void RemindersSkipped(int count)
+    {
+        if (count > 0)
+            remindersSkipped.Add(count, new KeyValuePair<string, object?>("reason", "focus_running"));
     }
 
     public void PomodoroDeadline(string kind, TimeSpan lateness) =>

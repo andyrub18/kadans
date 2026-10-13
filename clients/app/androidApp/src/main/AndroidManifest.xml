@@ -57,6 +57,10 @@
         <receiver
             android:name="app.kadans.reminders.ReminderAlarmReceiver"
             android:exported="false" />
+        <!-- A reminder's buttons: Start focus, Done, In 10 min (the app's own immutable PendingIntents). -->
+        <receiver
+            android:name="app.kadans.reminders.ReminderActionReceiver"
+            android:exported="false" />
         <receiver
             android:name="app.kadans.reminders.ReminderRestoreReceiver"
             android:exported="false">

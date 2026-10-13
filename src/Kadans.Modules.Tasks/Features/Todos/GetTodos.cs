@@ -130,6 +130,19 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         return result;
     }
 
+    /// <summary>One occurrence of the account's, whatever its status (a focus session's end asks whether it is done).</summary>
+    public async Task<OneOf<ApplicationError, TodoOccurrenceResponse>> GetOccurrence(Guid id)
+    {
+        var occurrence = await dbContext
+            .TodoOccurrences.IgnoreQueryFilters([TasksDbContext.ACTIVE_OCCURRENCES_FILTER, TasksDbContext.ACTIVE_TODOS_FILTER])
+            .AsNoTracking()
+            .Include(o => o.Todo)
+            .FirstOrDefaultAsync(o => o.Id == id);
+        return occurrence is null
+            ? new ApplicationError(ErrorTypes.TodoOccurrenceNotFound, $"Todo occurrence with id {id} not found")
+            : occurrence.ToResponse();
+    }
+
     /// <summary>Every occurrence of a todo, any status, newest first.</summary>
     public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetTodoHistory(Guid todoId, int page = 1, int pageSize = 20)
     {

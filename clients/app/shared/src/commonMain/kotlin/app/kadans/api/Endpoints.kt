@@ -200,6 +200,9 @@ class TodosApi internal constructor(private val api: KadansApi) {
             parameter("to", to.toString())
         }.orThrow()
 
+    /** One occurrence, whatever its status (a focus session's end asks whether it is done). */
+    suspend fun occurrence(occurrenceId: String): TodoOccurrenceResponse = api.http.get("occurrences/$occurrenceId").orThrow()
+
     suspend fun completeOccurrence(occurrenceId: String) {
         api.http.put("occurrences/$occurrenceId/complete").orThrow<Success>()
         api.remindersChanged()
@@ -233,11 +236,19 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
     }
 
     /** [finishAt]: when the session ends by itself; null leaves the server's default (12 hours after the start). */
-    suspend fun start(todoId: String, autoAdvance: Boolean = false, loop: Boolean = false, finishAt: Instant? = null): PomodoroRunResponse =
+    /** [occurrenceId]: the one the session is for (a reminder's "Start focus"); without it the server finds the nearest. */
+    suspend fun start(
+        todoId: String,
+        autoAdvance: Boolean = false,
+        loop: Boolean = false,
+        finishAt: Instant? = null,
+        occurrenceId: String? = null,
+    ): PomodoroRunResponse =
         api.http.post("todos/$todoId/pomodoro/start") {
             parameter("autoAdvance", autoAdvance)
             parameter("loop", loop)
             finishAt?.let { parameter("finishAt", it.toString()) }
+            occurrenceId?.let { parameter("occurrenceId", it) }
         }.orThrow()
 
     suspend fun changeFinishAt(runId: String, finishAt: Instant): PomodoroRunResponse =
@@ -389,7 +400,9 @@ class RemindersApi internal constructor(private val api: KadansApi) {
         api.http.post("reminders/sync") { setBody(ReminderSyncRequest(installationId, days)) }.orThrow()
 
     /** Asked as an alarm rings: is this reminder still due? */
-    suspend fun check(occurrenceId: String): ReminderCheckResponse = api.http.get("reminders/$occurrenceId").orThrow()
+    /** Does the reminder at [at] (its time on the server) still ring? */
+    suspend fun check(occurrenceId: String, at: Instant): ReminderCheckResponse =
+        api.http.get("reminders/$occurrenceId") { parameter("at", at.toString()) }.orThrow()
 
     /** This device rings nothing itself any more: the server pushes every reminder to it again. */
     suspend fun stop(installationId: String) {

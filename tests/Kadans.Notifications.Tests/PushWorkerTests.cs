@@ -318,6 +318,11 @@ public class PushWorkerTests
         var late = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), ReminderAt(Now.AddMinutes(-20), 0).Message), Now);
         await Assert.That(late.Android.TimeToLive).IsEqualTo(TimeSpan.Zero); // started already: now or never
 
+        // "Starts now" rings at the start itself: of use for ten minutes after, as a phone's own alarm is.
+        var startsNow = new NotificationMessage("occurrence.due", "Gym", "Starts now (18:00)", null, new ReminderDelivery(Guid.NewGuid(), Now, Now, 0));
+        var atStart = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), startsNow), Now.AddSeconds(4));
+        await Assert.That(atStart.Android.TimeToLive).IsEqualTo(TimeSpan.FromMinutes(10) - TimeSpan.FromSeconds(4));
+
         var signal = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", Now, Now), new NotificationMessage("reminders.changed", "", ""), Silent: true), Now);
         await Assert.That(signal.Notification).IsNull();
         await Assert.That(signal.Data["kind"]).IsEqualTo("reminders.changed");

@@ -1,6 +1,7 @@
 using Kadans.Modules.Tasks.Contracts;
 using Kadans.SharedKernel.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using OneOf.Types;
 
 namespace Kadans.Modules.Tasks.Features.Reminders;
@@ -49,12 +50,19 @@ internal static class ReminderRoutes
             reminders
                 .MapGet(
                     "/{occurrenceId:guid}",
-                    async Task<Ok<ReminderCheckResponse>> (Guid occurrenceId, ReminderWindows windows, HttpContext context) =>
-                        TypedResults.Ok(await windows.Check(occurrenceId, context.RequestAborted))
+                    async Task<Ok<ReminderCheckResponse>> (
+                        Guid occurrenceId,
+                        ReminderWindows windows,
+                        HttpContext context,
+                        [FromQuery] DateTimeOffset? at = null
+                    ) => TypedResults.Ok(await windows.Check(occurrenceId, at, context.RequestAborted))
                 )
                 .WithName("RemindersCheck")
                 .WithSummary("Is this reminder still due?")
-                .WithDescription("Asked as a device's own alarm rings: false once the occurrence is gone, done or cancelled; its notify time if it moved.")
+                .WithDescription(
+                    "Asked as a device's own alarm rings, with the reminder's time (?at=): false once the occurrence is gone, done or "
+                        + "cancelled, moved, or while a focus session on its todo runs. Its reminder and start times as they are now."
+                )
                 .Produces<ReminderCheckResponse>(StatusCodes.Status200OK);
         }
     }

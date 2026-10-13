@@ -21,6 +21,13 @@ class ReminderStore(private val settings: Settings) {
 
     fun saveWindow(reminders: List<UpcomingReminder>) = settings.putString(WINDOW, KadansJson.encodeToString(windowSerializer, reminders))
 
+    /** Reminders put off with "In 10 min", each ringing again at its notify time (kept apart: a sync replaces the window). */
+    fun snoozed(): List<UpcomingReminder> =
+        settings.getStringOrNull(SNOOZED)?.let { runCatching { KadansJson.decodeFromString(windowSerializer, it) }.getOrNull() }.orEmpty()
+
+    fun saveSnoozed(reminders: List<UpcomingReminder>) =
+        if (reminders.isEmpty()) settings.remove(SNOOZED) else settings.putString(SNOOZED, KadansJson.encodeToString(windowSerializer, reminders))
+
     /** The server records this device as ringing its own reminders: it stops pushing those it has. */
     var syncing: Boolean
         get() = settings.getBoolean(SYNCING, false)
@@ -51,6 +58,7 @@ class ReminderStore(private val settings: Settings) {
     /** Signed out: nothing of the account stays on the device. [permissionAsked] belongs to the device and stays. */
     fun clear() {
         settings.remove(WINDOW)
+        settings.remove(SNOOZED)
         settings.remove(RUNG)
         settings.remove(SYNCING)
     }
@@ -62,6 +70,7 @@ class ReminderStore(private val settings: Settings) {
 
     private companion object {
         const val WINDOW = "kadans.reminders.window"
+        const val SNOOZED = "kadans.reminders.snoozed"
         const val RUNG = "kadans.reminders.rung"
         const val SYNCING = "kadans.reminders.syncing"
         const val ASKED = "kadans.reminders.permissionAsked"

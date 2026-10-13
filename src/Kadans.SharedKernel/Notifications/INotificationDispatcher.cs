@@ -11,11 +11,18 @@ public sealed record NotificationMessage(
 
 /// <summary>
 /// A todo reminder, which phones may also ring themselves (ARCHITECTURE → "Reminders ring on the phone"): the push
-/// skips a device whose reminder window holds the account's latest change and reaches <paramref name="NotifyAt"/>. It
-/// is no use once <paramref name="StartsAt"/> has passed.
+/// skips a device whose reminder window holds the account's latest change and reaches <paramref name="NotifyAt"/>, the
+/// moment this reminder rings (before the start, or the start itself). It is of use until <see cref="UsefulUntil"/>.
 /// </summary>
 /// <param name="AccountVersion">The account's reminders version: one more for each change a person makes; 0 before any.</param>
-public sealed record ReminderDelivery(Guid OccurrenceId, DateTimeOffset NotifyAt, DateTimeOffset StartsAt, long AccountVersion);
+public sealed record ReminderDelivery(Guid OccurrenceId, DateTimeOffset NotifyAt, DateTimeOffset StartsAt, long AccountVersion)
+{
+    /// <summary>How long after its moment a reminder still helps when it comes late: the apps' own rule (LocalReminders.LATE).</summary>
+    public static readonly TimeSpan Late = TimeSpan.FromMinutes(10);
+
+    /// <summary>Until the start, or <see cref="Late"/> after its moment when that is later (a "starts now" reminder).</summary>
+    public DateTimeOffset UsefulUntil => StartsAt > NotifyAt + Late ? StartsAt : NotifyAt + Late;
+}
 
 /// <summary>One notification for one account.</summary>
 public sealed record UserNotification(string UserId, NotificationMessage Message);

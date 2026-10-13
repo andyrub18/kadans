@@ -40,9 +40,10 @@ fun PomodoroScreen(
     loop: Boolean,
     handsFree: Boolean,
     finishAtMillis: Long? = null,
+    startsOne: Boolean = true,
     onBack: () -> Unit,
-    viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId-$loop-$handsFree-$finishAtMillis") {
-        parametersOf(todoId, loop, handsFree, finishAtMillis)
+    viewModel: PomodoroViewModel = koinViewModel(key = "pomodoro-$todoId-$loop-$handsFree-$finishAtMillis-$startsOne") {
+        parametersOf(todoId, loop, handsFree, finishAtMillis, startsOne)
     },
 ) {
     val state by viewModel.state.collectAsState()
@@ -63,6 +64,26 @@ fun PomodoroScreen(
     }
 }
 
+/** The session was for a todo's occurrence, still pending: done with it? Marked here, it need not be on the todo. */
+@Composable
+private fun DoneWith(prompt: DonePrompt, viewModel: PomodoroViewModel) {
+    val s = LocalStrings.current
+    Column(Modifier.padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (prompt.marked) {
+            Text("✓ ${s.pomodoro.markedDone}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            return@Column
+        }
+        Text(s.pomodoro.doneWith(prompt.title), style = MaterialTheme.typography.titleMedium)
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = viewModel::markDone) { Text(s.pomodoro.markDone) }
+            TextButton(onClick = viewModel::notYet) { Text(s.pomodoro.notYet) }
+        }
+        if (prompt.errorCode != null || prompt.error != null) {
+            Text(s.errorFor(prompt.errorCode, prompt.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 @Composable
 private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewModel, onBack: () -> Unit) {
     val s = LocalStrings.current
@@ -78,6 +99,8 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
             PomodoroRunStatus.Completed -> {
                 Text(s.pomodoroComplete, style = MaterialTheme.typography.headlineMedium)
                 Text(s.wellDoneMore, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 8.dp))
+                val prompt by viewModel.donePrompt.collectAsState()
+                prompt?.let { DoneWith(it, viewModel) }
                 Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text(s.startAnotherCycle) }
                 TextButton(onClick = onBack) { Text(s.backToTodo) }
             }

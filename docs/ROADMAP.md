@@ -313,7 +313,7 @@ installing on real devices second, hosting last.
       Android 15 emulator against that instance: the reminder rang a second after its time with its buttons, "Start
       focus" started a hands-free session for that occurrence and the notice replaced the reminder, no "starts now"
       during it (phone and server), "Done" completed the occurrence, an untouched reminder became "Starts now" a second
-      after the start, and "In 10 min" quieted the start and rang ten minutes later. Not yet seen by hand: the buttons
+      after the start, and "In 10 min" quieted the start and rang ten minutes later, read afresh ("Started at ..."). Not yet seen by hand: the buttons
       on COSMIC (it reports "actions"; the protocol is checked against the stand-in), the balloon click on Windows.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and

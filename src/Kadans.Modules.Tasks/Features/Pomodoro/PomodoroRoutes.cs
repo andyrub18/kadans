@@ -146,10 +146,11 @@ internal static class PomodoroRoutes
                         HttpContext context,
                         [FromQuery] bool autoAdvance = false,
                         [FromQuery] bool loop = false,
-                        [FromQuery] DateTimeOffset? finishAt = null
+                        [FromQuery] DateTimeOffset? finishAt = null,
+                        [FromQuery] Guid? occurrenceId = null
                     ) =>
                     {
-                        var result = await service.StartRun(id, autoAdvance, loop, finishAt);
+                        var result = await service.StartRun(id, autoAdvance, loop, finishAt, occurrenceId);
                         return result.Match<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context)),
@@ -160,7 +161,7 @@ internal static class PomodoroRoutes
                 .WithTags("Pomodoro", "Todos")
                 .WithName("PomodoroStartRun")
                 .WithSummary("Start Pomodoro run")
-                .WithDescription("Starts a run from the attached template. ?autoAdvance=true: the server advances phases as they run out and notifies. ?loop=true: after the last phase the cycle restarts (a new lap) until /finish. ?finishAt=: when the session ends by itself (1 minute to 24 hours ahead; default 12 hours after the start).")
+                .WithDescription("Starts a run from the attached template. ?autoAdvance=true: the server advances phases as they run out and notifies. ?loop=true: after the last phase the cycle restarts (a new lap) until /finish. ?finishAt=: when the session ends by itself (1 minute to 24 hours ahead; default 12 hours after the start). ?occurrenceId=: the occurrence it is for (a reminder's \"Start focus\"); without it, a one-time todo's or the pending one nearest the start (12 hours either side). Its end offers to mark that occurrence done.")
                 .Produces<PomodoroRunResponse>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);

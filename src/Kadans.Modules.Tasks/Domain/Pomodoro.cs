@@ -54,6 +54,10 @@ internal sealed class PomodoroRun
     public Guid TodoId { get; private init; }
     public Todo Todo { get; private init; } = null!;
     public Guid? PomodoroTemplateId { get; private init; }
+
+    /// <summary>The occurrence this session is for (its end offers to mark it done); null when none was near.</summary>
+    public Guid? OccurrenceId { get; private set; }
+
     public string UserId { get; private init; } = string.Empty;
     public PomodoroRunStatus Status { get; private set; } = PomodoroRunStatus.Active;
     public int CurrentPhaseIndex { get; private set; }
@@ -126,7 +130,8 @@ internal sealed class PomodoroRun
         bool autoAdvance,
         DateTimeOffset now,
         bool loop = false,
-        DateTimeOffset? finishBy = null
+        DateTimeOffset? finishBy = null,
+        Guid? occurrenceId = null
     )
     {
         var ordered = templatePhases.OrderBy(p => p.Order).ToList();
@@ -135,6 +140,7 @@ internal sealed class PomodoroRun
             TodoId = todo.Id,
             Todo = todo,
             PomodoroTemplateId = todo.PomodoroTemplateId,
+            OccurrenceId = occurrenceId,
             UserId = userId,
             AutoAdvance = autoAdvance,
             Loop = loop,

@@ -26,8 +26,12 @@ internal static class ReminderNotification
         return (occurrence.Todo!.Title, body);
     }
 
-    /// <summary>The reminder as the server sends it at <paramref name="now"/>, marked so the push can skip phones that have it.</summary>
-    public static NotificationMessage Message(TodoOccurrence occurrence, UserSummary? user, DateTimeOffset now, long accountVersion)
+    /// <summary>
+    /// The reminder as the server sends it at <paramref name="now"/>, for its <paramref name="moment"/> (before the start,
+    /// or the start: <see cref="TodoOccurrence.ReminderMoment"/>), marked so the push can skip phones that have it. The
+    /// moment is its identity on a phone, as in the window: one that rang it drops the push.
+    /// </summary>
+    public static NotificationMessage Message(TodoOccurrence occurrence, UserSummary? user, DateTimeOffset now, long accountVersion, DateTimeOffset moment)
     {
         var todo = occurrence.Todo!;
         var (title, body) = Texts(occurrence, user, now);
@@ -40,10 +44,11 @@ internal static class ReminderNotification
                 ["todoId"] = todo.Id.ToString(),
                 ["occurrenceId"] = occurrence.Id.ToString(),
                 ["scheduledAt"] = occurrence.ScheduledAt.ToString("O"),
-                ["notifyAt"] = occurrence.NotifyAt?.ToString("O") ?? string.Empty,
+                ["notifyAt"] = moment.ToString("O"),
+                // A focus todo's reminder offers "Start focus", any other "Done".
                 ["pomodoroTemplateId"] = todo.PomodoroTemplateId?.ToString() ?? string.Empty,
             },
-            new ReminderDelivery(occurrence.Id, occurrence.NotifyAt ?? now, occurrence.ScheduledAt, accountVersion)
+            new ReminderDelivery(occurrence.Id, moment, occurrence.ScheduledAt, accountVersion)
         );
     }
 

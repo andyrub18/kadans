@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Contracts;
+using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Errors;
 using Kadans.SharedKernel.Security;
@@ -53,26 +54,26 @@ internal sealed class ReminderWindows(
                 .Where(c => c.UserId == userId)
                 .Select(c => c.Version)
                 .FirstOrDefaultAsync(cancellationToken);
-            // Pending, of the account's active todos (the query filters), still to ring.
+            // Pending, of the account's active todos (the query filters), with a reminder still to ring: the one before
+            // the start, or the start itself (ReminderMoments).
             due = await dbContext
                 .TodoOccurrences.AsNoTracking()
                 .Include(o => o.Todo)
-                .Where(o => o.NotifyAt != null && o.NotifyAt > now && o.NotifyAt <= through)
+                .Where(o => o.NotifyAt != null && o.NotifyAt <= through && o.ScheduledAt > now)
                 .OrderBy(o => o.NotifyAt)
                 .Take(MaxReminders)
                 .ToListAsync(cancellationToken);
             await snapshot.CommitAsync(cancellationToken);
         }
 
-        // Cut at the cap, the window reaches its last reminder only: the push covers what lies after it.
-        if (due.Count == MaxReminders)
-            through = due[^1].NotifyAt!.Value;
+        var (moments, reach) = ReminderMoments.Window(due, o => o.NotifyAt, o => o.ScheduledAt, now, through, cut: due.Count == MaxReminders, MaxReminders);
+        through = reach;
 
         var user = (await users.FindManyAsync([userId], cancellationToken)).GetValueOrDefault(userId);
-        var reminders = due.ConvertAll(o =>
+        var reminders = moments.ConvertAll(r =>
         {
-            var (title, body) = ReminderNotification.Texts(o, user, o.NotifyAt!.Value);
-            return new UpcomingReminder(o.Id, o.TodoId, title, body, o.NotifyAt.Value, o.ScheduledAt);
+            var (title, body) = ReminderNotification.Texts(r.Occurrence, user, r.At);
+            return new UpcomingReminder(r.Occurrence.Id, r.Occurrence.TodoId, title, body, r.At, r.Occurrence.ScheduledAt, r.Occurrence.Todo!.PomodoroTemplateId);
         });
 
         await devices.RecordSyncAsync(userId, request.InstallationId, now, through, version, cancellationToken);
@@ -90,16 +91,34 @@ internal sealed class ReminderWindows(
     }
 
     /// <summary>
-    /// Asked by a phone as an alarm rings, when it is online: is this reminder still due? Not when its occurrence was
-    /// deleted, done, cancelled or moved elsewhere since the window was fetched.
+    /// Asked by a device as its alarm rings, when it is online: does the reminder at <paramref name="at"/> still ring?
+    /// Not when its occurrence was deleted, done, cancelled or moved elsewhere since the window was fetched (that time
+    /// is no longer one of its reminders), nor while a focus session on the todo runs: the person has begun. Without a
+    /// time (apps from before the "starts now" reminder): whether the occurrence still has a reminder.
     /// </summary>
-    public async Task<ReminderCheckResponse> Check(Guid occurrenceId, CancellationToken cancellationToken)
+    public async Task<ReminderCheckResponse> Check(Guid occurrenceId, DateTimeOffset? at, CancellationToken cancellationToken)
     {
-        var notifyAt = await dbContext
+        var occurrence = await dbContext
             .TodoOccurrences.AsNoTracking()
             .Where(o => o.Id == occurrenceId)
-            .Select(o => o.NotifyAt)
+            .Select(o => new
+            {
+                o.TodoId,
+                o.NotifyAt,
+                o.ScheduledAt,
+            })
             .FirstOrDefaultAsync(cancellationToken);
-        return new ReminderCheckResponse(occurrenceId, notifyAt is not null, notifyAt);
+        if (occurrence?.NotifyAt is not { } notifyAt)
+            return new ReminderCheckResponse(occurrenceId, false, null);
+        if (at is not { } moment)
+            return new ReminderCheckResponse(occurrenceId, true, notifyAt, occurrence.ScheduledAt);
+
+        var due =
+            ReminderMoments.Includes(ReminderMoments.Of(notifyAt, occurrence.ScheduledAt), moment)
+            && !await dbContext.PomodoroRuns.AnyAsync(
+                r => r.TodoId == occurrence.TodoId && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused),
+                cancellationToken
+            );
+        return new ReminderCheckResponse(occurrenceId, due, notifyAt, occurrence.ScheduledAt);
     }
 }

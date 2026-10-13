@@ -55,6 +55,10 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("loop");
 
+                    b.Property<Guid?>("OccurrenceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("occurrence_id");
+
                     b.Property<DateTimeOffset?>("PausedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("paused_at");
@@ -106,6 +110,8 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_pomodoro_runs");
+
+                    b.HasIndex("OccurrenceId");
 
                     b.HasIndex("PhaseEndsAt")
                         .HasDatabaseName("ix_pomodoro_runs_auto_advance_due")
@@ -436,6 +442,10 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("scheduled_at");
 
+                    b.Property<DateTimeOffset?>("StartNotifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_notified_at");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -460,11 +470,19 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_todo_occurrences_todo_id_original_scheduled_at");
 
+                    b.HasIndex(new[] { "ScheduledAt" }, "ix_todo_occurrences_start_due")
+                        .HasFilter("status = 'Pending' AND start_notified_at IS NULL AND notify_at IS NOT NULL");
+
                     b.ToTable("todo_occurrences", "tasks");
                 });
 
             modelBuilder.Entity("Kadans.Modules.Tasks.Domain.PomodoroRun", b =>
                 {
+                    b.HasOne("Kadans.Modules.Tasks.Domain.TodoOccurrence", null)
+                        .WithMany()
+                        .HasForeignKey("OccurrenceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Kadans.Modules.Tasks.Domain.Todo", "Todo")
                         .WithMany()
                         .HasForeignKey("TodoId")

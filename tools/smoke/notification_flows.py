@@ -6,9 +6,11 @@ Development (Push:Provider=Log). The reminder job runs every 5 s, as in producti
 
 Registers a device for the user, creates a one-time todo due in ~75 s with a 1-minute lead,
 waits for the reminder job, then checks the reminder's timing and wording, GET /notifications,
-the push log line and mark-read. Standard library only; takes ~45 s.
+the push log line and mark-read. Two more todos are due at the same time: one rings again at its
+start ("starts now"), the other has a focus session running by then, which is for its occurrence
+(GET /occurrences/{id}) and silences its "starts now". Standard library only; takes ~1.5 min.
 """
-import json, sys, time, urllib.request, urllib.error, datetime as dt, uuid, re
+import json, sys, time, urllib.parse, urllib.request, urllib.error, datetime as dt, uuid, re
 LOG = sys.argv[1]; BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"
 USER = sys.argv[3] if len(sys.argv) > 3 else "smoke"
 PASSWORD = sys.argv[4] if len(sys.argv) > 4 else "Smoke123!"
@@ -47,6 +49,13 @@ due = now + dt.timedelta(seconds=75)
 s, todo = call("POST", "/todos/one-time", {"title": "smoke: reminder", "description": "", "notificationEnabled": True, "notifyBeforeInMinutes": 1, "dueDate": iso(due)}, token=T)
 C("todo due in 75 s with 1 min lead", s == 200, f"{s}")
 s, quiet = call("POST", "/todos/one-time", {"title": "smoke: silent", "description": "", "notificationEnabled": False, "dueDate": iso(due)}, token=T)
+# Two more due at the same time: one rings "starts now" at its start too; on the other a focus session runs by then.
+s, starts = call("POST", "/todos/one-time", {"title": "smoke: starts now", "description": "", "notificationEnabled": True, "notifyBeforeInMinutes": 1, "dueDate": iso(due)}, token=T)
+C("a second todo, due at the same time", s == 200, f"{s}")
+s, focusing = call("POST", "/todos/one-time", {"title": "smoke: focusing", "description": "", "notificationEnabled": True, "notifyBeforeInMinutes": 1, "dueDate": iso(due)}, token=T)
+s, template = call("POST", "/pomodoro/templates", {"name": "smoke focus", "phases": [{"type": "Focus", "durationMinutes": 25}]}, token=T)
+s2, _ = call("PUT", f"/todos/{focusing['id']}/pomodoro-template", {"pomodoroTemplateId": template["id"]}, token=T)
+C("a third, a focus todo with a template", s == 200 and s2 == 200, f"{s} {s2}")
 
 s, before = call("GET", "/notifications/unread-count", token=T)
 C("unread count is 0 before the reminder", before["unread"] == 0, str(before))
@@ -77,10 +86,15 @@ for _ in range(50):
     if pushed: break
     time.sleep(0.1)
 C("push attempted for the registered device", pushed)
-C("reminder job logged", "Reminder run: 1 reminder(s) sent" in log)
+C("reminder job logged", re.search(r"Reminder run: \d+ reminder\(s\) sent", log) is not None)
 s, hist = call("GET", f"/todos/{todo['id']}/occurrences", token=T)
 s, r = call("PUT", f"/notifications/{found['id']}/read", token=T) if found else (0, None)
 C("mark read", s == 200)
+# The two other todos' first reminders came at the same time: read too, so the count can come back to 0.
+s2, others = call("GET", "/notifications?unreadOnly=true", token=T)
+for n in others if s2 == 200 else []:
+    if n["data"].get("todoId") in (starts["id"], focusing["id"]):
+        call("PUT", f"/notifications/{n['id']}/read", token=T)
 s, after = call("GET", "/notifications/unread-count", token=T)
 s, _ = call("GET", "/notifications?page=0", token=T)
 C("page 0 -> 400 (was a 500)", s == 400, str(s))
@@ -90,6 +104,18 @@ C("unread count back to 0", after["unread"] == 0, str(after))
 s, r = call("PUT", f"/notifications/{uuid.uuid4()}/read", token=T)
 C("mark read unknown -> 404", s == 404)
 
+print("== a focus session is for its occurrence, and rings no reminder while it runs")
+s, run = call("POST", f"/todos/{focusing['id']}/pomodoro/start?autoAdvance=false&loop=false", token=T)
+s2, focus_occurrences = call("GET", f"/todos/{focusing['id']}/occurrences", token=T)
+focus_occurrence = focus_occurrences[0]["id"] if s2 == 200 and focus_occurrences else None
+C("the session started, for the todo's occurrence", s == 200 and run.get("occurrenceId") == focus_occurrence, run.get("occurrenceId") if s == 200 else s)
+s, one = call("GET", f"/occurrences/{focus_occurrence}", token=T)
+C("that occurrence reads as pending, with its todo's title", s == 200 and one["status"] == "Pending" and one["todoTitle"] == "smoke: focusing", one)
+s, _ = call("GET", f"/occurrences/{uuid.uuid4()}", token=T)
+C("an unknown occurrence -> 404", s == 404, s)
+s, check = call("GET", f"/reminders/{focus_occurrence}?at={urllib.parse.quote(iso(due))}", token=T)
+C("its \"starts now\" is no longer due while the session runs", s == 200 and check.get("due") is False and check.get("notifyAt"), check)
+
 # reschedule re-arms the reminder
 occ = hist[0]
 s, r = call("PUT", f"/occurrences/{occ['id']}/reschedule", {"newDate": iso(now + dt.timedelta(seconds=200))}, token=T)
@@ -98,8 +124,26 @@ time.sleep(12)
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
 C("no second reminder yet (new notify_at is in the future)", not any(n["data"].get("occurrenceId") == occ["id"] for n in items))
 
-for t in (todo, quiet):
+print("== starts now, at the start")
+time.sleep(max(0, (due - dt.datetime.now(dt.timezone.utc)).total_seconds()) + 8)
+s, items = call("GET", "/notifications?pageSize=100", token=T)
+mine = [n for n in items if n["kind"] == "occurrence.due" and n["data"]["todoId"] == starts["id"]] if s == 200 else []
+bodies = [n["body"] for n in mine]
+# In the account's language: the first counts the minute left, "starts now" names only the time.
+start_one = next((n for n in mine if "min" not in n["body"]), None)
+C("two reminders: a minute before, then at the start", len(mine) == 2 and any("1 min" in b for b in bodies) and start_one is not None, bodies)
+if start_one:
+    late = (dt.datetime.fromisoformat(start_one["createdAt"]) - due).total_seconds()
+    C("starts now went out within one job interval of the start", 0 <= late <= 7, f"{late:.1f} s after")
+    C("its moment is the start (the phone's identity for it)", start_one["data"]["notifyAt"].startswith(iso(due)[:19]), start_one["data"]["notifyAt"])
+focus_bodies = [n["body"] for n in items if n["kind"] == "occurrence.due" and n["data"]["todoId"] == focusing["id"]] if s == 200 else []
+C("the focus todo: the reminder before its start only (its session had begun)", len(focus_bodies) == 1 and "1 min" in focus_bodies[0], focus_bodies)
+s, _ = call("PUT", f"/pomodoro/runs/{run['id']}/cancel", token=T)
+C("the session ends", s == 200, s)
+
+for t in (todo, quiet, starts, focusing):
     call("PUT", f"/todos/{t['id']}/cancel", {"reason": "cleanup"}, token=T)
+call("DELETE", f"/pomodoro/templates/{template['id']}", token=T)
 call("DELETE", f"/users/me/devices/{inst}", token=T)
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")
 sys.exit(1 if fails else 0)

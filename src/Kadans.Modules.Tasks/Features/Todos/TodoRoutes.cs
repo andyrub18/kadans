@@ -278,6 +278,18 @@ internal static class TodoRoutes
 
             occurrences
                 .MapGet(
+                    "/{id:guid}",
+                    async Task<Results<Ok<TodoOccurrenceResponse>, ProblemHttpResult>> (Guid id, GetTodos service, HttpContext context) =>
+                        (await service.GetOccurrence(id)).ToHttp(context)
+                )
+                .WithName("OccurrenceGet")
+                .WithSummary("Get one occurrence")
+                .WithDescription("Any status: pending, completed or cancelled (a focus session's end asks whether its occurrence is done).")
+                .Produces<TodoOccurrenceResponse>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
+            occurrences
+                .MapGet(
                     string.Empty,
                     async Task<Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>> (
                         GetTodos service,

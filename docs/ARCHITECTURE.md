@@ -438,6 +438,30 @@ whether a reminder is still due; `DELETE /reminders/sync/{installationId}` stops
 `tools/smoke/reminder_flows.py`. Unchanged: the job and its timing, the bell, desktop's live channel, and every app
 version already installed.
 
+**Two reminders per occurrence (2026-10-12): before the start, and "starts now".** The lead's reminder alone left the
+moment to begin silent (the owner's test: reminded at 08:45, nothing at 09:00). Every occurrence with notifications on
+now also rings at its start; a zero lead is the start alone (`ReminderMoments`). `TodoOccurrence.StartNotifiedAt` stamps
+it as `NotifiedAt` stamps the other (bookkeeping: it moves no version), and `OccurrenceReminderJob` sends the reminders
+before the start, then the "starts now" ones (filtered index `ix_todo_occurrences_start_due`). A reminder sent at or
+after the start reads "starts now", carries the start as its moment and stamps both (`MarkReminded`): never two at once,
+whether the server was down or the todo was made inside its lead. A todo whose focus session is running gets neither:
+the person has begun (stamped, not sent: `kadans_reminders_skipped_total{reason="focus_running"}`). The window holds
+both moments as two entries (the phone's identity `occurrence@notifyAt` tells them apart), each with its todo's template
+so the app knows which button to offer. `GET /reminders/{id}?at=` checks one reminder by its time: due unless the
+occurrence is gone, done, cancelled or moved (that time is none of its reminders), or a session runs; without `at` (an
+app from before) it answers as before. A reminder push lives until it is of no more use: its start, or ten minutes after
+a "starts now" (`ReminderDelivery.UsefulUntil`, the apps' own rule); collapsed per occurrence, the later replaces the
+first. The migration stamped occurrences already under way, so none got a late "starts now".
+
+**A reminder's buttons.** The notification offers "Start focus" for a todo with a Pomodoro template, "Done" for any
+other, and "In 10 min" (`ReminderActions`, common to the apps): never an automatic start (the app cannot know the person
+is there, and a session nobody runs would fill the focus stats). "Start focus" starts the session as the todo's screen
+does (looping, hands-free as last chosen on the device), for that occurrence; "Done" completes it (one done or
+cancelled elsewhere meanwhile counts as done). Either way the occurrence's other reminders stay quiet on that device,
+offline too (`LocalReminders.settled`). "In 10 min" is the device's own (`LocalReminders.snooze`, kept beside the window,
+which a sync replaces): the reminder rings again ten minutes later, read afresh ("Starts at 09:00", "Started at 09:00"),
+checked as the reminder it was, and the occurrence's "starts now" inside those ten minutes waits with it.
+
 Android (built): `reminders/LocalReminders` (common) keeps the window in the settings store and decides what rings;
 `ReminderScheduler` is the OS's side (Android: `AndroidReminderScheduler`; desktop below; iOS has none yet and stays on
 the push and the hub). What rings is always read from the stored window:
@@ -447,7 +471,11 @@ the push and the hub). What rings is always read from the stored window:
   phone that was off) until its event starts, or ten minutes after its time when that is later; never twice
   (`occurrence@notifyAt` remembered three days, so a moved one rings again).
 - **Notifications**: their own channel, `kadans.reminders` (urgent: heads-up, sound; named in the app's language),
-  tagged with the occurrence as Firebase tags the push it shows, so one replaces the other. A system-shown reminder
+  tagged with the occurrence as Firebase tags the push it shows, so one replaces the other ("starts now" replaces the
+  reminder before it). Two buttons, broadcasts to `ReminderActionReceiver` (not exported, immutable PendingIntents, one
+  data URI per reminder and button): it asks the server within the eight seconds it gives itself, then updates the same
+  notification silently: "Focus session started" (a tap opens the session, `kadans://todos/{id}/focus`), gone, or the
+  reminder again saying Kadans could not be reached, its buttons still there. A system-shown reminder
   push goes to that channel too (an app too old to have it falls back to its default one). A tap opens the todo
   (`kadans://todos/{id}`, only with a session), whether the app is open, in the background or stopped.
 - **Pushes**: "occurrence.due" goes through `LocalReminders.pushed` (dropped if it rang here or the session is gone);
@@ -479,8 +507,13 @@ reminder missed while it was closed rings if still of use), then fetches it. Not
 running, as before (the hub had nothing to deliver to then either). No background job and no permission: while the
 app runs, the hub keeps the window current (each change, each reconnect, at least hourly when its token is renewed;
 a change made on the device itself fetches it at once, `KadansApi.remindersChanged`),
-and Settings has no reminders section. Reminders show as the desktop's other notifications (`notify-send` or D-Bus
-on Linux, the tray elsewhere); a click opening the todo would need a listener per desktop and is left for later.
+and Settings has no reminders section. On Linux a reminder is a freedesktop notification over D-Bus
+(`FreedesktopNotifications`, dbus-java as the tray): its buttons where the server has them (COSMIC, GNOME and KDE do), a
+click opening its todo (`DesktopWindow`: the window comes forward, the link opens in it), the body escaped where the
+server reads markup, and clicks taken from the notification server alone, not any program on the session bus; the
+result shows as on the phone (`DesktopReminderNotices`). Without a notification server it falls
+back to `notify-send`, without buttons. Windows and macOS show a balloon of the tray icon, without buttons: a click on it
+reaches only the icon's action, so an "open" within a minute of a reminder's balloon opens its todo (`ReminderBalloon`).
 Checked against a local API by `RealDesktopRemindersSmokeTest` (opt-in, `KADANS_API_URL`): a reminder reaches the
 window over the hub, then rings from the timer with the server out of reach (112 ms after its time).
 
@@ -620,13 +653,20 @@ panel), so CI needs no desktop.
 - A cycle has 1 to 24 phases of 1 to 240 minutes (`PomodoroTemplate.MaxPhases`, `MaxPhaseMinutes`). The editor
   builds the classic one from four numbers: focus, short break, rounds, long break.
 - Run state changes are broadcast over SignalR so phone and desktop stay in sync.
+- A session is for an occurrence (`PomodoroRun.OccurrenceId`, set null if that row goes): the one a reminder's "Start
+  focus" named, else a one-time todo's, else the pending one nearest the start within 12 hours either side
+  (`SessionOccurrence`). A session that completes (finished, or ended by itself) asks about it while it is pending:
+  "Done with ...?" marks it there (`GET /occurrences/{id}` reads one of any status). Not after "End session", which says
+  nothing was finished. A focus link (`kadans://todos/{id}/focus`) shows the session running, or the last one, and never
+  starts another.
 
 ### Notifications
 
 - `Device` (user, platform, push token, the session that registered it) registered from the client after
   each sign-in; it goes when that session ends.
 - Scheduled job selects occurrences where `scheduled_at - lead_time <= now AND notified_at IS NULL`,
-  dispatches, stamps `notified_at` (idempotent).
+  dispatches, stamps `notified_at` (idempotent); then those whose start has come (`start_notified_at IS NULL`) for
+  "starts now" (Reminders ring on the phone → two reminders per occurrence).
 - Channels: FCM (Android/iOS), SignalR for connected clients (desktop is long-running, so the
   persistent connection is the primary channel there), Web Push later if a web client appears. A hub
   connection is authorized once, when it opens. It closes when its access token expires and at once when

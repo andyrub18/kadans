@@ -7,6 +7,7 @@ import java.util.concurrent.Executors
 import org.freedesktop.dbus.annotations.DBusInterfaceName
 import org.freedesktop.dbus.connections.impl.DBusConnection
 import org.freedesktop.dbus.connections.impl.DBusConnectionBuilder
+import org.freedesktop.dbus.interfaces.DBus
 import org.freedesktop.dbus.interfaces.DBusInterface
 import org.freedesktop.dbus.messages.DBusSignal
 import org.freedesktop.dbus.types.UInt32
@@ -45,6 +46,7 @@ internal interface Notifications : DBusInterface {
 internal class FreedesktopNotifications private constructor(
     private val connection: DBusConnection,
     private val server: Notifications,
+    private val bus: DBus,
     capabilities: List<String>,
 ) : AutoCloseable {
     /** The server shows buttons and reports clicks (COSMIC, GNOME, KDE do). */
@@ -56,14 +58,27 @@ internal class FreedesktopNotifications private constructor(
     private val handlers = ConcurrentHashMap<Long, (String) -> Unit>()
     private val calls = Executors.newSingleThreadExecutor { Thread(it, "kadans-notifications").apply { isDaemon = true } }
 
+    /** The notification server's connection: only it reports clicks, not any program on the session. */
+    @Volatile
+    private var serverOwner: String? = owner()
+
     init {
         connection.addSigHandler(Notifications.ActionInvoked::class.java) { signal ->
+            if (!fromServer(signal.source)) return@addSigHandler
             val handler = handlers.remove(signal.id.toLong()) ?: return@addSigHandler
             // Not on the signal's thread: a handler that calls the server back would wait on the thread bringing its reply.
             calls.execute { runCatching { handler(signal.actionKey) } }
         }
-        connection.addSigHandler(Notifications.NotificationClosed::class.java) { signal -> handlers.remove(signal.id.toLong()) }
+        connection.addSigHandler(Notifications.NotificationClosed::class.java) { signal ->
+            if (fromServer(signal.source)) handlers.remove(signal.id.toLong())
+        }
     }
+
+    private fun owner(): String? = runCatching { bus.GetNameOwner(NAME) }.getOrNull()
+
+    /** From the server, as it is now (it may have restarted since: asked again once before refusing). */
+    private fun fromServer(source: String?): Boolean =
+        source != null && (source == serverOwner || source == owner().also { serverOwner = it })
 
     /**
      * Shows a notification with [buttons] (key to label) where the server has them; [onClick] gets the key clicked, or
@@ -124,7 +139,8 @@ internal class FreedesktopNotifications private constructor(
             }.getOrNull() ?: return null
             return try {
                 val server = connection.getRemoteObject(NAME, PATH, Notifications::class.java)
-                FreedesktopNotifications(connection, server, server.GetCapabilities())
+                val bus = connection.getRemoteObject("org.freedesktop.DBus", "/org/freedesktop/DBus", DBus::class.java)
+                FreedesktopNotifications(connection, server, bus, server.GetCapabilities())
             } catch (e: Exception) {
                 runCatching { connection.close() }
                 null

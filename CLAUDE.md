@@ -64,7 +64,8 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `python3 tools/smoke/identity_flows.py <api log>` checks every Identity flow end to end (a fresh
 `alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
-`python3 tools/smoke/notification_flows.py <api log>` for reminders, push (logged) and the notification centre;
+`python3 tools/smoke/notification_flows.py <api log>` for reminders (the one before the start and "starts now", none
+while a focus session runs), push (logged) and the notification centre;
 `python3 tools/smoke/reminder_flows.py <api log>` for the reminders phones ring themselves (their window, the push
 skipping a phone that has the reminder and reaching one whose window is stale);
 `python3 tools/smoke/billing_flows.py` for subscriptions in Development (the status the app reads, the fake store, a
@@ -159,7 +160,9 @@ upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subs
 `billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
 acknowledges a purchase. Reminders ring from the device through `reminders/LocalReminders` (the window the server hands
 out) and `ReminderScheduler` (Android: one exact alarm, its receivers and a refresh job; desktop: a timer in the app;
-ARCHITECTURE → "Reminders ring on the phone"). The desktop app closes to the tray (Linux: a freedesktop
+ARCHITECTURE → "Reminders ring on the phone"). Each occurrence rings before its start and at it ("starts now"); a
+reminder's buttons ("Start focus" or "Done", "In 10 min") are `reminders/ReminderActions`, reached through Android's
+`ReminderActionReceiver` and the Linux desktop's D-Bus notifications (`notifications/FreedesktopNotifications`). The desktop app closes to the tray (Linux: a freedesktop
 StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; elsewhere AWT's tray), runs once: a second start, a
 `./gradlew :desktopApp:run` too, shows the running one's window and exits (`desktop/SingleInstance`; quit it from the tray
 first), and an installed build opens with the session (`startup/StartAtLogin`, `--background`; a Gradle run never does). ARCHITECTURE → "The desktop app: in the tray, once". With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew

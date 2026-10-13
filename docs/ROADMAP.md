@@ -298,6 +298,23 @@ installing on real devices second, hosting last.
       the animation's start, and a start slower than the splash is not padded. Checked offscreen on the desktop (the
       timing, clicks swallowed until the fade ends) and on the Android 15 emulator with a timing probe (warm starts end
       at 2.0 s, a 1.9 s cold start fades at once). Before Android 12: offscreen only (no image for it here).
+- [x] The moment to begin, 2026-10-12 (the owner, after testing the Pomodoro: reminded 15 minutes before, then nothing
+      at the start, and the task never "begins"; the owner chose: never an automatic start, but the start itself
+      announced and one tap away). Three parts, ARCHITECTURE → "Reminders ring on the phone" and Pomodoro:
+      - "Starts now" at the start, besides the lead's reminder (a zero lead is the start alone), on every channel (the
+        job, the window, the push, the bell); none for a todo whose focus session runs. Migration `ReminderAtStart`.
+      - A reminder's buttons: "Start focus" (a focus todo) or "Done", and "In 10 min". Android's notification actions;
+        the Linux desktop's freedesktop notifications (buttons, and a click opening the todo, which notify-send could
+        not); on Windows and macOS a click on the balloon opens the todo.
+      - A session is for an occurrence; one that completes asks "Done with ...?" while it is pending.
+      Checked: the server's tests and smokes (`notification_flows.py`: "starts now" 2 s after the start, none during a
+      session; `reminder_flows.py`: the window's two reminders, the check by time), on a test instance with its own
+      database; the apps' tests (the D-Bus side against a stand-in notification server on a private bus); and on the
+      Android 15 emulator against that instance: the reminder rang a second after its time with its buttons, "Start
+      focus" started a hands-free session for that occurrence and the notice replaced the reminder, no "starts now"
+      during it (phone and server), "Done" completed the occurrence, an untouched reminder became "Starts now" a second
+      after the start, and "In 10 min" quieted the start and rang ten minutes later. Not yet seen by hand: the buttons
+      on COSMIC (it reports "actions"; the protocol is checked against the stand-in), the balloon click on Windows.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
@@ -311,6 +328,8 @@ installing on real devices second, hosting last.
         the session (the phone puts the alarm back after a reboot: #65's boot receiver).
       - Done on both: the splash held 0.7 s with the K, then faded (above). To look at on a phone before Android 12: the
         still K handed from the window to the app without a jump, and the status bar over it.
+      - The moment to begin (above): checked on the emulator; to look at on a real phone, the buttons on the lock screen
+        and in a heads-up, and "Start focus" with the app killed.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

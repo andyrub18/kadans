@@ -132,6 +132,22 @@ class FreedesktopNotificationsTests {
     }
 
     @Test
+    fun only_the_notification_server_reports_a_click() {
+        val server = server()
+        val clicks = LinkedBlockingQueue<String>()
+        notifications().show("Gym", "Starts now (18:00)", "icon", listOf("done" to "Done")) { clicks.add(it) }
+        val shown = server.shown.next()
+
+        // Another program on the session bus, posing as the server.
+        val impostor = DBusConnectionBuilder.forAddress(address).withShared(false).build().also { connections += it }
+        impostor.sendMessage(Notifications.ActionInvoked(PATH, UInt32(shown.id), "done"))
+        assertNull(clicks.poll(300, TimeUnit.MILLISECONDS))
+
+        server.click(shown.id, "done")
+        assertEquals("done", clicks.next())
+    }
+
+    @Test
     fun a_dismissed_notification_takes_no_click() {
         val server = server()
         val clicks = LinkedBlockingQueue<String>()

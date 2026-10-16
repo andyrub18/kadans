@@ -145,6 +145,14 @@ val EnglishStrings = StringsCatalog(
         freeAccess = "Free access: nothing to pay",
         storeFailed = "Google Play could not complete the purchase. Try again in a moment.",
     ),
+    notes = NoteStrings(
+        add = "Add a note",
+        edit = "Edit the note",
+        title = "Note",
+        placeholder = "How did it go?",
+        remove = "Remove the note",
+        tooLong = "At most 4,000 characters.",
+    ),
     reminders = ReminderStrings(
         permissionTitle = "Reminders on time, even offline",
         permissionText = "Kadans can ring your reminders from this phone at the exact minute, even without internet. For that, Android asks you to allow “Alarms & reminders” for Kadans.",

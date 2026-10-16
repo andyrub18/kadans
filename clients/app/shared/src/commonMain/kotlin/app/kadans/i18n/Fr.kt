@@ -145,6 +145,14 @@ val FrenchStrings = StringsCatalog(
         freeAccess = "Accès gratuit : rien à payer",
         storeFailed = "Google Play n'a pas pu terminer l'achat. Réessayez dans un instant.",
     ),
+    notes = NoteStrings(
+        add = "Ajouter une note",
+        edit = "Modifier la note",
+        title = "Note",
+        placeholder = "Comment ça s'est passé ?",
+        remove = "Supprimer la note",
+        tooLong = "4 000 caractères au plus.",
+    ),
     reminders = ReminderStrings(
         permissionTitle = "Des rappels à l'heure, même hors ligne",
         permissionText = "Kadans peut faire sonner vos rappels depuis ce téléphone à la minute près, même sans internet. Pour cela, Android vous demande d'autoriser « Alarmes et rappels » pour Kadans.",

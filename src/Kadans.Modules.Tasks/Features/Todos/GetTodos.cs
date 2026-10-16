@@ -19,7 +19,6 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
             .Todos.IgnoreQueryFilters(new[] { TasksDbContext.ACTIVE_TODOS_FILTER })
             .AsNoTracking()
             .Include(t => t.RecurrenceRule)
-            .Include(t => t.Remarks)
             .Where(t => status == null || t.Status == status)
             .OrderByDescending(t => t.CreatedAt)
             .Skip(skip)
@@ -58,7 +57,6 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
             .Todos.IgnoreQueryFilters([TasksDbContext.ACTIVE_TODOS_FILTER])
             .AsNoTracking()
             .Include(t => t.RecurrenceRule)
-            .Include(t => t.Remarks)
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (todo is null)

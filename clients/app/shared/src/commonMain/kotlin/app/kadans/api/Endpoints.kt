@@ -145,6 +145,11 @@ class AccountApi internal constructor(private val api: KadansApi) {
 }
 
 class TodosApi internal constructor(private val api: KadansApi) {
+    companion object {
+        /** The longest note an occurrence keeps (`TodoOccurrence.MaxNoteLength` on the server). */
+        const val NOTE_LENGTH = 4000
+    }
+
     suspend fun list(page: Int = 1, pageSize: Int = 20, status: TaskStatus? = null): List<TodoResponse> =
         api.http.get("todos") {
             parameter("page", page)
@@ -177,8 +182,10 @@ class TodosApi internal constructor(private val api: KadansApi) {
     suspend fun rescheduleNext(id: String, request: RescheduleOccurrence): TodoOccurrenceResponse =
         api.http.put("todos/$id/reschedule") { setBody(request) }.orThrow<TodoOccurrenceResponse>().also { api.remindersChanged() }
 
-    suspend fun addRemark(id: String, remark: String) {
-        api.http.post("todos/$id/remarks") { setBody(AddRemark(remark)) }.orThrow<Success>()
+    /** An occurrence's note, whatever its status (at most [NOTE_LENGTH] characters); null or blank removes it. */
+    suspend fun setOccurrenceNote(occurrenceId: String, note: String?) {
+        api.http.put("occurrences/$occurrenceId/remark") { setBody(SetOccurrenceRemark(note?.trim()?.ifEmpty { null })) }
+            .orThrow<Success>()
     }
 
     suspend fun occurrences(todoId: String, page: Int = 1, pageSize: Int = 20): List<TodoOccurrenceResponse> =

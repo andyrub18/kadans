@@ -315,6 +315,16 @@ installing on real devices second, hosting last.
       during it (phone and server), "Done" completed the occurrence, an untouched reminder became "Starts now" a second
       after the start, and "In 10 min" quieted the start and rang ten minutes later, read afresh ("Started at ..."). Not yet seen by hand: the buttons
       on COSMIC (it reports "actions"; the protocol is checked against the stand-in), the balloon click on Windows.
+- [x] Notes on occurrences, 2026-10-15 (the owner's desktop test: remarks could not be tested, the app had no screen for
+      them; the owner chose: a todo's text is its description, a note belongs to one occurrence). Each occurrence on the
+      todo's screen, its history too, shows its note and offers "Add a note" / "Edit the note": a dialog that stays open
+      until the server has it (the text is kept when offline). The server refuses a note over 4,000 characters (it used
+      to fail in the database) and a note no longer tells phones their reminders changed. The todo-level remarks, which
+      nothing showed, are gone (two endpoints, the `todo_remarks` table, empty in the dev database). On the way: on a
+      narrow phone the focus switches' labels ran under their switches; they wrap now. Checked: the server's and the
+      app's tests, `task_flows.py` (a note on a done occurrence, trimmed; 4,001 characters refused; none removes it; the
+      old route gone), `reminder_flows.py` (a note signals nothing), `deletion_flows.py`, on a test instance with its
+      own database; the screen rendered offscreen at 360 and 480 dp.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
@@ -330,6 +340,7 @@ installing on real devices second, hosting last.
         still K handed from the window to the app without a jump, and the status bar over it.
       - The moment to begin (above): checked on the emulator; to look at on a real phone, the buttons on the lock screen
         and in a heads-up, and "Start focus" with the app killed.
+      - Notes on occurrences (above): writing one with the phone's keyboard, and the dialog over it.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

@@ -303,8 +303,8 @@ unless its owner keeps it (decided 2026-10-03).
   backup restore, the erasures it predates are re-applied (DEPLOYMENT → Backups). A subscription is billed by the
   store, so the app and the emails tell the person to cancel it there.
 
-Deleting one todo (`DELETE /todos/{id}`), unlike cancelling it, takes its occurrences, remarks and focus history
-along, and its stats with them.
+Deleting one todo (`DELETE /todos/{id}`), unlike cancelling it, takes its occurrences (with their notes) and focus
+history along, and its stats with them.
 
 ### Data retention
 
@@ -616,6 +616,12 @@ panel), so CI needs no desktop.
   pure part, `OccurrenceGenerator` writes rows, `OccurrenceHorizonJob` keeps every active todo ahead of
   `Tasks:OccurrenceHorizonDays`; `Todo.OccurrencesGeneratedThrough` records progress, `MaxValue` meaning a
   bounded rule is exhausted.)
+- **Notes**: one per occurrence, "how it went" (`TodoOccurrence.Remarks`, the app's "note": `PUT
+  /occurrences/{id}/remark`), on any status, at most 4,000 characters (`SetNote`; blank removes it). The app shows it
+  under the occurrence, its history included, so a recurring todo's history reads as a journal. A note makes the row
+  touched (kept by a rule change and by retention) and moves no reminders version: it changes nothing a phone rings.
+  A todo's own text is its description: the todo-level remarks (a list nothing showed) were removed on 2026-10-15
+  (migration `DropTodoRemarks`).
 
 ### Pomodoro (Tasks module)
 

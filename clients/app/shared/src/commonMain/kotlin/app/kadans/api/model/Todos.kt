@@ -73,11 +73,9 @@ data class RescheduleOccurrence(val newDate: Instant, val reason: String? = null
 @Serializable
 data class CancelRequest(val reason: String = "")
 
+/** An occurrence's note ("how it went"); null removes it. */
 @Serializable
-data class AddRemark(val remark: String)
-
-@Serializable
-data class ReplaceRemarks(val remarks: List<String>)
+data class SetOccurrenceRemark(val remark: String?)
 
 @Serializable
 data class RecurrenceRuleResponse(
@@ -95,9 +93,6 @@ data class RecurrenceRuleResponse(
 )
 
 @Serializable
-data class TodoRemarkResponse(val remark: String, val createdAt: Instant, val updatedAt: Instant)
-
-@Serializable
 data class TodoResponse(
     val id: String,
     val title: String,
@@ -107,7 +102,6 @@ data class TodoResponse(
     val notifyBeforeInMinutes: Int,
     val pomodoroTemplateId: String? = null,
     val recurrenceRule: RecurrenceRuleResponse? = null,
-    val remarks: List<TodoRemarkResponse> = emptyList(),
     val createdAt: Instant,
     val updatedAt: Instant,
 )
@@ -126,6 +120,7 @@ data class TodoOccurrenceResponse(
     val completedAt: Instant? = null,
     val cancelledAt: Instant? = null,
     val cancellationReason: String? = null,
+    /** The person's note on this time, "how it went" (the server calls it a remark). */
     val remarks: String? = null,
     val isPreview: Boolean = false,
 )

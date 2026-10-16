@@ -27,11 +27,12 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
     internal ReminderSignals? Signals { get; set; }
 
     // What a phone's reminder window is made of. The jobs' bookkeeping (a reminder stamped sent, the horizon moved on)
-    // changes nothing a phone holds.
+    // changes nothing a phone holds, nor does a note on an occurrence.
     private static readonly HashSet<string> Bookkeeping =
     [
         nameof(TodoOccurrence.NotifiedAt),
         nameof(TodoOccurrence.StartNotifiedAt),
+        nameof(TodoOccurrence.Remarks),
         nameof(Todo.OccurrencesGeneratedThrough),
     ];
 
@@ -114,18 +115,6 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
 
         builder.Entity<Todo>(t =>
         {
-            t.OwnsMany(
-                r => r.Remarks,
-                a =>
-                {
-                    a.WithOwner().HasForeignKey("TodoId");
-                    a.Property<Guid>("Id").ValueGeneratedOnAdd();
-                    a.HasKey("Id");
-                    a.Property(r => r.Remark).IsRequired().HasMaxLength(2000);
-                    a.ToTable("todo_remarks");
-                }
-            );
-
             t.Property(p => p.Description).IsRequired().HasMaxLength(4000);
             t.Property(p => p.Title).IsRequired().HasMaxLength(500);
             t.Property(p => p.Status).HasConversion<string>();
@@ -185,7 +174,7 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
         builder.Entity<TodoOccurrence>(t =>
         {
             t.Property(p => p.Status).HasConversion<string>();
-            t.Property(p => p.Remarks).HasMaxLength(4000);
+            t.Property(p => p.Remarks).HasMaxLength(TodoOccurrence.MaxNoteLength);
             t.Property(p => p.CancellationReason).HasMaxLength(4000);
             t.Property(p => p.RescheduleReason).HasMaxLength(4000);
 

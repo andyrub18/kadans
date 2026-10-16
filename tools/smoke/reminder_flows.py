@@ -128,6 +128,12 @@ time.sleep((due2 - dt.timedelta(minutes=15) - utcnow()).total_seconds() + 12)
 pushes = [l for l in log_lines_since(before_second, "occurrence.due") if "PUSH (not sent)" in l]
 C("pushed to every phone, the ringer included", any(push_count(l) == with_token for l in pushes), pushes[-1] if pushes else "no push line")
 
+print("== a note changes no reminder")
+before_note = dt.datetime.now().astimezone()
+s, _ = call("PUT", f"/occurrences/{occurrence}/remark", {"remark": "bring the folder"}, T)
+time.sleep(4)
+C("a note is saved, and no phone is told its reminders changed", s == 200 and not log_lines_since(before_note, "reminders.changed"), s)
+
 print("== cancelled, stopped, cleaned up")
 s, _ = call("PUT", f"/todos/{todo_id}/cancel", {"reason": "smoke"}, T)
 C("first todo cancelled", s == 200, s)

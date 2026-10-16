@@ -9,6 +9,7 @@ import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroTemplateResponse
 import app.kadans.api.model.TodoResponse
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,9 @@ sealed interface TodoDetailUiState {
 
     data class Error(val message: String?, val code: String? = null) : TodoDetailUiState
 }
+
+/** Why a note was not saved ([KadansApiException]'s code, or "network"): the dialog says so and keeps the text. */
+data class NoteFailure(val code: String?, val message: String?)
 
 class TodoDetailViewModel(private val api: KadansApi, private val todoId: String) : ViewModel() {
     private val _state = MutableStateFlow<TodoDetailUiState>(TodoDetailUiState.Loading)
@@ -63,6 +67,22 @@ class TodoDetailViewModel(private val api: KadansApi, private val todoId: String
         act { api.todos.rescheduleOccurrence(occurrenceId, RescheduleOccurrence(newDate, reason?.ifBlank { null })) }
 
     fun cancelTodo() = act { api.todos.cancel(todoId) }
+
+    /**
+     * The person's note on an occurrence ("how it went"), whatever its status; null or blank removes it. Null once the
+     * server has it (the screen shows it then), else why not: the dialog stays open, its text kept.
+     */
+    suspend fun saveNote(occurrenceId: String, note: String?): NoteFailure? = try {
+        api.todos.setOccurrenceNote(occurrenceId, note)
+        load()
+        null
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: KadansApiException) {
+        NoteFailure(e.errorCode, e.message)
+    } catch (_: Exception) {
+        NoteFailure("network", null)
+    }
 
     private val _deleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 

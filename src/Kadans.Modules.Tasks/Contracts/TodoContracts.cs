@@ -18,12 +18,6 @@ public sealed record RecurrenceRuleResponse(
     int? Remaining = null
 );
 
-public sealed record TodoRemarkResponse(
-    string Remark,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
-);
-
 public sealed record TodoResponse(
     Guid Id,
     string Title,
@@ -33,7 +27,6 @@ public sealed record TodoResponse(
     int NotifyBeforeInMinutes,
     Guid? PomodoroTemplateId,
     RecurrenceRuleResponse? RecurrenceRule,
-    IReadOnlyList<TodoRemarkResponse> Remarks,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt
 );

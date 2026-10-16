@@ -528,45 +528,9 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_todos_recurrence_rules_recurrence_rule_id");
 
-                    b.OwnsMany("Kadans.Modules.Tasks.Domain.TodoRemark", "Remarks", b1 =>
-                        {
-                            b1.Property<Guid>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("uuid");
-
-                            b1.Property<DateTimeOffset>("CreatedAt")
-                                .HasColumnType("timestamp with time zone")
-                                .HasColumnName("created_at");
-
-                            b1.Property<string>("Remark")
-                                .IsRequired()
-                                .HasMaxLength(2000)
-                                .HasColumnType("character varying(2000)")
-                                .HasColumnName("remark");
-
-                            b1.Property<Guid>("TodoId")
-                                .HasColumnType("uuid");
-
-                            b1.Property<DateTimeOffset>("UpdatedAt")
-                                .HasColumnType("timestamp with time zone")
-                                .HasColumnName("updated_at");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("TodoId");
-
-                            b1.ToTable("todo_remarks", "tasks");
-
-                            b1.WithOwner()
-                                .HasForeignKey("TodoId")
-                                .HasConstraintName("fk_todo_remark_todos_todo_id");
-                        });
-
                     b.Navigation("PomodoroTemplate");
 
                     b.Navigation("RecurrenceRule");
-
-                    b.Navigation("Remarks");
                 });
 
             modelBuilder.Entity("Kadans.Modules.Tasks.Domain.TodoOccurrence", b =>

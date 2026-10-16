@@ -118,6 +118,22 @@ C("touched rows survived the rule change", len(kept_remark) == 1 and len(kept_re
 C("untouched rows replaced by the weekly instances (start + 3 more within horizon)", 3 <= len(weekly_new) <= 4, f"{len(weekly_new)}: {[o['scheduledAt'][:10] for o in weekly_new]}")
 C("first weekly instance reuses the existing row (same id)", any(o["id"] == ow[0]["id"] for o in ow2))
 
+# --- notes: one per occurrence, whatever its status; the todo's own text is its description ---
+noted = ow2[0]["id"]
+call("PUT", f"/occurrences/{noted}/complete", token=T)
+s, _ = call("PUT", f"/occurrences/{noted}/remark", {"remark": "  felt great  "}, token=T)
+s2, one = call("GET", f"/occurrences/{noted}", token=T)
+C("a note on a done occurrence, trimmed", s == 200 and one.get("remarks") == "felt great" and one.get("status") == "Completed", f"{s} {one.get('remarks')!r}")
+s, _ = call("PUT", f"/occurrences/{noted}/remark", {"remark": "x" * 4001}, token=T)
+C("a note over 4,000 characters is refused (400, not 500)", s == 400, f"{s}")
+s, _ = call("PUT", f"/occurrences/{noted}/remark", {}, token=T)
+s2, one = call("GET", f"/occurrences/{noted}", token=T)
+C("no remark removes the note (the app leaves nulls out)", s == 200 and one.get("remarks") is None, f"{s} {one.get('remarks')!r}")
+s, _ = call("POST", f"/todos/{tw['id']}/remarks", {"remark": "old"}, token=T)
+C("a todo has no notes of its own any more", s in (404, 405), f"{s}")
+s, t = call("GET", f"/todos/{tw['id']}", token=T)
+C("nor does it carry any", s == 200 and "remarks" not in t, f"{sorted(t) if s == 200 else s}")
+
 # --- todo-level reschedule and cancel ---
 s, r = call("PUT", f"/todos/{th['id']}/reschedule", {"newDate": iso(start + dt.timedelta(days=2)), "reason": "later"}, token=T)
 C("todo-level reschedule moves the next pending occurrence", s == 200 and r["isRescheduled"], f"{s}")

@@ -360,6 +360,17 @@ data class ReminderStrings(
     fun startedAt(time: String): String = startedAtFormat.replace("%s", time)
 }
 
+/** A note on one occurrence, "how it went": written under it on the todo's screen, in its history too. A feature group. */
+data class NoteStrings(
+    val add: String,
+    val edit: String,
+    val title: String,
+    val placeholder: String,
+    val remove: String,
+    /** The note is longer than the server keeps (4,000 characters), said with the number as the language writes it. */
+    val tooLong: String,
+)
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -375,6 +386,7 @@ data class StringsCatalog(
     val deletion: DeletionStrings,
     val paywall: PaywallStrings,
     val reminders: ReminderStrings,
+    val notes: NoteStrings,
     val notifications: NotificationStrings,
     val desktop: DesktopStrings,
     val continueWithGoogle: String,

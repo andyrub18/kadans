@@ -24,7 +24,6 @@ internal sealed class TodoUpdate(
 
         var todo = await dbContext
             .Todos.Include(t => t.RecurrenceRule)
-            .Include(t => t.Remarks)
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (todo is null)
@@ -230,36 +229,15 @@ internal sealed class TodoUpdate(
         }
     }
 
-    public async Task<OneOf<ApplicationError, Success>> AddRemark(Guid id, string remark)
-    {
-        var todo = await dbContext.Todos.Include(t => t.Remarks).FirstOrDefaultAsync(t => t.Id == id);
-        if (todo is null)
-            return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {id} not found");
-
-        todo.AddRemark(remark);
-        await dbContext.SaveChangesAsync();
-        return new Success();
-    }
-
-    public async Task<OneOf<ApplicationError, Success>> UpdateAllTodosRemarks(Guid todoId, IReadOnlyList<string> remarks)
-    {
-        var todo = await dbContext.Todos.Include(t => t.Remarks).FirstOrDefaultAsync(t => t.Id == todoId);
-        if (todo is null)
-            return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {todoId} not found");
-
-        todo.Remarks = [.. remarks.Select(remark => new TodoRemark { Remark = remark })];
-        todo.UpdatedAt = DateTimeOffset.UtcNow;
-        await dbContext.SaveChangesAsync();
-        return new Success();
-    }
-
-    public async Task<OneOf<ApplicationError, Success>> AddRemarkToOccurrence(Guid occurrenceId, string remark)
+    /// <summary>The person's note on an occurrence, whatever its status; blank removes it.</summary>
+    public async Task<OneOf<ApplicationError, Success>> SetOccurrenceNote(Guid occurrenceId, string? note)
     {
         var occurrence = await FindOccurrenceAsync(occurrenceId);
         if (occurrence is null)
             return new ApplicationError(ErrorTypes.TodoOccurrenceNotFound, $"Todo occurrence with id {occurrenceId} not found");
 
-        occurrence.Remarks = string.IsNullOrWhiteSpace(remark) ? null : remark;
+        if (occurrence.SetNote(note).TryPickT0(out var error, out _))
+            return error;
         await dbContext.SaveChangesAsync();
         return new Success();
     }

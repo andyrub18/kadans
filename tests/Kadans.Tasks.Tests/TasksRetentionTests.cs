@@ -28,7 +28,7 @@ public class TasksRetentionTests
         var skipped = At(Now.AddDays(-200));
         skipped.Cancel("holiday", Now.AddDays(-201));
         var annotated = At(Now.AddDays(-200));
-        annotated.Remarks = "felt great";
+        annotated.SetNote("felt great");
         var moved = At(Now.AddDays(-300));
         moved.Reschedule(Now.AddDays(-200), "later", Now.AddDays(-301));
 

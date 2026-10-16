@@ -145,6 +145,14 @@ val CreoleStrings = StringsCatalog(
         freeAccess = "Aksè gratis: pa gen anyen pou peye",
         storeFailed = "Google Play pa t ka fini acha a. Eseye ankò nan yon ti moman.",
     ),
+    notes = NoteStrings(
+        add = "Ajoute yon nòt",
+        edit = "Modifye nòt la",
+        title = "Nòt",
+        placeholder = "Kijan sa te pase?",
+        remove = "Retire nòt la",
+        tooLong = "4 000 karaktè pou pi plis.",
+    ),
     reminders = ReminderStrings(
         permissionTitle = "Rapèl alè, menm san entènèt",
         permissionText = "Kadans ka fè rapèl ou yo sonnen sou telefòn sa a nan minit egzak la, menm san entènèt. Pou sa, Android mande w pèmèt « Alarmes et rappels » (Alarms & reminders) pou Kadans.",

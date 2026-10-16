@@ -20,7 +20,6 @@ internal static class ContractMappings
                 (int)todo.NotificationLeadTime.TotalMinutes,
                 todo.PomodoroTemplateId,
                 todo.RecurrenceRule?.ToResponse(),
-                [.. todo.Remarks.Select(r => r.ToResponse())],
                 todo.CreatedAt,
                 todo.UpdatedAt
             );
@@ -40,11 +39,6 @@ internal static class ContractMappings
                 rule.IsOneTime,
                 rule.Exceptions
             );
-    }
-
-    extension(TodoRemark remark)
-    {
-        public TodoRemarkResponse ToResponse() => new(remark.Remark, remark.CreatedAt, remark.UpdatedAt);
     }
 
     extension(TodoOccurrence occurrence)

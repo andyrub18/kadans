@@ -219,55 +219,10 @@ internal static class TodoRoutes
                 )
                 .WithName("TodosDelete")
                 .WithSummary("Delete a todo for good")
-                .WithDescription("Unlike cancel: the todo goes with all its occurrences, remarks and focus history (and so from the stats).")
+                .WithDescription("Unlike cancel: the todo goes with all its occurrences (and their notes) and focus history (and so from the stats).")
                 .Produces<Success>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            todos
-                .MapPost(
-                    "/{id:guid}/remarks",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
-                        Guid id,
-                        AddRemark request,
-                        TodoUpdate service,
-                        HttpContext context
-                    ) =>
-                    {
-                        var result = await service.AddRemark(id, request.Remark);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
-                )
-                .WithName("TodosAddRemark")
-                .WithSummary("Add a remark to a todo")
-                .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status404NotFound);
-
-            todos
-                .MapPut(
-                    "/{id:guid}/remarks",
-                    async Task<Results<Ok<Success>, ProblemHttpResult>> (
-                        Guid id,
-                        ReplaceRemarks request,
-                        TodoUpdate service,
-                        HttpContext context
-                    ) =>
-                    {
-                        var result = await service.UpdateAllTodosRemarks(id, request.Remarks);
-                        return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
-                            error =>
-                                TypedResults.Problem(error.ToProblemDetails(context)),
-                            _ => TypedResults.Ok(new Success())
-                        );
-                    }
-                )
-                .WithName("TodosReplaceRemarks")
-                .WithSummary("Replace all remarks of a todo")
-                .Produces<Success>(StatusCodes.Status200OK)
-                .ProducesProblem(StatusCodes.Status404NotFound);
         }
 
         public void MapOccurrenceRoutes()
@@ -383,12 +338,12 @@ internal static class TodoRoutes
                     "/{id:guid}/remark",
                     async Task<Results<Ok<Success>, ProblemHttpResult>> (
                         Guid id,
-                        AddRemark request,
+                        SetOccurrenceRemark request,
                         TodoUpdate service,
                         HttpContext context
                     ) =>
                     {
-                        var result = await service.AddRemarkToOccurrence(id, request.Remark);
+                        var result = await service.SetOccurrenceNote(id, request.Remark);
                         return result.Match<Results<Ok<Success>, ProblemHttpResult>>(
                             error =>
                                 TypedResults.Problem(error.ToProblemDetails(context)),
@@ -397,8 +352,13 @@ internal static class TodoRoutes
                     }
                 )
                 .WithName("OccurrencesSetRemark")
-                .WithSummary("Set the remark of an occurrence")
+                .WithSummary("Set the note of an occurrence")
+                .WithDescription(
+                    "The person's note on this time (\"how it went\"), whatever the occurrence's status; at most 4,000 characters, "
+                        + "blank removes it. An occurrence with a note is kept when the todo's rule changes."
+                )
                 .Produces<Success>(StatusCodes.Status200OK)
+                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
         }
     }

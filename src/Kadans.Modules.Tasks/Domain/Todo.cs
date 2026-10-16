@@ -10,13 +10,6 @@ public enum TaskStatus
     Cancelled,
 }
 
-internal sealed class TodoRemark
-{
-    public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
-    public string Remark { get; set; } = string.Empty;
-}
-
 internal sealed class Todo
 {
     /// <summary>
@@ -31,7 +24,6 @@ internal sealed class Todo
     public RecurrenceRule RecurrenceRule { get; private set; } = null!;
     public bool NotificationEnabled { get; set; }
     public TimeSpan NotificationLeadTime { get; set; } = TimeSpan.FromMinutes(15);
-    public List<TodoRemark> Remarks { get; set; } = [];
     public string UserId { get; set; } = string.Empty;
     public Guid? PomodoroTemplateId { get; set; }
     public PomodoroTemplate? PomodoroTemplate { get; set; }
@@ -58,12 +50,6 @@ internal sealed class Todo
         Description = description;
         RecurrenceRule = recurrenceRule;
         NotificationEnabled = notificationEnabled;
-    }
-
-    public void AddRemark(string remark)
-    {
-        Remarks.Add(new() { CreatedAt = DateTimeOffset.UtcNow, Remark = remark });
-        UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     public void UpdateStatus(TaskStatus status)

@@ -3,6 +3,7 @@ package app.kadans.ui.todos
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +30,7 @@ import app.kadans.i18n.LocalStrings
 import app.kadans.ui.pomodoro.PomodoroPreference
 import app.kadans.ui.pomodoro.EndTimeDialog
 import app.kadans.ui.pomodoro.SessionEnd
+import kotlinx.coroutines.launch
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
@@ -78,6 +80,7 @@ private fun Detail(
     var deleting by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
+    var noting by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -119,13 +122,15 @@ private fun Detail(
         if (!content.hasActiveRun) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyMedium)
+                    // Wraps rather than run under its switch on a narrow phone.
+                    Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     androidx.compose.material3.Switch(checked = loop, onCheckedChange = { loop = it })
                 }
             }
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.handsFree, style = MaterialTheme.typography.bodyMedium)
+                    // Wraps rather than run under its switch on a narrow phone.
+                    Text(s.handsFree, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
                     androidx.compose.material3.Switch(
                         checked = handsFree,
                         onCheckedChange = {
@@ -188,7 +193,7 @@ private fun Detail(
             item { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
         }
         items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
-            OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it })
+            OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it }, onNote = { noting = it })
         }
 
         if (content.runs.isNotEmpty()) {
@@ -249,6 +254,11 @@ private fun Detail(
         )
     }
 
+    noting?.let { occurrence ->
+        val id = occurrence.id ?: return@let
+        NoteDialog(occurrence, save = { note -> viewModel.saveNote(id, note) }, onDone = { noting = null })
+    }
+
     rescheduling?.let { occurrence ->
         RescheduleDialog(
             occurrence = occurrence,
@@ -266,6 +276,7 @@ private fun OccurrenceRow(
     occurrence: TodoOccurrenceResponse,
     viewModel: TodoDetailViewModel,
     onMove: (TodoOccurrenceResponse) -> Unit,
+    onNote: (TodoOccurrenceResponse) -> Unit,
 ) {
     val s = LocalStrings.current
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -281,15 +292,93 @@ private fun OccurrenceRow(
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            if (occurrence.status == OccurrenceStatus.Pending && occurrence.id != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TextButton(onClick = { viewModel.completeOccurrence(occurrence.id) }) { Text(s.complete) }
-                    TextButton(onClick = { viewModel.cancelOccurrence(occurrence.id) }) { Text(s.skip) }
-                    TextButton(onClick = { onMove(occurrence) }) { Text(s.move) }
+            // The note on this time, "how it went": under it, in the history too.
+            occurrence.remarks?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            // A computed one beyond the horizon (no id) has nothing to act on yet.
+            if (occurrence.id != null) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (occurrence.status == OccurrenceStatus.Pending) {
+                        TextButton(onClick = { viewModel.completeOccurrence(occurrence.id) }) { Text(s.complete) }
+                        TextButton(onClick = { viewModel.cancelOccurrence(occurrence.id) }) { Text(s.skip) }
+                        TextButton(onClick = { onMove(occurrence) }) { Text(s.move) }
+                    }
+                    TextButton(onClick = { onNote(occurrence) }) { Text(if (occurrence.remarks == null) s.notes.add else s.notes.edit) }
                 }
             }
         }
     }
+}
+
+/**
+ * The note on one occurrence: written, changed or removed. It stays open until the server has it, keeping the text
+ * when it could not be saved (offline): a few lines of "how it went" are not typed twice.
+ */
+@Composable
+private fun NoteDialog(
+    occurrence: TodoOccurrenceResponse,
+    save: suspend (String?) -> NoteFailure?,
+    onDone: () -> Unit,
+) {
+    val s = LocalStrings.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var text by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(occurrence.remarks.orEmpty()) }
+    var saving by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var failure by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<NoteFailure?>(null) }
+    val tooLong = text.trim().length > app.kadans.api.TodosApi.NOTE_LENGTH
+    fun send(note: String?) {
+        saving = true
+        failure = null
+        scope.launch {
+            failure = save(note)
+            saving = false
+            if (failure == null) onDone()
+        }
+    }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { if (!saving) onDone() },
+        title = { Text(s.notes.title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    RuleSummary.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault(), s),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text(s.notes.placeholder) },
+                    minLines = 3,
+                    maxLines = 8,
+                    isError = tooLong,
+                    supportingText = if (tooLong) ({ Text(s.notes.tooLong) }) else null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                failure?.let {
+                    Text(s.errorFor(it.code, it.message), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { send(text) }, enabled = !saving && !tooLong && text.trim() != occurrence.remarks.orEmpty()) { Text(s.save) }
+        },
+        dismissButton = {
+            Row {
+                if (occurrence.remarks != null) {
+                    TextButton(onClick = { send(null) }, enabled = !saving) { Text(s.notes.remove, color = MaterialTheme.colorScheme.error) }
+                }
+                TextButton(onClick = onDone, enabled = !saving) { Text(s.cancel) }
+            }
+        },
+    )
 }
 
 @Composable

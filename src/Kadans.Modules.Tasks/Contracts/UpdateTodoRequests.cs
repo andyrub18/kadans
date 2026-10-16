@@ -14,8 +14,7 @@ public sealed record RescheduleOccurrence(DateTimeOffset NewDate, string? Reason
 
 public sealed record Cancel(string Reason = "");
 
-public sealed record AddRemark(string Remark);
-
-public sealed record ReplaceRemarks(List<string> Remarks);
+/// <summary>A note on an occurrence ("how it went"), at most 4,000 characters; blank or null removes it.</summary>
+public sealed record SetOccurrenceRemark(string? Remark);
 
 public sealed record UpdateTodoPomodoro(Guid? PomodoroTemplateId);

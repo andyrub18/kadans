@@ -31,7 +31,12 @@ internal sealed class TodoOccurrence
     public DateTimeOffset? CompletedAt { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
     public string? CancellationReason { get; private set; }
-    public string? Remarks { get; set; }
+
+    /// <summary>The person's note on this time ("how it went"): the app's "note" (<see cref="SetNote"/>).</summary>
+    public string? Remarks { get; private set; }
+
+    /// <summary>The longest note an occurrence keeps (its column's size).</summary>
+    public const int MaxNoteLength = 4000;
 
     /// <summary>When the reminder is due (<c>ScheduledAt - lead time</c>); null when notifications are off.</summary>
     public DateTimeOffset? NotifyAt { get; private set; }
@@ -88,6 +93,19 @@ internal sealed class TodoOccurrence
         StartNotifiedAt = null;
         if (Todo is not null)
             RefreshNotifyAt(Todo);
+        return new Success();
+    }
+
+    /// <summary>
+    /// The person's note, whatever the status (a note on a done occurrence is how it went); blank removes it. A note makes
+    /// the occurrence touched: a rule change keeps it, and retention keeps it as one someone acted on.
+    /// </summary>
+    public OneOf<ApplicationError, Success> SetNote(string? note)
+    {
+        var text = note?.Trim();
+        if (text is { Length: > MaxNoteLength })
+            return new ApplicationError(ErrorTypes.ValidationError, "A note is at most 4,000 characters.");
+        Remarks = string.IsNullOrEmpty(text) ? null : text;
         return new Success();
     }
 

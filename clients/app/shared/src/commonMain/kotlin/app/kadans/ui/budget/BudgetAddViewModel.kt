@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.AccountResponse
-import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.BudgetRecurrence
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.CategoryKind
@@ -26,10 +25,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import app.kadans.ui.mondayFirstDays
-import app.kadans.ui.toApi
+import app.kadans.i18n.StringsCatalog
+import app.kadans.ui.todos.CreateTodoUiState
+import app.kadans.ui.todos.CreateTodoViewModel
+import app.kadans.ui.todos.END_OF_DAY
 import app.kadans.ui.todos.EndMode
-import app.kadans.ui.todos.RuleLimits
+import app.kadans.ui.todos.RuleSummary
+import app.kadans.ui.todos.TodoMode
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -41,6 +43,9 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlinx.datetime.toLocalDateTime
+
+/** A new rule: monthly, on the movement's day, at noon (money moves on a day, not at a time). */
+private val NEW_RULE = CreateTodoUiState(mode = TodoMode.Recurring, frequency = Frequency.Monthly, time = LocalTime(12, 0))
 
 data class BudgetAddUiState(
     val accounts: List<AccountResponse> = emptyList(),
@@ -56,12 +61,12 @@ data class BudgetAddUiState(
     val date: LocalDate? = null,
     // repeat
     val repeat: Boolean = false,
-    val frequency: Frequency = Frequency.Monthly,
-    val interval: Int = 1,
-    val endMode: EndMode = EndMode.Never,
-    val count: Int? = null,
-    val untilDate: LocalDate? = null,
-    val byDays: Set<ApiDayOfWeek> = emptySet(),
+    /**
+     * How a repeating movement repeats: a todo rule's form state, edited by the same builder ([RepeatSection]), so money
+     * repeats as todos do ("the 15th and the 30th", "the last Friday"). Its title and reminder go unused; its day is
+     * the movement's [date] (see [rule]).
+     */
+    val repeatForm: CreateTodoUiState = NEW_RULE,
     /** Where the server's limits count from: a repeating movement starts at most a year before today. */
     val today: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
     /** The movement being corrected (opened from the month's list); null for a new one. */
@@ -99,15 +104,11 @@ data class BudgetAddUiState(
     /** Any new movement repeats, a transfer too ("100 to savings every month"); an edited one is a single movement. */
     val repeating: Boolean get() = repeat && !editing
 
-    /** The days a weekly movement repeats on, as the day picker shows them: the ones picked, else the date's. */
-    val weekDays: Set<ApiDayOfWeek> get() = byDays.ifEmpty { setOfNotNull(date?.dayOfWeek?.toApi()) }
+    /** The rule as the builder shows and sends it: on the movement's date, unless other days are picked. */
+    val rule: CreateTodoUiState get() = repeatForm.copy(date = date)
 
-    /** The first one: a weekly movement starts on its first chosen day from the date picked, as todos do. */
-    val firstDate: LocalDate?
-        get() = date?.let { picked ->
-            if (!repeating || frequency != Frequency.Weekly) picked
-            else (0..6).map { picked.plus(it, DateTimeUnit.DAY) }.first { it.dayOfWeek.toApi() in weekDays }
-        }
+    /** The first one: a repeating movement starts on the first day from the date picked its rule falls on, as todos do. */
+    val firstDate: LocalDate? get() = if (repeating) rule.firstDate else date
 
     /** The server refuses a repeating movement that starts more than a year ago; the start picker offers no earlier day. */
     val earliestStart: LocalDate get() = today.minus(1, DateTimeUnit.YEAR).plus(1, DateTimeUnit.DAY)
@@ -115,22 +116,13 @@ data class BudgetAddUiState(
     /** A date picked before "Repeat" was turned on can be older: said under the date, and not sent. */
     val startTooOld: Boolean get() = repeating && date != null && date < earliestStart
 
-    /** More repeats than the server accepts: said under the field, and not sent. */
-    val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > RuleLimits.MAX_COUNT
-
-    val endValid: Boolean
-        get() = when (endMode) {
-            EndMode.Never -> true
-            EndMode.AfterCount -> (count ?: 0) in 1..RuleLimits.MAX_COUNT
-            // The same day or later, and at most ten years after the first one (the end picker offers no other day).
-            EndMode.OnDate -> untilDate != null && (firstDate ?: today).let { first ->
-                untilDate >= first && untilDate <= RuleLimits.latestEnd(first)
-            }
-        }
+    /** The rule can go: an end the server takes, a day it falls on, and a start within the year. */
+    val ruleValid: Boolean
+        get() = rule.let { it.endValid && !it.neverFalls && !it.severalMonthsNeedEveryYear } && !startTooOld
 
     val canSubmit: Boolean
         get() = !isSaving && account != null && (amount ?: 0.0) > 0.0 &&
-            (!repeating || (endValid && !startTooOld)) &&
+            (!repeating || ruleValid) &&
             (kind != BudgetTransactionKind.Transfer ||
                 (transferAccount != null && (!crossCurrency || (received ?: 0.0) > 0.0)))
 
@@ -270,20 +262,7 @@ class BudgetAddViewModel(private val api: KadansApi, private val transactionId: 
                             accountId = account.id,
                             kind = current.kind,
                             amount = amount,
-                            recurrence = BudgetRecurrence(
-                                frequency = current.frequency,
-                                startDate = occurredAt,
-                                interval = current.interval,
-                                byMonthDay = if (current.frequency == Frequency.Monthly)
-                                    current.date?.let { listOf(it.day) } else null,
-                                byDayOfWeek = if (current.frequency == Frequency.Weekly) mondayFirstDays.filter { it in current.weekDays } else null,
-                                count = current.count.takeIf { current.endMode == EndMode.AfterCount },
-                                // Inclusive end of the picked day, so that day's occurrence counts.
-                                until = if (current.endMode == EndMode.OnDate)
-                                    LocalDateTime(current.untilDate!!, LocalTime(23, 59)).toInstant(timeZone)
-                                else null,
-                                timeZone = timeZone.id,
-                            ),
+                            recurrence = recurrence(current, timeZone)!!,
                             categoryId = current.categoryId.takeIf { !transfer },
                             note = current.note.trim(),
                             transferAccountId = current.transferAccountId.takeIf { transfer },
@@ -312,10 +291,7 @@ class BudgetAddViewModel(private val api: KadansApi, private val transactionId: 
                     receivedText = "",
                     note = "",
                     repeat = false,
-                    endMode = EndMode.Never,
-                    count = null,
-                    untilDate = null,
-                    byDays = emptySet(),
+                    repeatForm = NEW_RULE,
                 )
                 _saved.emit(Unit)
             } catch (e: KadansApiException) {
@@ -344,10 +320,35 @@ class BudgetAddViewModel(private val api: KadansApi, private val transactionId: 
     }
 
     internal companion object {
-        /** A tap on a day picks or drops it, starting from the days shown; the last one stays. */
-        fun toggleDay(state: BudgetAddUiState, day: ApiDayOfWeek): BudgetAddUiState {
-            val days = state.weekDays.let { if (day in it) it - day else it + day }
-            return if (days.isEmpty()) state else state.copy(byDays = days)
+        /** What money repeats by: a day at most (the server refuses hourly and minute rules). */
+        val FREQUENCIES = listOf(Frequency.Daily, Frequency.Weekly, Frequency.Monthly, Frequency.Yearly)
+
+        /**
+         * The rule as the server takes it: the builder's day parts (those a todo sends), from its first day at noon local
+         * (an unambiguous "that day" whatever the DST), ending with its last day. Null when it falls on no day.
+         */
+        fun recurrence(state: BudgetAddUiState, timeZone: TimeZone): BudgetRecurrence? {
+            val rule = state.rule
+            val first = rule.firstDate ?: return null
+            val parts = CreateTodoViewModel.dayParts(rule)
+            return BudgetRecurrence(
+                frequency = parts.frequency,
+                startDate = first.atStartOfDayIn(timeZone).plus(12.hours),
+                interval = rule.interval,
+                byDayOfWeek = parts.byDay,
+                byMonthDay = parts.byMonthDay,
+                bySetPos = parts.bySetPos,
+                byMonth = parts.byMonth,
+                count = rule.count.takeIf { rule.endMode == EndMode.AfterCount },
+                // Inclusive end of the picked day, so that day's occurrence counts.
+                until = rule.untilDate?.takeIf { rule.endMode == EndMode.OnDate }
+                    ?.let { LocalDateTime(it, END_OF_DAY).toInstant(timeZone) },
+                timeZone = timeZone.id,
+            )
         }
+
+        /** "Every month · on days 15, 30", under the rule as it is built. */
+        fun ruleInWords(state: BudgetAddUiState, s: StringsCatalog, timeZone: TimeZone): String? =
+            if (!state.repeating) null else recurrence(state, timeZone)?.let { RuleSummary.describe(it, s) }
     }
 }

@@ -74,6 +74,7 @@ val CreoleStrings = StringsCatalog(
         monthsLabel = "Nan mwa sa yo",
         severalMonthsEveryYear = "Ak plizyè mwa, yon jou tankou « dezyèm dimanch » repete chak ane.",
         neverFalls = "Règ sa a pa tonbe sou okenn dat nan dis lane k ap vini yo.",
+        shortMonthsFormat = "Mwa ki pa gen jou %d yo p ap gen anyen jou sa a; « %s » tonbe nan chak mwa.",
         countLimit = "5 000 fwa pou pi plis.",
         startWithinAYear = "Yon mouvman ki repete pa ka kòmanse plis pase yon ane de sa.",
         startPassed = "Lè sa a gentan pase.",
@@ -166,6 +167,7 @@ val CreoleStrings = StringsCatalog(
         deleteRuleTitle = "Efase mouvman ki repete sa a?",
         deleteRuleText = "P ap gen lòt ki anrejistre ankò. Sa ki deja anrejistre yo rete.",
         receivedEachTime = "Sa w resevwa chak fwa. Si to jou a pa menm, modifye mouvman sa a.",
+        nextFormat = "Pwochen an: %s",
     ),
     reminders = ReminderStrings(
         permissionTitle = "Rapèl alè, menm san entènèt",

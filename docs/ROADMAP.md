@@ -340,6 +340,18 @@ installing on real devices second, hosting last.
       an expense, a transfer's new destination in dollars, recurring transfers booked by the job in gourdes and into
       dollars, an archived account's old movement fixed but nothing moved onto one) on a test instance with its own
       database; the screens rendered offscreen at 360 dp in English and French.
+- [x] Money repeats as todos do, 2026-10-16 (the owner: a salary "every 15 and 30 of the month" could be set on a
+      todo, not in the budget, though both run on one engine). The movement form's repeat is now the todo's rule
+      builder (`RepeatSection`, cut out of `WhenSection`): several days of the month and "Last day", "the second
+      Friday" / "the last weekday", months of the year, with the rule in words under it ("Every month · on days 15, 30",
+      no time: money moves on a day). Daily to yearly only, one time a day. The server's `BudgetRecurrence` takes
+      `bySetPos` and `byMonth` too, and a rule's response its frequency, interval, count and end, so the budget's
+      recurring list says each rule in words with its next date. Both builders now say when a day picked is missing
+      from some months ("Months with no day 30 get nothing on it; “Last day” falls in every month"); business days are
+      left aside, as the owner asked. A repeating movement's date reads "First on". Checked: the server's and the app's
+      tests (15 and 30: none on 30 February; 15 and the last day; the last Friday of March and June), `budget_flows.py`
+      (the job books the 15ths and 30ths gone by; the last-Friday rule's next date) twice on a test instance with its own
+      database; the movement and todo forms and the budget rendered offscreen at 360 dp.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
@@ -357,6 +369,7 @@ installing on real devices second, hosting last.
         and in a heads-up, and "Start focus" with the app killed.
       - Notes on occurrences (above): writing one with the phone's keyboard, and the dialog over it.
       - The budget corrected (above): a movement opened from the list, the rule dialog over the keyboard.
+      - Money repeats as todos do (above): the month's grid in the movement form on a narrow phone.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

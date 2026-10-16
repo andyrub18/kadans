@@ -74,6 +74,7 @@ val EnglishStrings = StringsCatalog(
         monthsLabel = "In months",
         severalMonthsEveryYear = "With several months, a day like “the second Sunday” repeats every year.",
         neverFalls = "This rule falls on no date in the next ten years.",
+        shortMonthsFormat = "Months with no day %d get nothing on it; “%s” falls in every month.",
         countLimit = "At most 5,000 times.",
         startWithinAYear = "A repeating movement can start at most a year ago.",
         startPassed = "This time has already passed.",
@@ -166,6 +167,7 @@ val EnglishStrings = StringsCatalog(
         deleteRuleTitle = "Delete this recurring movement?",
         deleteRuleText = "No more will be booked. Those already booked stay.",
         receivedEachTime = "Received each time. If the day's rate differs, edit that movement.",
+        nextFormat = "Next: %s",
     ),
     reminders = ReminderStrings(
         permissionTitle = "Reminders on time, even offline",

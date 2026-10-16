@@ -87,11 +87,13 @@ class BudgetLogicTests {
             repeat = true,
         )
         // Never: fine as-is. After-count needs a count; on-date needs a day at/after the start.
+        fun ending(mode: EndMode, count: Int? = null, until: LocalDate? = null) =
+            base.copy(repeatForm = base.rule.copy(endMode = mode, count = count, untilDate = until))
         assertEquals(true, base.canSubmit)
-        assertEquals(false, base.copy(endMode = EndMode.AfterCount).canSubmit)
-        assertEquals(true, base.copy(endMode = EndMode.AfterCount, count = 30).canSubmit)
-        assertEquals(false, base.copy(endMode = EndMode.OnDate).canSubmit)
-        assertEquals(false, base.copy(endMode = EndMode.OnDate, untilDate = LocalDate(2026, 9, 1)).canSubmit)
-        assertEquals(true, base.copy(endMode = EndMode.OnDate, untilDate = LocalDate(2026, 12, 31)).canSubmit)
+        assertEquals(false, ending(EndMode.AfterCount).canSubmit)
+        assertEquals(true, ending(EndMode.AfterCount, count = 30).canSubmit)
+        assertEquals(false, ending(EndMode.OnDate).canSubmit)
+        assertEquals(false, ending(EndMode.OnDate, until = LocalDate(2026, 9, 1)).canSubmit)
+        assertEquals(true, ending(EndMode.OnDate, until = LocalDate(2026, 12, 31)).canSubmit)
     }
 }

@@ -94,7 +94,11 @@ public sealed record TransactionResponse(
 
 // ---- recurring ----
 
-/// <summary>The slice of the recurrence engine budget rules need (salary on the 1st, weekly groceries…).</summary>
+/// <summary>
+/// A budget rule's dates, with a todo's day parts (the apps share one rule builder): salary on the 15th and the 30th
+/// (<paramref name="ByMonthDay"/>, -1 the last day), "the last Friday" (<paramref name="ByDayOfWeek"/> with
+/// <paramref name="BySetPos"/>), some months of the year (<paramref name="ByMonth"/>). Never more than once a day.
+/// </summary>
 public sealed record BudgetRecurrence(
     Frequency Frequency,
     DateTimeOffset StartDate,
@@ -103,7 +107,9 @@ public sealed record BudgetRecurrence(
     List<int>? ByMonthDay = null,
     int? Count = null,
     DateTimeOffset? Until = null,
-    string? TimeZone = null
+    string? TimeZone = null,
+    List<int>? BySetPos = null,
+    List<int>? ByMonth = null
 );
 
 /// <summary>
@@ -143,6 +149,10 @@ public sealed record RecurringTransactionResponse(
     string Rrule,
     string TimeZoneId,
     DateTimeOffset StartDate,
+    Frequency Frequency,
+    int Interval,
+    int? Count,
+    DateTimeOffset? Until,
     DateTimeOffset? NextAt,
     bool IsActive,
     DateTimeOffset CreatedAt

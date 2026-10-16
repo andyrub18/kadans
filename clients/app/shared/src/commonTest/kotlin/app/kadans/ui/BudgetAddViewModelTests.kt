@@ -10,7 +10,13 @@ import app.kadans.api.model.Frequency
 import app.kadans.ui.budget.BudgetAddUiState
 import app.kadans.ui.budget.BudgetAddViewModel
 import app.kadans.ui.budget.amountInput
+import app.kadans.i18n.EnglishStrings
+import app.kadans.ui.todos.CreateTodoUiState
+import app.kadans.ui.todos.CreateTodoViewModel
+import app.kadans.ui.todos.DayKind
+import app.kadans.ui.todos.DayRule
 import app.kadans.ui.todos.EndMode
+import app.kadans.ui.todos.Ordinal
 import app.kadans.ui.todos.RuleLimits
 import io.ktor.http.content.TextContent
 import kotlin.test.assertFalse
@@ -103,27 +109,30 @@ class BudgetAddViewModelTests {
 
     private fun salary(frequency: Frequency = Frequency.Monthly) = BudgetAddUiState(
         accounts = listOf(cash), accountId = "a1", kind = BudgetTransactionKind.Income, amountText = "25000",
-        date = today, today = today, repeat = true, frequency = frequency, isLoading = false,
-    )
+        date = today, today = today, repeat = true, isLoading = false,
+    ).ruled { it.copy(frequency = frequency) }
+
+    /** The rule changed as the builder changes it: from what it shows, on the movement's date. */
+    private fun BudgetAddUiState.ruled(transform: (CreateTodoUiState) -> CreateTodoUiState) = copy(repeatForm = transform(rule))
 
     @Test
     fun a_repeat_count_is_capped_at_the_servers_limit() {
-        val byCount = salary().copy(endMode = EndMode.AfterCount)
+        val byCount = salary().ruled { it.copy(endMode = EndMode.AfterCount) }
 
-        assertTrue(byCount.copy(count = 5_000).canSubmit)
-        assertTrue(byCount.copy(count = 5_001).countTooHigh)
-        assertFalse(byCount.copy(count = 5_001).canSubmit)
-        assertFalse(byCount.copy(count = 0).canSubmit)
+        assertTrue(byCount.ruled { it.copy(count = 5_000) }.canSubmit)
+        assertTrue(byCount.ruled { it.copy(count = 5_001) }.rule.countTooHigh)
+        assertFalse(byCount.ruled { it.copy(count = 5_001) }.canSubmit)
+        assertFalse(byCount.ruled { it.copy(count = 0) }.canSubmit)
         assertEquals(1234, RuleLimits.countInput("1 2-34"))
     }
 
     @Test
     fun the_end_is_within_ten_years_of_the_first_one() {
-        val byDate = salary().copy(endMode = EndMode.OnDate)
+        val byDate = salary().ruled { it.copy(endMode = EndMode.OnDate) }
 
-        assertTrue(byDate.copy(untilDate = LocalDate(2036, 10, 8)).canSubmit)
-        assertFalse(byDate.copy(untilDate = LocalDate(2036, 10, 9)).canSubmit) // 23:59 then is past ten years from noon
-        assertFalse(byDate.copy(untilDate = LocalDate(2026, 10, 8)).canSubmit)
+        assertTrue(byDate.ruled { it.copy(untilDate = LocalDate(2036, 10, 8)) }.canSubmit)
+        assertFalse(byDate.ruled { it.copy(untilDate = LocalDate(2036, 10, 9)) }.canSubmit) // 23:59 then is past ten years from noon
+        assertFalse(byDate.ruled { it.copy(untilDate = LocalDate(2026, 10, 8)) }.canSubmit)
     }
 
     @Test
@@ -151,13 +160,46 @@ class BudgetAddViewModelTests {
     @Test
     fun weekly_days_start_from_the_dates_own_day() {
         val saturday = salary(Frequency.Weekly).copy(date = LocalDate(2026, 10, 10))
-        assertEquals(setOf(ApiDayOfWeek.Saturday), saturday.weekDays)
+        assertEquals(setOf(ApiDayOfWeek.Saturday), saturday.rule.weekDays)
 
-        val withMonday = BudgetAddViewModel.toggleDay(saturday, ApiDayOfWeek.Monday)
-        val mondayOnly = BudgetAddViewModel.toggleDay(withMonday, ApiDayOfWeek.Saturday)
-        assertEquals(setOf(ApiDayOfWeek.Monday), mondayOnly.weekDays)
+        val withMonday = saturday.ruled { CreateTodoViewModel.toggleDay(it, ApiDayOfWeek.Monday) }
+        val mondayOnly = withMonday.ruled { CreateTodoViewModel.toggleDay(it, ApiDayOfWeek.Saturday) }
+        assertEquals(setOf(ApiDayOfWeek.Monday), mondayOnly.rule.weekDays)
         assertEquals(LocalDate(2026, 10, 12), mondayOnly.firstDate)
-        assertEquals(mondayOnly, BudgetAddViewModel.toggleDay(mondayOnly, ApiDayOfWeek.Monday)) // the last day stays
+    }
+
+    @Test
+    fun a_salary_on_the_15th_and_the_30th_is_the_rule_a_todo_would_send() {
+        // Picked on Friday 9 October: the 15th and the 30th, as the todo form's month grid sends them.
+        val twice = salary().ruled { CreateTodoViewModel.toggleMonthDay(CreateTodoViewModel.toggleMonthDay(it, 15), 30) }
+            .ruled { CreateTodoViewModel.toggleMonthDay(it, 9) }
+        val zone = TimeZone.of("America/Port-au-Prince")
+        val recurrence = BudgetAddViewModel.recurrence(twice, zone)!!
+
+        assertEquals(Frequency.Monthly, recurrence.frequency)
+        assertEquals(listOf(15, 30), recurrence.byMonthDay)
+        assertEquals(LocalDate(2026, 10, 15), twice.firstDate) // the first one is the 15th, at noon there
+        assertEquals(LocalDate(2026, 10, 15).atStartOfDayIn(zone) + 12.hours, recurrence.startDate)
+        assertEquals("Every month · on days 15, 30", BudgetAddViewModel.ruleInWords(twice, EnglishStrings, zone))
+        // February has no 30th: said under the days, with the last day as the way to every month.
+        assertEquals(30, twice.rule.skippedMonthDay)
+        assertEquals(null, twice.ruled { CreateTodoViewModel.toggleMonthDay(CreateTodoViewModel.toggleMonthDay(it, 30), -1) }.rule.skippedMonthDay)
+    }
+
+    @Test
+    fun rent_on_the_last_friday_of_march_and_june() {
+        val rent = salary().ruled {
+            it.copy(frequency = Frequency.Yearly, months = setOf(3, 6), dayRule = DayRule.ByWeekday, ordinal = Ordinal.Last, dayKind = DayKind.Friday)
+        }
+        val recurrence = BudgetAddViewModel.recurrence(rent, TimeZone.UTC)!!
+
+        // "The last Friday" of each of several months is a monthly rule kept to them, as for todos.
+        assertEquals(Frequency.Monthly, recurrence.frequency)
+        assertEquals(listOf(3, 6), recurrence.byMonth)
+        assertEquals(listOf(ApiDayOfWeek.Friday), recurrence.byDayOfWeek)
+        assertEquals(listOf(-1), recurrence.bySetPos)
+        assertEquals(LocalDate(2027, 3, 26), rent.firstDate)
+        assertEquals("Every year · March, June · the last Friday", BudgetAddViewModel.ruleInWords(rent, EnglishStrings, TimeZone.UTC))
     }
 
     @Test
@@ -182,9 +224,8 @@ class BudgetAddViewModelTests {
         viewModel.state.first { !it.isLoading }
         viewModel.update {
             it.copy(
-                kind = BudgetTransactionKind.Income, amountText = "1500", repeat = true, frequency = Frequency.Weekly,
-                date = LocalDate(2026, 10, 10), byDays = setOf(ApiDayOfWeek.Thursday, ApiDayOfWeek.Monday),
-            )
+                kind = BudgetTransactionKind.Income, amountText = "1500", repeat = true, date = LocalDate(2026, 10, 10),
+            ).ruled { r -> r.copy(frequency = Frequency.Weekly, byDays = setOf(ApiDayOfWeek.Thursday, ApiDayOfWeek.Monday)) }
         }
         viewModel.submit()
         viewModel.state.first { !it.isSaving } // the engine answers on its own thread

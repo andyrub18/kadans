@@ -36,6 +36,9 @@ enum class TodoMode { OneTime, Recurring }
 
 internal val END_OF_DAY = LocalTime(23, 59)
 
+/** Each month's days in its shortest year: February has a 29th one year in four. */
+private val SHORTEST_MONTH_LENGTHS = listOf(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
 /** How a recurring todo ends — clients often know the last date, not the count (a treatment course). */
 enum class EndMode { Never, AfterCount, OnDate }
 
@@ -108,6 +111,18 @@ data class CreateTodoUiState(
             .takeWhile { it <= RuleLimits.latestEnd(picked) }
             .firstOrNull(::fallsOn)
     }
+
+    /**
+     * By date, the smallest day picked that some month the rule visits lacks (the 30th in February, the 31st in April):
+     * those months have nothing that day, as in calendar apps; said under the days. Null when every month has them all.
+     */
+    val skippedMonthDay: Int?
+        get() {
+            if (frequency != Frequency.Monthly && frequency != Frequency.Yearly || dayRule != DayRule.ByDate) return null
+            val months = if (frequency == Frequency.Yearly) effectiveMonths else (1..12).toSet()
+            val shortest = months.minOf { SHORTEST_MONTH_LENGTHS[it - 1] }
+            return effectiveMonthDays.filter { it > shortest }.minOrNull()
+        }
 
     /** A date was picked, but the rule never falls ("the 30th of February"): said under the rule, and not sent. */
     val neverFalls: Boolean get() = mode == TodoMode.Recurring && date != null && firstDate == null

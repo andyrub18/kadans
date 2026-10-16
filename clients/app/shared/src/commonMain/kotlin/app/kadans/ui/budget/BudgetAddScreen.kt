@@ -19,7 +19,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -39,15 +38,13 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.BudgetApi
 import app.kadans.api.model.AccountResponse
 import app.kadans.api.model.BudgetTransactionKind
-import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.DateRange
 import app.kadans.ui.PickerField
 import app.kadans.ui.PickerKind
-import app.kadans.ui.WeekDayPicker
-import app.kadans.ui.todos.EndMode
-import app.kadans.ui.todos.RuleLimits
+import app.kadans.ui.todos.RepeatSection
 import app.kadans.ui.todos.RuleSummary
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -63,7 +60,7 @@ fun BudgetAddScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
-    var dateTarget by remember { mutableStateOf<BudgetDateTarget?>(null) }
+    var pickingDate by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) { viewModel.saved.collect { onSaved() } }
@@ -195,9 +192,9 @@ fun BudgetAddScreen(
 
             PickerField(
                 value = state.date?.toString() ?: "",
-                label = s.dueDate,
+                label = if (state.repeating) s.firstOn else s.dueDate,
                 kind = PickerKind.Date,
-                onPick = { dateTarget = BudgetDateTarget.Start },
+                onPick = { pickingDate = true },
                 isError = state.startTooOld,
                 supportingText = if (state.startTooOld) s.repeat.startWithinAYear else null,
                 modifier = Modifier.fillMaxWidth(),
@@ -217,73 +214,28 @@ fun BudgetAddScreen(
                     Switch(checked = state.repeat, onCheckedChange = { v -> viewModel.update { it.copy(repeat = v) } })
                 }
                 if (state.repeat) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(Frequency.Daily, Frequency.Weekly, Frequency.Monthly, Frequency.Yearly).forEach { f ->
-                            FilterChip(
-                                selected = state.frequency == f,
-                                onClick = { viewModel.update { it.copy(frequency = f) } },
-                                label = { Text(s.frequencyName(f)) },
-                            )
-                        }
+                    // The todo's rule builder: "the 15th and the 30th", "the last Friday", some months, an end.
+                    RepeatSection(
+                        state = state.rule,
+                        update = { transform -> viewModel.update { it.copy(repeatForm = transform(it.rule)) } },
+                        frequencies = BudgetAddViewModel.FREQUENCIES,
+                        severalTimes = false,
+                        endTime = false,
+                    )
+                    val zone = remember { TimeZone.currentSystemDefault() }
+                    BudgetAddViewModel.ruleInWords(state, s, zone)?.let { words ->
+                        Text(words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { viewModel.update { it.copy(interval = (it.interval - 1).coerceAtLeast(1)) } }) { Text("−") }
-                        Text(s.repeat.every(state.frequency, state.interval), style = MaterialTheme.typography.titleMedium)
-                        OutlinedButton(onClick = { viewModel.update { it.copy(interval = it.interval + 1) } }) { Text("+") }
-                    }
-                    if (state.frequency == Frequency.Weekly) {
-                        // The date's own day is chosen until others are; the last one stays (as in the todo form).
-                        Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
-                        WeekDayPicker(state.weekDays, onToggle = { day -> viewModel.update { BudgetAddViewModel.toggleDay(it, day) } })
-                        val first = state.firstDate
-                        if (first != null && first != state.date) {
-                            Text(
-                                s.repeat.firstTime(RuleSummary.day(first, s)),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Text(s.ends, style = MaterialTheme.typography.labelLarge)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = state.endMode == EndMode.Never,
-                            onClick = { viewModel.update { it.copy(endMode = EndMode.Never) } },
-                            label = { Text(s.endNever) },
-                        )
-                        FilterChip(
-                            selected = state.endMode == EndMode.AfterCount,
-                            onClick = { viewModel.update { it.copy(endMode = EndMode.AfterCount) } },
-                            label = { Text(s.endAfterCount) },
-                        )
-                        FilterChip(
-                            selected = state.endMode == EndMode.OnDate,
-                            onClick = { viewModel.update { it.copy(endMode = EndMode.OnDate) } },
-                            label = { Text(s.endOnDate) },
+                    val first = state.firstDate
+                    if (first != null && first != state.date) {
+                        Text(
+                            s.repeat.firstTime(RuleSummary.day(first, s)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    when (state.endMode) {
-                        EndMode.AfterCount ->
-                            OutlinedTextField(
-                                value = state.count?.toString() ?: "",
-                                onValueChange = { v -> viewModel.update { it.copy(count = RuleLimits.countInput(v)) } },
-                                label = { Text(s.howManyTimes) },
-                                singleLine = true,
-                                isError = state.countTooHigh,
-                                supportingText = if (state.countTooHigh) ({ Text(s.repeat.countLimit) }) else null,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        EndMode.OnDate ->
-                            PickerField(
-                                value = state.untilDate?.toString() ?: "",
-                                label = s.lastOccurrenceOn,
-                                kind = PickerKind.Date,
-                                onPick = { dateTarget = BudgetDateTarget.Until },
-                                placeholder = s.pickLastDay,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        EndMode.Never -> {}
+                    if (state.rule.neverFalls) {
+                        Text(s.repeat.neverFalls, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -318,36 +270,23 @@ fun BudgetAddScreen(
         )
     }
 
-    val target = dateTarget
-    if (target != null) {
-        // Only days the server accepts. A one-off movement can be on any day; a repeating one starts at most a year ago
-        // and ends between its first day and ten years after it.
-        val first = state.firstDate ?: state.today
-        val range = when {
-            target == BudgetDateTarget.Until -> DateRange(first, RuleLimits.latestEnd(first))
-            state.repeating -> DateRange(state.earliestStart, null)
-            else -> DateRange(null, null)
-        }
+    if (pickingDate) {
+        // Only days the server accepts: a one-off movement can be on any day, a repeating one starts at most a year ago.
+        val range = if (state.repeating) DateRange(state.earliestStart, null) else DateRange(null, null)
         val pickerState = rememberDatePickerState(selectableDates = range)
         DatePickerDialog(
-            onDismissRequest = { dateTarget = null },
+            onDismissRequest = { pickingDate = false },
             confirmButton = {
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { millis ->
                         val picked = LocalDate.fromEpochDays((millis / 86_400_000L).toInt())
-                        viewModel.update {
-                            when (target) {
-                                BudgetDateTarget.Start -> it.copy(date = picked)
-                                BudgetDateTarget.Until -> it.copy(untilDate = picked)
-                            }
-                        }
+                        viewModel.update { it.copy(date = picked) }
                     }
-                    dateTarget = null
+                    pickingDate = false
                 }) { Text(s.ok) }
             },
-            dismissButton = { TextButton(onClick = { dateTarget = null }) { Text(s.cancel) } },
+            dismissButton = { TextButton(onClick = { pickingDate = false }) { Text(s.cancel) } },
         ) { DatePicker(state = pickerState) }
     }
 }
 
-private enum class BudgetDateTarget { Start, Until }

@@ -132,9 +132,9 @@ class BudgetAddViewModelTests {
         assertTrue(salary().copy(date = LocalDate(2025, 10, 9)).startTooOld)
         assertFalse(salary().copy(date = LocalDate(2025, 10, 9)).canSubmit)
         assertTrue(salary().copy(date = LocalDate(2025, 10, 10)).canSubmit)
-        // A one-off movement can be on any day, and a transfer never repeats.
+        // A one-off movement can be on any day; a repeating transfer starts within the year too.
         assertTrue(salary().copy(repeat = false, date = LocalDate(2020, 1, 1)).canSubmit)
-        assertFalse(salary().copy(kind = BudgetTransactionKind.Transfer, date = LocalDate(2020, 1, 1)).startTooOld)
+        assertTrue(salary().copy(kind = BudgetTransactionKind.Transfer, date = LocalDate(2020, 1, 1)).startTooOld)
     }
 
     @Test

@@ -15,6 +15,7 @@ import app.kadans.api.model.Currency
 import app.kadans.api.model.CreateBudgetTransaction
 import app.kadans.api.model.CreateRecurringTransaction
 import app.kadans.api.model.Frequency
+import app.kadans.api.model.UpdateBudgetTransaction
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -63,11 +64,22 @@ data class BudgetAddUiState(
     val byDays: Set<ApiDayOfWeek> = emptySet(),
     /** Where the server's limits count from: a repeating movement starts at most a year before today. */
     val today: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
+    /** The movement being corrected (opened from the month's list); null for a new one. */
+    val editingId: String? = null,
+    /** When the edited movement happened, and its day: saved on the same day, it keeps its exact time. */
+    val originalOccurredAt: Instant? = null,
+    val originalDate: LocalDate? = null,
+    /** The edited movement was booked by a recurring one, which stays as it is. */
+    val bookedByRule: Boolean = false,
     val isLoading: Boolean = true,
+    /** The accounts (or the movement to edit) could not be loaded: the form has nothing to offer. */
+    val loadFailed: Boolean = false,
     val isSaving: Boolean = false,
     val error: String? = null,
     val errorCode: String? = null,
 ) {
+    val editing: Boolean get() = editingId != null
+
     val account: AccountResponse? get() = accounts.firstOrNull { it.id == accountId }
     val transferAccount: AccountResponse? get() = accounts.firstOrNull { it.id == transferAccountId }
     val amount: Double? get() = amountText.replace(" ", "").replace(",", ".").toDoubleOrNull()
@@ -84,8 +96,8 @@ data class BudgetAddUiState(
             BudgetTransactionKind.Transfer -> emptyList()
         }
 
-    /** Incomes and expenses repeat; transfers are one-off (the server repeats no transfer). */
-    val repeating: Boolean get() = repeat && kind != BudgetTransactionKind.Transfer
+    /** Any new movement repeats, a transfer too ("100 to savings every month"); an edited one is a single movement. */
+    val repeating: Boolean get() = repeat && !editing
 
     /** The days a weekly movement repeats on, as the day picker shows them: the ones picked, else the date's. */
     val weekDays: Set<ApiDayOfWeek> get() = byDays.ifEmpty { setOfNotNull(date?.dayOfWeek?.toApi()) }
@@ -141,7 +153,8 @@ data class BudgetAddUiState(
     }
 }
 
-class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
+/** A new movement, or with [transactionId] one to correct (its kind stays; a recurring one is changed on the budget screen). */
+class BudgetAddViewModel(private val api: KadansApi, private val transactionId: String? = null) : ViewModel() {
     private val _state = MutableStateFlow(BudgetAddUiState())
     val state: StateFlow<BudgetAddUiState> = _state.asStateFlow()
 
@@ -156,28 +169,62 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
 
     /** Re-runs on every entry of the screen: accounts created since the last open must appear. */
     fun reload() {
+        if (_state.value.loadFailed) {
+            _state.value = _state.value.copy(isLoading = true, loadFailed = false, error = null, errorCode = null)
+        }
         viewModelScope.launch {
             try {
-                val accounts = api.budget.accounts()
-                val categories = api.budget.categories()
+                val edited = transactionId?.let { api.budget.transaction(it) }
+                // An edited movement keeps its own accounts and category, archived since or not; nothing else archived shows.
+                val accounts = api.budget.accounts(includeArchived = edited != null)
+                    .filter { !it.isArchived || it.id == edited?.accountId || it.id == edited?.transferAccountId }
+                val categories = api.budget.categories(includeArchived = edited != null)
+                    .filter { !it.isArchived || it.id == edited?.categoryId }
                 val settings = runCatching { api.budget.settings() }.getOrNull()
                 val today = Clock.System.now().toLocalDateTime(timeZone).date
                 val current = _state.value
-                _state.value = current.copy(
+                val loaded = current.copy(
                     accounts = accounts,
                     categories = categories,
                     settings = settings,
-                    accountId = current.accountId?.takeIf { id -> accounts.any { it.id == id } }
-                        ?: accounts.firstOrNull()?.id,
-                    transferAccountId = current.transferAccountId?.takeIf { id -> accounts.any { it.id == id } },
-                    date = current.date ?: today,
                     today = today,
                     isLoading = false,
+                    loadFailed = false,
+                    error = null,
+                    errorCode = null,
                 )
+                // The form is filled from the movement once: coming back to the screen keeps what was changed.
+                _state.value = if (edited != null && !current.editing) {
+                    val day = edited.occurredAt.toLocalDateTime(timeZone).date
+                    val destination = accounts.firstOrNull { it.id == edited.transferAccountId }
+                    loaded.copy(
+                        editingId = edited.id,
+                        kind = edited.kind,
+                        accountId = edited.accountId,
+                        transferAccountId = edited.transferAccountId,
+                        amountText = editableAmount(edited.amount),
+                        receivedText = edited.transferAmount
+                            ?.takeIf { destination != null && destination.currency != edited.currency }
+                            ?.let(::editableAmount) ?: "",
+                        categoryId = edited.categoryId,
+                        note = edited.note,
+                        date = day,
+                        originalDate = day,
+                        originalOccurredAt = edited.occurredAt,
+                        bookedByRule = edited.recurringTransactionId != null,
+                    )
+                } else {
+                    loaded.copy(
+                        accountId = current.accountId?.takeIf { id -> accounts.any { it.id == id } }
+                            ?: accounts.firstOrNull()?.id,
+                        transferAccountId = current.transferAccountId?.takeIf { id -> accounts.any { it.id == id } },
+                        date = current.date ?: today,
+                    )
+                }
             } catch (e: KadansApiException) {
-                _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
+                _state.value = _state.value.copy(isLoading = false, loadFailed = true, error = e.message, errorCode = e.errorCode)
             } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, errorCode = "network")
+                _state.value = _state.value.copy(isLoading = false, loadFailed = true, errorCode = "network")
             }
         }
     }
@@ -190,13 +237,33 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
         val current = _state.value
         val account = current.account ?: return
         val amount = current.amount ?: return
-        // Noon local: an unambiguous "that day" instant regardless of DST edges. A repeating one starts on its first day.
-        val occurredAt: Instant = (if (current.repeating) current.firstDate else current.date)
-            ?.atStartOfDayIn(timeZone)?.plus(12.hours)
+        // Noon local: an unambiguous "that day" instant regardless of DST edges. A repeating one starts on its first day;
+        // an edited one left on its day keeps its time.
+        val occurredAt: Instant = current.originalOccurredAt?.takeIf { current.date == current.originalDate }
+            ?: (if (current.repeating) current.firstDate else current.date)
+                ?.atStartOfDayIn(timeZone)?.plus(12.hours)
             ?: Clock.System.now()
+        val transfer = current.kind == BudgetTransactionKind.Transfer
         _state.value = current.copy(isSaving = true, error = null, errorCode = null)
         viewModelScope.launch {
             try {
+                if (current.editingId != null) {
+                    api.budget.updateTransaction(
+                        current.editingId,
+                        UpdateBudgetTransaction(
+                            amount = amount,
+                            occurredAt = occurredAt,
+                            categoryId = current.categoryId.takeIf { !transfer },
+                            note = current.note.trim(),
+                            transferAmount = current.received.takeIf { current.crossCurrency },
+                            accountId = account.id,
+                            transferAccountId = current.transferAccountId.takeIf { transfer },
+                        ),
+                    )
+                    _state.value = _state.value.copy(isSaving = false)
+                    _saved.emit(Unit)
+                    return@launch
+                }
                 if (current.repeating) {
                     api.budget.createRecurring(
                         CreateRecurringTransaction(
@@ -217,8 +284,10 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                                 else null,
                                 timeZone = timeZone.id,
                             ),
-                            categoryId = current.categoryId,
+                            categoryId = current.categoryId.takeIf { !transfer },
                             note = current.note.trim(),
+                            transferAccountId = current.transferAccountId.takeIf { transfer },
+                            transferAmount = current.received.takeIf { current.crossCurrency },
                         ),
                     )
                 } else {
@@ -228,10 +297,9 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                             kind = current.kind,
                             amount = amount,
                             occurredAt = occurredAt,
-                            categoryId = if (current.kind == BudgetTransactionKind.Transfer) null else current.categoryId,
+                            categoryId = current.categoryId.takeIf { !transfer },
                             note = current.note.trim(),
-                            transferAccountId = current.transferAccountId
-                                .takeIf { current.kind == BudgetTransactionKind.Transfer },
+                            transferAccountId = current.transferAccountId.takeIf { transfer },
                             transferAmount = current.received.takeIf { current.crossCurrency },
                         ),
                     )
@@ -249,6 +317,23 @@ class BudgetAddViewModel(private val api: KadansApi) : ViewModel() {
                     untilDate = null,
                     byDays = emptySet(),
                 )
+                _saved.emit(Unit)
+            } catch (e: KadansApiException) {
+                _state.value = _state.value.copy(isSaving = false, error = e.message, errorCode = e.errorCode)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isSaving = false, errorCode = "network")
+            }
+        }
+    }
+
+    /** The edited movement goes; the budget screen is shown again. */
+    fun delete() {
+        val id = _state.value.editingId ?: return
+        _state.value = _state.value.copy(isSaving = true, error = null, errorCode = null)
+        viewModelScope.launch {
+            try {
+                api.budget.deleteTransaction(id)
+                _state.value = _state.value.copy(isSaving = false)
                 _saved.emit(Unit)
             } catch (e: KadansApiException) {
                 _state.value = _state.value.copy(isSaving = false, error = e.message, errorCode = e.errorCode)

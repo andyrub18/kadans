@@ -5,9 +5,10 @@ using Kadans.SharedKernel.Recurrence;
 namespace Kadans.Modules.Budget.Domain;
 
 /// <summary>
-/// A rule like "salary on the 1st" or "rent monthly": a transaction template plus a schedule on
-/// the shared recurrence engine. A job materializes real transactions as their moments pass —
-/// no client needs to be running (same philosophy as todo occurrences).
+/// A rule like "salary on the 1st", "rent monthly" or "100 USD to savings every month": a transaction template plus a
+/// schedule on the shared recurrence engine. A job materializes real transactions as their moments pass — no client
+/// needs to be running (same philosophy as todo occurrences). The template obeys the movements' rules
+/// (<see cref="Transaction.Check"/>).
 /// </summary>
 internal sealed class RecurringTransaction
 {
@@ -21,6 +22,15 @@ internal sealed class RecurringTransaction
     public Guid? CategoryId { get; set; }
     public Category? Category { get; set; }
     public string Note { get; set; } = "";
+
+    /// <summary>
+    /// A recurring transfer's destination and what it receives each time: the amount itself between two accounts of one
+    /// currency; between two currencies the same pair every time (the person corrects a booked one when the day's rate
+    /// differed, as stored amounts never follow indicative rates).
+    /// </summary>
+    public Guid? TransferAccountId { get; init; }
+    public Account? TransferAccount { get; init; }
+    public decimal? TransferAmount { get; set; }
 
     public required string Rrule { get; init; }
     public required string TimeZoneId { get; init; }

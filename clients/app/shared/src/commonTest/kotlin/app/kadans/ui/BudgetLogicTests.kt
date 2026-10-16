@@ -8,6 +8,7 @@ import app.kadans.api.model.Currency
 import app.kadans.api.model.CurrencyRateResponse
 import app.kadans.ui.todos.EndMode
 import app.kadans.ui.budget.BudgetAddUiState
+import app.kadans.ui.budget.editableAmount
 import app.kadans.ui.budget.formatAmount
 import app.kadans.ui.budget.formatMoney
 import kotlin.test.Test
@@ -24,11 +25,13 @@ class BudgetLogicTests {
 
     @Test
     fun amountsFormatWithSpaceGroupsAndTwoDecimals() {
-        assertEquals("85 000.00", formatAmount(85_000.0))
-        assertEquals("2 500.50", formatAmount(2500.5))
+        // No-break spaces: an amount never wraps inside, nor leaves its currency on the next line.
+        assertEquals("85\u00A0000.00", formatAmount(85_000.0))
+        assertEquals("2\u00A0500.50", formatAmount(2500.5))
         assertEquals("0.29", formatAmount(0.29))
-        assertEquals("-13 200.00", formatAmount(-13_200.0))
-        assertEquals("1 234 567.89 HTG", formatMoney(1_234_567.89, Currency.Htg))
+        assertEquals("-13\u00A0200.00", formatAmount(-13_200.0))
+        assertEquals("1\u00A0234\u00A0567.89\u00A0HTG", formatMoney(1_234_567.89, Currency.Htg))
+        assertEquals("1234567.89", editableAmount(1_234_567.89))
     }
 
     @Test

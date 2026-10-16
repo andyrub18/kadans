@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -35,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import app.kadans.api.BudgetApi
+import app.kadans.api.model.AccountResponse
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
@@ -47,16 +50,21 @@ import app.kadans.ui.todos.RuleLimits
 import app.kadans.ui.todos.RuleSummary
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
+/** A new movement, or with [transactionId] one of the month's to correct. */
 @Composable
 fun BudgetAddScreen(
     onSaved: () -> Unit,
     onBack: () -> Unit,
-    viewModel: BudgetAddViewModel = koinViewModel(),
+    transactionId: String? = null,
+    viewModel: BudgetAddViewModel =
+        koinViewModel(key = transactionId?.let { "budget-edit-$it" }) { parametersOf(transactionId) },
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
     var dateTarget by remember { mutableStateOf<BudgetDateTarget?>(null) }
+    var confirmingDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) { viewModel.saved.collect { onSaved() } }
     // Accounts or categories created since the last open must show up.
@@ -66,21 +74,44 @@ fun BudgetAddScreen(
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         return
     }
+    if (state.loadFailed) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error)
+            Button(onClick = viewModel::reload, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
+            TextButton(onClick = onBack) { Text(s.cancel) }
+        }
+        return
+    }
+    /** An account as its chip reads; one archived since shows only on its own old movement, and says so. */
+    fun accountLabel(account: AccountResponse) =
+        account.name + " · " + account.currency.name.uppercase() + (if (account.isArchived) " · " + s.movements.archived else "")
 
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Column(Modifier.widthIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(s.addTransaction, style = MaterialTheme.typography.headlineSmall)
+            Text(if (state.editing) s.movements.editTitle else s.addTransaction, style = MaterialTheme.typography.headlineSmall)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BudgetTransactionKind.entries.forEach { kind ->
-                    FilterChip(
-                        selected = state.kind == kind,
-                        onClick = { viewModel.update { it.copy(kind = kind, categoryId = null, repeat = it.repeat && kind != BudgetTransactionKind.Transfer) } },
-                        label = { Text(s.transactionKindName(kind)) },
-                    )
+            if (state.editing) {
+                // Its kind stays: an income recorded as an expense is deleted and recorded again.
+                Text(s.transactionKindName(state.kind), style = MaterialTheme.typography.titleMedium)
+                if (state.bookedByRule) {
+                    Text(s.movements.bookedByRule, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BudgetTransactionKind.entries.forEach { kind ->
+                        FilterChip(
+                            selected = state.kind == kind,
+                            onClick = { viewModel.update { it.copy(kind = kind, categoryId = null) } },
+                            label = { Text(s.transactionKindName(kind)) },
+                        )
+                    }
                 }
             }
 
@@ -90,7 +121,7 @@ fun BudgetAddScreen(
                     FilterChip(
                         selected = state.accountId == account.id,
                         onClick = { viewModel.update { it.copy(accountId = account.id) } },
-                        label = { Text(account.name + " · " + account.currency.name.uppercase()) },
+                        label = { Text(accountLabel(account)) },
                     )
                 }
             }
@@ -106,7 +137,7 @@ fun BudgetAddScreen(
                             FilterChip(
                                 selected = state.transferAccountId == account.id,
                                 onClick = { viewModel.update { it.copy(transferAccountId = account.id) } },
-                                label = { Text(account.name + " · " + account.currency.name.uppercase()) },
+                                label = { Text(accountLabel(account)) },
                             )
                         }
                     }
@@ -131,9 +162,11 @@ fun BudgetAddScreen(
                     label = { Text(s.receivedAmount + (state.transferAccount?.let { " (" + it.currency.name.uppercase() + ")" } ?: "")) },
                     singleLine = true,
                     placeholder = { state.suggestedReceived()?.let { Text(formatAmount(it)) } },
+                    // A rule books the same pair each time: the day's real exchange is corrected on its movement.
+                    supportingText = if (state.repeating) ({ Text(s.movements.receivedEachTime) }) else null,
                     trailingIcon = {
                         state.suggestedReceived()?.let { suggested ->
-                            TextButton(onClick = { viewModel.update { it.copy(receivedText = formatAmount(suggested).replace(" ", "")) } }) {
+                            TextButton(onClick = { viewModel.update { it.copy(receivedText = editableAmount(suggested)) } }) {
                                 Text(s.atYourRate, style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -172,13 +205,13 @@ fun BudgetAddScreen(
 
             OutlinedTextField(
                 value = state.note,
-                onValueChange = { v -> viewModel.update { it.copy(note = v) } },
+                onValueChange = { v -> viewModel.update { it.copy(note = v.take(BudgetApi.NOTE_LENGTH)) } },
                 label = { Text(s.descriptionOptional) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (state.kind != BudgetTransactionKind.Transfer) {
+            if (!state.editing) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(s.repeatLabel)
                     Switch(checked = state.repeat, onCheckedChange = { v -> viewModel.update { it.copy(repeat = v) } })
@@ -259,10 +292,30 @@ fun BudgetAddScreen(
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-                if (state.isSaving) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.create)
+                if (state.isSaving) CircularProgressIndicator(modifier = Modifier.padding(2.dp))
+                else Text(if (state.editing) s.save else s.create)
             }
             TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }
+            if (state.editing) {
+                TextButton(onClick = { confirmingDelete = true }, enabled = !state.isSaving, modifier = Modifier.fillMaxWidth()) {
+                    Text(s.deleteWord, color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
+    }
+
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text(s.movements.deleteTitle) },
+            text = { Text(s.movements.deleteText) },
+            confirmButton = {
+                TextButton(onClick = { confirmingDelete = false; viewModel.delete() }) {
+                    Text(s.deleteWord, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text(s.cancel) } },
+        )
     }
 
     val target = dateTarget

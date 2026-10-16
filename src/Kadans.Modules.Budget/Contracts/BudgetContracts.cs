@@ -63,12 +63,18 @@ public sealed record CreateTransaction(
     decimal? TransferAmount = null
 );
 
+/// <summary>
+/// A movement corrected: what it carries and, when given, the account (and a transfer's destination) it moves to; an
+/// account left out stays. Its kind never changes. No category is none.
+/// </summary>
 public sealed record UpdateTransaction(
     decimal Amount,
     DateTimeOffset OccurredAt,
     Guid? CategoryId = null,
     string Note = "",
-    decimal? TransferAmount = null
+    decimal? TransferAmount = null,
+    Guid? AccountId = null,
+    Guid? TransferAccountId = null
 );
 
 public sealed record TransactionResponse(
@@ -100,20 +106,28 @@ public sealed record BudgetRecurrence(
     string? TimeZone = null
 );
 
+/// <summary>
+/// Income, expense, or a transfer (<paramref name="TransferAccountId"/>, and <paramref name="TransferAmount"/> between
+/// two currencies: received each time), booked on each date of <paramref name="Recurrence"/>.
+/// </summary>
 public sealed record CreateRecurringTransaction(
     Guid AccountId,
     TransactionKind Kind,
     decimal Amount,
     BudgetRecurrence Recurrence,
     Guid? CategoryId = null,
-    string Note = ""
+    string Note = "",
+    Guid? TransferAccountId = null,
+    decimal? TransferAmount = null
 );
 
+/// <summary>What the next bookings carry (the ones already booked stay), or a pause. The accounts and dates stay.</summary>
 public sealed record UpdateRecurringTransaction(
     decimal Amount,
     Guid? CategoryId = null,
     string Note = "",
-    bool IsActive = true
+    bool IsActive = true,
+    decimal? TransferAmount = null
 );
 
 public sealed record RecurringTransactionResponse(
@@ -124,6 +138,8 @@ public sealed record RecurringTransactionResponse(
     Currency Currency,
     Guid? CategoryId,
     string Note,
+    Guid? TransferAccountId,
+    decimal? TransferAmount,
     string Rrule,
     string TimeZoneId,
     DateTimeOffset StartDate,

@@ -18,7 +18,7 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("budget")
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -301,6 +301,15 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("time_zone_id");
 
+                    b.Property<Guid?>("TransferAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transfer_account_id");
+
+                    b.Property<decimal?>("TransferAmount")
+                        .HasPrecision(16, 2)
+                        .HasColumnType("numeric(16,2)")
+                        .HasColumnName("transfer_amount");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -320,6 +329,8 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
 
                     b.HasIndex("NextOccurrenceAt")
                         .HasFilter("is_active = true");
+
+                    b.HasIndex("TransferAccountId");
 
                     b.ToTable("recurring_transactions", "budget");
                 });
@@ -440,9 +451,17 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_recurring_transactions_categories_category_id");
 
+                    b.HasOne("Kadans.Modules.Budget.Domain.Account", "TransferAccount")
+                        .WithMany()
+                        .HasForeignKey("TransferAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_recurring_transactions_accounts_transfer_account_id");
+
                     b.Navigation("Account");
 
                     b.Navigation("Category");
+
+                    b.Navigation("TransferAccount");
                 });
 
             modelBuilder.Entity("Kadans.Modules.Budget.Domain.Transaction", b =>

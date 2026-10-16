@@ -371,6 +371,27 @@ data class NoteStrings(
     val tooLong: String,
 )
 
+/** A budget movement opened from the month's list to correct it, and a recurring one changed. A feature group. */
+data class MovementStrings(
+    /** The month's movements, under the month the screen shows. */
+    val listTitle: String,
+    val showMore: String,
+    val editTitle: String,
+    /** Under an edited movement a recurring one booked: the rule stays as it is. */
+    val bookedByRule: String,
+    /** After an account's name in the edit form: an archived account keeps its old movements. */
+    val archived: String,
+    val deleteTitle: String,
+    val deleteText: String,
+    val ruleTitle: String,
+    /** A recurring movement changed: what the next bookings carry. */
+    val ruleHint: String,
+    val deleteRuleTitle: String,
+    val deleteRuleText: String,
+    /** Under the received amount of a recurring transfer between two currencies. */
+    val receivedEachTime: String,
+)
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -387,6 +408,7 @@ data class StringsCatalog(
     val paywall: PaywallStrings,
     val reminders: ReminderStrings,
     val notes: NoteStrings,
+    val movements: MovementStrings,
     val notifications: NotificationStrings,
     val desktop: DesktopStrings,
     val continueWithGoogle: String,
@@ -578,7 +600,6 @@ data class StringsCatalog(
     val archivedLabel: String,
     val transferNeedsTwoAccounts: String,
     val onDaysLabel: String,
-    val recentTransactions: String,
     val noTransactionsYet: String,
     val deleteWord: String,
     // forgot / reset password

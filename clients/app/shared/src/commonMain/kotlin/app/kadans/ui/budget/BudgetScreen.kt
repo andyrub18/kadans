@@ -1,5 +1,6 @@
 package app.kadans.ui.budget
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,12 +35,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.kadans.api.BudgetApi
+import app.kadans.api.model.AccountResponse
 import app.kadans.api.model.AccountType
 import app.kadans.api.model.BudgetTransactionKind
+import app.kadans.api.model.BudgetTransactionResponse
 import app.kadans.api.model.CategoryKind
+import app.kadans.api.model.CategoryResponse
 import app.kadans.api.model.CategorySpend
 import app.kadans.api.model.Currency
+import app.kadans.api.model.RecurringTransactionResponse
+import app.kadans.i18n.StringsCatalog
 import app.kadans.i18n.LocalStrings
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -46,6 +56,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun BudgetScreen(
     onAddTransaction: () -> Unit,
+    onEditTransaction: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: BudgetViewModel = koinViewModel(),
 ) {
@@ -56,6 +67,7 @@ fun BudgetScreen(
     var editingRate by remember { mutableStateOf(false) }
     var limitFor by remember { mutableStateOf<CategorySpend?>(null) }
     var editingAccount by remember { mutableStateOf<app.kadans.api.model.AccountResponse?>(null) }
+    var editingRule by remember { mutableStateOf<RecurringTransactionResponse?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -185,42 +197,44 @@ fun BudgetScreen(
                     item { HorizontalDivider() }
                     item { Text(s.recurringSection, style = MaterialTheme.typography.titleMedium) }
                     items(state.recurring, key = { "rec-" + it.id }) { rule ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.padding(end = 8.dp)) {
-                                Text("${s.transactionKindName(rule.kind)} · ${formatMoney(rule.amount, rule.currency)}" + (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""), style = MaterialTheme.typography.bodyMedium)
-                                rule.nextAt?.let {
-                                    Text(it.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                        Row(
+                            Modifier.fillMaxWidth().clickable { editingRule = rule }.padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    "${s.transactionKindName(rule.kind)} · ${formatMoney(rule.amount, rule.currency)}" +
+                                        received(rule.kind, rule.currency, rule.transferAccountId, rule.transferAmount, state.accounts) +
+                                        (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    listOfNotNull(
+                                        rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.toString(),
+                                        accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
+                                    ).joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
-                            Row {
-                                TextButton(onClick = { viewModel.toggleRecurring(rule) }) { Text(if (rule.isActive) s.pause else s.resume) }
-                                TextButton(onClick = { viewModel.deleteRecurring(rule.id) }) { Text(s.deleteWord, color = MaterialTheme.colorScheme.error) }
-                            }
+                            TextButton(onClick = { viewModel.toggleRecurring(rule) }) { Text(if (rule.isActive) s.pause else s.resume) }
                         }
                     }
                 }
 
-                // ---- recent movements ----
+                // ---- the month's movements: one opens to correct it ----
                 item { HorizontalDivider() }
-                item { Text(s.recentTransactions, style = MaterialTheme.typography.titleMedium) }
+                item { Text(s.movements.listTitle, style = MaterialTheme.typography.titleMedium) }
                 if (state.recent.isEmpty()) {
                     item { Text(s.noTransactionsYet, style = MaterialTheme.typography.bodyMedium) }
                 }
                 items(state.recent, key = { "tx-" + it.id }) { tx ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.padding(end = 8.dp)) {
-                            Text(
-                                (if (tx.kind == BudgetTransactionKind.Expense) "−" else if (tx.kind == BudgetTransactionKind.Income) "+" else "⇄") +
-                                    " " + formatMoney(tx.amount, tx.currency) + (tx.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                tx.occurredAt.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString(),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(onClick = { viewModel.deleteTransaction(tx.id) }) { Text(s.deleteWord, style = MaterialTheme.typography.labelSmall) }
+                    MovementRow(tx, state.accounts, state.categories, s, onClick = { onEditTransaction(tx.id) })
+                }
+                if (state.recentHasMore) {
+                    item {
+                        TextButton(onClick = viewModel::showMore, modifier = Modifier.fillMaxWidth()) { Text(s.movements.showMore) }
                     }
                 }
             }
@@ -253,6 +267,18 @@ fun BudgetScreen(
                 viewModel.updateAccount(account.id, name, type, archived); editingAccount = null
             },
             onDismiss = { editingAccount = null },
+        )
+    }
+    editingRule?.let { rule ->
+        RuleDialog(
+            rule = rule,
+            accounts = state.accounts,
+            categories = state.categories,
+            onSave = { amount, received, categoryId, note ->
+                viewModel.updateRecurring(rule, amount, received, categoryId, note); editingRule = null
+            },
+            onDelete = { viewModel.deleteRecurring(rule.id); editingRule = null },
+            onDismiss = { editingRule = null },
         )
     }
     limitFor?.let { spend ->
@@ -411,7 +437,7 @@ private fun CurrenciesDialog(
 @Composable
 private fun RateRow(currency: Currency, base: Currency, current: Double?, onSet: (Double) -> Unit) {
     val s = LocalStrings.current
-    var value by remember(currency, current) { mutableStateOf(current?.let { formatAmount(it).replace(" ", "") } ?: "") }
+    var value by remember(currency, current) { mutableStateOf(current?.let(::editableAmount) ?: "") }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("1 " + currency.name.uppercase() + " =", style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(
@@ -446,4 +472,169 @@ private fun LimitDialog(spend: CategorySpend, onSet: (Double) -> Unit, onDismiss
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
     )
+}
+
+/** "Cash" or, for a transfer, "Cash → Savings". */
+private fun accountsLine(accountId: String, transferAccountId: String?, accounts: List<AccountResponse>): String? {
+    fun name(id: String) = accounts.firstOrNull { it.id == id }?.name
+    val source = name(accountId) ?: return null
+    return transferAccountId?.let { name(it) }?.let { "$source → $it" } ?: source
+}
+
+/** " → 37.50 USD" after a transfer's amount when the destination counts in another currency. */
+private fun received(
+    kind: BudgetTransactionKind,
+    currency: Currency,
+    transferAccountId: String?,
+    transferAmount: Double?,
+    accounts: List<AccountResponse>,
+): String {
+    if (kind != BudgetTransactionKind.Transfer || transferAmount == null) return ""
+    val destination = accounts.firstOrNull { it.id == transferAccountId }?.currency ?: return ""
+    return if (destination == currency) "" else " → " + formatMoney(transferAmount, destination)
+}
+
+/** One movement of the month: what, then when, where and why; a tap opens it to correct it. */
+@Composable
+private fun MovementRow(
+    tx: BudgetTransactionResponse,
+    accounts: List<AccountResponse>,
+    categories: List<CategoryResponse>,
+    s: StringsCatalog,
+    onClick: () -> Unit,
+) {
+    val sign = when (tx.kind) {
+        BudgetTransactionKind.Expense -> "−"
+        BudgetTransactionKind.Income -> "+"
+        BudgetTransactionKind.Transfer -> "⇄"
+    }
+    val category = categories.firstOrNull { it.id == tx.categoryId }?.let { (it.icon?.plus(" ") ?: "") + it.name }
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                "$sign " + formatMoney(tx.amount, tx.currency) +
+                    received(tx.kind, tx.currency, tx.transferAccountId, tx.transferAmount, accounts) +
+                    (category?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                listOfNotNull(
+                    tx.occurredAt.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString(),
+                    accountsLine(tx.accountId, tx.transferAccountId, accounts),
+                    tx.note.takeIf { it.isNotBlank() },
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * A recurring movement changed: what its next bookings carry (amount, received amount between two currencies,
+ * category, note), or the rule deleted. Where and when it books stays: another schedule is a new rule.
+ */
+@Composable
+private fun RuleDialog(
+    rule: RecurringTransactionResponse,
+    accounts: List<AccountResponse>,
+    categories: List<CategoryResponse>,
+    onSave: (amount: Double, received: Double?, categoryId: String?, note: String) -> Unit,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val s = LocalStrings.current
+    val transfer = rule.kind == BudgetTransactionKind.Transfer
+    val destination = accounts.firstOrNull { it.id == rule.transferAccountId }
+    val cross = transfer && destination != null && destination.currency != rule.currency
+    var amount by remember { mutableStateOf(editableAmount(rule.amount)) }
+    var received by remember { mutableStateOf(rule.transferAmount?.takeIf { cross }?.let(::editableAmount) ?: "") }
+    var categoryId by remember { mutableStateOf(rule.categoryId) }
+    var note by remember { mutableStateOf(rule.note) }
+    var confirmingDelete by remember { mutableStateOf(false) }
+    fun parsed(text: String) = text.replace(",", ".").toDoubleOrNull()
+    val kind = if (rule.kind == BudgetTransactionKind.Income) CategoryKind.Income else CategoryKind.Expense
+    val matching = if (transfer) emptyList()
+    else categories.filter { it.kind == kind && (!it.isArchived || it.id == rule.categoryId) }
+    val valid = (parsed(amount) ?: 0.0) > 0.0 && (!cross || (parsed(received) ?: 0.0) > 0.0)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(s.movements.ruleTitle) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    listOfNotNull(s.transactionKindName(rule.kind), accountsLine(rule.accountId, rule.transferAccountId, accounts))
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = amountInput(it) },
+                    label = { Text(s.amountLabel + " (" + rule.currency.name.uppercase() + ")") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (cross) {
+                    OutlinedTextField(
+                        value = received,
+                        onValueChange = { received = amountInput(it) },
+                        label = { Text(s.receivedAmount + " (" + destination!!.currency.name.uppercase() + ")") },
+                        supportingText = { Text(s.movements.receivedEachTime) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (matching.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = categoryId == null, onClick = { categoryId = null }, label = { Text(s.noCategory) })
+                        matching.forEach { category ->
+                            FilterChip(
+                                selected = categoryId == category.id,
+                                onClick = { categoryId = category.id },
+                                label = { Text((category.icon?.plus(" ") ?: "") + category.name) },
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it.take(BudgetApi.NOTE_LENGTH) },
+                    label = { Text(s.descriptionOptional) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(s.movements.ruleHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { confirmingDelete = true }) { Text(s.deleteWord, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(parsed(amount)!!, parsed(received).takeIf { cross }, categoryId.takeIf { !transfer }, note.trim()) },
+                enabled = valid,
+            ) { Text(s.save) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
+    )
+
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text(s.movements.deleteRuleTitle) },
+            text = { Text(s.movements.deleteRuleText) },
+            confirmButton = {
+                TextButton(onClick = { confirmingDelete = false; onDelete() }) {
+                    Text(s.deleteWord, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text(s.cancel) } },
+        )
+    }
 }

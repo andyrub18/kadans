@@ -707,3 +707,13 @@ shared recurrence engine: `RecurringTransactionJob` (Quartz, `Budget:RecurringIn
 client running; exhausted rules self-deactivate. Money rules repeat daily at most and start at most
 a year back. A pass creates up to 100 transactions per rule; a longer backlog resumes on the next
 pass. A "pay rent" task and a recurring transaction are the same cadence seen from two modules.
+A rule is an income, an expense or a transfer ("100 USD to savings every month"); between two
+currencies it books the same pair each time, and the person corrects a booked movement when the
+day's rate differed (stored amounts never follow indicative rates). Changing a rule changes what its
+next bookings carry (amount, received amount, category, note), never its accounts or dates.
+- Correcting a movement (`PUT /budget/transactions/{id}`): amounts, day, category, note, and the
+  account(s) it touches – the currency follows the account – but never its kind (delete it and record
+  it again). It may stay on an archived account (fixing an old one) but never move onto one; one a rule
+  booked changes alone. Every movement, new, edited or a rule's template, passes the one set of rules
+  in `Transaction.Check` (a note is at most 1,000 characters). The app opens a movement from the
+  month's list, which shows the month on screen in the account's time zone, as the totals do.

@@ -295,6 +295,11 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
 }
 
 class BudgetApi internal constructor(private val api: KadansApi) {
+    companion object {
+        /** The longest note a movement keeps (the server's `Transaction.MaxNoteLength`). */
+        const val NOTE_LENGTH = 1000
+    }
+
     suspend fun accounts(includeArchived: Boolean = false): List<AccountResponse> =
         api.http.get("budget/accounts/") { parameter("includeArchived", includeArchived) }.orThrow()
 
@@ -338,6 +343,9 @@ class BudgetApi internal constructor(private val api: KadansApi) {
             parameter("page", page)
             parameter("pageSize", pageSize)
         }.orThrow()
+
+    suspend fun transaction(id: String): BudgetTransactionResponse =
+        api.http.get("budget/transactions/$id").orThrow()
 
     suspend fun createTransaction(request: CreateBudgetTransaction): BudgetTransactionResponse =
         api.http.post("budget/transactions/") { setBody(request) }.orThrow()

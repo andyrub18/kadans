@@ -636,6 +636,12 @@ installing on real devices second, hosting last.
       even a transitive one, fails the restore (NuGet audit; NU1903/NU1904 as errors), in CI, in the
       image build and locally. Proven with the vulnerable SQLite library step 3 had to pin: restore fails
       on 2.1.11 and passes on 2.1.13.
+- [x] 2026-10-15, the audit at work: CI's restore failed on advisories published 2026-10-13 (GHSA-846f-f764-76mx,
+      GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, GHSA-r955-8q5j-3h83: System.Security.Cryptography.Pkcs and .Xml up to
+      10.0.12, brought by ASP.NET Core's data protection). ASP.NET Core and EF Core moved as a set from 10.0.10 to
+      10.0.13, the release that fixes them, with Microsoft.OpenApi 2.12.2 (which AspNetCore.OpenApi 10.0.13 requires).
+      The images' floating `10.0` tags bring the runtime's own copy at the next image build. Checked: the server's tests,
+      `identity_flows.py` and `task_flows.py`, the OpenAPI document.
 
 Nice-to-have hardening
 

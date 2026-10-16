@@ -224,7 +224,7 @@ public static class ErrorTexts
         ["Account name is required."] = new("Le nom du compte est obligatoire.", "Non kont lan obligatwa."),
         ["Category name is required."] = new("Le nom de la catégorie est obligatoire.", "Non kategori a obligatwa."),
         ["Provide a real year and month."] = new("Indiquez une année et un mois valides.", "Mete yon ane ak yon mwa ki valab."),
-        ["Recurring transfers are not supported yet."] = new("Les transferts récurrents ne sont pas encore pris en charge.", "Transfè ki repete poko disponib."),
+        ["A movement's note is at most 1,000 characters."] = new("La note d'un mouvement compte au plus 1 000 caractères.", "Nòt yon mouvman pa ka depase 1 000 karaktè."),
         ["A recurring transaction can repeat at most once a day."] = new("Un mouvement récurrent peut se répéter au plus une fois par jour.", "Yon mouvman ki repete ka fèt yon fwa pa jou pou pi plis."),
         ["A recurring transaction can start at most a year ago."] = new("Un mouvement récurrent peut commencer il y a un an au plus.", "Yon mouvman ki repete ka kòmanse yon ane pase pou pi plis."),
         ["The destination account is archived."] = new("Le compte de destination est archivé.", "Kont destinasyon an achive."),

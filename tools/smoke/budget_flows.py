@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end check of the Budget module (accounts, HTG/USD, transfers with exchange,
-category budgets, monthly summary, recurring rules) against a running API in Development.
+category budgets, monthly summary, editing a movement, recurring rules and transfers) against a running API in
+Development.
 
     python3 tools/smoke/budget_flows.py [base-url] [username] [password]
 
@@ -110,23 +111,90 @@ C("delete expense", s == 200)
 s, accounts = call("GET", "/budget/accounts/", token=T)
 C("balance reflects the delete", {a["id"]: a for a in accounts}[cash["id"]]["balance"] == 67800.00)
 
+# --- an edit moves a movement: the wrong account, a transfer's destination; never its kind ---
+def balances():
+    return {a["id"]: a["balance"] for a in call("GET", "/budget/accounts/", token=T)[1]}
+s, lunch = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Expense", "amount": 50, "occurredAt": iso(now), "categoryId": food["id"]}, T)
+s, r = call("GET", f"/budget/transactions/{lunch['id']}", token=T)
+C("one movement, to open it", s == 200 and r["amount"] == 50 and r["categoryId"] == food["id"], f"{s}")
+s, r = call("GET", "/budget/transactions/00000000-0000-0000-0000-000000000001", token=T)
+C("an unknown movement is 404", s == 404, f"{s}")
+s, r = call("PUT", f"/budget/transactions/{lunch['id']}", {"amount": 12.5, "occurredAt": iso(now), "accountId": usd["id"], "note": "smoke lunch"}, T)
+C("moved to the USD account, in its currency", s == 200 and r["accountId"] == usd["id"] and r["currency"] == "Usd" and r["categoryId"] is None, f"{s} {r}")
+b = balances()
+C("the balances follow the move", b[cash["id"]] == 67800.00 and b[usd["id"]] == 87.5, f"{b[cash['id']]} {b[usd['id']]}")
+s, r = call("PUT", f"/budget/transactions/{lunch['id']}", {"amount": 12.5, "occurredAt": iso(now), "transferAccountId": bank["id"]}, T)
+C("an expense takes no destination (10049)", s == 400 and code(r) == "10049", f"{s} {code(r)}")
+s, r = call("PUT", f"/budget/transactions/{lunch['id']}", {"amount": 12.5, "occurredAt": iso(now), "note": "x" * 1001}, T)
+C("a note over 1,000 characters is refused (10015)", s == 400 and code(r) == "10015", f"{s} {code(r)}")
+call("DELETE", f"/budget/transactions/{lunch['id']}", token=T)
+s, move = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Transfer", "amount": 1000, "occurredAt": iso(now), "transferAccountId": bank["id"]}, T)
+s, r = call("PUT", f"/budget/transactions/{move['id']}", {"amount": 1320, "occurredAt": iso(now), "transferAccountId": usd["id"]}, T)
+C("a destination in dollars needs the received amount (10047)", s == 400 and code(r) == "10047", f"{s} {code(r)}")
+s, r = call("PUT", f"/budget/transactions/{move['id']}", {"amount": 1320, "occurredAt": iso(now), "transferAccountId": usd["id"], "transferAmount": 10}, T)
+C("the transfer goes to dollars instead", s == 200 and r["transferAccountId"] == usd["id"] and r["transferAmount"] == 10, f"{s} {r}")
+b = balances()
+C("the bank no longer gets it, the dollars do", b[bank["id"]] == 5000 and b[usd["id"]] == 110, f"{b[bank['id']]} {b[usd['id']]}")
+call("DELETE", f"/budget/transactions/{move['id']}", token=T)
+
 # --- recurring: 3 daily occurrences all in the past; the job materializes them ---
 s, rule = call("POST", "/budget/recurring/", {
     "accountId": bank["id"], "kind": "Expense", "amount": 250, "note": "smoke recurring",
     "recurrence": {"frequency": "Daily", "startDate": iso(now - dt.timedelta(days=2, hours=1)), "count": 3},
 }, T)
 C("create recurring rule", s == 200, f"{s} {rule}")
+
+# --- recurring transfers: "100 to savings every month", here daily and in the past so the job books them now ---
+s, saving = call("POST", "/budget/recurring/", {
+    "accountId": cash["id"], "kind": "Transfer", "amount": 100, "transferAccountId": bank["id"], "note": "smoke saving",
+    "recurrence": {"frequency": "Daily", "startDate": iso(now - dt.timedelta(days=1, hours=1)), "count": 2},
+}, T)
+C("a recurring transfer between gourde accounts", s == 200 and saving["transferAccountId"] == bank["id"] and saving["transferAmount"] == 100, f"{s} {saving}")
+s, r = call("POST", "/budget/recurring/", {
+    "accountId": cash["id"], "kind": "Transfer", "amount": 1320, "transferAccountId": usd["id"],
+    "recurrence": {"frequency": "Monthly", "startDate": iso(now)},
+}, T)
+C("one into dollars needs the received amount (10047)", s == 400 and code(r) == "10047", f"{s} {code(r)}")
+s, r = call("POST", "/budget/recurring/", {
+    "accountId": cash["id"], "kind": "Transfer", "amount": 100, "transferAccountId": bank["id"], "categoryId": food["id"],
+    "recurrence": {"frequency": "Monthly", "startDate": iso(now)},
+}, T)
+C("a recurring transfer has no category (10050)", s == 400 and code(r) == "10050", f"{s} {code(r)}")
+s, dollars = call("POST", "/budget/recurring/", {
+    "accountId": cash["id"], "kind": "Transfer", "amount": 1320, "transferAccountId": usd["id"], "transferAmount": 10,
+    "recurrence": {"frequency": "Daily", "startDate": iso(now - dt.timedelta(hours=1)), "count": 1},
+}, T)
+C("a recurring exchange into dollars", s == 200 and dollars["transferAmount"] == 10, f"{s} {dollars}")
+
 deadline = time.time() + 90
-count = 0
+count = saved = exchanged = 0
 while time.time() < deadline:
-    s, txs = call("GET", f"/budget/transactions/?accountId={bank['id']}&kind=Expense&pageSize=50", token=T)
+    s, txs = call("GET", f"/budget/transactions/?accountId={bank['id']}&pageSize=100", token=T)
     count = sum(1 for t in txs if t.get("recurringTransactionId") == rule["id"])
-    if count == 3: break
+    saved = [t for t in txs if t.get("recurringTransactionId") == saving["id"]]
+    s, txs = call("GET", f"/budget/transactions/?accountId={usd['id']}&pageSize=100", token=T)
+    exchanged = [t for t in txs if t.get("recurringTransactionId") == dollars["id"]]
+    if count == 3 and len(saved) == 2 and len(exchanged) == 1: break
     time.sleep(5)
 C("job materialized all 3 past occurrences", count == 3, f"got {count}")
+C("job booked both saving transfers, into the bank", len(saved) == 2 and all(
+    t["kind"] == "Transfer" and t["accountId"] == cash["id"] and t["transferAccountId"] == bank["id"] and t["transferAmount"] == 100
+    for t in saved), f"{saved}")
+C("job booked the exchange with its received amount", len(exchanged) == 1 and exchanged[0]["transferAmount"] == 10, f"{exchanged}")
 s, rules = call("GET", "/budget/recurring/", token=T)
 mine = next((x for x in rules if x["id"] == rule["id"]), None)
 C("exhausted rule deactivated", mine is not None and mine["isActive"] is False, f"{mine and mine['isActive']}")
+b = balances()
+C("the transfers moved the money", b[bank["id"]] == 5000 - 750 + 200 and b[usd["id"]] == 100 + 10, f"{b[bank['id']]} {b[usd['id']]}")
+
+s, r = call("PUT", f"/budget/recurring/{dollars['id']}", {"amount": 1400, "isActive": False}, T)
+C("a recurring exchange changed keeps needing the received amount (10047)", s == 400 and code(r) == "10047", f"{s} {code(r)}")
+s, r = call("PUT", f"/budget/recurring/{dollars['id']}", {"amount": 1400, "transferAmount": 10.5, "isActive": False}, T)
+C("its next ones carry the new pair", s == 200 and r["amount"] == 1400 and r["transferAmount"] == 10.5, f"{s} {r}")
+s, r = call("PUT", f"/budget/recurring/{saving['id']}", {"amount": 150, "transferAmount": 140, "isActive": False}, T)
+C("between gourdes one amount only (10047)", s == 400 and code(r) == "10047", f"{s} {code(r)}")
+s, r = call("PUT", f"/budget/recurring/{saving['id']}", {"amount": 150, "isActive": False}, T)
+C("the saving raised to 150", s == 200 and r["amount"] == 150 and r["transferAmount"] == 150, f"{s} {r}")
 
 # --- recurring limits: money moves by the day, and a rule backdates a year at most ---
 s, r = call("POST", "/budget/recurring/", {
@@ -170,6 +238,15 @@ for account in (cash, bank, usd, eur_acc):
     call("PUT", f"/budget/accounts/{account['id']}", {"name": account["name"], "type": account["type"], "isArchived": True}, T)
 s, r = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Income", "amount": 1, "occurredAt": iso(now)}, T)
 C("archived account refuses new money (10051)", s == 400 and code(r) == "10051")
+s, txs = call("GET", f"/budget/transactions/?accountId={cash['id']}&kind=Income", token=T)
+pay = txs[0]
+s, r = call("PUT", f"/budget/transactions/{pay['id']}", {"amount": pay["amount"], "occurredAt": pay["occurredAt"], "categoryId": salary["id"], "note": "smoke pay (fixed)"}, T)
+C("an old movement of an archived account can be fixed", s == 200 and r["note"] == "smoke pay (fixed)", f"{s} {r}")
+s, open_acc = call("POST", "/budget/accounts/", {"name": "smoke: Open", "currency": "Htg"}, T)
+s, kept = call("POST", "/budget/transactions/", {"accountId": open_acc["id"], "kind": "Income", "amount": 1, "occurredAt": iso(now)}, T)
+s, r = call("PUT", f"/budget/transactions/{kept['id']}", {"amount": 1, "occurredAt": iso(now), "accountId": cash["id"]}, T)
+C("but none moves onto an archived account (10051)", s == 400 and code(r) == "10051", f"{s} {code(r)}")
+call("PUT", f"/budget/accounts/{open_acc['id']}", {"name": open_acc["name"], "type": open_acc["type"], "isArchived": True}, T)
 
 print()
 print("ALL PASSED" if fails == 0 else f"{fails} FAILED")

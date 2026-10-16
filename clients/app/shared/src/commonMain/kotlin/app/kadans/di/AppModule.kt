@@ -114,7 +114,8 @@ val appModule = org.koin.dsl.module {
     factory { NotificationsViewModel(get(), get<KadansRealtime>().events) }
     viewModelOf(::CalendarViewModel)
     viewModelOf(::BudgetViewModel)
-    viewModelOf(::BudgetAddViewModel)
+    // A new movement, or one to correct (its id).
+    viewModel { params -> BudgetAddViewModel(get(), params.getOrNull<String>()) }
     viewModel { SettingsViewModel(get(), get(), get(), get()) }
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }

@@ -76,6 +76,7 @@ data class CreateBudgetTransaction(
     val transferAmount: Double? = null,
 )
 
+/** A movement corrected; [accountId] and [transferAccountId] move it (left out, it stays). Its kind never changes. */
 @Serializable
 data class UpdateBudgetTransaction(
     val amount: Double,
@@ -83,6 +84,8 @@ data class UpdateBudgetTransaction(
     val categoryId: String? = null,
     val note: String = "",
     val transferAmount: Double? = null,
+    val accountId: String? = null,
+    val transferAccountId: String? = null,
 )
 
 @Serializable
@@ -121,14 +124,19 @@ data class CreateRecurringTransaction(
     val recurrence: BudgetRecurrence,
     val categoryId: String? = null,
     val note: String = "",
+    val transferAccountId: String? = null,
+    /** Between two currencies: what the destination receives each time. */
+    val transferAmount: Double? = null,
 )
 
+/** What the next bookings carry, or a pause; a transfer between two currencies sends its received amount. */
 @Serializable
 data class UpdateRecurringTransaction(
     val amount: Double,
     val categoryId: String? = null,
     val note: String = "",
     val isActive: Boolean = true,
+    val transferAmount: Double? = null,
 )
 
 @Serializable
@@ -140,6 +148,8 @@ data class RecurringTransactionResponse(
     val currency: Currency,
     val categoryId: String? = null,
     val note: String = "",
+    val transferAccountId: String? = null,
+    val transferAmount: Double? = null,
     val rrule: String,
     val timeZoneId: String,
     val startDate: Instant,

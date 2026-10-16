@@ -20,28 +20,14 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
         var userId = currentUser.UserId;
         if (string.IsNullOrWhiteSpace(userId))
             return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
-        if (request.Kind == TransactionKind.Transfer)
-            return new ApplicationError(ErrorTypes.ValidationError, "Recurring transfers are not supported yet.");
-        if (Money.ValidateAmount(request.Amount).IsT0)
-            return Money.ValidateAmount(request.Amount).AsT0;
 
-        var account = await context.Accounts.FirstOrDefaultAsync(a => a.Id == request.AccountId);
-        if (account is null)
-            return new ApplicationError(ErrorTypes.BudgetAccountNotFound, $"Account {request.AccountId} not found.");
-        if (account.IsArchived)
-            return new ApplicationError(ErrorTypes.AccountArchived, "This account is archived.");
-
-        Category? category = null;
-        if (request.CategoryId is { } categoryId)
-        {
-            category = await context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
-            if (category is null)
-                return new ApplicationError(ErrorTypes.BudgetCategoryNotFound, $"Category {categoryId} not found.");
-            var expected = request.Kind == TransactionKind.Income ? CategoryKind.Income : CategoryKind.Expense;
-            if (category.Kind != expected)
-                return new ApplicationError(ErrorTypes.CategoryKindMismatch,
-                    $"'{category.Name}' is a {category.Kind} category; this is {request.Kind}.");
-        }
+        var parts = await MovementParts.Find(context, request.AccountId, request.TransferAccountId, request.CategoryId);
+        if (parts.IsT0)
+            return parts.AsT0;
+        var (account, transferAccount, category) = parts.AsT1;
+        var checkedMove = Transaction.CheckNew(account, request.Kind, request.Amount, category, request.Note, transferAccount, request.TransferAmount);
+        if (checkedMove.IsT0)
+            return checkedMove.AsT0;
 
         var recurrence = request.Recurrence;
         if (RecurringTransaction.CheckNewSchedule(recurrence.Frequency, recurrence.StartDate, DateTimeOffset.UtcNow) is { } scheduleError)
@@ -71,6 +57,8 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
             Currency = account.Currency,
             CategoryId = category?.Id,
             Note = request.Note.Trim(),
+            TransferAccountId = transferAccount?.Id,
+            TransferAmount = checkedMove.AsT1,
             Rrule = schedule.AsT1.Rrule,
             TimeZoneId = schedule.AsT1.TimeZoneId,
             StartDate = schedule.AsT1.Start,
@@ -89,22 +77,18 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
         var rule = await context.RecurringTransactions.FirstOrDefaultAsync(r => r.Id == id);
         if (rule is null)
             return new ApplicationError(ErrorTypes.RecurringTransactionNotFound, $"Recurring transaction {id} not found.");
-        if (Money.ValidateAmount(request.Amount).IsT0)
-            return Money.ValidateAmount(request.Amount).AsT0;
 
-        Category? category = null;
-        if (request.CategoryId is { } categoryId)
-        {
-            category = await context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
-            if (category is null)
-                return new ApplicationError(ErrorTypes.BudgetCategoryNotFound, $"Category {categoryId} not found.");
-            var expected = rule.Kind == TransactionKind.Income ? CategoryKind.Income : CategoryKind.Expense;
-            if (category.Kind != expected)
-                return new ApplicationError(ErrorTypes.CategoryKindMismatch,
-                    $"'{category.Name}' is a {category.Kind} category; this is {rule.Kind}.");
-        }
+        // The rule's own accounts: what it books changes, never where (a rule elsewhere is a new rule).
+        var parts = await MovementParts.Find(context, rule.AccountId, rule.TransferAccountId, request.CategoryId);
+        if (parts.IsT0)
+            return parts.AsT0;
+        var (account, transferAccount, category) = parts.AsT1;
+        var checkedMove = Transaction.Check(account, rule.Kind, request.Amount, category, request.Note, transferAccount, request.TransferAmount);
+        if (checkedMove.IsT0)
+            return checkedMove.AsT0;
 
         rule.Amount = request.Amount;
+        rule.TransferAmount = checkedMove.AsT1;
         rule.CategoryId = category?.Id;
         rule.Note = request.Note.Trim();
         rule.IsActive = request.IsActive;
@@ -127,14 +111,14 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
 
     internal static RecurringTransactionResponse ToResponse(RecurringTransaction rule) =>
         new(rule.Id, rule.AccountId, rule.Kind, rule.Amount, rule.Currency, rule.CategoryId, rule.Note,
-            rule.Rrule, rule.TimeZoneId, rule.StartDate,
+            rule.TransferAccountId, rule.TransferAmount, rule.Rrule, rule.TimeZoneId, rule.StartDate,
             rule.IsActive ? rule.Schedule.GetNextOccurrence(rule.GeneratedThrough ?? DateTimeOffset.UtcNow) : null,
             rule.IsActive, rule.CreatedAt);
 }
 
 /// <summary>
-/// Turns due recurring rules into real transactions — salary lands on the 1st whether or not
-/// any client is running. Steps on the schedule; overdue rules (downtime) catch up.
+/// Turns due recurring rules into real transactions — salary lands on the 1st, and the monthly saving moves, whether or
+/// not any client is running. Steps on the schedule; overdue rules (downtime) catch up.
 /// </summary>
 [DisallowConcurrentExecution]
 internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger<RecurringTransactionJob> logger) : IJob
@@ -186,6 +170,8 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
                         OccurredAt = occurredAt,
                         CategoryId = rule.CategoryId,
                         Note = rule.Note,
+                        TransferAccountId = rule.TransferAccountId,
+                        TransferAmount = rule.TransferAmount,
                         RecurringTransactionId = rule.Id,
                     });
                     created++;
@@ -217,7 +203,7 @@ internal static class RecurringRoutes
             recurring.MapPost("/", async Task<Results<Ok<RecurringTransactionResponse>, ProblemHttpResult>> (CreateRecurringTransaction request, RecurringTransactionService service, HttpContext context) =>
                     (await service.Create(request)).ToHttp(context))
                 .WithName("BudgetRecurringCreate")
-                .WithSummary("A recurring income/expense (salary on the 1st, rent monthly…) on the shared recurrence engine")
+                .WithSummary("A recurring income, expense or transfer (salary on the 1st, rent monthly, savings…) on the shared recurrence engine")
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
             recurring.MapGet("/", async (RecurringTransactionService service) => TypedResults.Ok(await service.List()))
@@ -227,7 +213,9 @@ internal static class RecurringRoutes
             recurring.MapPut("/{id:guid}", async Task<Results<Ok<RecurringTransactionResponse>, ProblemHttpResult>> (Guid id, UpdateRecurringTransaction request, RecurringTransactionService service, HttpContext context) =>
                     (await service.Update(id, request)).ToHttp(context))
                 .WithName("BudgetRecurringUpdate")
-                .WithSummary("Change amount/category/note, or pause (isActive: false)")
+                .WithSummary("Change amount/received amount/category/note, or pause (isActive: false)")
+                .WithDescription("What the next bookings carry; the ones already booked stay, and so do the rule's accounts and dates.")
+                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
             recurring.MapDelete("/{id:guid}", async Task<Results<Ok<Success>, ProblemHttpResult>> (Guid id, RecurringTransactionService service, HttpContext context) =>

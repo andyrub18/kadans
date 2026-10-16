@@ -325,6 +325,21 @@ installing on real devices second, hosting last.
       app's tests, `task_flows.py` (a note on a done occurrence, trimmed; 4,001 characters refused; none removes it; the
       old route gone), `reminder_flows.py` (a note signals nothing), `deletion_flows.py`, on a test instance with its
       own database; the screen rendered offscreen at 360 and 480 dp.
+- [x] The budget, corrected and recurring transfers, 2026-10-16 (the owner's desktop test: a movement could not be
+      modified, and "save 100 USD from my salary account every month" could not be set up). A movement of the month
+      opens on a tap to correct it: amounts, day, category, note, and its account or a transfer's destination (an
+      expense put on the wrong account), never its kind; the day left as it was keeps its time; deleting asks first
+      (it used to go at one tap, from the list). The month's list is the month on screen, in the account's time zone
+      as its totals are (it was the last 30 movements whatever the month, under "This month"), with "Show more", and
+      each one says its accounts and category. A recurring rule can be a transfer; between two currencies it books the
+      same received amount each time, said under the field. A recurring rule opens to change what its next bookings
+      carry, or to delete it (asked first). Server: `GET /budget/transactions/{id}`; `PUT` takes the accounts; one set
+      of rules for every movement (`Transaction.Check`); a note over 1,000 characters is refused (it failed in the
+      database); pausing a recurring exchange sends its received amount. Amounts keep together on a line (no-break
+      spaces: "Net: 2" over "500.00" before). Checked: the server's and the app's tests, `budget_flows.py` (moving
+      an expense, a transfer's new destination in dollars, recurring transfers booked by the job in gourdes and into
+      dollars, an archived account's old movement fixed but nothing moved onto one) on a test instance with its own
+      database; the screens rendered offscreen at 360 dp in English and French.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
@@ -341,6 +356,7 @@ installing on real devices second, hosting last.
       - The moment to begin (above): checked on the emulator; to look at on a real phone, the buttons on the lock screen
         and in a heads-up, and "Start focus" with the app killed.
       - Notes on occurrences (above): writing one with the phone's keyboard, and the dialog over it.
+      - The budget corrected (above): a movement opened from the list, the rule dialog over the keyboard.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

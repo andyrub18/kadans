@@ -70,7 +70,7 @@ internal sealed class BudgetDbContext(DbContextOptions<BudgetDbContext> options)
             t.Property(p => p.Currency).HasConversion<string>().HasMaxLength(8);
             t.Property(p => p.Amount).HasPrecision(16, 2);
             t.Property(p => p.TransferAmount).HasPrecision(16, 2);
-            t.Property(p => p.Note).IsRequired().HasMaxLength(1000);
+            t.Property(p => p.Note).IsRequired().HasMaxLength(Transaction.MaxNoteLength);
 
             t.HasOne(p => p.Account).WithMany().HasForeignKey(p => p.AccountId).OnDelete(DeleteBehavior.Cascade);
             t.HasOne(p => p.TransferAccount).WithMany().HasForeignKey(p => p.TransferAccountId).OnDelete(DeleteBehavior.Cascade);
@@ -111,11 +111,13 @@ internal sealed class BudgetDbContext(DbContextOptions<BudgetDbContext> options)
             r.Property(p => p.Kind).HasConversion<string>().HasMaxLength(16);
             r.Property(p => p.Currency).HasConversion<string>().HasMaxLength(8);
             r.Property(p => p.Amount).HasPrecision(16, 2);
-            r.Property(p => p.Note).IsRequired().HasMaxLength(1000);
+            r.Property(p => p.TransferAmount).HasPrecision(16, 2);
+            r.Property(p => p.Note).IsRequired().HasMaxLength(Transaction.MaxNoteLength);
             r.Property(p => p.Rrule).IsRequired().HasMaxLength(512);
             r.Property(p => p.TimeZoneId).IsRequired().HasMaxLength(64);
 
             r.HasOne(p => p.Account).WithMany().HasForeignKey(p => p.AccountId).OnDelete(DeleteBehavior.Cascade);
+            r.HasOne(p => p.TransferAccount).WithMany().HasForeignKey(p => p.TransferAccountId).OnDelete(DeleteBehavior.Cascade);
             r.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.SetNull);
 
             // What the materializing job scans.

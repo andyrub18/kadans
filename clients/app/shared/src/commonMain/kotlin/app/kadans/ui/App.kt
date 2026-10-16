@@ -71,6 +71,8 @@ data object NotificationsRoute
 data object StatsRoute
 data object BudgetRoute
 data object BudgetAddRoute
+/** A movement of the budget opened to correct it. */
+data class BudgetEditRoute(val transactionId: String)
 data class TodoDetailRoute(val todoId: String)
 data class EditTodoRoute(val todoId: String)
 /** [finishAtMillis]: when a new session should end by itself (epoch ms); null leaves the default, 12 hours. */
@@ -266,6 +268,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is BudgetRoute -> NavEntry(key) {
                     BudgetScreen(
                         onAddTransaction = { backStack.add(BudgetAddRoute) },
+                        onEditTransaction = { id -> backStack.add(BudgetEditRoute(id)) },
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }
@@ -273,6 +276,13 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                     BudgetAddScreen(
                         onSaved = { backStack.removeLastOrNull() },
                         onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is BudgetEditRoute -> NavEntry(key) {
+                    BudgetAddScreen(
+                        onSaved = { backStack.removeLastOrNull() },
+                        onBack = { backStack.removeLastOrNull() },
+                        transactionId = key.transactionId,
                     )
                 }
                 is SettingsRoute -> NavEntry(key) {

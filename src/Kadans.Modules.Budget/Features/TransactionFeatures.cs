@@ -24,25 +24,10 @@ internal sealed class TransactionService(
         if (string.IsNullOrWhiteSpace(userId))
             return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
 
-        var account = await context.Accounts.FirstOrDefaultAsync(a => a.Id == request.AccountId);
-        if (account is null)
-            return new ApplicationError(ErrorTypes.BudgetAccountNotFound, $"Account {request.AccountId} not found.");
-
-        Account? transferAccount = null;
-        if (request.TransferAccountId is { } transferId)
-        {
-            transferAccount = await context.Accounts.FirstOrDefaultAsync(a => a.Id == transferId);
-            if (transferAccount is null)
-                return new ApplicationError(ErrorTypes.BudgetAccountNotFound, $"Account {transferId} not found.");
-        }
-
-        Category? category = null;
-        if (request.CategoryId is { } categoryId)
-        {
-            category = await context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
-            if (category is null)
-                return new ApplicationError(ErrorTypes.BudgetCategoryNotFound, $"Category {categoryId} not found.");
-        }
+        var parts = await MovementParts.Find(context, request.AccountId, request.TransferAccountId, request.CategoryId);
+        if (parts.IsT0)
+            return parts.AsT0;
+        var (account, transferAccount, category) = parts.AsT1;
 
         var created = Transaction.Create(
             userId, account, request.Kind, request.Amount, request.OccurredAt,
@@ -55,6 +40,11 @@ internal sealed class TransactionService(
         await context.SaveChangesAsync();
         return ToResponse(created.AsT1);
     }
+
+    public async Task<OneOf<ApplicationError, TransactionResponse>> Get(Guid id) =>
+        await context.Transactions.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id) is { } transaction
+            ? ToResponse(transaction)
+            : new ApplicationError(ErrorTypes.TransactionNotFound, $"Transaction {id} not found.");
 
     public async Task<List<TransactionResponse>> List(
         Guid? accountId,
@@ -88,55 +78,26 @@ internal sealed class TransactionService(
 
     public async Task<OneOf<ApplicationError, TransactionResponse>> Update(Guid id, UpdateTransaction request)
     {
-        var transaction = await context.Transactions
-            .Include(t => t.Account)
-            .Include(t => t.TransferAccount)
-            .FirstOrDefaultAsync(t => t.Id == id);
+        var transaction = await context.Transactions.FirstOrDefaultAsync(t => t.Id == id);
         if (transaction is null)
             return new ApplicationError(ErrorTypes.TransactionNotFound, $"Transaction {id} not found.");
 
-        if (Money.ValidateAmount(request.Amount).IsT0)
-            return Money.ValidateAmount(request.Amount).AsT0;
+        var parts = await MovementParts.Find(
+            context,
+            request.AccountId ?? transaction.AccountId,
+            request.TransferAccountId ?? transaction.TransferAccountId,
+            request.CategoryId
+        );
+        if (parts.IsT0)
+            return parts.AsT0;
+        var (account, transferAccount, category) = parts.AsT1;
 
-        Category? category = null;
-        if (request.CategoryId is { } categoryId)
-        {
-            category = await context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
-            if (category is null)
-                return new ApplicationError(ErrorTypes.BudgetCategoryNotFound, $"Category {categoryId} not found.");
-        }
-
-        if (transaction.Kind == TransactionKind.Transfer)
-        {
-            if (category is not null)
-                return new ApplicationError(ErrorTypes.CategoryKindMismatch, "Transfers have no category.");
-            var crossCurrency = transaction.Account!.Currency != transaction.TransferAccount!.Currency;
-            if (crossCurrency)
-            {
-                if (request.TransferAmount is null)
-                    return new ApplicationError(ErrorTypes.CurrencyMismatch, "Cross-currency transfers need the received amount.");
-                if (Money.ValidateAmount(request.TransferAmount.Value).IsT0)
-                    return Money.ValidateAmount(request.TransferAmount.Value).AsT0;
-                transaction.TransferAmount = request.TransferAmount;
-            }
-            else
-            {
-                transaction.TransferAmount = request.Amount;
-            }
-        }
-        else if (category is not null)
-        {
-            var expected = transaction.Kind == TransactionKind.Income ? CategoryKind.Income : CategoryKind.Expense;
-            if (category.Kind != expected)
-                return new ApplicationError(ErrorTypes.CategoryKindMismatch,
-                    $"'{category.Name}' is a {category.Kind} category; this is {transaction.Kind}.");
-        }
-
-        transaction.Amount = request.Amount;
-        transaction.OccurredAt = request.OccurredAt;
-        transaction.CategoryId = category?.Id;
-        transaction.Note = request.Note.Trim();
-        transaction.UpdatedAt = DateTimeOffset.UtcNow;
+        var edited = transaction.Edit(
+            account, request.Amount, request.OccurredAt, category, request.Note,
+            transferAccount, request.TransferAmount, DateTimeOffset.UtcNow
+        );
+        if (edited.IsT0)
+            return edited.AsT0;
         await context.SaveChangesAsync();
         return ToResponse(transaction);
     }
@@ -254,6 +215,39 @@ internal sealed class TransactionService(
             t.TransferAccountId, t.TransferAmount, t.RecurringTransactionId, t.CreatedAt);
 }
 
+/// <summary>What a movement, or a rule that books them, refers to: the person's own account, destination and category.</summary>
+internal sealed record MovementParts(Account Account, Account? TransferAccount, Category? Category)
+{
+    public static async Task<OneOf<ApplicationError, MovementParts>> Find(
+        BudgetDbContext context,
+        Guid accountId,
+        Guid? transferAccountId,
+        Guid? categoryId
+    )
+    {
+        var account = await context.Accounts.FirstOrDefaultAsync(a => a.Id == accountId);
+        if (account is null)
+            return new ApplicationError(ErrorTypes.BudgetAccountNotFound, $"Account {accountId} not found.");
+
+        Account? transferAccount = null;
+        if (transferAccountId is { } transferId)
+        {
+            transferAccount = await context.Accounts.FirstOrDefaultAsync(a => a.Id == transferId);
+            if (transferAccount is null)
+                return new ApplicationError(ErrorTypes.BudgetAccountNotFound, $"Account {transferId} not found.");
+        }
+
+        Category? category = null;
+        if (categoryId is { } id)
+        {
+            category = await context.Categories.FirstOrDefaultAsync(c => c.Id == id);
+            if (category is null)
+                return new ApplicationError(ErrorTypes.BudgetCategoryNotFound, $"Category {id} not found.");
+        }
+        return new MovementParts(account, transferAccount, category);
+    }
+}
+
 internal static class TransactionRoutes
 {
     extension(IEndpointRouteBuilder routeBuilder)
@@ -273,10 +267,19 @@ internal static class TransactionRoutes
                 .WithName("BudgetTransactionsList")
                 .WithSummary("List transactions, newest first (filters: account, category, kind, from/to)");
 
+            transactions.MapGet("/{id:guid}", async Task<Results<Ok<TransactionResponse>, ProblemHttpResult>> (Guid id, TransactionService service, HttpContext context) =>
+                    (await service.Get(id)).ToHttp(context))
+                .WithName("BudgetTransactionsGet")
+                .WithSummary("One transaction (the app opens it to edit it)")
+                .ProducesProblem(StatusCodes.Status404NotFound);
+
             transactions.MapPut("/{id:guid}", async Task<Results<Ok<TransactionResponse>, ProblemHttpResult>> (Guid id, UpdateTransaction request, TransactionService service, HttpContext context) =>
                     (await service.Update(id, request)).ToHttp(context))
                 .WithName("BudgetTransactionsUpdate")
-                .WithSummary("Edit a transaction")
+                .WithSummary("Edit a transaction: amounts, day, category, note, and its account(s); never its kind")
+                .WithDescription("An account left out stays. A transaction may stay on an archived account, never move onto one. "
+                    + "One a recurring rule booked changes alone.")
+                .ProducesProblem(StatusCodes.Status400BadRequest)
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
             transactions.MapDelete("/{id:guid}", async Task<Results<Ok<Success>, ProblemHttpResult>> (Guid id, TransactionService service, HttpContext context) =>

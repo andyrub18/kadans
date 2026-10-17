@@ -183,4 +183,69 @@ public class RecurringTransactionTests
         await Assert.That(twice.IsActive).IsFalse();
         await Assert.That(twice.NextOccurrenceAt).IsNull();
     }
+
+    private static RecurringTransaction Rule(RecurrenceSpec spec, DateTimeOffset start)
+    {
+        var schedule = RecurrenceSchedule.Create(spec, start, "America/Port-au-Prince").AsT1;
+        var rule = MonthlySalary();
+        return new RecurringTransaction
+        {
+            UserId = rule.UserId,
+            AccountId = rule.AccountId,
+            Kind = rule.Kind,
+            Amount = rule.Amount,
+            Currency = rule.Currency,
+            Rrule = schedule.Rrule,
+            TimeZoneId = schedule.TimeZoneId,
+            StartDate = schedule.Start,
+        };
+    }
+
+    private static List<DateOnly> Days(IEnumerable<DateTimeOffset> instants) =>
+        [.. instants.Select(i => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(i, TimeZoneInfo.FindSystemTimeZoneById("America/Port-au-Prince")).DateTime))];
+
+    [Test]
+    public async Task A_salary_on_the_15th_and_the_30th_is_paid_on_the_28th_in_february()
+    {
+        // Noon on 15 January, Port-au-Prince (UTC-5 in winter). The app sends "the 15th and the 30th" as the 30th or a
+        // shorter month's last day (the client's LateMonthDays); BYMONTHDAY=15,30 alone would skip February's.
+        var rule = Rule(
+            new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [15, 28, 29, 30], BySetPos: [1, -1]),
+            new DateTimeOffset(2026, 1, 15, 17, 0, 0, TimeSpan.Zero)
+        );
+
+        var due = Days(rule.DueOccurrences(new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        await Assert.That(due).IsEquivalentTo(new List<DateOnly>
+        {
+            new(2026, 1, 15), new(2026, 1, 30), new(2026, 2, 15), new(2026, 2, 28), new(2026, 3, 15), new(2026, 3, 30),
+        });
+    }
+
+    [Test]
+    public async Task The_15th_and_the_last_day_fall_in_every_month()
+    {
+        var rule = Rule(new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [15, -1]), new DateTimeOffset(2026, 1, 15, 17, 0, 0, TimeSpan.Zero));
+
+        var due = Days(rule.DueOccurrences(new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        await Assert.That(due).IsEquivalentTo(new List<DateOnly>
+        {
+            new(2026, 1, 15), new(2026, 1, 31), new(2026, 2, 15), new(2026, 2, 28), new(2026, 3, 15), new(2026, 3, 31),
+        });
+    }
+
+    [Test]
+    public async Task Rent_on_the_last_friday_of_some_months()
+    {
+        // The last Friday of March and June: the app sends it as a monthly rule kept to those months.
+        var rule = Rule(
+            new RecurrenceSpec(Frequency.Monthly, ByDay: [DayOfWeek.Friday], BySetPos: [-1], ByMonth: [3, 6]),
+            new DateTimeOffset(2026, 3, 27, 16, 0, 0, TimeSpan.Zero)
+        );
+
+        var due = Days(rule.DueOccurrences(new DateTimeOffset(2026, 12, 31, 0, 0, 0, TimeSpan.Zero)));
+
+        await Assert.That(due).IsEquivalentTo(new List<DateOnly> { new(2026, 3, 27), new(2026, 6, 26) });
+    }
 }

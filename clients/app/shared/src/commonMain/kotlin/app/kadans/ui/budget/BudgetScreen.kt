@@ -46,8 +46,10 @@ import app.kadans.api.model.CategoryKind
 import app.kadans.api.model.CategoryResponse
 import app.kadans.api.model.CategorySpend
 import app.kadans.api.model.Currency
+import app.kadans.api.model.RecurrenceRuleResponse
 import app.kadans.api.model.RecurringTransactionResponse
 import app.kadans.i18n.StringsCatalog
+import app.kadans.ui.todos.RuleSummary
 import app.kadans.i18n.LocalStrings
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -209,9 +211,14 @@ fun BudgetScreen(
                                         (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
+                                // How it repeats, as the form said it ("Every month · on days 15, 30"), then the next one.
+                                Text(
+                                    RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
                                 Text(
                                     listOfNotNull(
-                                        rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.toString(),
+                                        rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let { s.movements.next(it.toString()) },
                                         accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
                                     ).joinToString(" · "),
                                     style = MaterialTheme.typography.bodySmall,
@@ -473,6 +480,10 @@ private fun LimitDialog(spend: CategorySpend, onSet: (Double) -> Unit, onDismiss
         dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
     )
 }
+
+/** A budget rule as the todo's words read one: its schedule's parts are the same engine's. */
+private fun RecurringTransactionResponse.asRule() =
+    RecurrenceRuleResponse(rrule, timeZoneId, startDate, frequency, interval, count, until)
 
 /** "Cash" or, for a transfer, "Cash → Savings". */
 private fun accountsLine(accountId: String, transferAccountId: String?, accounts: List<AccountResponse>): String? {

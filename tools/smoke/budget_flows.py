@@ -166,6 +166,38 @@ s, dollars = call("POST", "/budget/recurring/", {
 }, T)
 C("a recurring exchange into dollars", s == 200 and dollars["transferAmount"] == 10, f"{s} {dollars}")
 
+# --- the todo's rule builder for money: a salary on the 15th and the 30th, rent on the last Friday of some months ---
+def payroll_days(start, count, until):
+    """The 15th and the 30th from start, a month without a 30th paying on its last day (as the app sends it)."""
+    days, year, month = [], start.year, start.month
+    while len(days) < count:
+        last = ((dt.date(year + (month == 12), month % 12 + 1, 1)) - dt.timedelta(days=1)).day
+        for day in (15, min(30, last)):
+            d = start.replace(year=year, month=month, day=day)
+            if d >= start and len(days) < count: days.append(d)
+        month, year = (1, year + 1) if month == 12 else (month + 1, year)
+    return [d.date().isoformat() for d in days if d <= until]
+s, payroll = call("POST", "/budget/accounts/", {"name": "smoke: Payroll", "currency": "Htg", "type": "Bank"}, T)
+first_15 = (now.replace(day=1) - dt.timedelta(days=40)).replace(day=15, hour=12, minute=0, second=0)
+s, twice = call("POST", "/budget/recurring/", {
+    "accountId": payroll["id"], "kind": "Income", "amount": 10, "note": "smoke 15/30",
+    "recurrence": {"frequency": "Monthly", "startDate": iso(first_15), "byMonthDay": [15, 28, 29, 30], "bySetPos": [1, -1], "count": 4},
+}, T)
+C("a salary on the 15th and the 30th (or a shorter month's last day)", s == 200 and "BYMONTHDAY=15,28,29,30" in twice["rrule"]
+  and "BYSETPOS=1,-1" in twice["rrule"] and twice["frequency"] == "Monthly"
+  and twice["interval"] == 1 and twice["count"] == 4, f"{s} {twice}")
+def last_friday(year, month):
+    d = (dt.datetime(year + (month == 12), month % 12 + 1, 1, 12, tzinfo=dt.timezone.utc) - dt.timedelta(days=1))
+    return d - dt.timedelta(days=(d.weekday() - 4) % 7)
+# The start is the first occurrence, as the app sends it: the next last Friday of March or June.
+rent_start = min(d for d in (last_friday(y, m) for y in (now.year, now.year + 1) for m in (3, 6)) if d > now)
+s, rent = call("POST", "/budget/recurring/", {
+    "accountId": payroll["id"], "kind": "Expense", "amount": 5, "note": "smoke last friday",
+    "recurrence": {"frequency": "Monthly", "startDate": iso(rent_start), "byDayOfWeek": ["Friday"], "bySetPos": [-1], "byMonth": [3, 6]},
+}, T)
+C("rent on the last Friday of March and June", s == 200 and "BYSETPOS=-1" in rent["rrule"] and "BYMONTH=3,6" in rent["rrule"]
+  and dt.datetime.fromisoformat(rent["nextAt"]) == rent_start, f"{s} {rent}")
+
 deadline = time.time() + 90
 count = saved = exchanged = 0
 while time.time() < deadline:
@@ -174,13 +206,16 @@ while time.time() < deadline:
     saved = [t for t in txs if t.get("recurringTransactionId") == saving["id"]]
     s, txs = call("GET", f"/budget/transactions/?accountId={usd['id']}&pageSize=100", token=T)
     exchanged = [t for t in txs if t.get("recurringTransactionId") == dollars["id"]]
-    if count == 3 and len(saved) == 2 and len(exchanged) == 1: break
+    s, txs = call("GET", f"/budget/transactions/?accountId={payroll['id']}&pageSize=100", token=T)
+    paid = sorted(t["occurredAt"][:10] for t in txs if t.get("recurringTransactionId") == twice["id"])
+    if count == 3 and len(saved) == 2 and len(exchanged) == 1 and paid == payroll_days(first_15, 4, now): break
     time.sleep(5)
 C("job materialized all 3 past occurrences", count == 3, f"got {count}")
 C("job booked both saving transfers, into the bank", len(saved) == 2 and all(
     t["kind"] == "Transfer" and t["accountId"] == cash["id"] and t["transferAccountId"] == bank["id"] and t["transferAmount"] == 100
     for t in saved), f"{saved}")
 C("job booked the exchange with its received amount", len(exchanged) == 1 and exchanged[0]["transferAmount"] == 10, f"{exchanged}")
+C("job booked the salary on each 15th and 30th so far", paid == payroll_days(first_15, 4, now), f"{paid} vs {payroll_days(first_15, 4, now)}")
 s, rules = call("GET", "/budget/recurring/", token=T)
 mine = next((x for x in rules if x["id"] == rule["id"]), None)
 C("exhausted rule deactivated", mine is not None and mine["isActive"] is False, f"{mine and mine['isActive']}")
@@ -234,7 +269,7 @@ C("base change clears old-base rates", s == 200 and r["baseCurrency"] == "Usd" a
 call("PUT", "/budget/settings/base-currency", {"baseCurrency": "Htg"}, T)  # restore
 
 # --- cleanup: archive smoke accounts (transactions stay; archived accounts refuse new money) ---
-for account in (cash, bank, usd, eur_acc):
+for account in (cash, bank, usd, eur_acc, payroll):
     call("PUT", f"/budget/accounts/{account['id']}", {"name": account["name"], "type": account["type"], "isArchived": True}, T)
 s, r = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Income", "amount": 1, "occurredAt": iso(now)}, T)
 C("archived account refuses new money (10051)", s == 400 and code(r) == "10051")

@@ -39,6 +39,8 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
                 recurrence.Interval,
                 ByDay: recurrence.ByDayOfWeek,
                 ByMonthDay: recurrence.ByMonthDay,
+                ByMonth: recurrence.ByMonth,
+                BySetPos: recurrence.BySetPos,
                 Count: recurrence.Count,
                 Until: recurrence.Until
             ),
@@ -112,6 +114,7 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
     internal static RecurringTransactionResponse ToResponse(RecurringTransaction rule) =>
         new(rule.Id, rule.AccountId, rule.Kind, rule.Amount, rule.Currency, rule.CategoryId, rule.Note,
             rule.TransferAccountId, rule.TransferAmount, rule.Rrule, rule.TimeZoneId, rule.StartDate,
+            rule.Schedule.Frequency, rule.Schedule.Interval, rule.Schedule.Count, rule.Schedule.Until,
             rule.IsActive ? rule.Schedule.GetNextOccurrence(rule.GeneratedThrough ?? DateTimeOffset.UtcNow) : null,
             rule.IsActive, rule.CreatedAt);
 }

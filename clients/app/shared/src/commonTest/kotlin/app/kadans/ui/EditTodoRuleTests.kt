@@ -107,6 +107,11 @@ class EditTodoRuleTests {
         with(draft(stored("FREQ=DAILY;BYHOUR=8,14,20;BYMINUTE=0", Frequency.Daily)).state) {
             assertEquals(listOf(LocalTime(8, 0), LocalTime(14, 0), LocalTime(20, 0)), times)
         }
+        // "The 15th and the 30th", the 30th moving to February's last day: the days picked again.
+        with(draft(stored("FREQ=MONTHLY;BYMONTHDAY=15,28,29,30;BYSETPOS=1,-1", Frequency.Monthly)).state) {
+            assertEquals(DayRule.ByDate, dayRule)
+            assertEquals(setOf(15, 30), effectiveMonthDays)
+        }
     }
 
     @Test
@@ -120,6 +125,8 @@ class EditTodoRuleTests {
             stored("FREQ=YEARLY;BYDAY=SU;BYMONTH=5;BYSETPOS=2", Frequency.Yearly),
             stored("FREQ=MONTHLY;BYDAY=MO;BYMONTH=1,6;BYSETPOS=1", Frequency.Monthly),
             stored("FREQ=DAILY;BYHOUR=8,14,20;BYMINUTE=0", Frequency.Daily),
+            stored("FREQ=MONTHLY;BYMONTHDAY=15,28,29,30;BYSETPOS=1,-1", Frequency.Monthly),
+            stored("FREQ=MONTHLY;BYMONTHDAY=28,29,30;BYMONTH=1,2;BYSETPOS=-1", Frequency.Monthly),
         ).forEach { rule ->
             val parts = assertNotNull(app.kadans.ui.todos.RuleSummary.parts(rule))
             val back = sent(draft(rule).state)

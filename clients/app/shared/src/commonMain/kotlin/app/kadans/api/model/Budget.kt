@@ -104,6 +104,7 @@ data class BudgetTransactionResponse(
     val createdAt: Instant,
 )
 
+/** A budget rule's dates, with a todo rule's day parts: the form is the todo's rule builder (`ui/RepeatSection`). */
 @Serializable
 data class BudgetRecurrence(
     val frequency: Frequency,
@@ -114,6 +115,8 @@ data class BudgetRecurrence(
     val count: Int? = null,
     val until: Instant? = null,
     val timeZone: String? = null,
+    val bySetPos: List<Int>? = null,
+    val byMonth: List<Int>? = null,
 )
 
 @Serializable
@@ -153,6 +156,10 @@ data class RecurringTransactionResponse(
     val rrule: String,
     val timeZoneId: String,
     val startDate: Instant,
+    val frequency: Frequency = Frequency.Monthly,
+    val interval: Int = 1,
+    val count: Int? = null,
+    val until: Instant? = null,
     val nextAt: Instant? = null,
     val isActive: Boolean = true,
     val createdAt: Instant,

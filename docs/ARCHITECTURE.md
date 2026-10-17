@@ -705,7 +705,16 @@ estimate reports currencies without a rate instead of guessing. Recurring transa
 shared recurrence engine: `RecurringTransactionJob` (Quartz, `Budget:RecurringIntervalMinutes`,
 15 by default) materializes due rules into real transactions, so salary lands on the 1st with no
 client running; exhausted rules self-deactivate. Money rules repeat daily at most and start at most
-a year back. A pass creates up to 100 transactions per rule; a longer backlog resumes on the next
+a year back. Otherwise they take a todo rule's day parts (`BudgetRecurrence`: days of the week, days of
+the month with -1 the last, BYSETPOS for "the last Friday", months), and the app builds both with one
+builder (`ui/todos/RepeatSection`, under the todo's `WhenSection` and in the movement form, without the
+hourly frequencies or several times a day): "the 15th and the 30th" is the same rule for a salary as
+for a todo. A day some month lacks falls on that month's last day: "the 15th and the 30th" pays on 28
+February (calendar apps would skip it). RFC 5545 skips such months, so the app says it with set positions
+(`LateMonthDays`): BYMONTHDAY=15,28,29,30;BYSETPOS=1,-1 keeps the 15th and the latest of the 28th to
+the 30th each month has; the 31st missing somewhere is simply the last day (-1). The rule's words and the
+edit form read it back as the days picked. Rules stored before 2026-10-17 with a plain BYMONTHDAY=30
+still skip February until edited. A pass creates up to 100 transactions per rule; a longer backlog resumes on the next
 pass. A "pay rent" task and a recurring transaction are the same cadence seen from two modules.
 A rule is an income, an expense or a transfer ("100 USD to savings every month"); between two
 currencies it books the same pair each time, and the person corrects a booked movement when the

@@ -80,9 +80,50 @@ internal fun isNthOfMonth(date: LocalDate, ordinal: Ordinal, kind: DayKind): Boo
     return if (ordinal == Ordinal.Last) matching.last() == date else matching.getOrNull(ordinal.setPos - 1) == date
 }
 
-/** Whether [date] is one of the month days picked: 1–31, -1 the last day. */
+/**
+ * Whether [date] is one of the month days picked: 1–31, -1 the last day. A day its month lacks (the 30th in February)
+ * falls on that month's last day ([LateMonthDays]).
+ */
 internal fun isMonthDay(date: LocalDate, days: Set<Int>): Boolean =
-    date.day in days || (-1 in days && date.day == lastDayOfMonth(date))
+    date.day in days || (date.day == lastDayOfMonth(date) && days.any { it == -1 || it > date.day })
+
+/**
+ * Days of the month as a salary means them: "the 15th and the 30th" is the 30th, or the last day of a month without one
+ * (February). RFC 5545 skips a month that lacks the day, so such a rule says it with set positions: BYMONTHDAY takes
+ * the days up to the 28th plus the 28th to the latest late day as candidates, and BYSETPOS keeps the early days, each
+ * late day but the latest at its place among the candidates, and the last candidate. A month too short for a late day
+ * lacks its candidate, and its last day stands for it. The 31st missing somewhere is simply "the last day" (-1).
+ */
+internal object LateMonthDays {
+    data class Parts(val byMonthDay: List<Int>, val bySetPos: List<Int>? = null)
+
+    /** The parts for [days] in months whose shortest has [shortest] days (28 for February). */
+    fun parts(days: Set<Int>, shortest: Int): Parts {
+        if (days.none { it > shortest }) return Parts(sortedMonthDays(days))
+        val asLast = days.map { if (it == 31) -1 else it }.toSet()
+        if (asLast.none { it > shortest }) return Parts(sortedMonthDays(asLast))
+        return encode(asLast)
+    }
+
+    private fun encode(days: Set<Int>): Parts {
+        val early = days.filter { it in 1..28 }.sorted()
+        val late = days.map { if (it == -1) 31 else it }.filter { it > 28 }.distinct().sorted()
+        val byMonthDay = (early + (28..late.last())).distinct().sorted()
+        val twentyEighth = (early + 28).distinct().size // the 28th's position among the month's days
+        return Parts(byMonthDay, early.indices.map { it + 1 } + late.dropLast(1).map { twentyEighth + it - 28 } + -1)
+    }
+
+    /** The days a rule made by [parts] was picked with (the 31st as -1); null for any other BYMONTHDAY with BYSETPOS. */
+    fun decode(byMonthDay: List<Int>, bySetPos: List<Int>): Set<Int>? {
+        val sorted = byMonthDay.distinct().sorted()
+        if (sorted.isEmpty() || sorted.any { it !in 1..31 }) return null
+        // In a 31-day month every candidate is there: the positions give back the days picked.
+        val picked = bySetPos.map { position ->
+            (if (position > 0) sorted.getOrNull(position - 1) else sorted.getOrNull(sorted.size + position)) ?: return null
+        }.map { if (it == 31) -1 else it }.toSet()
+        return picked.takeIf { it.any { day -> day == -1 || day > 28 } && encode(it) == Parts(sorted, bySetPos) }
+    }
+}
 
 /** Positives ascending, then the last day: the order the rule and its words list them in. */
 internal fun sortedMonthDays(days: Collection<Int>): List<Int> = days.filter { it > 0 }.sorted() + days.filter { it < 0 }.sortedDescending()

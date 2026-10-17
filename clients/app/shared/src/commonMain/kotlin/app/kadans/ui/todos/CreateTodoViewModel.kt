@@ -36,6 +36,9 @@ enum class TodoMode { OneTime, Recurring }
 
 internal val END_OF_DAY = LocalTime(23, 59)
 
+/** Each month's days in its shortest year: February has a 29th one year in four. */
+private val SHORTEST_MONTH_LENGTHS = listOf(31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
 /** How a recurring todo ends — clients often know the last date, not the count (a treatment course). */
 enum class EndMode { Never, AfterCount, OnDate }
 
@@ -109,15 +112,34 @@ data class CreateTodoUiState(
             .firstOrNull(::fallsOn)
     }
 
+    /** The days in the shortest month the rule visits: 28 (February) unless a yearly rule keeps to longer ones. */
+    private val shortestMonth: Int
+        get() = if (frequency == Frequency.Yearly) effectiveMonths.minOf { SHORTEST_MONTH_LENGTHS[it - 1] } else 28
+
+    /**
+     * By date, the smallest day picked that some month the rule visits lacks (the 30th in February, the 31st in April):
+     * there it falls on the month's last day ([LateMonthDays]); said under the days. Null when every month has them all.
+     */
+    val missingMonthDay: Int?
+        get() = if (frequency != Frequency.Monthly && frequency != Frequency.Yearly || dayRule != DayRule.ByDate) null
+        else effectiveMonthDays.filter { it > shortestMonth }.minOrNull()
+
+    /** By date, the days as the rule sends them: with set positions when a 29th or 30th must move to a last day. */
+    internal val monthDayParts: LateMonthDays.Parts get() = LateMonthDays.parts(effectiveMonthDays, shortestMonth)
+
+    /** The day picked takes set positions, which a yearly rule counts across the whole year. */
+    internal val bySetPositions: Boolean
+        get() = dayRule == DayRule.ByWeekday || monthDayParts.bySetPos != null
+
     /** A date was picked, but the rule never falls ("the 30th of February"): said under the rule, and not sent. */
     val neverFalls: Boolean get() = mode == TodoMode.Recurring && date != null && firstDate == null
 
     /**
-     * "The second Sunday" in several months is each month's second Sunday, which RFC 5545 can only say as a monthly rule
-     * limited to those months (see [CreateTodoViewModel.dayParts]): every year, not every two.
+     * "The second Sunday" (or "the 30th") in several months is each month's, which RFC 5545 can only say as a monthly
+     * rule limited to those months (see [CreateTodoViewModel.dayParts]): every year, not every two.
      */
     val severalMonthsNeedEveryYear: Boolean
-        get() = frequency == Frequency.Yearly && dayRule == DayRule.ByWeekday && effectiveMonths.size > 1 && interval > 1
+        get() = frequency == Frequency.Yearly && bySetPositions && effectiveMonths.size > 1 && interval > 1
 
     /** More repeats than the server accepts: shown under the field, and the form cannot be sent. */
     val countTooHigh: Boolean get() = endMode == EndMode.AfterCount && (count ?: 0) > RuleLimits.MAX_COUNT
@@ -261,7 +283,7 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
 
         internal fun dayParts(state: CreateTodoUiState): DayParts {
             fun DayParts.picked() = when (state.dayRule) {
-                DayRule.ByDate -> copy(byMonthDay = sortedMonthDays(state.effectiveMonthDays))
+                DayRule.ByDate -> state.monthDayParts.let { copy(byMonthDay = it.byMonthDay, bySetPos = it.bySetPos) }
                 DayRule.ByWeekday -> copy(byDay = state.effectiveKind.days, bySetPos = listOf(state.effectiveOrdinal.setPos))
             }
             return when (state.frequency) {
@@ -270,8 +292,9 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
                 Frequency.Yearly -> {
                     val months = state.effectiveMonths.sorted()
                     // A yearly BYSETPOS counts across all the year's matching days ("the second Sunday" of March and June
-                    // would be March's only). Limiting a monthly rule to those months makes it each month's second Sunday.
-                    val each = if (state.dayRule == DayRule.ByWeekday && months.size > 1) Frequency.Monthly else Frequency.Yearly
+                    // would be March's only). Limiting a monthly rule to those months makes it each month's second Sunday
+                    // (and each month's 30th or last day).
+                    val each = if (state.bySetPositions && months.size > 1) Frequency.Monthly else Frequency.Yearly
                     DayParts(each, byMonth = months).picked()
                 }
                 Frequency.Minutely, Frequency.Hourly, Frequency.Daily -> DayParts(state.frequency)

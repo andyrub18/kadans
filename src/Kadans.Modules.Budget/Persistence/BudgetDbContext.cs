@@ -57,7 +57,8 @@ internal sealed class BudgetDbContext(DbContextOptions<BudgetDbContext> options)
         {
             b.Property(p => p.UserId).IsRequired().HasMaxLength(450);
             b.Property(p => p.Currency).HasConversion<string>().HasMaxLength(8);
-            b.Property(p => p.MonthlyLimit).HasPrecision(16, 2);
+            b.Property(p => p.Amount).HasPrecision(16, 2);
+            b.Property(p => p.Period).HasConversion<string>().HasMaxLength(8);
             b.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(p => new { p.UserId, p.CategoryId }).IsUnique();
             b.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);

@@ -45,6 +45,7 @@ public sealed class BudgetModule : IModule
         services.AddScoped<IUserDataEraser, BudgetUserDataEraser>();
         services.AddScoped<CategoryService>();
         services.AddScoped<TransactionService>();
+        services.AddScoped<CategoryLimitAlerts>();
         services.AddScoped<RecurringTransactionService>();
         services.AddScoped<BudgetSettingsService>();
     }

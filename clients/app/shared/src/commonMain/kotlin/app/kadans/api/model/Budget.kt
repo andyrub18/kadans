@@ -58,11 +58,16 @@ data class CategoryResponse(
     val isArchived: Boolean = false,
 )
 
+/** How often a category's limit starts again: weeks on Monday, years on 1 January, in the person's time zone. */
 @Serializable
-data class SetCategoryBudget(val monthlyLimit: Double, val currency: Currency)
+enum class LimitPeriod { Week, Month, Year }
+
+/** A category's limit set, or its amount and period changed: its currency is the one it was set in. */
+@Serializable
+data class SetCategoryLimit(val amount: Double, val currency: Currency, val period: LimitPeriod = LimitPeriod.Month)
 
 @Serializable
-data class CategoryBudgetResponse(val categoryId: String, val monthlyLimit: Double, val currency: Currency)
+data class CategoryLimitResponse(val categoryId: String, val amount: Double, val currency: Currency, val period: LimitPeriod)
 
 @Serializable
 data class CreateBudgetTransaction(
@@ -191,7 +196,24 @@ data class CategorySpend(
     val icon: String? = null,
     val currency: Currency,
     val amount: Double,
-    val monthlyLimit: Double? = null,
+)
+
+/**
+ * A category's limit in the period the month shown covers (that month, the year through it, or this week): [spent] in
+ * its currency, other currencies at the person's rates ([converted]), those without a rate left out ([missingRates]).
+ */
+@Serializable
+data class CategoryLimitStatus(
+    val categoryId: String,
+    val amount: Double,
+    val currency: Currency,
+    val period: LimitPeriod,
+    val periodStart: Instant,
+    val periodEnd: Instant,
+    val spent: Double,
+    val percent: Int,
+    val converted: List<Currency> = emptyList(),
+    val missingRates: List<Currency> = emptyList(),
 )
 
 /** Today's estimate in the base currency; currencies without a rate are listed, never guessed. */
@@ -214,4 +236,5 @@ data class MonthlySummaryResponse(
     val accounts: List<AccountResponse>,
     val categories: List<CategorySpend>,
     val combined: CombinedEstimate? = null,
+    val limits: List<CategoryLimitStatus> = emptyList(),
 )

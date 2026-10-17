@@ -318,10 +318,10 @@ class BudgetApi internal constructor(private val api: KadansApi) {
     suspend fun updateCategory(id: String, request: UpdateCategory): CategoryResponse =
         api.http.put("budget/categories/$id") { setBody(request) }.orThrow()
 
-    suspend fun setCategoryBudget(categoryId: String, request: SetCategoryBudget): CategoryBudgetResponse =
+    suspend fun setCategoryLimit(categoryId: String, request: SetCategoryLimit): CategoryLimitResponse =
         api.http.put("budget/categories/$categoryId/budget") { setBody(request) }.orThrow()
 
-    suspend fun removeCategoryBudget(categoryId: String) {
+    suspend fun removeCategoryLimit(categoryId: String) {
         api.http.delete("budget/categories/$categoryId/budget").orThrow<Success>()
     }
 

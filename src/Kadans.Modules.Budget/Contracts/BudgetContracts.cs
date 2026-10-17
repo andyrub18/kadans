@@ -40,10 +40,13 @@ public sealed record CategoryResponse(
     bool IsArchived
 );
 
-/// <summary>Upserts the monthly limit for a category (one per category; currency explicit).</summary>
-public sealed record SetCategoryBudget(decimal MonthlyLimit, Currency Currency);
+/// <summary>
+/// Sets an expense category's limit, or changes its amount and period. One per category, in <paramref name="Currency"/>
+/// from the start: a limit keeps it (remove the limit to set one in another currency).
+/// </summary>
+public sealed record SetCategoryLimit(decimal Amount, Currency Currency, LimitPeriod Period = LimitPeriod.Month);
 
-public sealed record CategoryBudgetResponse(Guid CategoryId, decimal MonthlyLimit, Currency Currency);
+public sealed record CategoryLimitResponse(Guid CategoryId, decimal Amount, Currency Currency, LimitPeriod Period);
 
 // ---- transactions ----
 
@@ -178,14 +181,33 @@ public sealed record SetCurrencyRate(decimal RateInBase);
 
 public sealed record CurrencyTotals(Currency Currency, decimal Income, decimal Expense, decimal Net);
 
+/// <summary>A category's movements in the month, in one currency (a category paid in two has two).</summary>
 public sealed record CategorySpend(
     Guid CategoryId,
     string Name,
     CategoryKind Kind,
     string? Icon,
     Currency Currency,
+    decimal Amount
+);
+
+/// <summary>
+/// A category's limit in the period the month on screen shows: that month, the year through it, or this week (on the
+/// current month; another month's is its last week). <paramref name="Spent"/> is in the limit's currency, other
+/// currencies at the person's rates (<paramref name="Converted"/>, an estimate); <paramref name="MissingRates"/> spent
+/// in the period are left out, never guessed. <paramref name="Percent"/> is whole, rounded down.
+/// </summary>
+public sealed record CategoryLimitStatus(
+    Guid CategoryId,
     decimal Amount,
-    decimal? MonthlyLimit
+    Currency Currency,
+    LimitPeriod Period,
+    DateTimeOffset PeriodStart,
+    DateTimeOffset PeriodEnd,
+    decimal Spent,
+    int Percent,
+    IReadOnlyList<Currency> Converted,
+    IReadOnlyList<Currency> MissingRates
 );
 
 /// <summary>
@@ -210,5 +232,6 @@ public sealed record MonthlySummaryResponse(
     IReadOnlyList<CurrencyTotals> Totals,
     IReadOnlyList<AccountResponse> Accounts,
     IReadOnlyList<CategorySpend> Categories,
-    CombinedEstimate? Combined = null
+    CombinedEstimate? Combined = null,
+    IReadOnlyList<CategoryLimitStatus>? Limits = null
 );

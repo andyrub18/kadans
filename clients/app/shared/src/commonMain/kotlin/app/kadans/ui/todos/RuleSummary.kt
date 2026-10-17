@@ -154,8 +154,14 @@ internal object RuleSummary {
                 if (rule.frequency == Frequency.Yearly && months == null && dayParts) return null
                 months?.let { words += it.joinToString(", ") { month -> s.monthNames[month - 1] } }
                 words += when {
+                    // "The 15th and the 30th" the app sends: the 30th, or a shorter month's last day (LateMonthDays).
+                    rule.bySetPos != null && rule.byMonthDay != null -> {
+                        if (rule.byDay != null) return null
+                        val days = LateMonthDays.decode(rule.byMonthDay, rule.bySetPos) ?: return null
+                        val said = monthDays(days.toList(), s) ?: return null
+                        if (days.any { it in 29..30 }) "$said ${s.repeat.orShorterMonthsLastDay}" else said
+                    }
                     rule.bySetPos != null -> {
-                        if (rule.byMonthDay != null) return null
                         val ordinal = Ordinal.ofSetPos(rule.bySetPos.singleOrNull() ?: return null) ?: return null
                         onThe(ordinal, DayKind.ofDays(rule.byDay ?: return null) ?: return null, s)
                     }

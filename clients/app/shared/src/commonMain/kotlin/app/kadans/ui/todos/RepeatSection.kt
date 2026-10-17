@@ -110,8 +110,8 @@ internal fun RepeatSection(
         when (state.dayRule) {
             DayRule.ByDate -> {
                 MonthDayPicker(state.effectiveMonthDays, onToggle = { day -> update { CreateTodoViewModel.toggleMonthDay(it, day) } })
-                // "The 30th" skips February, as calendars do: say so, and that the last day is in every month.
-                state.skippedMonthDay?.let { day ->
+                // "The 30th" in February is its last day: said, as calendar apps would skip the month.
+                state.missingMonthDay?.let { day ->
                     Text(s.repeat.shortMonths(day), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

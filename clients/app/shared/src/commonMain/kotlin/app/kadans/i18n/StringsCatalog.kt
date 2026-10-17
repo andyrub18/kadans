@@ -161,8 +161,10 @@ data class RepeatStrings(
     val severalMonthsEveryYear: String,
     /** The rule picked falls on no date the server would keep ("the 30th of February"). */
     val neverFalls: String,
-    /** Under the month's days when one picked is missing from some months (30: February): %d the day, %s "Last day". */
+    /** Under the month's days when one picked is missing from some months (30: February): %d the day. */
     val shortMonthsFormat: String,
+    /** After the days of a rule whose 29th or 30th moves to a shorter month's last day: "on days 15, 30 (…)". */
+    val orShorterMonthsLastDay: String,
     /** Under "How many times": the server's limit. */
     val countLimit: String,
     /** Under the date of a repeating budget movement: the server's limit. */
@@ -198,7 +200,7 @@ data class RepeatStrings(
 
     fun monthDay(day: Int): String = monthDayFormat.replace("%d", "$day")
 
-    fun shortMonths(day: Int): String = shortMonthsFormat.replace("%d", "$day").replace("%s", lastDay)
+    fun shortMonths(day: Int): String = shortMonthsFormat.replace("%d", "$day")
 
     fun count(times: Int): String = countFormat.replace("%d", "$times")
 

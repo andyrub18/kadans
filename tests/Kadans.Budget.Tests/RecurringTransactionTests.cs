@@ -205,16 +205,20 @@ public class RecurringTransactionTests
         [.. instants.Select(i => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(i, TimeZoneInfo.FindSystemTimeZoneById("America/Port-au-Prince")).DateTime))];
 
     [Test]
-    public async Task A_salary_on_the_15th_and_the_30th_is_booked_twice_a_month_none_on_a_30th_february_lacks()
+    public async Task A_salary_on_the_15th_and_the_30th_is_paid_on_the_28th_in_february()
     {
-        // Noon on 15 January, Port-au-Prince (UTC-5 in winter).
-        var rule = Rule(new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [15, 30]), new DateTimeOffset(2026, 1, 15, 17, 0, 0, TimeSpan.Zero));
+        // Noon on 15 January, Port-au-Prince (UTC-5 in winter). The app sends "the 15th and the 30th" as the 30th or a
+        // shorter month's last day (the client's LateMonthDays); BYMONTHDAY=15,30 alone would skip February's.
+        var rule = Rule(
+            new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [15, 28, 29, 30], BySetPos: [1, -1]),
+            new DateTimeOffset(2026, 1, 15, 17, 0, 0, TimeSpan.Zero)
+        );
 
         var due = Days(rule.DueOccurrences(new DateTimeOffset(2026, 4, 1, 0, 0, 0, TimeSpan.Zero)));
 
         await Assert.That(due).IsEquivalentTo(new List<DateOnly>
         {
-            new(2026, 1, 15), new(2026, 1, 30), new(2026, 2, 15), new(2026, 3, 15), new(2026, 3, 30),
+            new(2026, 1, 15), new(2026, 1, 30), new(2026, 2, 15), new(2026, 2, 28), new(2026, 3, 15), new(2026, 3, 30),
         });
     }
 

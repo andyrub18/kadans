@@ -177,13 +177,18 @@ class BudgetAddViewModelTests {
         val recurrence = BudgetAddViewModel.recurrence(twice, zone)!!
 
         assertEquals(Frequency.Monthly, recurrence.frequency)
-        assertEquals(listOf(15, 30), recurrence.byMonthDay)
+        // The 30th, or the last day of a shorter month (February): set positions among the 28th to the 30th.
+        assertEquals(listOf(15, 28, 29, 30), recurrence.byMonthDay)
+        assertEquals(listOf(1, -1), recurrence.bySetPos)
         assertEquals(LocalDate(2026, 10, 15), twice.firstDate) // the first one is the 15th, at noon there
         assertEquals(LocalDate(2026, 10, 15).atStartOfDayIn(zone) + 12.hours, recurrence.startDate)
-        assertEquals("Every month · on days 15, 30", BudgetAddViewModel.ruleInWords(twice, EnglishStrings, zone))
-        // February has no 30th: said under the days, with the last day as the way to every month.
-        assertEquals(30, twice.rule.skippedMonthDay)
-        assertEquals(null, twice.ruled { CreateTodoViewModel.toggleMonthDay(CreateTodoViewModel.toggleMonthDay(it, 30), -1) }.rule.skippedMonthDay)
+        assertEquals(
+            "Every month · on days 15, 30 (or the last day of a shorter month)",
+            BudgetAddViewModel.ruleInWords(twice, EnglishStrings, zone),
+        )
+        // February has no 30th: said under the days.
+        assertEquals(30, twice.rule.missingMonthDay)
+        assertEquals(null, twice.ruled { CreateTodoViewModel.toggleMonthDay(CreateTodoViewModel.toggleMonthDay(it, 30), -1) }.rule.missingMonthDay)
     }
 
     @Test

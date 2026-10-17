@@ -56,14 +56,18 @@ internal object RuleDraft {
 
         val days = parts.byDay?.toSet()
         val months = parts.byMonth?.toSet() ?: setOf(start.month.number)
-        val onPicked = if (parts.bySetPos != null) {
-            withTimes.copy(
+        val onPicked = when {
+            // "The 15th and the 30th", the 30th moving to a shorter month's last day: the days picked, as in the form.
+            parts.bySetPos != null && parts.byMonthDay != null -> withTimes.copy(
+                dayRule = DayRule.ByDate,
+                monthDays = LateMonthDays.decode(parts.byMonthDay, parts.bySetPos) ?: return Draft(base, worded = false),
+            )
+            parts.bySetPos != null -> withTimes.copy(
                 dayRule = DayRule.ByWeekday,
                 ordinal = Ordinal.ofSetPos(parts.bySetPos.single()),
                 dayKind = days?.let { DayKind.ofDays(it) },
             )
-        } else {
-            withTimes.copy(dayRule = DayRule.ByDate, monthDays = parts.byMonthDay?.toSet() ?: setOf(start.day))
+            else -> withTimes.copy(dayRule = DayRule.ByDate, monthDays = parts.byMonthDay?.toSet() ?: setOf(start.day))
         }
         val state = when (rule.frequency) {
             // A daily rule kept to some days is the weekly one the form makes ("every day, Monday to Friday").

@@ -124,6 +124,67 @@ public class RecurrenceScheduleTests
     }
 
     [Test]
+    public async Task The_30th_or_the_last_day_of_a_shorter_month_via_set_positions()
+    {
+        // The app's "the 15th and the 30th" (a salary): the 30th, or the month's last day when it has none. The days
+        // from the 28th to the 30th are candidates; position 1 is the 15th, the last position the latest candidate.
+        var schedule = Build(
+            new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [15, 28, 29, 30], BySetPos: [1, -1]),
+            Utc(2027, 1, 15, 16)
+        );
+
+        var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2027, 4, 30, 23));
+        var leap = schedule.GetOccurrences(Utc(2028, 2, 1), Utc(2028, 2, 29, 23));
+
+        await Assert.That(occurrences).IsEquivalentTo(
+            [
+                Utc(2027, 1, 15, 16), Utc(2027, 1, 30, 16), Utc(2027, 2, 15, 16), Utc(2027, 2, 28, 16),
+                Utc(2027, 3, 15, 16), Utc(2027, 3, 30, 16), Utc(2027, 4, 15, 16), Utc(2027, 4, 30, 16),
+            ]
+        );
+        await Assert.That(leap).IsEquivalentTo([Utc(2028, 2, 15, 16), Utc(2028, 2, 29, 16)]);
+    }
+
+    [Test]
+    public async Task Two_late_days_keep_their_places_and_meet_on_a_short_months_last_day()
+    {
+        // "The 29th and the 31st": 29 is the second candidate from the 28th, 31 the last. February has one day for both.
+        var schedule = Build(
+            new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [28, 29, 30, 31], BySetPos: [2, -1]),
+            Utc(2027, 1, 29, 16)
+        );
+
+        var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2027, 4, 30, 23));
+
+        await Assert.That(occurrences).IsEquivalentTo(
+            [
+                Utc(2027, 1, 29, 16), Utc(2027, 1, 31, 16), Utc(2027, 2, 28, 16),
+                Utc(2027, 3, 29, 16), Utc(2027, 3, 31, 16), Utc(2027, 4, 29, 16), Utc(2027, 4, 30, 16),
+            ]
+        );
+    }
+
+    [Test]
+    public async Task The_15th_the_30th_and_the_last_day_meet_in_short_months()
+    {
+        // The 30th keeps its place among the 28th to the 31st (the fourth of 15, 28, 29, 30, 31); April's 30th is
+        // also its last day, and February's 28th stands for both.
+        var schedule = Build(
+            new RecurrenceSpec(Frequency.Monthly, ByMonthDay: [15, 28, 29, 30, 31], BySetPos: [1, 4, -1]),
+            Utc(2027, 1, 15, 16)
+        );
+
+        var occurrences = schedule.GetOccurrences(Utc(2027, 1, 1), Utc(2027, 4, 30, 23));
+
+        await Assert.That(occurrences).IsEquivalentTo(
+            [
+                Utc(2027, 1, 15, 16), Utc(2027, 1, 30, 16), Utc(2027, 1, 31, 16), Utc(2027, 2, 15, 16), Utc(2027, 2, 28, 16),
+                Utc(2027, 3, 15, 16), Utc(2027, 3, 30, 16), Utc(2027, 3, 31, 16), Utc(2027, 4, 15, 16), Utc(2027, 4, 30, 16),
+            ]
+        );
+    }
+
+    [Test]
     public async Task A_monthly_set_position_kept_to_some_months_counts_within_each_month()
     {
         // The app's "the first Monday" of January and June. A yearly BYSETPOS would count across all the year's

@@ -168,12 +168,12 @@ C("a recurring exchange into dollars", s == 200 and dollars["transferAmount"] ==
 
 # --- the todo's rule builder for money: a salary on the 15th and the 30th, rent on the last Friday of some months ---
 def payroll_days(start, count, until):
-    """The 15th and the 30th from start, a month without a 30th having only its 15th, as RFC 5545 has it."""
+    """The 15th and the 30th from start, a month without a 30th paying on its last day (as the app sends it)."""
     days, year, month = [], start.year, start.month
     while len(days) < count:
-        for day in (15, 30):
-            try: d = start.replace(year=year, month=month, day=day)
-            except ValueError: continue
+        last = ((dt.date(year + (month == 12), month % 12 + 1, 1)) - dt.timedelta(days=1)).day
+        for day in (15, min(30, last)):
+            d = start.replace(year=year, month=month, day=day)
             if d >= start and len(days) < count: days.append(d)
         month, year = (1, year + 1) if month == 12 else (month + 1, year)
     return [d.date().isoformat() for d in days if d <= until]
@@ -181,9 +181,10 @@ s, payroll = call("POST", "/budget/accounts/", {"name": "smoke: Payroll", "curre
 first_15 = (now.replace(day=1) - dt.timedelta(days=40)).replace(day=15, hour=12, minute=0, second=0)
 s, twice = call("POST", "/budget/recurring/", {
     "accountId": payroll["id"], "kind": "Income", "amount": 10, "note": "smoke 15/30",
-    "recurrence": {"frequency": "Monthly", "startDate": iso(first_15), "byMonthDay": [15, 30], "count": 4},
+    "recurrence": {"frequency": "Monthly", "startDate": iso(first_15), "byMonthDay": [15, 28, 29, 30], "bySetPos": [1, -1], "count": 4},
 }, T)
-C("a salary on the 15th and the 30th", s == 200 and "BYMONTHDAY=15,30" in twice["rrule"] and twice["frequency"] == "Monthly"
+C("a salary on the 15th and the 30th (or a shorter month's last day)", s == 200 and "BYMONTHDAY=15,28,29,30" in twice["rrule"]
+  and "BYSETPOS=1,-1" in twice["rrule"] and twice["frequency"] == "Monthly"
   and twice["interval"] == 1 and twice["count"] == 4, f"{s} {twice}")
 def last_friday(year, month):
     d = (dt.datetime(year + (month == 12), month % 12 + 1, 1, 12, tzinfo=dt.timezone.utc) - dt.timedelta(days=1))

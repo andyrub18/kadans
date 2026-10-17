@@ -262,12 +262,13 @@ class CreateTodoFormTests {
 
     @Test
     fun a_rule_that_never_falls_cannot_be_sent() {
-        val thirtiethOfFebruary = yearly(DayRule.ByDate).copy(months = setOf(2), monthDays = setOf(30))
+        // A fifth Monday in February needs a leap year starting on a Monday: none until 2044.
+        val fifthMondayOfFebruary = yearly(DayRule.ByWeekday).copy(months = setOf(2), ordinal = Ordinal.Fifth, dayKind = DayKind.Monday)
 
-        assertEquals(null, thirtiethOfFebruary.firstDate)
-        assertTrue(thirtiethOfFebruary.neverFalls)
-        assertFalse(thirtiethOfFebruary.canSubmit)
-        assertEquals(null, CreateTodoViewModel.ruleInWords(thirtiethOfFebruary, EnglishStrings, portAuPrince))
+        assertEquals(null, fifthMondayOfFebruary.firstDate)
+        assertTrue(fifthMondayOfFebruary.neverFalls)
+        assertFalse(fifthMondayOfFebruary.canSubmit)
+        assertEquals(null, CreateTodoViewModel.ruleInWords(fifthMondayOfFebruary, EnglishStrings, portAuPrince))
     }
 
     @Test

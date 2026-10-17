@@ -15,7 +15,8 @@ import app.kadans.api.model.Currency
 import app.kadans.api.model.BudgetSettingsResponse
 import app.kadans.api.model.MonthlySummaryResponse
 import app.kadans.api.model.RecurringTransactionResponse
-import app.kadans.api.model.SetCategoryBudget
+import app.kadans.api.model.LimitPeriod
+import app.kadans.api.model.SetCategoryLimit
 import app.kadans.api.model.UpdateAccount
 import app.kadans.api.model.UpdateRecurringTransaction
 import kotlin.time.Clock
@@ -81,8 +82,11 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
     fun createCategory(name: String, kind: CategoryKind, icon: String?) =
         act { api.budget.createCategory(CreateCategory(name, kind, icon?.ifBlank { null })) }
 
-    fun setCategoryLimit(categoryId: String, limit: Double, currency: Currency) =
-        act { api.budget.setCategoryBudget(categoryId, SetCategoryBudget(limit, currency)) }
+    /** A category's limit set, or its amount and period changed (its currency stays the one it was set in). */
+    fun setCategoryLimit(categoryId: String, amount: Double, currency: Currency, period: LimitPeriod) =
+        act { api.budget.setCategoryLimit(categoryId, SetCategoryLimit(amount, currency, period)) }
+
+    fun removeCategoryLimit(categoryId: String) = act { api.budget.removeCategoryLimit(categoryId) }
 
     fun setBaseCurrency(base: Currency) = act { api.budget.setBaseCurrency(base) }
 

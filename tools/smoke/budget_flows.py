@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end check of the Budget module (accounts, HTG/USD, transfers with exchange,
-category budgets, monthly summary, editing a movement, recurring rules and transfers) against a running API in
-Development.
+category limits with their periods, conversion and alerts, monthly summary, editing a movement, recurring rules and
+transfers) against a running API in Development.
 
     python3 tools/smoke/budget_flows.py [base-url] [username] [password]
 
@@ -10,6 +10,7 @@ the recurring-transactions job's first pass (~15 s after boot) lands inside the 
 Standard library only.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt
+from zoneinfo import ZoneInfo
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5199"
 USER = sys.argv[2] if len(sys.argv) > 2 else "smoke"
@@ -93,15 +94,17 @@ C("bank received the transfer", by_id[bank["id"]]["balance"] == 5000)
 C("usd received the exchanged amount", by_id[usd["id"]]["balance"] == 100)
 
 # --- category budget + summary ---
-s, r = call("PUT", f"/budget/categories/{food['id']}/budget", {"monthlyLimit": 20000, "currency": "Htg"}, T)
-C("set monthly limit on expense category", s == 200)
-s, r = call("PUT", f"/budget/categories/{salary['id']}/budget", {"monthlyLimit": 1, "currency": "Htg"}, T)
+s, r = call("PUT", f"/budget/categories/{food['id']}/budget", {"amount": 20000, "currency": "Htg", "period": "Month"}, T)
+C("set a monthly limit on an expense category", s == 200 and r["period"] == "Month", f"{s} {r}")
+s, r = call("PUT", f"/budget/categories/{salary['id']}/budget", {"amount": 1, "currency": "Htg"}, T)
 C("limit on income category rejected (10050)", s == 400 and code(r) == "10050")
 summary = month_summary()
 income1, expense1 = htg_totals(summary)
 C("summary totals per currency (delta)", income1 - income0 == 85000 and expense1 - expense0 == 2500.50, f"+{income1-income0}/+{expense1-expense0}")
 spend = next((c for c in summary["categories"] if c["categoryId"] == food["id"]), None)
-C("category spend vs limit", spend is not None and spend["amount"] == 2500.50 and spend["monthlyLimit"] == 20000, f"{spend}")
+C("category spend in the month", spend is not None and spend["amount"] == 2500.50, f"{spend}")
+limit = next((l for l in summary.get("limits") or [] if l["categoryId"] == food["id"]), None)
+C("category spend vs limit", limit is not None and limit["spent"] == 2500.50 and limit["amount"] == 20000 and limit["percent"] == 12, f"{limit}")
 
 # --- edit + delete restore the math ---
 s, r = call("PUT", f"/budget/transactions/{expense_id}", {"amount": 3000, "occurredAt": iso(now), "categoryId": food["id"], "note": "smoke market (edited)"}, T)
@@ -268,8 +271,53 @@ s, r = call("PUT", "/budget/settings/base-currency", {"baseCurrency": "Usd"}, T)
 C("base change clears old-base rates", s == 200 and r["baseCurrency"] == "Usd" and r["rates"] == [], f"{s} {r}")
 call("PUT", "/budget/settings/base-currency", {"baseCurrency": "Htg"}, T)  # restore
 
+# --- a limit in its own currency: other currencies at the person's rate, alerts at 80% and 100%, once each ---
+def limit_alerts(category_id):
+    s, items = call("GET", "/notifications?pageSize=100", token=T)
+    return [n for n in items if n["kind"] == "budget.limit" and (n.get("data") or {}).get("categoryId") == category_id]
+call("PUT", "/budget/settings/rates/Usd", {"rateInBase": 132.50}, T)
+s, fuel = call("POST", "/budget/categories/", {"name": "smoke: Gaz", "kind": "Expense", "icon": "⛽"}, T)
+s, wallet = call("POST", "/budget/accounts/", {"name": "smoke: Wallet", "currency": "Htg", "initialBalance": 50000}, T)
+s, dollars_acc = call("POST", "/budget/accounts/", {"name": "smoke: Dollars", "currency": "Usd", "initialBalance": 500}, T)
+s, euros_acc = call("POST", "/budget/accounts/", {"name": "smoke: Euros", "currency": "Eur", "initialBalance": 500}, T)
+s, r = call("PUT", f"/budget/categories/{fuel['id']}/budget", {"amount": 1000, "currency": "Htg", "period": "Week"}, T)
+C("a weekly limit in gourdes", s == 200 and r["currency"] == "Htg" and r["period"] == "Week", f"{s} {r}")
+def spend_on_fuel(account, amount):
+    return call("POST", "/budget/transactions/", {"accountId": account["id"], "kind": "Expense", "amount": amount, "occurredAt": iso(now), "categoryId": fuel["id"]}, T)
+spend_on_fuel(wallet, 700)
+C("70%: no alert yet", limit_alerts(fuel["id"]) == [], f"{limit_alerts(fuel['id'])}")
+spend_on_fuel(dollars_acc, 2)  # 2 USD at 132.50 = 265 HTG: 965 of 1 000
+alerts = limit_alerts(fuel["id"])
+C("96% with dollars at the rate: the 80% alert", len(alerts) == 1 and (alerts[0]["data"] or {}).get("level") == "80"
+  and "96%" in alerts[0]["body"] and alerts[0]["title"] == "⛽ smoke: Gaz" and alerts[0]["data"].get("link") == "kadans://budget", f"{alerts}")
+spend_on_fuel(wallet, 10)
+C("no second 80% alert in the same week", len(limit_alerts(fuel["id"])) == 1)
+spend_on_fuel(wallet, 100)
+alerts = limit_alerts(fuel["id"])
+C("over the limit: the 100% alert", len(alerts) == 2 and any((a["data"] or {}).get("level") == "100" and "107%" in a["body"] for a in alerts), f"{alerts}")
+spend_on_fuel(euros_acc, 5)  # no EUR rate: left out, said
+s, summary = call("GET", f"/budget/summary?year={now.year}&month={now.month}", token=T)
+status = next((l for l in summary.get("limits") or [] if l["categoryId"] == fuel["id"]), None)
+week_start = dt.datetime.fromisoformat(status["periodStart"]) if status else None
+C("the week's status: spent in gourdes, dollars priced, euros left out", status is not None and status["spent"] == 1075 and status["percent"] == 107
+  and status["converted"] == ["Usd"] and status["missingRates"] == ["Eur"] and status["period"] == "Week", f"{status}")
+local_start = week_start.astimezone(ZoneInfo(summary["timeZoneId"])) if week_start else None
+C("the week starts at midnight on Monday, there, at most a week ago", local_start is not None and local_start.weekday() == 0
+  and (local_start.hour, local_start.minute) == (0, 0) and dt.timedelta(0) <= now - week_start < dt.timedelta(days=7), f"{local_start}")
+s, r = call("PUT", f"/budget/categories/{fuel['id']}/budget", {"amount": 1000, "currency": "Usd", "period": "Week"}, T)
+C("a limit keeps its currency (10047)", s == 400 and code(r) == "10047", f"{s} {code(r)}")
+s, r = call("PUT", f"/budget/categories/{fuel['id']}/budget", {"amount": 2000, "currency": "Htg", "period": "Month"}, T)
+C("its amount and period change", s == 200 and r["amount"] == 2000 and r["period"] == "Month", f"{s} {r}")
+spend_on_fuel(wallet, 600)  # 1 675 of 2 000 this month: 83%, news for the new limit
+alerts = limit_alerts(fuel["id"])
+C("a changed limit alerts afresh", len(alerts) == 3 and any("83%" in a["body"] for a in alerts), f"{[a['body'] for a in alerts]}")
+s, r = call("DELETE", f"/budget/categories/{fuel['id']}/budget", token=T)
+C("remove the limit", s == 200)
+s, r = call("PUT", f"/budget/categories/{fuel['id']}/budget", {"amount": 10, "currency": "Usd", "period": "Year"}, T)
+C("then set one in dollars, for the year", s == 200 and r["currency"] == "Usd" and r["period"] == "Year", f"{s} {r}")
+
 # --- cleanup: archive smoke accounts (transactions stay; archived accounts refuse new money) ---
-for account in (cash, bank, usd, eur_acc, payroll):
+for account in (cash, bank, usd, eur_acc, payroll, wallet, dollars_acc, euros_acc):
     call("PUT", f"/budget/accounts/{account['id']}", {"name": account["name"], "type": account["type"], "isArchived": True}, T)
 s, r = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Income", "amount": 1, "occurredAt": iso(now)}, T)
 C("archived account refuses new money (10051)", s == 400 and code(r) == "10051")

@@ -124,7 +124,11 @@ internal sealed class RecurringTransactionService(BudgetDbContext context, ICurr
 /// not any client is running. Steps on the schedule; overdue rules (downtime) catch up.
 /// </summary>
 [DisallowConcurrentExecution]
-internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger<RecurringTransactionJob> logger) : IJob
+internal sealed class RecurringTransactionJob(
+    BudgetDbContext dbContext,
+    CategoryLimitAlerts limitAlerts,
+    ILogger<RecurringTransactionJob> logger
+) : IJob
 {
     public static readonly JobKey Key = new("recurring-transactions", "budget");
 
@@ -143,6 +147,8 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
         var started = DateTimeOffset.UtcNow;
         var created = 0;
         var rules = 0;
+        // The categories each person's booked expenses went to: their limits are checked once the pass is saved.
+        var expensed = new Dictionary<string, HashSet<Guid>>();
 
         while (DateTimeOffset.UtcNow - started < MaxPass)
         {
@@ -179,6 +185,12 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
                     });
                     created++;
                 }
+                if (occurrences.Count > 0 && rule is { Kind: TransactionKind.Expense, CategoryId: { } categoryId })
+                {
+                    if (!expensed.TryGetValue(rule.UserId, out var ids))
+                        expensed[rule.UserId] = ids = [];
+                    ids.Add(categoryId);
+                }
                 rule.Advance(occurrences, now);
             }
 
@@ -192,6 +204,9 @@ internal sealed class RecurringTransactionJob(BudgetDbContext dbContext, ILogger
 
         if (created > 0)
             logger.LogInformation("Recurring budget rules: {Rules} rule(s) looked at, {Count} transaction(s) booked", rules, created);
+
+        foreach (var (userId, categoryIds) in expensed)
+            await limitAlerts.CheckAsync(userId, categoryIds, DateTimeOffset.UtcNow, jobContext.CancellationToken);
     }
 }
 

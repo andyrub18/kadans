@@ -15,7 +15,8 @@ namespace Kadans.Modules.Budget.Features;
 internal sealed class TransactionService(
     BudgetDbContext context,
     ICurrentUserService currentUser,
-    IUserDirectory users
+    IUserDirectory users,
+    CategoryLimitAlerts limitAlerts
 )
 {
     public async Task<OneOf<ApplicationError, TransactionResponse>> Create(CreateTransaction request)
@@ -38,6 +39,7 @@ internal sealed class TransactionService(
 
         context.Transactions.Add(created.AsT1);
         await context.SaveChangesAsync();
+        await AlertLimit(created.AsT1);
         return ToResponse(created.AsT1);
     }
 
@@ -99,8 +101,15 @@ internal sealed class TransactionService(
         if (edited.IsT0)
             return edited.AsT0;
         await context.SaveChangesAsync();
+        await AlertLimit(transaction);
         return ToResponse(transaction);
     }
+
+    /// <summary>An expense in a category with a limit may bring it near or to it (CategoryLimitAlerts).</summary>
+    private Task AlertLimit(Transaction transaction) =>
+        transaction is { Kind: TransactionKind.Expense, CategoryId: { } categoryId }
+            ? limitAlerts.CheckAsync(transaction.UserId, [categoryId], DateTimeOffset.UtcNow)
+            : Task.CompletedTask;
 
     public async Task<OneOf<ApplicationError, Success>> Delete(Guid id)
     {
@@ -151,20 +160,15 @@ internal sealed class TransactionService(
             .ToList();
 
         var categories = await context.Categories.AsNoTracking().Where(c => !c.IsArchived).ToListAsync(cancellationToken);
-        var limits = await context.CategoryBudgets.AsNoTracking().ToDictionaryAsync(b => b.CategoryId, cancellationToken);
         var spends = rows
             .Where(r => r.CategoryId is not null)
             .GroupBy(r => new { r.CategoryId, r.Currency })
             .Select(g =>
             {
                 var category = categories.FirstOrDefault(c => c.Id == g.Key.CategoryId);
-                if (category is null)
-                    return null;
-                var limit = limits.TryGetValue(category.Id, out var b) && b.Currency == g.Key.Currency
-                    ? b.MonthlyLimit
-                    : (decimal?)null;
-                return new CategorySpend(category.Id, category.Name, category.Kind, category.Icon,
-                    g.Key.Currency, g.Sum(r => r.Amount), limit);
+                return category is null
+                    ? null
+                    : new CategorySpend(category.Id, category.Name, category.Kind, category.Icon, g.Key.Currency, g.Sum(r => r.Amount));
             })
             .OfType<CategorySpend>()
             .OrderByDescending(s => s.Amount)
@@ -175,8 +179,44 @@ internal sealed class TransactionService(
             ?? Currency.Htg;
         var rates = await context.CurrencyRates
             .ToDictionaryAsync(r => r.Currency, r => r.RateInBase, cancellationToken);
+        var limits = await Limits(categories, new RateBook(baseCurrency, rates), start, end, timeZone, cancellationToken);
         return new MonthlySummaryResponse(year, month, timeZone.Id, totals, accountList, spends,
-            Combine(baseCurrency, rates, totals, accountList));
+            Combine(baseCurrency, rates, totals, accountList), limits);
+    }
+
+    /// <summary>
+    /// Each limit in the period the month from <paramref name="monthStart"/> shows: a monthly one that month, a yearly one
+    /// the year through it, a weekly one the week of today (on the current month) or of the month's last day.
+    /// </summary>
+    private async Task<List<CategoryLimitStatus>> Limits(
+        List<Category> categories,
+        RateBook rates,
+        DateTimeOffset monthStart,
+        DateTimeOffset monthEnd,
+        TimeZoneInfo zone,
+        CancellationToken cancellationToken
+    )
+    {
+        var now = DateTimeOffset.UtcNow;
+        var reference = now < monthStart ? monthStart : now >= monthEnd ? monthEnd.AddTicks(-1) : now;
+        var shown = categories.Select(c => c.Id).ToHashSet();
+        var statuses = new List<CategoryLimitStatus>();
+        foreach (var limit in await context.CategoryBudgets.AsNoTracking().ToListAsync(cancellationToken))
+        {
+            if (!shown.Contains(limit.CategoryId))
+                continue; // archived
+            var (start, end) = limit.Period switch
+            {
+                LimitPeriod.Month => (monthStart, monthEnd),
+                LimitPeriod.Year => (CategoryBudget.PeriodAt(LimitPeriod.Year, reference, zone).Start, monthEnd),
+                _ => CategoryBudget.PeriodAt(LimitPeriod.Week, reference, zone),
+            };
+            var spending = await CategoryLimitAlerts.SpendingAsync(context, limit.UserId, limit.CategoryId, start, end, cancellationToken);
+            var use = limit.Use(spending, rates);
+            statuses.Add(new CategoryLimitStatus(limit.CategoryId, limit.Amount, limit.Currency, limit.Period, start, end,
+                use.Spent, use.Percent, use.Converted, use.MissingRates));
+        }
+        return statuses;
     }
 
     /// <summary>

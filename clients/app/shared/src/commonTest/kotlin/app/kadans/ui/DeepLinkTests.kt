@@ -42,6 +42,14 @@ class DeepLinkTests {
     }
 
     @Test
+    fun aLimitAlertOpensTheBudget() {
+        assertEquals(BudgetRoute, parseDeepLink(BUDGET_LINK))
+        assertEquals(null, parseDeepLink("kadans://budget/anything"))
+        assertTrue(opensWith(BudgetRoute, signedIn = true))
+        assertFalse(opensWith(BudgetRoute, signedIn = false))
+    }
+
+    @Test
     fun aTodoOpensOnlyWithASession() {
         assertTrue(opensWith(TodoDetailRoute("x"), signedIn = true))
         assertFalse(opensWith(TodoDetailRoute("x"), signedIn = false))

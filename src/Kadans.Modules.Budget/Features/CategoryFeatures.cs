@@ -55,7 +55,7 @@ internal sealed class CategoryService(BudgetDbContext context, ICurrentUserServi
             .OrderBy(c => c.Kind).ThenBy(c => c.Name)
             .ToListAsync()).Select(ToResponse)];
 
-    public async Task<OneOf<ApplicationError, CategoryBudgetResponse>> SetBudget(Guid categoryId, SetCategoryBudget request)
+    public async Task<OneOf<ApplicationError, CategoryLimitResponse>> SetLimit(Guid categoryId, SetCategoryLimit request)
     {
         var userId = currentUser.UserId!;
         var category = await context.Categories.FirstOrDefaultAsync(c => c.Id == categoryId);
@@ -63,29 +63,33 @@ internal sealed class CategoryService(BudgetDbContext context, ICurrentUserServi
             return new ApplicationError(ErrorTypes.BudgetCategoryNotFound, $"Category {categoryId} not found.");
         if (category.Kind != CategoryKind.Expense)
             return new ApplicationError(ErrorTypes.CategoryKindMismatch, "Budgets apply to expense categories.");
-        if (Money.ValidateAmount(request.MonthlyLimit).IsT0)
-            return Money.ValidateAmount(request.MonthlyLimit).AsT0;
+        if (Money.ValidateAmount(request.Amount).IsT0)
+            return Money.ValidateAmount(request.Amount).AsT0;
 
-        var budget = await context.CategoryBudgets.FirstOrDefaultAsync(b => b.CategoryId == categoryId);
-        if (budget is null)
+        var limit = await context.CategoryBudgets.FirstOrDefaultAsync(b => b.CategoryId == categoryId);
+        if (limit is null)
         {
-            budget = new CategoryBudget
+            limit = new CategoryBudget
             {
                 UserId = userId,
                 CategoryId = categoryId,
                 Currency = request.Currency,
-                MonthlyLimit = request.MonthlyLimit,
+                Amount = request.Amount,
+                Period = request.Period,
             };
-            context.CategoryBudgets.Add(budget);
+            context.CategoryBudgets.Add(limit);
+        }
+        else if (limit.Currency != request.Currency)
+        {
+            return new ApplicationError(ErrorTypes.CurrencyMismatch,
+                "A limit keeps its currency: remove it to set one in another currency.");
         }
         else
         {
-            budget.Currency = request.Currency;
-            budget.MonthlyLimit = request.MonthlyLimit;
-            budget.UpdatedAt = DateTimeOffset.UtcNow;
+            limit.Change(request.Amount, request.Period, DateTimeOffset.UtcNow);
         }
         await context.SaveChangesAsync();
-        return new CategoryBudgetResponse(categoryId, budget.MonthlyLimit, budget.Currency);
+        return new CategoryLimitResponse(categoryId, limit.Amount, limit.Currency, limit.Period);
     }
 
     public async Task<OneOf<ApplicationError, Success>> RemoveBudget(Guid categoryId)
@@ -127,16 +131,18 @@ internal static class CategoryRoutes
                 .WithSummary("Rename, re-icon or archive a category")
                 .ProducesProblem(StatusCodes.Status404NotFound);
 
-            categories.MapPut("/{id:guid}/budget", async Task<Results<Ok<CategoryBudgetResponse>, ProblemHttpResult>> (Guid id, SetCategoryBudget request, CategoryService service, HttpContext context) =>
-                    (await service.SetBudget(id, request)).ToHttp(context))
+            categories.MapPut("/{id:guid}/budget", async Task<Results<Ok<CategoryLimitResponse>, ProblemHttpResult>> (Guid id, SetCategoryLimit request, CategoryService service, HttpContext context) =>
+                    (await service.SetLimit(id, request)).ToHttp(context))
                 .WithName("BudgetCategoriesSetBudget")
-                .WithSummary("Set (or replace) the monthly spending limit for an expense category")
+                .WithSummary("Set an expense category's limit (week, month or year), or change its amount and period")
+                .WithDescription("One limit per category, in the currency it was set in: spending in other currencies counts at the "
+                    + "person's indicative rates. Another currency is refused: remove the limit first. Alerts go out at 80% and 100%.")
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
             categories.MapDelete("/{id:guid}/budget", async Task<Results<Ok<Success>, ProblemHttpResult>> (Guid id, CategoryService service, HttpContext context) =>
                     (await service.RemoveBudget(id)).ToHttp(context))
                 .WithName("BudgetCategoriesRemoveBudget")
-                .WithSummary("Remove the monthly limit")
+                .WithSummary("Remove the category's limit")
                 .ProducesProblem(StatusCodes.Status404NotFound);
         }
     }

@@ -1,6 +1,15 @@
 package app.kadans.ui.budget
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
+import app.kadans.api.model.CategoryLimitStatus
+import app.kadans.api.model.LimitPeriod
+import kotlin.time.Clock
+import kotlinx.datetime.number
+import kotlinx.datetime.todayIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,7 +76,8 @@ fun BudgetScreen(
     var creatingAccount by remember { mutableStateOf(false) }
     var creatingCategory by remember { mutableStateOf(false) }
     var editingRate by remember { mutableStateOf(false) }
-    var limitFor by remember { mutableStateOf<CategorySpend?>(null) }
+    var limitFor by remember { mutableStateOf<CategoryResponse?>(null) }
+    val today = remember { Clock.System.todayIn(TimeZone.currentSystemDefault()) }
     var editingAccount by remember { mutableStateOf<app.kadans.api.model.AccountResponse?>(null) }
     var editingRule by remember { mutableStateOf<RecurringTransactionResponse?>(null) }
 
@@ -163,7 +173,7 @@ fun BudgetScreen(
                     }
                 }
 
-                // ---- categories: spend vs limit ----
+                // ---- categories: the month's spending, and each limit in its period ----
                 item { HorizontalDivider() }
                 item {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -171,27 +181,19 @@ fun BudgetScreen(
                         TextButton(onClick = { creatingCategory = true }) { Text(s.newCategory) }
                     }
                 }
-                items(summary.categories, key = { "sp-" + it.categoryId + it.currency.name }) { spend ->
-                    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text((spend.icon?.plus(" ") ?: "") + spend.name, style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                formatMoney(spend.amount, spend.currency) + (spend.monthlyLimit?.let { " / " + formatAmount(it) } ?: ""),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (spend.monthlyLimit != null && spend.amount > spend.monthlyLimit)
-                                    MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        spend.monthlyLimit?.let { limit ->
-                            LinearProgressIndicator(
-                                progress = { (spend.amount / limit).toFloat().coerceIn(0f, 1f) },
-                                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                            )
-                        }
-                        if (spend.kind == CategoryKind.Expense) {
-                            TextButton(onClick = { limitFor = spend }) { Text(s.limitLabel, style = MaterialTheme.typography.labelSmall) }
-                        }
-                    }
+                // Every expense category (a limit can be set before anything is spent), then the incomes of the month.
+                val shownCategories = state.categories.filter { !it.isArchived }
+                    .filter { c -> c.kind == CategoryKind.Expense || summary.categories.any { it.categoryId == c.id } }
+                    .sortedWith(compareBy({ it.kind != CategoryKind.Expense }, { it.name.lowercase() }))
+                items(shownCategories, key = { "cat-" + it.id }) { category ->
+                    CategoryRow(
+                        category = category,
+                        spends = summary.categories.filter { it.categoryId == category.id },
+                        limit = summary.limits.firstOrNull { it.categoryId == category.id },
+                        // A weekly limit is this week's: on another month there is no bar to show.
+                        showsWeek = state.year == today.year && state.month == today.month.number,
+                        onClick = if (category.kind == CategoryKind.Expense) ({ limitFor = category }) else null,
+                    )
                 }
 
                 // ---- recurring ----
@@ -288,10 +290,15 @@ fun BudgetScreen(
             onDismiss = { editingRule = null },
         )
     }
-    limitFor?.let { spend ->
+    limitFor?.let { category ->
         LimitDialog(
-            spend = spend,
-            onSet = { limit -> viewModel.setCategoryLimit(spend.categoryId, limit, spend.currency); limitFor = null },
+            category = category,
+            existing = state.summary?.limits?.firstOrNull { it.categoryId == category.id },
+            baseCurrency = state.settings?.baseCurrency ?: Currency.Htg,
+            onSet = { amount, currency, period ->
+                viewModel.setCategoryLimit(category.id, amount, currency, period); limitFor = null
+            },
+            onRemove = { viewModel.removeCategoryLimit(category.id); limitFor = null },
             onDismiss = { limitFor = null },
         )
     }
@@ -461,21 +468,140 @@ private fun RateRow(currency: Currency, base: Currency, current: Double?, onSet:
     }
 }
 
+/** Near a limit (80%): amber, legible on the theme's light and dark surfaces (Material has no warning colour). */
 @Composable
-private fun LimitDialog(spend: CategorySpend, onSet: (Double) -> Unit, onDismiss: () -> Unit) {
+private fun nearLimitColor(): Color = if (isSystemInDarkTheme()) Color(0xFFFFB951) else Color(0xFF8A5100)
+
+/**
+ * A category: what it took this month per currency and, with a limit, a bar of its period's use in the limit's
+ * currency (other currencies at the person's rates, said; those without a rate left out, said). Amber from 80%, red at
+ * 100%. An expense category opens its limit.
+ */
+@Composable
+private fun CategoryRow(
+    category: CategoryResponse,
+    spends: List<CategorySpend>,
+    limit: CategoryLimitStatus?,
+    showsWeek: Boolean,
+    onClick: (() -> Unit)?,
+) {
     val s = LocalStrings.current
-    var value by remember { mutableStateOf(spend.monthlyLimit?.toString() ?: "") }
+    Column(
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text((category.icon?.plus(" ") ?: "") + category.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+            Text(
+                spends.sortedByDescending { it.amount }.joinToString(" · ") { formatMoney(it.amount, it.currency) }.ifEmpty { "—" },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        val name = when (limit?.period) {
+            LimitPeriod.Week -> s.limits.weeklyLimit
+            LimitPeriod.Month -> s.limits.monthlyLimit
+            LimitPeriod.Year -> s.limits.yearlyLimit
+            null -> null
+        }
+        when {
+            limit == null || name == null ->
+                if (onClick != null) Text(s.limits.set, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            limit.period == LimitPeriod.Week && !showsWeek ->
+                Text("$name: " + formatMoney(limit.amount, limit.currency), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else -> {
+                val color = when {
+                    limit.percent >= 100 -> MaterialTheme.colorScheme.error
+                    limit.percent >= 80 -> nearLimitColor()
+                    else -> MaterialTheme.colorScheme.primary
+                }
+                LinearProgressIndicator(
+                    progress = { (limit.percent / 100f).coerceIn(0f, 1f) },
+                    color = color,
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        s.limits.percent(limit.percent) + " · " + name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = color,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    )
+                    Text(
+                        (if (limit.converted.isNotEmpty()) "≈ " else "") + formatAmount(limit.spent) + " / " + formatMoney(limit.amount, limit.currency),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (limit.converted.isNotEmpty()) {
+                    Text(
+                        s.limits.converted(limit.converted.joinToString(", ") { it.name.uppercase() }),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (limit.missingRates.isNotEmpty()) {
+                    Text(
+                        s.limits.missing(limit.missingRates.joinToString(", ") { it.name.uppercase() }),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A category's limit: its amount and period, and its currency when it is first set (the base currency to start with).
+ * A limit keeps its currency: another means removing it and setting a new one, so nothing is converted after the fact.
+ */
+@Composable
+private fun LimitDialog(
+    category: CategoryResponse,
+    existing: CategoryLimitStatus?,
+    baseCurrency: Currency,
+    onSet: (Double, Currency, LimitPeriod) -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val s = LocalStrings.current
+    var amount by remember { mutableStateOf(existing?.amount?.let(::editableAmount) ?: "") }
+    var currency by remember { mutableStateOf(existing?.currency ?: baseCurrency) }
+    var period by remember { mutableStateOf(existing?.period ?: LimitPeriod.Month) }
+    val value = amount.replace(",", ".").toDoubleOrNull()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text((spend.icon?.plus(" ") ?: "") + spend.name) },
+        title = { Text((category.icon?.plus(" ") ?: "") + category.name) },
         text = {
-            OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text(s.limitLabel + " (" + spend.currency.name.uppercase() + ")") }, singleLine = true)
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = { amount = amountInput(it) },
+                    label = { Text(s.amountLabel + " (" + currency.name.uppercase() + ")") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (existing == null) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Currency.entries.forEach { c ->
+                            FilterChip(selected = currency == c, onClick = { currency = c }, label = { Text(c.name.uppercase()) })
+                        }
+                    }
+                } else {
+                    Text(s.limits.currencyFixed(currency.name.uppercase()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(LimitPeriod.Week to s.limits.weekly, LimitPeriod.Month to s.limits.monthly, LimitPeriod.Year to s.limits.yearly)
+                        .forEach { (p, label) -> FilterChip(selected = period == p, onClick = { period = p }, label = { Text(label) }) }
+                }
+                Text(s.limits.alertNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (existing != null) {
+                    TextButton(onClick = onRemove) { Text(s.limits.remove, color = MaterialTheme.colorScheme.error) }
+                }
+            }
         },
         confirmButton = {
-            TextButton(
-                onClick = { value.replace(",", ".").toDoubleOrNull()?.let(onSet) },
-                enabled = (value.replace(",", ".").toDoubleOrNull() ?: 0.0) > 0.0,
-            ) { Text(s.save) }
+            TextButton(onClick = { value?.let { onSet(it, currency, period) } }, enabled = (value ?: 0.0) > 0.0) { Text(s.save) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(s.cancel) } },
     )

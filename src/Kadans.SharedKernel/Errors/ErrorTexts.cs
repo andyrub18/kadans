@@ -224,6 +224,7 @@ public static class ErrorTexts
         ["Account name is required."] = new("Le nom du compte est obligatoire.", "Non kont lan obligatwa."),
         ["Category name is required."] = new("Le nom de la catégorie est obligatoire.", "Non kategori a obligatwa."),
         ["Provide a real year and month."] = new("Indiquez une année et un mois valides.", "Mete yon ane ak yon mwa ki valab."),
+        ["A limit keeps its currency: remove it to set one in another currency."] = new("Une limite garde sa devise : supprimez-la pour en fixer une dans une autre devise.", "Yon limit kenbe lajan li: efase l pou mete youn nan yon lòt lajan."),
         ["A movement's note is at most 1,000 characters."] = new("La note d'un mouvement compte au plus 1 000 caractères.", "Nòt yon mouvman pa ka depase 1 000 karaktè."),
         ["A recurring transaction can repeat at most once a day."] = new("Un mouvement récurrent peut se répéter au plus une fois par jour.", "Yon mouvman ki repete ka fèt yon fwa pa jou pou pi plis."),
         ["A recurring transaction can start at most a year ago."] = new("Un mouvement récurrent peut commencer il y a un an au plus.", "Yon mouvman ki repete ka kòmanse yon ane pase pou pi plis."),

@@ -36,6 +36,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun NotificationsScreen(
     onOpenTodo: (String) -> Unit,
+    onOpenLink: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: NotificationsViewModel = koinViewModel(),
 ) {
@@ -86,7 +87,10 @@ fun NotificationsScreen(
                                 notification = notification,
                                 onClick = {
                                     viewModel.markRead(notification.id)
-                                    notification.data?.get("todoId")?.takeIf { it.isNotBlank() }?.let(onOpenTodo)
+                                    val data = notification.data.orEmpty()
+                                    // A todo's notification opens it; one carrying a link (a limit's alert) opens that.
+                                    data["todoId"]?.takeIf { it.isNotBlank() }?.let(onOpenTodo)
+                                        ?: data["link"]?.takeIf { it.isNotBlank() }?.let(onOpenLink)
                                 },
                             )
                         }

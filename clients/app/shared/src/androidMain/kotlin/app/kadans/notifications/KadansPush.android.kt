@@ -75,16 +75,29 @@ class KadansMessagingService : FirebaseMessagingService() {
             val builder =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) android.app.Notification.Builder(this, KadansPushChannel.ID)
                 else @Suppress("DEPRECATION") android.app.Notification.Builder(this)
-            val notification = builder
+            builder
                 .setContentTitle(title)
                 .setContentText(body)
+                .setStyle(android.app.Notification.BigTextStyle().bigText(body))
                 .setSmallIcon(R.drawable.ic_stat_kadans)
                 .setColor(KadansMark.PURPLE_ARGB)
                 .setAutoCancel(true)
-                .build()
+            // A push with a link (a limit's alert opens the budget) opens it, as the system does for one it shows.
+            message.data["link"]?.takeIf { it.startsWith("kadans://") }?.let { builder.setContentIntent(openLink(it)) }
+            val notification = builder.build()
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.notify(title.hashCode(), notification)
         }
+    }
+
+    private fun openLink(link: String): android.app.PendingIntent {
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(link))
+            .setComponent(packageManager.getLaunchIntentForPackage(packageName)?.component)
+            .setPackage(packageName)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        return android.app.PendingIntent.getActivity(
+            this, link.hashCode(), intent, android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+        )
     }
 
     private companion object {

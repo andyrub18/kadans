@@ -381,6 +381,10 @@ installing on real devices second, hosting last.
       named one does not open (a running IBus or Fcitx is kept), before AWT starts; the packaged app allows the native
       calls (`--enable-native-access`). Checked: the app's tests (the choice; on a desktop, Xlib's own opens and a server
       nobody runs does not), the packaged `.deb`'s code switching with the owner's settings. Typing in the app: the owner.
+      Before the stores (the owner's question: other platforms, other keyboards): Windows and macOS never run it; other
+      layouts' dead keys and the Compose key go through the same built-in input method. One gap closed: at sign-in Kadans
+      can start before IBus or Fcitx, and would have done without them until it quit (someone typing Chinese through
+      IBus); a start at sign-in now waits for the session's input method up to 15 s first.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French

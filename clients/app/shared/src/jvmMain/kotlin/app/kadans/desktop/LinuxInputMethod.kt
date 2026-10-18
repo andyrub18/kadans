@@ -7,6 +7,9 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_INT
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Accents on Linux. Java combines a keyboard's dead keys (AltGr+` then e: è, AltGr+6 then e: ê) through the X input
@@ -16,30 +19,46 @@ import java.lang.foreign.ValueLayout.JAVA_INT
  *
  * Kadans then runs with Xlib's own input method (`@im=none`: the locale's Compose table), which combines them. A running
  * IBus or Fcitx is kept (it may do more, like other scripts). It must happen before anything of AWT starts: Xlib takes the
- * modifiers once, when AWT opens its input method.
+ * modifiers once, when AWT opens its input method, and Kadans keeps that choice until it quits. So at sign-in, where
+ * Kadans may start before the session's input method, it waits for it a while ([AT_LOGIN]) before doing without.
  */
 object LinuxInputMethod {
     /** Xlib's own input method. */
     const val BUILT_IN = "@im=none"
 
+    /** How long a start at sign-in waits for the session's input method: its window is hidden then, so nobody waits. */
+    val AT_LOGIN: Duration = 15.seconds
+
+    private val RETRY_EVERY: Duration = 500.milliseconds
+
     /**
      * First thing in main: the input method the session names, or Xlib's own when that one is not running. Says what it
      * changed (for the log); null when it changed nothing. Never fails a start.
      */
-    fun ensure(environment: Map<String, String> = System.getenv()): String? {
+    fun ensure(environment: Map<String, String> = System.getenv(), patience: Duration = Duration.ZERO): String? {
         if ("linux" !in System.getProperty("os.name").lowercase() || environment["DISPLAY"].isNullOrBlank()) return null
         val named = environment["XMODIFIERS"] ?: return null
         return runCatching {
-            val chosen = choose(named, ::opens) ?: return null
+            val attempts = 1 + (patience / RETRY_EVERY).toInt()
+            val chosen = choose(named, ::opens, attempts) { Thread.sleep(RETRY_EVERY.inWholeMilliseconds) } ?: return null
             setenv("XMODIFIERS", chosen)
             setLocaleModifiers(chosen)
             "The input method $named is not running: Kadans uses the built-in one, so accents typed with dead keys work."
         }.getOrNull()
     }
 
-    /** What to run with instead of [named], or null to keep it: Xlib's own when it names a server that does not open. */
-    internal fun choose(named: String, opens: (String) -> Boolean): String? =
-        if (namesServer(named) && !opens(named)) BUILT_IN else null
+    /**
+     * What to run with instead of [named], or null to keep it: Xlib's own when it names a server that does not open in
+     * [attempts] tries, [pause] between them.
+     */
+    internal fun choose(named: String, opens: (String) -> Boolean, attempts: Int = 1, pause: () -> Unit = {}): String? {
+        if (!namesServer(named)) return null
+        repeat(attempts) { attempt ->
+            if (opens(named)) return null
+            if (attempt < attempts - 1) pause()
+        }
+        return BUILT_IN
+    }
 
     /** "@im=ibus" names a server to connect to; "@im=none", "@im=local", "@im=" or nothing is Xlib's own. */
     internal fun namesServer(modifiers: String): Boolean {

@@ -36,6 +36,8 @@ import java.awt.image.BufferedImage
 import kotlinx.coroutines.channels.Channel
 
 fun main(args: Array<String> = emptyArray()) {
+    // Before anything of AWT: accents typed with dead keys need an input method that runs (LinuxInputMethod).
+    LinuxInputMethod.ensure()?.let(::println)
     // The session opening Kadans at sign-in (StartAtLogin): no window, the tray only.
     val background = StartAtLogin.BACKGROUND in args
     // What the tray, a second start and the Dock ask of the window, from their own threads.

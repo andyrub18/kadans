@@ -16,6 +16,8 @@ compose.desktop {
     application {
         // Named so the window's X11 class matches the installed launcher (kadans/Kadans.kt).
         mainClass = "kadans.Kadans"
+        // Kadans calls libX11 and libc at startup (LinuxInputMethod), as skiko loads its own library: allowed, not warned.
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

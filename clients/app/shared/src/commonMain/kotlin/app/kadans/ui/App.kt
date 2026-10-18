@@ -252,6 +252,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                 is NotificationsRoute -> NavEntry(key) {
                     NotificationsScreen(
                         onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
+                        onOpenLink = { link -> parseDeepLink(link)?.let { backStack.add(it) } },
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }

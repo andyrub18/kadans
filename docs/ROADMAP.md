@@ -356,6 +356,23 @@ installing on real devices second, hosting last.
       months of 28 to 31 days against RFC 5545's rules; the last Friday of March and June), `budget_flows.py` (the job
       books the 15ths and 30ths gone by; the last-Friday rule's next date) on a test instance with its own database;
       the movement and todo forms and the budget rendered offscreen at 360 dp.
+- [x] Category limits with periods and alerts, 2026-10-17 (the owner: "how does it compute, since it's multicurrency?" It
+      did not: a limit had one currency, spending in another was left out, and setting a limit from a dollar row
+      silently replaced the gourde one). The owner chose: one limit per category, in a currency fixed when set (another
+      means removing it), by the week (from Monday), the month or the year (from 1 January); spending in other
+      currencies at the person's rates, an estimate, a currency without a rate left out and said; an alert at 80%
+      (fixed) and at 100%, the percent shown. Server: `CategoryBudget` gets `Period` and the alerts sent
+      (migration `CategoryLimitPeriods`: `monthly_limit` renamed `amount`, existing limits monthly);
+      `CategoryLimitAlerts` after each expense (recorded, edited, booked by a rule), once per level per period;
+      `/budget/summary` gives `limits` in the period the month shows. App: the Categories section lists every expense
+      category (a limit can be set before anything is spent), each limited one with its bar (amber from 80%, red at
+      100%), percent and period, what was priced and what was left out; tapping one opens its limit (amount, currency
+      on creation, period, remove). The alert opens the budget from the notification list, a push (shown by the app or
+      the system) and the desktop's notification list. Checked: the server's tests (periods in Port-au-Prince across a
+      DST change, conversion both ways through the base, whole percents, alerts once per level and period, afresh after
+      a change, the wording in English and French), the app's, `budget_flows.py` (a weekly HTG limit reached with
+      dollars at the rate, the 80% and 100% alerts once each, euros without a rate left out, the currency kept, a
+      changed limit alerting afresh); the screen and both dialogs rendered offscreen at 360 dp.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French
@@ -374,6 +391,7 @@ installing on real devices second, hosting last.
       - Notes on occurrences (above): writing one with the phone's keyboard, and the dialog over it.
       - The budget corrected (above): a movement opened from the list, the rule dialog over the keyboard.
       - Money repeats as todos do (above): the month's grid in the movement form on a narrow phone.
+      - Category limits (above): a limit alert as a push, app open and closed, and its tap opening the budget.
 
 3. Hosting – code side done, the rest is the owner's (docs/DEPLOYMENT.md)
 

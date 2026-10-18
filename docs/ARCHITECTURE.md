@@ -600,8 +600,8 @@ panel), so CI needs no desktop.
   day the rule falls on from it; a rule falling on no day within its ten years is not sent. One choice is rewritten:
   "the second Sunday" in several months is a MONTHLY rule kept to those months, because a YEARLY BYSETPOS counts
   across all the year's Sundays; it can only repeat every year (the contract takes no ordinal BYDAY such as `2SU`).
-  The app only looks for that first day; the server expands everything. Budget rules take days of the week and of
-  the month only (`BudgetRecurrence`); the budget form keeps within the same limits (`RuleLimits`: 5,000 times, ten
+  The app only looks for that first day; the server expands everything. Budget rules take the same day parts
+  (`BudgetRecurrence`, without times of day); the budget form keeps within the same limits (`RuleLimits`: 5,000 times, ten
   years) and the budget's own (a repeating movement starts at most a year ago; amounts keep two decimals, under a
   trillion).
 - **Materialized occurrences with a rolling horizon**: a scheduled job guarantees every active
@@ -695,7 +695,7 @@ panel), so CI needs no desktop.
 
 ### Budget (Phase 7, implemented)
 
-Accounts (computed balances), income/expense categories with monthly limits, transactions incl.
+Accounts (computed balances), income/expense categories with spending limits, transactions incl.
 transfers, recurring rules, `/budget/summary` per month in the user's time zone. `Money` is a value
 object inside the module: currencies never mix implicitly (HTG, USD, EUR, CAD, DOP, MXN). A
 cross-currency transfer carries the received amount – that pair *is* the rate for that date.
@@ -720,6 +720,16 @@ A rule is an income, an expense or a transfer ("100 USD to savings every month")
 currencies it books the same pair each time, and the person corrects a booked movement when the
 day's rate differed (stored amounts never follow indicative rates). Changing a rule changes what its
 next bookings carry (amount, received amount, category, note), never its accounts or dates.
+- A category's limit (`CategoryBudget`, `PUT /budget/categories/{id}/budget`): one per expense category, by the
+  week (from Monday), the month or the year, in the person's time zone. Its currency is fixed when it is set (another
+  means removing it), so nothing stored is ever converted; spending in other currencies counts at the person's
+  indicative rates through the base currency (`RateBook`), and a currency without a rate is left out and said. The
+  summary gives each limit in the period the month on screen covers (that month, the year through it, or this week)
+  with its whole percent. `CategoryLimitAlerts` checks after every expense that adds to a limited category, recorded,
+  edited or booked by a recurring rule, never on a change of rates alone: at 80% (fixed) and at 100%, once each per
+  period (`AlertedPeriodStart`, `AlertedLevel`; a new amount or period starts afresh). The alert ("budget.limit") is an
+  ordinary notification: the notification centre, the hub (a desktop system notification), a push; it carries
+  `link: kadans://budget`, which a tap opens wherever it is shown.
 - Correcting a movement (`PUT /budget/transactions/{id}`): amounts, day, category, note, and the
   account(s) it touches – the currency follows the account – but never its kind (delete it and record
   it again). It may stay on an archived account (fixing an old one) but never move onto one; one a rule

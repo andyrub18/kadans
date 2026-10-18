@@ -402,6 +402,37 @@ data class MovementStrings(
     fun next(date: String): String = nextFormat.replace("%s", date)
 }
 
+/** A category's spending limit: its dialog, its bar on the budget screen. A feature group. */
+data class LimitStrings(
+    val set: String,
+    val remove: String,
+    /** The period chips: how often the limit starts again. */
+    val weekly: String,
+    val monthly: String,
+    val yearly: String,
+    /** Under a category's bar: which limit it is ("Monthly limit"); a yearly one counts the year up to the month shown. */
+    val weeklyLimit: String,
+    val monthlyLimit: String,
+    val yearlyLimit: String,
+    /** "82%": the language's own spacing. */
+    val percentFormat: String,
+    /** A limit keeps its currency: %s is it. */
+    val currencyFixedFormat: String,
+    val alertNote: String,
+    /** %s: the currencies priced at the person's rates ("USD, EUR"). */
+    val convertedFormat: String,
+    /** %s: the currencies spent with no rate set. */
+    val missingFormat: String,
+) {
+    fun percent(value: Int): String = percentFormat.replace("%d", "$value")
+
+    fun currencyFixed(currency: String): String = currencyFixedFormat.replace("%s", currency)
+
+    fun converted(currencies: String): String = convertedFormat.replace("%s", currencies)
+
+    fun missing(currencies: String): String = missingFormat.replace("%s", currencies)
+}
+
 data class StringsCatalog(
     // auth
     val signInTitle: String,
@@ -419,6 +450,7 @@ data class StringsCatalog(
     val reminders: ReminderStrings,
     val notes: NoteStrings,
     val movements: MovementStrings,
+    val limits: LimitStrings,
     val notifications: NotificationStrings,
     val desktop: DesktopStrings,
     val continueWithGoogle: String,
@@ -603,7 +635,6 @@ data class StringsCatalog(
     val newCategory: String,
     val categoryName: String,
     val iconOptional: String,
-    val limitLabel: String,
     val recurringSection: String,
     val repeatLabel: String,
     val editAccount: String,

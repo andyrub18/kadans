@@ -158,6 +158,19 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<int>("AlertedLevel")
+                        .HasColumnType("integer")
+                        .HasColumnName("alerted_level");
+
+                    b.Property<DateTimeOffset?>("AlertedPeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("alerted_period_start");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(16, 2)
+                        .HasColumnType("numeric(16,2)")
+                        .HasColumnName("amount");
+
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid")
                         .HasColumnName("category_id");
@@ -168,10 +181,11 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("currency");
 
-                    b.Property<decimal>("MonthlyLimit")
-                        .HasPrecision(16, 2)
-                        .HasColumnType("numeric(16,2)")
-                        .HasColumnName("monthly_limit");
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("period");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

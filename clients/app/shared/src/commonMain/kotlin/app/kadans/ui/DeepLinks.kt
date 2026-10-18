@@ -34,6 +34,8 @@ fun parseDeepLink(link: String?): Any? {
                 else -> null
             }
         }
+        // A category limit's alert: the budget.
+        "budget" -> if (path.isEmpty()) BudgetRoute else null
         else -> null
     }
 }
@@ -44,8 +46,12 @@ fun todoLink(todoId: String): String = "kadans://todos/$todoId"
 /** What a focus session started from a reminder opens: the session (it shows the one running). */
 fun focusLink(todoId: String): String = "kadans://todos/$todoId/focus"
 
-/** Whether [route] may open now: a todo or its session needs a session, a password reset does not. */
-fun opensWith(route: Any, signedIn: Boolean): Boolean = (route !is TodoDetailRoute && route !is PomodoroRoute) || signedIn
+/** What a category limit's alert opens: the budget. */
+const val BUDGET_LINK = "kadans://budget"
+
+/** Whether [route] may open now: a todo, its session or the budget needs a session, a password reset does not. */
+fun opensWith(route: Any, signedIn: Boolean): Boolean =
+    (route !is TodoDetailRoute && route !is PomodoroRoute && route !is BudgetRoute) || signedIn
 
 /**
  * Links that reach the app while it runs (Android: a reminder tapped with the app open). Kept until the navigation

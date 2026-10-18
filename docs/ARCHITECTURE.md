@@ -560,6 +560,14 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   macOS: with the Mac build. The first run of an installed app turns it on (Settings → This computer turns it off);
   later runs rewrite an entry still there, for the app may have moved, and never bring back one the person removed.
   Phones need none of it: Android puts the next reminder's alarm back after a reboot itself.
+- Accents (Linux): Java combines a dead key with its letter (AltGr+` then e: è) only through the X input method the
+  session names in XMODIFIERS. Pop!_OS and Ubuntu name IBus (`@im=ibus`), which COSMIC does not start: Java then has no
+  input method at all, and no è, ê or à can be typed (GTK and Qt combine them by themselves, so only Java apps show it).
+  First thing in `main`, `LinuxInputMethod` asks Xlib whether the named input method opens and, when it does not, runs
+  Kadans with Xlib's own (`@im=none`, the locale's Compose table) by setting XMODIFIERS through libc before AWT reads it
+  (`XToolkit.init` calls `XSetLocaleModifiers("")`). A running IBus or Fcitx is kept. The calls go through Java's
+  foreign-function API, so the packaged app runs with `--enable-native-access=ALL-UNNAMED`. Windows and macOS combine
+  dead keys in the system; phones' keyboards do it themselves.
 
 Checked on COSMIC (Pop!_OS 24.04), from Gradle and from the packaged runtime: the icon in the panel, close hides, the
 icon's click and the menu bring the window back, Quit ends the app and removes the icon, and a second start shows the

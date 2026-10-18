@@ -373,6 +373,14 @@ installing on real devices second, hosting last.
       a change, the wording in English and French), the app's, `budget_flows.py` (a weekly HTG limit reached with
       dollars at the rate, the 80% and 100% alerts once each, euros without a rate left out, the currency kept, a
       changed limit alerting afresh); the screen and both dialogs rendered offscreen at 360 dp.
+- [x] Accents on the Linux desktop, 2026-10-18 (the owner, after deploying: "I can't type characters with accents";
+      French and Kreyòl need è, à, ê, ò). Their keyboard is US International (AltGr): è and ê come from dead keys, which
+      Java combines only through the X input method XMODIFIERS names, `@im=ibus`, and COSMIC does not start IBus. Shown
+      on their X display with a probe: with `@im=ibus` no input method opens; with Xlib's own, AltGr+6 then e gives ê,
+      AltGr+` then e gives è, AltGr+e gives é. `LinuxInputMethod` now runs Kadans with Xlib's own input method when the
+      named one does not open (a running IBus or Fcitx is kept), before AWT starts; the packaged app allows the native
+      calls (`--enable-native-access`). Checked: the app's tests (the choice; on a desktop, Xlib's own opens and a server
+      nobody runs does not), the packaged `.deb`'s code switching with the owner's settings. Typing in the app: the owner.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French

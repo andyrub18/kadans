@@ -167,7 +167,9 @@ reminder's buttons ("Start focus" or "Done", "In 10 min") are `reminders/Reminde
 `ReminderActionReceiver` and the Linux desktop's D-Bus notifications (`notifications/FreedesktopNotifications`). The desktop app closes to the tray (Linux: a freedesktop
 StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; elsewhere AWT's tray), runs once: a second start, a
 `./gradlew :desktopApp:run` too, shows the running one's window and exits (`desktop/SingleInstance`; quit it from the tray
-first), and an installed build opens with the session (`startup/StartAtLogin`, `--background`; a Gradle run never does). ARCHITECTURE → "The desktop app: in the tray, once". With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
+first), and an installed build opens with the session (`startup/StartAtLogin`, `--background`; a Gradle run never does).
+On Linux it types accents with dead keys through Xlib's own input method when the session's (IBus) is not running
+(`desktop/LinuxInputMethod`, before AWT starts). ARCHITECTURE → "The desktop app: in the tray, once". With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
 :shared:jvmTest` also runs the live checks against it (the hub, the desktop's reminders; ~2 min, as `smoke`). The app talks to `http://localhost:5199`
 (desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. `local.properties`
 (untracked) points at the

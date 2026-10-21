@@ -565,7 +565,9 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   input method at all, and no è, ê or à can be typed (GTK and Qt combine them by themselves, so only Java apps show it).
   First thing in `main`, `LinuxInputMethod` asks Xlib whether the named input method opens and, when it does not, runs
   Kadans with Xlib's own (`@im=none`, the locale's Compose table) by setting XMODIFIERS through libc before AWT reads it
-  (`XToolkit.init` calls `XSetLocaleModifiers("")`). A running IBus or Fcitx is kept. The calls go through Java's
+  (`XToolkit.init` calls `XSetLocaleModifiers("")`). A running IBus or Fcitx is kept. The choice lasts until Kadans quits,
+  so a start at sign-in, which may come before the session's input method, waits for it up to 15 s (its window is
+  hidden then) before doing without: someone typing Chinese through IBus keeps it. The calls go through Java's
   foreign-function API, so the packaged app runs with `--enable-native-access=ALL-UNNAMED`. Windows and macOS combine
   dead keys in the system; phones' keyboards do it themselves.
 

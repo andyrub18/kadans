@@ -185,8 +185,8 @@ installing on real devices second, hosting last.
       (anonymous, ids only) tells the clients what is configured; the button exists only when it can work
       and re-asks when the server address changes. iOS deferred with the rest of iOS. New
       `tests/Kadans.Identity.Tests` (first Identity unit tests). Code-complete and tested against fakes and
-      Google's real refusal of a junk code; the real end-to-end run waits for the owner's OAuth clients
-      (OWNER-CHECKLIST → Google Sign-In).
+      Google's real refusal of a junk code. The owner's OAuth clients exist (Web and Android done 2026-10-21,
+      OWNER-CHECKLIST → Google Sign-In); the real end-to-end run on Android is the phone test.
 - [x] Pomodoro notifications arrived a few seconds late – fixed server-side, measured by the smoke script:
       phase change visible 59 ms after the deadline, notification created 26 ms after it (before: up to 5 s).
       (1) `PomodoroDeadlineWatcher` (a hosted service) replaced the 5 s Quartz poll: it sleeps until the exact
@@ -435,8 +435,9 @@ installing on real devices second, hosting last.
       from `Jwt:Key`; Npgsql's Kerberos probe logged a scary `libgssapi_krb5` line – `GSS Encryption
       Mode=Disable` in the compose connection string. Rehearsed on a local copy of the server setup: a
       confirmation link sent before a container rebuild still works after it.
-- [ ] Owner: `api` record DNS only, `deploy/.env` on the server, first start – see OWNER-CHECKLIST →
-      Domain and hosting.
+- [x] Owner: `api` record DNS only, `deploy/.env` on the server, first start – see OWNER-CHECKLIST →
+      Domain and hosting. Live at `https://api.kadansplanning.com`; next, the phone test against it
+      (OWNER-CHECKLIST → Testing on a real Android phone).
 - [ ] After the first deploy: `android:usesCleartextTraffic="false"` for release builds (dev needs http),
       and https App Links / Universal Links for the emailed pages now that there is a domain.
 

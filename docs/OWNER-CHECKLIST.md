@@ -29,20 +29,28 @@ their platform needs – so nothing to rebuild or configure in the apps.
       project is a Google Cloud project). The earlier standalone project `kadans-507716` was deleted
       on purpose; the Desktop OAuth client registered from it as `ExternalAuth:Google:ClientIds:0`
       died with it.
-- [ ] In `kadans-420a7`: APIs & Services → OAuth consent screen: **Testing** mode, your Google account
-      as test user — no domain, homepage or privacy links required.
+- [x] In `kadans-420a7`: APIs & Services → OAuth consent screen: **Testing** mode, your Google account
+      as test user — no domain, homepage or privacy links required. (Done: Google asks for it before it
+      creates any client, and the clients below exist.)
 - [x] (2026-09-18, dev) Credentials → **Desktop app** OAuth client → the JVM app's loopback sign-in.
       Verified: `/auth/providers` publishes the id and Google answers a fake code with `invalid_grant`
       (it would say `invalid_client` for a wrong id/secret pair). Left to do: sign in once for real. The app only gets
       the id; the API does the code exchange, so the secret stays on the server:
       `ExternalAuth:Google:Desktop:ClientId` and `ExternalAuth:Google:Desktop:ClientSecret`
-- [ ] Credentials → **Web application** OAuth client (no redirect URIs needed) → Android's Credential
-      Manager uses it as `serverClientId`, and Android ID tokens carry it as audience:
-      `ExternalAuth:Google:WebClientId`
-- [ ] Credentials → **Android** OAuth client: package `app.kadans` + the SHA-1 of your debug keystore
+- [x] (2026-10-21) Credentials → **Web application** OAuth client (no redirect URIs needed) → Android's
+      Credential Manager uses it as `serverClientId`, and Android ID tokens carry it as audience:
+      `ExternalAuth:Google:WebClientId`. Verified: production's `/auth/providers` publishes it, and Google
+      knows it in `kadans-420a7` (its token endpoint asks for this client's secret, where an unknown id gets
+      "The OAuth client was not found").
+- [x] (2026-10-21) Credentials → **Android** OAuth client: package `app.kadans` + the SHA-1 of your debug
+      keystore, `AE:D8:20:4D:3E:AC:5D:75:43:8F:E5:F2:C0:E8:DA:E3:0C:80:18:D6`
       (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`),
       later a second one with the release keystore's SHA-1. Its id goes nowhere in our config – it only
-      has to exist in the same project, it is how Google recognises the app. You do **not** need release
+      has to exist in the same project, it is how Google recognises the app. Nothing outside Google Cloud
+      shows it (`google-services.json` lists no sign-in client, and the app does not need it to), so the
+      first **Continue with Google** on the phone is its check: when the package or the SHA-1 does not
+      match, Google opens no account list and the app shows its error ("Developer console is not set up
+      correctly"). You do **not** need release
       signing first: the debug keystore exists as soon as Android Studio or Gradle has built once, and
       debug builds are what you test with. When the app goes through Google Play, add a third Android
       client with the *Play App Signing* SHA-1 from the Play Console – Play re-signs the app, so the
@@ -63,7 +71,8 @@ dotnet user-secrets remove "ExternalAuth:Google:ClientIds:0" --project src/Kadan
       domain plus homepage/privacy-policy URLs (verification needs them). Testing mode's 7-day limit
       applies to Google refresh tokens, which Kadans never uses — sign-in consumes fresh ID tokens only.
 - To test: desktop → **Continue with Google** opens the browser and the app signs in when you come back;
-      Android emulator needs a Google account added in its settings (and a Play Store system image).
+      Android: a phone with your Google account (Testing on a real Android phone, below); an emulator needs
+      a Google account added in its settings (and a Play Store system image).
 
 ## Sign in with Apple
 
@@ -77,34 +86,48 @@ dotnet user-secrets remove "ExternalAuth:Google:ClientIds:0" --project src/Kadan
 - [x] Firebase project `kadans-420a7`; Android app registered (package `app.kadans`).
       Its `google-services.json` lives at `clients/app/androidApp/google-services.json`
       (gitignored — the Android build works without it, push just stays off)
-- [ ] Project settings → Service accounts → generate a private key (JSON) →
+- [x] Project settings → Service accounts → generate a private key (JSON) →
       `Push:Firebase:CredentialsJson` (the whole JSON as one secret value) **or** a file path in
-      `Push:Firebase:CredentialsFile`
-- [ ] `Push:Provider` = `Fcm` (dev defaults to `Log`)
+      `Push:Firebase:CredentialsFile`. Done: `~/.kadans/firebase-admin.json` in dev, the same key at
+      `deploy/secrets/firebase-admin.json` on the server (Domain and hosting).
+- [x] `Push:Provider` = `Fcm` (dev defaults to `Log`): in dev user-secrets; production's default
+      (`PUSH_PROVIDER` in `deploy/.env`).
 - [ ] iOS (deferred — needs a Mac + paid Apple Developer account): register the iOS app
       (bundle `app.kadans`), add `GoogleService-Info.plist`, and upload the APNs key (.p8)
       in Firebase → Cloud Messaging so FCM can reach iPhones
 - Desktop clients do not use push: they hold the SignalR connection (`/hubs/kadans`).
 
-## Testing push on a real Android phone
+## Testing on a real Android phone
 
-The server side is done and verified (service-account key at `~/.kadans/firebase-admin.json`,
-`Push:Provider=Fcm` in dev user-secrets). To feel it on a phone:
+Against the server: nothing runs on your computer, and the phone works on any network.
 
-1. Phone and computer on the same Wi-Fi. Find the computer's LAN IP: `ip addr` (e.g. `192.168.1.10`).
-2. Start the API listening on all interfaces so the phone can reach it:
-   `ASPNETCORE_URLS=http://0.0.0.0:5199 dotnet run --project src/Kadans.Api`
-3. Build and install the app: `cd clients/app && ./gradlew :androidApp:assembleDebug`,
-   then copy `androidApp/build/outputs/apk/debug/androidApp-debug.apk` to the phone and open it
-   (allow "install unknown apps"), or `adb install` it with USB debugging on.
-4. In the app, on the **Login screen tap the small ⚙ server line** and enter
-   `http://<your-LAN-IP>:5199` — it applies immediately, no restart.
-5. Sign in, allow notifications when prompted (Android 13+). Signing in registers the phone's
-   FCM token automatically (Settings-era device list shows it as e.g. "Google Pixel").
-6. Start a hands-free session with 1-minute phases and lock the phone: each phase change should
-   arrive as a real notification, even with the app closed — the server does the counting.
+1. The server runs the code to test: when `main` has server changes since the last deploy, update it first
+   (DEPLOYMENT → Updating).
+2. Build the app for the server and install it, the phone on USB with "USB debugging" on (Settings →
+   Developer options):
 
-If nothing arrives: check the API log for `FCM: 1 sent` lines, and that the phone kept Wi-Fi on.
+   ```bash
+   cd clients/app && ./gradlew :androidApp:assembleDebug -Pkadans.apiBaseUrl=https://api.kadansplanning.com
+   ~/Android/Sdk/platform-tools/adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+   ```
+
+   Or copy the APK to the phone and open it (allow "install unknown apps"). A debug build, because it is
+   signed with the debug key the Android OAuth client names; a release build needs the upload key
+   (DEPLOYMENT → Building the apps).
+3. Leave the **Login screen's ⚙ server line** empty: an address typed there wins over the one built in.
+4. Sign in (password, or **Continue with Google**: the Android OAuth client's check), allow notifications
+   (Android 13+) and "Alarms & reminders". Signing in registers the phone's FCM token (Settings → devices
+   shows it as e.g. "Google Pixel").
+5. Start a hands-free session with 1-minute phases and lock the phone: each phase change should arrive as a
+   real notification, even with the app closed — the server does the counting.
+
+What you create lands in the production database, under your account. If nothing arrives: on the server,
+`cd kadans/deploy && docker compose logs api | grep FCM` shows a `FCM: 1 sent` line per push.
+
+To try a server change before it is deployed: phone and computer on the same Wi-Fi, the API listening on all
+interfaces (`ASPNETCORE_URLS=http://0.0.0.0:5199 dotnet run --project src/Kadans.Api`), a plain
+`./gradlew :androidApp:assembleDebug`, and `http://<the computer's LAN IP>:5199` (`ip addr`) in the ⚙ server
+line – it applies immediately, no restart.
 
 ## Domain and hosting
 
@@ -115,14 +138,16 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [x] Resend → Domains → `kadansplanning.com` verified. Still to do: a production API key as
       `RESEND_API_KEY` in `deploy/.env` (`EMAIL_FROM` is already filled in).
 - [x] A server, with DNS `api` → its address.
-- [ ] Cloudflare → DNS: the `api` record must be **DNS only** (grey cloud), not proxied – otherwise certbot
-      cannot get the certificate (DEPLOYMENT.md → DNS on Cloudflare).
-- [ ] On the server: `deploy/.env` – it is not in the repository; step 2 of DEPLOYMENT.md → First
+- [x] Cloudflare → DNS: the `api` record must be **DNS only** (grey cloud), not proxied – otherwise certbot
+      cannot get the certificate (DEPLOYMENT.md → DNS on Cloudflare). Verified 2026-10-21: the name resolves
+      to the server itself (148.113.254.227, not Cloudflare) and serves a Let's Encrypt certificate.
+- [x] On the server: `deploy/.env` – it is not in the repository; step 2 of DEPLOYMENT.md → First
       deployment creates it from `.env.example` with generated `POSTGRES_PASSWORD` and `JWT_KEY` – then
       `RESEND_API_KEY` and `GOOGLE_DESKTOP_CLIENT_SECRET` in it, `deploy/secrets/firebase-admin.json` (the
       same service-account key as `~/.kadans/firebase-admin.json`, copied there before the first start,
       readable by the container: `sudo chown "$USER":1654 … && chmod 640 …`), then
-      `docker compose up -d --build`.
+      `docker compose up -d --build`. Verified 2026-10-21 from outside: `/health/ready` answers Healthy, and
+      `/auth/providers` publishes the Google Desktop id, which the server does only with its secret set too.
 - [ ] First start with `INITIAL_ADMIN_ENABLED=true`, sign in, enable two-factor, set it back to `false`.
 - [ ] Google Cloud → OAuth consent screen: add `<domain>` as an authorized domain when you leave Testing
       mode. No redirect URIs are needed for any of the three clients.

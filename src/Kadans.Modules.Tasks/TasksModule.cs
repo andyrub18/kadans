@@ -6,6 +6,7 @@ using Kadans.Modules.Tasks.Features.Reminders;
 using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
+using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +24,7 @@ public sealed class TasksModule : IModule
     {
         var connectionString = KadansDatabase.ConnectionString(configuration);
         // Pooled; each request's instance sees its caller's rows (UserScopedDbContext), and reports the reminders it
-        // changes to the apps (ReminderSignals).
+        // changes to the apps (ReminderSignals), and what their screens show (ILiveChanges).
         services.AddSingleton<ReminderSignals>();
         services.AddHostedService<ReminderSignaller>();
         services.AddUserScopedDbContextPool<TasksDbContext>(
@@ -32,7 +33,11 @@ public sealed class TasksModule : IModule
                     connectionString,
                     npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", TasksDbContext.Schema)
                 ),
-            (provider, context) => context.Signals = provider.GetRequiredService<ReminderSignals>()
+            (provider, context) =>
+            {
+                context.Signals = provider.GetRequiredService<ReminderSignals>();
+                context.Live = provider.GetRequiredService<ILiveChanges>();
+            }
         );
         services.AddScoped<ReminderWindows>();
         services.TryAddSingleton(TimeProvider.System);

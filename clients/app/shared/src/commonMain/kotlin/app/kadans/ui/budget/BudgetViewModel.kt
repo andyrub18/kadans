@@ -19,6 +19,9 @@ import app.kadans.api.model.LimitPeriod
 import app.kadans.api.model.SetCategoryLimit
 import app.kadans.api.model.UpdateAccount
 import app.kadans.api.model.UpdateRecurringTransaction
+import app.kadans.sync.DataArea
+import app.kadans.sync.DataChanges
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +56,7 @@ data class BudgetUiState(
     val actionErrorCode: String? = null,
 )
 
-class BudgetViewModel(private val api: KadansApi) : ViewModel() {
+class BudgetViewModel(private val api: KadansApi, private val dataChanges: DataChanges) : ViewModel() {
     private val _state: MutableStateFlow<BudgetUiState>
     val state: StateFlow<BudgetUiState>
 
@@ -62,6 +65,8 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
         _state = MutableStateFlow(BudgetUiState(year = today.year, month = today.month.number))
         state = _state.asStateFlow()
         refresh()
+        // Recorded or changed elsewhere (another device, a recurring rule), or back in front: shown as it is now.
+        viewModelScope.launch { dataChanges.of(DataArea.Budget).collect { load(quiet = true) } }
     }
 
     fun previousMonth() = move(-1)
@@ -162,7 +167,8 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
         }
     }
 
-    private suspend fun load() {
+    /** [quiet]: nobody asked; a failure (offline) keeps what is shown. */
+    private suspend fun load(quiet: Boolean = false) {
         val snapshot = _state.value
         try {
             val summary = api.budget.summary(snapshot.year, snapshot.month)
@@ -175,15 +181,19 @@ class BudgetViewModel(private val api: KadansApi) : ViewModel() {
             }.distinctBy { it.id }
             val recurring = runCatching { api.budget.recurring() }.getOrElse { emptyList() }
             val settings = runCatching { api.budget.settings() }.getOrNull()
+            // Moved to another month meanwhile: that month's own load shows it.
+            if (_state.value.year != snapshot.year || _state.value.month != snapshot.month) return
             _state.value = _state.value.copy(
                 summary = summary, categories = categories, accounts = accounts, recent = recent,
                 recentHasMore = recent.size >= snapshot.recentPage * PAGE_SIZE,
                 recurring = recurring, settings = settings, isLoading = false,
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: KadansApiException) {
-            _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
+            if (!quiet) _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
         } catch (e: Exception) {
-            _state.value = _state.value.copy(isLoading = false, error = null, errorCode = "network")
+            if (!quiet) _state.value = _state.value.copy(isLoading = false, error = null, errorCode = "network")
         }
     }
 

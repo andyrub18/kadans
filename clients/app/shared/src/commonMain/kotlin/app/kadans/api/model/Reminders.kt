@@ -28,6 +28,13 @@ data class UpcomingReminder(
     val moment: Instant get() = snoozedFrom ?: notifyAt
 
     val isFocus: Boolean get() = !pomodoroTemplateId.isNullOrBlank()
+
+    /**
+     * Rung before its start ("in 5 min"): it informs, without buttons, and a tap opens the todo. Its buttons ("Start
+     * focus" or "Done", "In 10 min") come with "starts now", the moment to decide: there, never 5 minutes early by a
+     * slip of the finger, nor put off past the start. A snoozed reminder rings after the start, with them.
+     */
+    val isHeadsUp: Boolean get() = snoozedFrom == null && notifyAt < startsAt
 }
 
 @Serializable

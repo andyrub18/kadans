@@ -22,6 +22,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -37,6 +42,9 @@ sealed interface RealtimeEvent {
 
     /** Connected again after a drop: whatever was signalled meanwhile was lost (notifications are caught up from the list). */
     data object Reconnected : RealtimeEvent
+
+    /** The account's data changed in [areas] ("todos", "budget"): the screens showing it load it again (DataChanges). */
+    data class DataChanged(val areas: Set<String>) : RealtimeEvent
 }
 
 /**
@@ -166,6 +174,7 @@ class KadansRealtime(private val api: KadansApi) {
                         KadansJson.decodeFromJsonElement(PomodoroRunResponse.serializer(), payload)
                     )
                 LocalReminders.CHANGED_KIND -> RealtimeEvent.RemindersChanged
+                DATA_CHANGED -> RealtimeEvent.DataChanged(areasOf(payload))
                 else -> null
             }
         } catch (_: Exception) {
@@ -179,6 +188,12 @@ class KadansRealtime(private val api: KadansApi) {
     }
 
     internal companion object {
+        /** The server's `LiveAreas.Event`: `{ "areas": ["budget", "todos"] }`. */
+        const val DATA_CHANGED = "data.changed"
+
+        fun areasOf(payload: JsonElement): Set<String> =
+            ((payload as? JsonObject)?.get("areas") as? JsonArray).orEmpty().mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.toSet()
+
         private const val CATCH_UP_PAGE = 50
         private const val REMEMBERED = 200
 

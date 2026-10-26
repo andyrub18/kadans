@@ -14,6 +14,9 @@ import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.RealtimeEvent
 import app.kadans.realtime.SystemAlerts
 import app.kadans.reminders.LocalReminders
+import app.kadans.sync.DataArea
+import app.kadans.sync.DataChanges
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -47,6 +50,7 @@ class HomeViewModel(
     private val profileSync: ProfileSync,
     private val gate: SubscriptionGate,
     private val localReminders: LocalReminders,
+    private val dataChanges: DataChanges,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -99,6 +103,8 @@ class HomeViewModel(
                 }
             }
         }
+        // Done, moved or added elsewhere (another device, a notification's button), or back in front: shown as it is now.
+        viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { load(quiet = true) } }
     }
 
     fun refresh() {
@@ -108,10 +114,11 @@ class HomeViewModel(
 
     /** Reload without flashing the spinner — used when a realtime event lands behind the UI. */
     fun quietRefresh() {
-        viewModelScope.launch { load() }
+        viewModelScope.launch { load(quiet = true) }
     }
 
-    private suspend fun load() {
+    /** [quiet]: nobody asked; a failure (offline) keeps what is shown rather than turning Home into an error. */
+    private suspend fun load(quiet: Boolean = false) {
         try {
             val now = Clock.System.now()
             val todos = api.todos.list(pageSize = 50)
@@ -120,11 +127,13 @@ class HomeViewModel(
             _state.value = HomeUiState.Content(todos, upcoming)
             // The badge is a nicety: never let it turn a loaded Home into an error.
             runCatching { api.notifications.unreadCount() }.onSuccess { _unread.value = it }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: KadansApiException) {
             if (e.httpStatus == 401) _loggedOut.emit(Unit)
-            else _state.value = HomeUiState.Error(e.message, e.errorCode)
+            else if (!(quiet && _state.value is HomeUiState.Content)) _state.value = HomeUiState.Error(e.message, e.errorCode)
         } catch (e: Exception) {
-            _state.value = HomeUiState.Error(null, "network")
+            if (!(quiet && _state.value is HomeUiState.Content)) _state.value = HomeUiState.Error(null, "network")
         }
     }
 

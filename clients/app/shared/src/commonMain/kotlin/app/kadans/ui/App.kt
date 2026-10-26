@@ -24,6 +24,7 @@ import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
 import app.kadans.realtime.KadansRealtime
 import app.kadans.reminders.LocalReminders
+import app.kadans.sync.DataChanges
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.CompositionLocalProvider
@@ -97,9 +98,16 @@ fun App(deepLink: String? = null) {
                 val tokenStore = koinInject<TokenStore>()
                 var hasSession by remember { mutableStateOf<Boolean?>(null) }
                 LaunchedEffect(Unit) { hasSession = tokenStore.load() != null }
-                // Back in the foreground: the reminders this device rings are fetched again, unless they just were.
+                // Back in the foreground: the reminders this device rings are fetched again, unless they just were, and
+                // the screens load what they show again (it may have changed elsewhere meanwhile). Not at the first
+                // start: the screens load then anyway.
                 val localReminders = koinInject<LocalReminders>()
-                LifecycleEventEffect(Lifecycle.Event.ON_START) { localReminders.refresh() }
+                val dataChanges = koinInject<DataChanges>()
+                var startedBefore by remember { mutableStateOf(false) }
+                LifecycleEventEffect(Lifecycle.Event.ON_START) {
+                    localReminders.refresh()
+                    if (startedBefore) dataChanges.cameBack() else startedBefore = true
+                }
 
                 when (hasSession) {
                     null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

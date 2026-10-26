@@ -98,12 +98,13 @@ class FreedesktopNotificationsTests {
 
     private fun <T> LinkedBlockingQueue<T>.next(): T = assertNotNull(poll(5, TimeUnit.SECONDS), "nothing arrived within 5 s")
 
-    private fun reminder(focus: Boolean) = UpcomingReminder(
+    /** "Starts now", or with [headsUp] the reminder 15 minutes before. */
+    private fun reminder(focus: Boolean, headsUp: Boolean = false) = UpcomingReminder(
         occurrenceId = "o1",
         todoId = "3f2b8c1e-9a4d-4e6b-8c2a-7d5e1f0a9b3c",
         title = "Write report",
-        body = "Starts at 09:00 — in 15 min",
-        notifyAt = Instant.parse("2027-01-04T13:45:00Z"),
+        body = if (headsUp) "Starts at 09:00 — in 15 min" else "Starts now",
+        notifyAt = Instant.parse(if (headsUp) "2027-01-04T13:45:00Z" else "2027-01-04T14:00:00Z"),
         startsAt = Instant.parse("2027-01-04T14:00:00Z"),
         pomodoroTemplateId = if (focus) "tpl" else null,
     )
@@ -197,6 +198,25 @@ class FreedesktopNotificationsTests {
         opened.next()
         val link = runBlocking { withTimeout(5_000) { IncomingLinks.links.first() } }
         assertEquals(todoLink(reminder(focus = false).todoId), link)
+        DesktopWindow.show = {}
+    }
+
+    @Test
+    fun the_heads_up_before_the_start_has_no_buttons_and_a_click_opens_the_todo() {
+        val server = server()
+        val notifications = notifications()
+        val notices = DesktopReminderNotices(strings = { Language.En.catalog.reminders }, linux = { notifications }, actions = { null })
+        val opened = LinkedBlockingQueue<Boolean>()
+        DesktopWindow.show = { opened.add(true) }
+
+        notices.show(reminder(focus = true, headsUp = true))
+        val headsUp = server.shown.next()
+        assertEquals(listOf("default", ""), headsUp.actions, "no Start focus 15 minutes early, no snooze past the start")
+
+        server.click(headsUp.id, FreedesktopNotifications.DEFAULT)
+        opened.next()
+        val link = runBlocking { withTimeout(5_000) { IncomingLinks.links.first() } }
+        assertEquals(todoLink(reminder(focus = true).todoId), link)
         DesktopWindow.show = {}
     }
 

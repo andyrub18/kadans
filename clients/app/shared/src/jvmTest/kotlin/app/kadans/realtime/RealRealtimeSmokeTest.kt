@@ -1,10 +1,13 @@
 package app.kadans.realtime
 
 import app.kadans.api.KadansApi
+import app.kadans.api.model.CreateAccount
 import app.kadans.api.model.CreateOneTimeTodo
+import app.kadans.api.model.Currency
 import app.kadans.api.model.CreatePomodoroPhase
 import app.kadans.api.model.CreatePomodoroTemplate
 import app.kadans.api.model.PomodoroPhaseType
+import app.kadans.api.model.UpdateAccount
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -82,6 +85,49 @@ class RealRealtimeSmokeTest {
                 // The advance may have completed a short run — a completed run can't be cancelled.
                 runCatching { api.pomodoro.cancel(run.id) }
                 runCatching { api.todos.cancel(todo.id, "realtime smoke cleanup") }
+            } finally {
+                realtime.stop()
+                runCatching { api.auth.logout() }
+            }
+        }
+    }
+
+    /**
+     * The screens stay in step: a change made anywhere (here an occurrence completed, a budget account added) reaches the
+     * account's open apps as "data.changed" naming its area, a second later (ARCHITECTURE → "Screens stay in step").
+     */
+    @Test
+    fun hub_tells_the_screens_what_changed() {
+        val baseUrl = System.getenv("KADANS_API_URL") ?: run {
+            println("KADANS_API_URL not set; skipping live data.changed smoke test")
+            return
+        }
+        val user = System.getenv("KADANS_API_USER") ?: "smoke"
+        val password = System.getenv("KADANS_API_PASSWORD") ?: "Smoke123!"
+
+        runBlocking {
+            val api = KadansApi.create(baseUrl)
+            api.auth.login(user, password)
+            val realtime = KadansRealtime(api)
+            realtime.start()
+            try {
+                withTimeout(10_000) { realtime.connected.first { it } }
+                val todo = api.todos.createOneTime(CreateOneTimeTodo(title = "data.changed smoke", dueDate = Clock.System.now() + 1.hours))
+                val occurrenceId = api.todos.occurrences(todo.id).firstNotNullOf { it.id }
+                delay(2_000) // the creation's own signal goes by first
+
+                val todos = async { withTimeout(10_000) { realtime.events.first { it is RealtimeEvent.DataChanged && "todos" in it.areas } } }
+                delay(300)
+                api.todos.completeOccurrence(occurrenceId)
+                println("realtime: completing an occurrence sent ${todos.await()}")
+
+                val budget = async { withTimeout(10_000) { realtime.events.first { it is RealtimeEvent.DataChanged && "budget" in it.areas } } }
+                delay(300)
+                val account = api.budget.createAccount(CreateAccount("data.changed smoke", Currency.Usd))
+                println("realtime: adding a budget account sent ${budget.await()}")
+
+                runCatching { api.budget.updateAccount(account.id, UpdateAccount(account.name, account.type, isArchived = true)) }
+                runCatching { api.todos.delete(todo.id) }
             } finally {
                 realtime.stop()
                 runCatching { api.auth.logout() }

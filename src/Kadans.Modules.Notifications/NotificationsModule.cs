@@ -33,6 +33,10 @@ public sealed class NotificationsModule : IModule
             json.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter())
         );
         services.AddSingleton<IRealtimePublisher, SignalRRealtimePublisher>();
+        // The other modules' saves tell the account's open apps what changed ("data.changed").
+        services.AddSingleton<LiveChanges>();
+        services.AddSingleton<ILiveChanges>(provider => provider.GetRequiredService<LiveChanges>());
+        services.AddHostedService<LiveChangesPublisher>();
         services.AddSingleton<HubConnections>();
         services.AddSingleton<ISessionEndListener>(provider => provider.GetRequiredService<HubConnections>());
 

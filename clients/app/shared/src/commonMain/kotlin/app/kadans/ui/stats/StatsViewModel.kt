@@ -8,6 +8,9 @@ import app.kadans.api.model.PomodoroDayStats
 import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroStatsResponse
+import app.kadans.sync.DataArea
+import app.kadans.sync.DataChanges
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,9 +47,19 @@ sealed interface StatsUiState {
     data class Error(override val range: StatsRange, val message: String?, val code: String? = null) : StatsUiState
 }
 
-class StatsViewModel(private val api: KadansApi) : ViewModel() {
+class StatsViewModel(private val api: KadansApi, private val dataChanges: DataChanges) : ViewModel() {
     private val _state = MutableStateFlow<StatsUiState>(StatsUiState.Loading(StatsRange.Week))
     val state: StateFlow<StatsUiState> = _state.asStateFlow()
+
+    init {
+        // A session finished or an occurrence done elsewhere, or back in front: the figures as they are now.
+        viewModelScope.launch {
+            dataChanges.of(DataArea.Todos).collect {
+                val shown = _state.value
+                if (shown is StatsUiState.Content) fetch(shown.range, quiet = true)
+            }
+        }
+    }
 
     fun refresh() = load(_state.value.range)
 
@@ -56,19 +69,24 @@ class StatsViewModel(private val api: KadansApi) : ViewModel() {
 
     private fun load(range: StatsRange) {
         _state.value = StatsUiState.Loading(range)
-        viewModelScope.launch {
-            try {
-                val now = Clock.System.now()
-                val stats = api.pomodoro.stats(from = now - range.days.days, to = now)
-                // The server groups per day in the *account's* zone; lay the calendar out in that same zone.
-                val zone = runCatching { TimeZone.of(stats.timeZoneId) }.getOrDefault(TimeZone.currentSystemDefault())
-                val today = now.toLocalDateTime(zone).date
-                if (_state.value.range == range) _state.value = StatsUiState.Content(range, summarize(stats, today, range.days))
-            } catch (e: KadansApiException) {
-                _state.value = StatsUiState.Error(range, e.message, e.errorCode)
-            } catch (e: Exception) {
-                _state.value = StatsUiState.Error(range, null, "network")
-            }
+        viewModelScope.launch { fetch(range, quiet = false) }
+    }
+
+    /** [quiet]: nobody asked; a failure (offline) keeps the figures shown. */
+    private suspend fun fetch(range: StatsRange, quiet: Boolean) {
+        try {
+            val now = Clock.System.now()
+            val stats = api.pomodoro.stats(from = now - range.days.days, to = now)
+            // The server groups per day in the *account's* zone; lay the calendar out in that same zone.
+            val zone = runCatching { TimeZone.of(stats.timeZoneId) }.getOrDefault(TimeZone.currentSystemDefault())
+            val today = now.toLocalDateTime(zone).date
+            if (_state.value.range == range) _state.value = StatsUiState.Content(range, summarize(stats, today, range.days))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: KadansApiException) {
+            if (!quiet) _state.value = StatsUiState.Error(range, e.message, e.errorCode)
+        } catch (e: Exception) {
+            if (!quiet) _state.value = StatsUiState.Error(range, null, "network")
         }
     }
 

@@ -12,6 +12,8 @@ import app.kadans.api.model.UpcomingReminder
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.RealtimeEvent
 import app.kadans.ui.todos.ReminderPermissionAsk
+import app.kadans.sync.DataChanges
+import app.kadans.sync.DataArea
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -42,6 +44,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.channels.Channel
 
 /**
  * The reminders a phone rings itself (ARCHITECTURE → "Reminders ring on the phone"): what a window schedules, what an
@@ -614,7 +618,7 @@ class LocalRemindersTests {
         val (early, _) = twoReminders(template = "tpl")
         server.window = twoReminders(template = "tpl")
         reminders.sync()
-        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings))
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings), DataChanges(emptyFlow()))
 
         val result = actions.startFocus(early)
 
@@ -629,7 +633,7 @@ class LocalRemindersTests {
         val (early, _) = twoReminders(template = "tpl")
         server.window = twoReminders(template = "tpl")
         reminders.sync()
-        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings))
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings), DataChanges(emptyFlow()))
 
         server.startRefusedWith = "10030" // PomodoroAlreadyActiveForTodo
         assertEquals(ReminderActions.Result.FocusStarted(null), actions.startFocus(early))
@@ -644,7 +648,7 @@ class LocalRemindersTests {
         val (early, _) = twoReminders()
         server.window = twoReminders()
         reminders.sync()
-        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings))
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings), DataChanges(emptyFlow()))
 
         server.completeRefusedWith = "10012" // any other refusal
         assertEquals(ReminderActions.Result.Failed, actions.done(early))
@@ -653,5 +657,28 @@ class LocalRemindersTests {
         assertEquals(ReminderActions.Result.Failed, actions.startFocus(early))
 
         assertEquals(listOf("a", "a"), scheduler.scheduled, "both still to ring")
+    }
+
+    @Test
+    fun a_button_that_worked_tells_the_screens_and_one_that_failed_does_not() = test {
+        val (early, _) = twoReminders()
+        server.window = twoReminders()
+        reminders.sync()
+        val changes = DataChanges(emptyFlow())
+        val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings), changes)
+        val heard = Channel<Set<DataArea>>(Channel.UNLIMITED)
+        val listening = scope.launch { changes.changes.collect { heard.send(it) } }
+        delay(100) // listening
+
+        server.reachable = false
+        assertEquals(ReminderActions.Result.Failed, actions.done(early))
+        server.reachable = true
+        assertEquals(ReminderActions.Result.Done, actions.done(early))
+
+        // Only the one that worked: the todo's screen shows it done, not pending.
+        assertEquals(setOf(DataArea.Todos), withTimeout(5_000) { heard.receive() })
+        delay(100)
+        assertTrue(heard.tryReceive().isFailure)
+        listening.cancel()
     }
 }

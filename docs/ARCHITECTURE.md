@@ -462,6 +462,12 @@ offline too (`LocalReminders.settled`). "In 10 min" is the device's own (`LocalR
 which a sync replaces): the reminder rings again ten minutes later, read afresh ("Starts at 09:00", "Started at 09:00"),
 checked as the reminder it was, and the occurrence's "starts now" inside those ten minutes waits with it.
 
+The buttons come with "starts now" (and a reminder rung again after "In 10 min"), never with the heads-up before the start
+(`UpcomingReminder.isHeadsUp`; owner's phone test, 2026-10-26). The heads-up says "get ready" and a tap opens the todo;
+"starts now" is the moment to decide. On the heads-up, "Start focus" would start the session minutes early and quiet the
+"starts now", and "In 10 min" would quiet it too and ring after the start: put off past the very moment it announces.
+A button that worked tells the app's screens at once (`DataChanges`, below): the todo shows done, not pending.
+
 Android (built): `reminders/LocalReminders` (common) keeps the window in the settings store and decides what rings;
 `ReminderScheduler` is the OS's side (Android: `AndroidReminderScheduler`; desktop below; iOS has none yet and stays on
 the push and the hub). What rings is always read from the stored window:
@@ -520,6 +526,34 @@ window over the hub, then rings from the timer with the server out of reach (112
 Order: the server first (3–4 days; on its own it changes nothing until an app says it schedules), then Android
 (about a week), desktop (1–2 days), and iOS with the iPhone app on a Mac (3–4 days). Pomodoro's "time's up" could
 move the same way later.
+
+### Screens stay in step (2026-10-26)
+
+A screen loaded what it shows when it opened, and only then. A change made elsewhere (another device, a notification's
+"Done", a recurring rule) stayed invisible until the person left the screen and came back, and acting on the stale
+screen got a refusal ("already completed") for what it showed as still to do. Now every change reaches the screens:
+
+- **The server says what changed.** `ILiveChanges` (SharedKernel; `LiveChanges` and `LiveChangesPublisher` in
+  Notifications) sends `data.changed` with `{ "areas": [...] }` to the account's open apps, the changes gathered for a
+  second (a todo and its occurrences, a movement and the limit alert it set off: one signal). Live only, nothing stored
+  or pushed: an app that was not connected loads afresh when it comes back. Tasks says `todos` after a person's save
+  touching a todo, a rule, an occurrence (its note too) or a focus template (`TasksDbContext.ChangesScreens`); sessions
+  have their own `pomodoro.run.changed`, and the jobs' stamps say nothing. Budget says `budget` after any save, to each
+  owner of a row it changed (`BudgetDbContext.Owners`): the recurring job's bookings and the limit alerts too.
+  `reminders.changed` stays what phones fetch their reminder window on (with its silent push). No read saves anything,
+  so the apps' reloads never signal again; the device that made a change reloads once more than it needed, a few GETs.
+- **The app listens** (`sync/DataChanges`): the hub's `data.changed`, a session changed (`todos`), the hub back after a
+  drop (everything: what changed meanwhile was not heard), the app back in front (everything, `ON_START` but the
+  first: on Android the hub sleeps in the background), and this device's notification buttons (at once, even with the
+  hub away). Home, a todo, the calendar and the stats reload on `todos`, the budget on `budget`.
+- **Quietly**: no spinner; a failed reload (offline) keeps what is shown; a todo deleted elsewhere closes its screen;
+  a reload that ends after the person moved to another month is dropped (the calendar, the budget).
+- **Acting on a stale screen**: "Complete" or "Skip" on an occurrence already so shows it so, without an error; any
+  other refusal reloads the screen and says why.
+
+Checked live by `RealRealtimeSmokeTest.hub_tells_the_screens_what_changed` (`KADANS_API_URL`): an occurrence completed
+and an account added reach the hub as `todos` and `budget`; by hand once, a recurring rule's booking with nothing else
+going on (the job at a one-minute interval: 18 s).
 
 ### Client: Compose Multiplatform
 

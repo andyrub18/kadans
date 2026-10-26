@@ -21,6 +21,7 @@ import app.kadans.reminders.ReminderStore
 import app.kadans.reminders.ReminderActions
 import app.kadans.reminders.platformReminderScheduler
 import app.kadans.realtime.KadansRealtime
+import app.kadans.sync.DataChanges
 import app.kadans.profile.ProfileSync
 import app.kadans.profile.TimeZonePreference
 import app.kadans.ui.pomodoro.PomodoroPreference
@@ -88,7 +89,9 @@ val appModule = org.koin.dsl.module {
             },
         )
     }
-    single { ReminderActions(get(), get(), get()) }
+    single { ReminderActions(get(), get(), get(), get()) }
+    // When the screens load again what they show: the server's word, a notification's button here, back in front.
+    single { DataChanges(get<KadansRealtime>().events) }
     single { LanguageController(get(), get()) }
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }
@@ -120,7 +123,7 @@ val appModule = org.koin.dsl.module {
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }
     viewModelOf(::CreateTodoViewModel)
-    factory { (todoId: String) -> TodoDetailViewModel(get(), todoId) }
+    factory { (todoId: String) -> TodoDetailViewModel(get(), todoId, get()) }
     factory { (todoId: String) -> EditTodoViewModel(get(), todoId) }
     factory { (todoId: String, loop: Boolean, handsFree: Boolean, finishAtMillis: Long?, startsOne: Boolean) ->
         PomodoroViewModel(get(), get(), todoId, loop, handsFree, finishAtMillis?.let(kotlin.time.Instant::fromEpochMilliseconds), startsOne)

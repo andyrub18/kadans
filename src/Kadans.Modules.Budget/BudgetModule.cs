@@ -2,6 +2,7 @@ using Kadans.Modules.Budget.Features;
 using Kadans.Modules.Budget.Persistence;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
+using Kadans.SharedKernel.Realtime;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +18,15 @@ public sealed class BudgetModule : IModule
     public void AddServices(IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = KadansDatabase.ConnectionString(configuration);
-        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext).
-        services.AddUserScopedDbContextPool<BudgetDbContext>(options =>
-            options.UseNpgsql(
-                connectionString,
-                npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", BudgetDbContext.Schema)
-            )
+        // Pooled; each request's instance sees its caller's rows (UserScopedDbContext), and tells the owners' open apps
+        // what changed (ILiveChanges).
+        services.AddUserScopedDbContextPool<BudgetDbContext>(
+            options =>
+                options.UseNpgsql(
+                    connectionString,
+                    npgsql => npgsql.MigrationsHistoryTable("__ef_migrations_history", BudgetDbContext.Schema)
+                ),
+            (provider, context) => context.Live = provider.GetRequiredService<ILiveChanges>()
         );
 
         var budgetSection = configuration.GetSection(BudgetOptions.SectionName);

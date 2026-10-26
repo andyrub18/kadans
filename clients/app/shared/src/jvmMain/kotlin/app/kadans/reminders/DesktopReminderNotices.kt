@@ -17,8 +17,8 @@ import org.koin.core.context.GlobalContext
 
 /**
  * The desktop's reminders as notifications (ARCHITECTURE → "Reminders ring on the phone"). On Linux, freedesktop
- * notifications with the reminder's buttons, as on Android ([ReminderActions]: "Start focus" or "Done", "In 10 min"),
- * and a click opening its todo; the result shows as the phone's does: the session's notice, nothing, or the reminder
+ * notifications with the reminder's buttons, as on Android ([ReminderActions]: "Start focus" or "Done", "In 10 min";
+ * none on the heads-up before the start, [UpcomingReminder.isHeadsUp]), and a click opening its todo; the result shows as the phone's does: the session's notice, nothing, or the reminder
  * again saying Kadans could not be reached. Elsewhere (or a desktop without a notification server) the system's own
  * notification without buttons: on Windows and macOS a balloon, whose click opens the todo ([ReminderBalloon]).
  */
@@ -34,7 +34,8 @@ internal class DesktopReminderNotices(
         if (notifications?.clickable == true) {
             val s = strings()
             val first = if (reminder.isFocus) START to s.startFocus else DONE to s.done
-            val shown = notifications.show(reminder.title, body, notificationIcon, listOf(first, SNOOZE to s.snooze)) { key ->
+            val buttons = if (reminder.isHeadsUp) emptyList() else listOf(first, SNOOZE to s.snooze)
+            val shown = notifications.show(reminder.title, body, notificationIcon, buttons) { key ->
                 clicked(reminder, key)
             }
             if (shown != null) return

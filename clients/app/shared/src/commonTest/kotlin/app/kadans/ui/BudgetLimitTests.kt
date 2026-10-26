@@ -4,6 +4,7 @@ import app.kadans.api.KadansApi
 import app.kadans.api.model.Currency
 import app.kadans.api.model.LimitPeriod
 import app.kadans.ui.budget.BudgetViewModel
+import app.kadans.sync.DataChanges
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -21,6 +22,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -67,7 +69,7 @@ class BudgetLimitTests {
 
     @Test
     fun the_screen_reads_a_limit_in_its_period_with_its_estimate() = runTest(dispatcher) {
-        val viewModel = BudgetViewModel(Server().api)
+        val viewModel = BudgetViewModel(Server().api, DataChanges(emptyFlow()))
         val limit = viewModel.state.first { it.summary != null }.summary!!.limits.single()
 
         assertEquals(LimitPeriod.Week, limit.period)
@@ -80,7 +82,7 @@ class BudgetLimitTests {
     @Test
     fun setting_and_removing_a_limit_send_its_currency_and_period() = runTest(dispatcher) {
         val server = Server()
-        val viewModel = BudgetViewModel(server.api)
+        val viewModel = BudgetViewModel(server.api, DataChanges(emptyFlow()))
         viewModel.state.first { it.summary != null }
 
         viewModel.setCategoryLimit("c1", 12000.0, Currency.Htg, LimitPeriod.Month)

@@ -96,11 +96,14 @@ internal class AndroidReminderScheduler(private val context: Context, private va
         runCatching { notifications.cancel(reminder.occurrenceId, 0) }
     }
 
-    /** The reminder's notification: its words, a tap opening its todo, and its buttons. [alert] false: updated silently. */
+    /**
+     * The reminder's notification: its words, a tap opening its todo, and its buttons, but for the heads-up before the
+     * start ([UpcomingReminder.isHeadsUp]). [alert] false: updated silently.
+     */
     private fun reminder(reminder: UpcomingReminder, body: String, alert: Boolean = true): Notification {
         val s = strings()
         val first = if (reminder.isFocus) ReminderActionReceiver.START_FOCUS to s.startFocus else ReminderActionReceiver.DONE to s.done
-        return builder()
+        val notification = builder()
             .setOnlyAlertOnce(!alert)
             .setContentTitle(reminder.title)
             .setContentText(body)
@@ -110,9 +113,12 @@ internal class AndroidReminderScheduler(private val context: Context, private va
             .setShowWhen(true)
             .setAutoCancel(true)
             .setContentIntent(openLink(todoLink(reminder.todoId)))
-            .addAction(button(reminder, first.first, first.second))
-            .addAction(button(reminder, ReminderActionReceiver.SNOOZE, s.snooze))
-            .build()
+        if (!reminder.isHeadsUp) {
+            notification
+                .addAction(button(reminder, first.first, first.second))
+                .addAction(button(reminder, ReminderActionReceiver.SNOOZE, s.snooze))
+        }
+        return notification.build()
     }
 
     private fun builder(): Notification.Builder {

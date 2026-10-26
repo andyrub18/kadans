@@ -1,6 +1,7 @@
 using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Features.Reminders;
 using Kadans.SharedKernel.Persistence;
+using Kadans.SharedKernel.Realtime;
 using Microsoft.EntityFrameworkCore;
 using TaskStatus = Kadans.Modules.Tasks.Domain.TaskStatus;
 
@@ -26,15 +27,19 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
     /// <summary>Tells the account's apps a moment later that its reminders changed; handed over when the context is rented.</summary>
     internal ReminderSignals? Signals { get; set; }
 
-    // What a phone's reminder window is made of. The jobs' bookkeeping (a reminder stamped sent, the horizon moved on)
-    // changes nothing a phone holds, nor does a note on an occurrence.
-    private static readonly HashSet<string> Bookkeeping =
+    /// <summary>Tells the account's open apps that what their screens show changed; handed over when the context is rented.</summary>
+    internal ILiveChanges? Live { get; set; }
+
+    // The jobs' bookkeeping: a reminder stamped sent, the horizon moved on. Nothing anyone sees changes.
+    private static readonly HashSet<string> Stamps =
     [
         nameof(TodoOccurrence.NotifiedAt),
         nameof(TodoOccurrence.StartNotifiedAt),
-        nameof(TodoOccurrence.Remarks),
         nameof(Todo.OccurrencesGeneratedThrough),
     ];
+
+    // What a phone's reminder window is made of: neither the stamps change it, nor a note on an occurrence.
+    private static readonly HashSet<string> Bookkeeping = [.. Stamps, nameof(TodoOccurrence.Remarks)];
 
     private const string BumpVersion =
         "INSERT INTO " + Schema + ".reminder_changes (user_id, version, changed_at) VALUES ({0}, 1, {1}) "
@@ -44,9 +49,28 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
     /// A person's change to a todo, its rule or an occurrence moves the account's reminders version
     /// (<see cref="ReminderChange"/>) in the same transaction, and signals its apps. In one place, so no feature can
     /// forget it; a job has no current user and moves nothing. A window read in one snapshot holds a version exactly
-    /// when it holds the changes up to it.
+    /// when it holds the changes up to it. Once saved, a person's change also tells the account's open apps to load
+    /// their screens again (<see cref="ChangesScreens"/>).
     /// </summary>
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        var shown = ChangesScreens();
+        var saved = await SaveWithRemindersAsync(acceptAllChangesOnSuccess, cancellationToken);
+        if (shown is not null)
+            Live?.Changed(shown, LiveAreas.Todos);
+        return saved;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        var shown = ChangesScreens();
+        var saved = SaveWithReminders(acceptAllChangesOnSuccess);
+        if (shown is not null)
+            Live?.Changed(shown, LiveAreas.Todos);
+        return saved;
+    }
+
+    private async Task<int> SaveWithRemindersAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken)
     {
         var userId = ChangesReminders();
         if (userId is null)
@@ -69,7 +93,7 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
         }
     }
 
-    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    private int SaveWithReminders(bool acceptAllChangesOnSuccess)
     {
         var userId = ChangesReminders();
         if (userId is null)
@@ -82,6 +106,27 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
         Signals?.Changed(userId);
         return saved;
     }
+
+    /// <summary>
+    /// The person making this save, when it changes what the apps' screens show: a todo, its rule, an occurrence (its
+    /// note too), a focus template. Not a session, which has its own event; never a job's stamps. Reads never save, so
+    /// the apps' reloads never signal again.
+    /// </summary>
+    private string? ChangesScreens() =>
+        CurrentUserId is { } userId
+        && ChangeTracker
+            .Entries()
+            .Any(entry =>
+                entry.Entity is not (PomodoroRun or PomodoroRunPhase)
+                && entry.State switch
+                {
+                    EntityState.Added or EntityState.Deleted => true,
+                    EntityState.Modified => entry.Properties.Any(p => p.IsModified && !Stamps.Contains(p.Metadata.Name)),
+                    _ => false,
+                }
+            )
+            ? userId
+            : null;
 
     /// <summary>The person making this save, when it touches what a reminder is made of.</summary>
     private string? ChangesReminders() =>

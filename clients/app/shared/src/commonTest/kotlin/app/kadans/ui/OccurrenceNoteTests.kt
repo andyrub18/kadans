@@ -4,6 +4,7 @@ import app.kadans.api.KadansApi
 import app.kadans.ui.todos.NoteFailure
 import app.kadans.ui.todos.TodoDetailUiState
 import app.kadans.ui.todos.TodoDetailViewModel
+import app.kadans.sync.DataChanges
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -21,6 +22,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.emptyFlow
 
 /** A note on one occurrence, "how it went": what it sends, and a failure that keeps the text for another try. */
 class OccurrenceNoteTests {
@@ -72,7 +74,7 @@ class OccurrenceNoteTests {
     @Test
     fun a_note_goes_trimmed_and_shows_under_its_occurrence() = runTest(dispatcher) {
         val server = Server()
-        val viewModel = TodoDetailViewModel(server.api, "t1")
+        val viewModel = TodoDetailViewModel(server.api, "t1", DataChanges(emptyFlow()))
         viewModel.toggleHistory() // a done occurrence: how it went
 
         assertNull(viewModel.saveNote("o1", "  felt great, ran 5 km  "))
@@ -85,7 +87,7 @@ class OccurrenceNoteTests {
     @Test
     fun removing_it_sends_none() = runTest(dispatcher) {
         val server = Server()
-        val viewModel = TodoDetailViewModel(server.api, "t1")
+        val viewModel = TodoDetailViewModel(server.api, "t1", DataChanges(emptyFlow()))
 
         assertNull(viewModel.saveNote("o1", null))
         assertNull(viewModel.saveNote("o1", "   "))
@@ -99,7 +101,7 @@ class OccurrenceNoteTests {
         val server = Server(
             refusal = """{"title":"Validation error","status":400,"detail":"A note is at most 4,000 characters.","errorCode":"10015"}""",
         )
-        val viewModel = TodoDetailViewModel(server.api, "t1")
+        val viewModel = TodoDetailViewModel(server.api, "t1", DataChanges(emptyFlow()))
 
         assertEquals(NoteFailure("10015", "A note is at most 4,000 characters."), viewModel.saveNote("o1", "x"))
         server.reachable = false

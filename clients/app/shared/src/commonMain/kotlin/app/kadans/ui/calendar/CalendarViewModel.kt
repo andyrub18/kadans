@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.TodoOccurrenceResponse
+import app.kadans.sync.DataArea
+import app.kadans.sync.DataChanges
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +36,7 @@ data class CalendarUiState(
         get() = selected?.let { byDay[it] }.orEmpty()
 }
 
-class CalendarViewModel(private val api: KadansApi) : ViewModel() {
+class CalendarViewModel(private val api: KadansApi, private val dataChanges: DataChanges) : ViewModel() {
     private val timeZone = TimeZone.currentSystemDefault()
 
     private val _state: MutableStateFlow<CalendarUiState>
@@ -46,6 +49,8 @@ class CalendarViewModel(private val api: KadansApi) : ViewModel() {
         )
         state = _state.asStateFlow()
         load()
+        // Changed elsewhere (another device, a notification's button), or back in front: shown as it is now.
+        viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { fetch(quiet = true) } }
     }
 
     fun previous() = move(previousMonth(_state.value.year, _state.value.month))
@@ -68,18 +73,27 @@ class CalendarViewModel(private val api: KadansApi) : ViewModel() {
         val snapshot = _state.value
         val cells = monthGrid(snapshot.year, snapshot.month)
         _state.value = snapshot.copy(cells = cells, isLoading = true, error = null, errorCode = null)
-        viewModelScope.launch {
-            try {
-                val from = cells.first().date.atStartOfDayIn(timeZone)
-                val to = cells.last().date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(timeZone)
-                val byDay = api.todos.occurrencesBetween(from, to)
-                    .groupBy { it.scheduledAt.toLocalDateTime(timeZone).date }
+        viewModelScope.launch { fetch(quiet = false) }
+    }
+
+    /** The month shown, from the server. [quiet]: nobody asked; a failure (offline) keeps what is shown. */
+    private suspend fun fetch(quiet: Boolean) {
+        val shown = _state.value
+        if (shown.cells.isEmpty()) return
+        try {
+            val from = shown.cells.first().date.atStartOfDayIn(timeZone)
+            val to = shown.cells.last().date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(timeZone)
+            val byDay = api.todos.occurrencesBetween(from, to)
+                .groupBy { it.scheduledAt.toLocalDateTime(timeZone).date }
+            // Moved to another month meanwhile: that month's own load shows it.
+            if (_state.value.year == shown.year && _state.value.month == shown.month)
                 _state.value = _state.value.copy(byDay = byDay, isLoading = false)
-            } catch (e: KadansApiException) {
-                _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(isLoading = false, error = null, errorCode = "network")
-            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: KadansApiException) {
+            if (!quiet) _state.value = _state.value.copy(isLoading = false, error = e.message, errorCode = e.errorCode)
+        } catch (e: Exception) {
+            if (!quiet) _state.value = _state.value.copy(isLoading = false, error = null, errorCode = "network")
         }
     }
 }

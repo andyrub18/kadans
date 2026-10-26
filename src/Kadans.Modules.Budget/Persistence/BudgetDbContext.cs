@@ -1,5 +1,6 @@
 using Kadans.Modules.Budget.Domain;
 using Kadans.SharedKernel.Persistence;
+using Kadans.SharedKernel.Realtime;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kadans.Modules.Budget.Persistence;
@@ -17,6 +18,44 @@ internal sealed class BudgetDbContext(DbContextOptions<BudgetDbContext> options)
     public DbSet<RecurringTransaction> RecurringTransactions => Set<RecurringTransaction>();
     public DbSet<BudgetProfile> Profiles => Set<BudgetProfile>();
     public DbSet<CurrencyRate> CurrencyRates => Set<CurrencyRate>();
+
+    /// <summary>Tells the owners' open apps that their budget changed; handed over when the context is rented.</summary>
+    internal ILiveChanges? Live { get; set; }
+
+    /// <summary>
+    /// Once saved, every account whose rows changed hears it (<see cref="ILiveChanges"/>): the person's own change, or
+    /// each account a job booked or alerted for. Reads never save, so the apps' reloads never signal again.
+    /// </summary>
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        var owners = Owners();
+        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        foreach (var owner in owners)
+            Live?.Changed(owner, LiveAreas.Budget);
+        return saved;
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        var owners = Owners();
+        var saved = base.SaveChanges(acceptAllChangesOnSuccess);
+        foreach (var owner in owners)
+            Live?.Changed(owner, LiveAreas.Budget);
+        return saved;
+    }
+
+    /// <summary>Whose rows this save adds, changes or removes: every budget row carries its owner.</summary>
+    private List<string> Owners() =>
+    [
+        .. ChangeTracker
+            .Entries()
+            .Where(entry => entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .Select(entry => entry.Metadata.FindProperty(OWNER) is null ? null : entry.Property(OWNER).CurrentValue as string)
+            .OfType<string>()
+            .Distinct(StringComparer.Ordinal),
+    ];
+
+    private const string OWNER = nameof(Account.UserId);
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

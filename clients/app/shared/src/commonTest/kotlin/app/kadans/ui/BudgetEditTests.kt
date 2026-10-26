@@ -4,6 +4,7 @@ import app.kadans.api.KadansApi
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.ui.budget.BudgetAddViewModel
 import app.kadans.ui.budget.BudgetViewModel
+import app.kadans.sync.DataChanges
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -27,6 +28,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
@@ -232,7 +234,7 @@ class BudgetEditTests {
         )
 
         val server = Server()
-        val viewModel = BudgetViewModel(server.api)
+        val viewModel = BudgetViewModel(server.api, DataChanges(emptyFlow()))
         val shown = viewModel.state.first { !it.isLoading }
         val (from, to) = BudgetViewModel.monthWindow(shown.year, shown.month, "America/Port-au-Prince")
         val asked = server.queries.getValue("GET /budget/transactions/")
@@ -245,7 +247,7 @@ class BudgetEditTests {
     @Test
     fun a_recurring_exchange_paused_or_changed_sends_its_received_amount() = runTest(dispatcher) {
         val server = Server()
-        val viewModel = BudgetViewModel(server.api)
+        val viewModel = BudgetViewModel(server.api, DataChanges(emptyFlow()))
         val rule = viewModel.state.first { !it.isLoading && it.recurring.isNotEmpty() }.recurring.single()
 
         viewModel.toggleRecurring(rule)

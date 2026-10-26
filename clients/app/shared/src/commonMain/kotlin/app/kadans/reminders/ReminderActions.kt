@@ -4,18 +4,22 @@ import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.UpcomingReminder
+import app.kadans.sync.DataArea
+import app.kadans.sync.DataChanges
 import app.kadans.ui.pomodoro.PomodoroPreference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * What a reminder's buttons do, from the notification itself (Android's, the Linux desktop's): "Start focus" starts the
  * todo's session for that occurrence, "Done" marks it done, "In 10 min" rings it again then. Started or done, its other
- * reminders stay quiet on this device. The person is in a notification, not the app: never a crash, a result to show.
+ * reminders stay quiet on this device, and the app's screens load it again ([DataChanges]): the todo shows done, not
+ * pending. The person is in a notification, not the app: never a crash, a result to show.
  */
 class ReminderActions(
     private val api: KadansApi,
     private val reminders: LocalReminders,
     private val pomodoro: PomodoroPreference,
+    private val dataChanges: DataChanges,
 ) {
     sealed interface Result {
         /** The session runs; [run] is null when it was already running (started elsewhere a moment before). */
@@ -40,6 +44,7 @@ class ReminderActions(
             return Result.Failed
         }
         reminders.settled(reminder.occurrenceId)
+        dataChanges.changed(DataArea.Todos)
         return Result.FocusStarted(run)
     }
 
@@ -55,6 +60,7 @@ class ReminderActions(
             return Result.Failed
         }
         reminders.settled(reminder.occurrenceId)
+        dataChanges.changed(DataArea.Todos)
         return Result.Done
     }
 

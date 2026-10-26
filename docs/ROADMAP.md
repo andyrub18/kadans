@@ -388,6 +388,19 @@ installing on real devices second, hosting last.
       layouts' dead keys and the Compose key go through the same built-in input method. One gap closed: at sign-in Kadans
       can start before IBus or Fcitx, and would have done without them until it quit (someone typing Chinese through
       IBus); a start at sign-in now waits for the session's input method up to 15 s first.
+- [x] The phone test, 2026-10-26, against production (a debug build made for it, OWNER-CHECKLIST → Testing on a real
+      Android phone). Google sign-in works on the phone. Two findings:
+      - The reminder 5 minutes before carried "Start focus" and "In 10 min": a slip of the finger started the session
+        early, and either button quieted the "starts now" ("In 10 min" even rang after the start). The owner agreed: the
+        heads-up only informs (a tap opens the todo), the buttons come with "starts now" (ARCHITECTURE → "A reminder's
+        buttons"), on Android and the Linux desktop.
+      - "Done" in that notification, then the app: the todo still said pending, and "Complete" answered "already
+        completed" ("this inconsistency is real bad"). Screens loaded once and never again, on every device. Now the
+        server says what changed (`data.changed`: todos, budget, the recurring job's bookings too), the app reloads
+        quietly on it, on a reconnect, back in front and after its own notification buttons, and "Complete" or "Skip"
+        on one already so shows it so (ARCHITECTURE → "Screens stay in step"). Checked: the server's and the app's tests,
+        the live hub check, `task_flows.py` and `budget_flows.py`, a recurring booking reaching the hub by itself. Needs
+        a deploy (the server's signal) and the new app; then the owner's sync test, phone and desktop side by side.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French

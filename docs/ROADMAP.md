@@ -186,7 +186,10 @@ installing on real devices second, hosting last.
       and re-asks when the server address changes. iOS deferred with the rest of iOS. New
       `tests/Kadans.Identity.Tests` (first Identity unit tests). Code-complete and tested against fakes and
       Google's real refusal of a junk code. The owner's OAuth clients exist (Web and Android done 2026-10-21,
-      OWNER-CHECKLIST → Google Sign-In); the real end-to-end run on Android is the phone test.
+      OWNER-CHECKLIST → Google Sign-In); the real end-to-end run on Android passed on the owner's phone
+      (2026-10-26). The button is drawn as Google's branding guidelines ask (`ui/auth/GoogleSignInButton`):
+      the standard four-colour G, Google's light or dark fill, stroke and text colours by the theme, 40 dp
+      pill; its words wrap rather than being cut on a narrow screen or with large system text.
 - [x] Pomodoro notifications arrived a few seconds late – fixed server-side, measured by the smoke script:
       phase change visible 59 ms after the deadline, notification created 26 ms after it (before: up to 5 s).
       (1) `PomodoroDeadlineWatcher` (a hosted service) replaced the 5 s Quartz poll: it sleeps until the exact

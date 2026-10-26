@@ -47,10 +47,10 @@ their platform needs – so nothing to rebuild or configure in the apps.
       (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`),
       later a second one with the release keystore's SHA-1. Its id goes nowhere in our config – it only
       has to exist in the same project, it is how Google recognises the app. Nothing outside Google Cloud
-      shows it (`google-services.json` lists no sign-in client, and the app does not need it to), so the
-      first **Continue with Google** on the phone is its check: when the package or the SHA-1 does not
-      match, Google opens no account list and the app shows its error ("Developer console is not set up
-      correctly"). You do **not** need release
+      shows it (`google-services.json` lists no sign-in client, and the app does not need it to), so a
+      **Continue with Google** on the phone is its check – passed 2026-10-26 on your phone, with the debug
+      build. When the package or the SHA-1 does not match, Google opens no account list and the app shows
+      its error ("Developer console is not set up correctly"). You do **not** need release
       signing first: the debug keystore exists as soon as Android Studio or Gradle has built once, and
       debug builds are what you test with. When the app goes through Google Play, add a third Android
       client with the *Play App Signing* SHA-1 from the Play Console – Play re-signs the app, so the

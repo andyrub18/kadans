@@ -723,7 +723,7 @@ private fun RuleDialog(
                     OutlinedTextField(
                         value = received,
                         onValueChange = { received = amountInput(it) },
-                        label = { Text(s.receivedAmount + " (" + destination!!.currency.name.uppercase() + ")") },
+                        label = { Text(s.receivedAmount + " (" + destination.currency.name.uppercase() + ")") },
                         supportingText = { Text(s.movements.receivedEachTime) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),

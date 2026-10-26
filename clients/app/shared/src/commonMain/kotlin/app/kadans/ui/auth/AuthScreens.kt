@@ -120,13 +120,13 @@ fun LoginScreen(
             if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.signIn)
         }
         if (state.googleAvailable) {
-            androidx.compose.material3.OutlinedButton(
+            GoogleSignInButton(
+                text = s.continueWithGoogle,
                 onClick = viewModel::signInWithGoogle,
-                enabled = !state.isLoading && !state.isGoogleLoading,
+                enabled = !state.isLoading,
+                loading = state.isGoogleLoading,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (state.isGoogleLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.continueWithGoogle)
-            }
+            )
             if (state.isGoogleLoading) {
                 Text(s.googleWaiting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = viewModel::cancelGoogle) { Text(s.cancel) }

@@ -470,6 +470,14 @@ installing on real devices second, hosting last.
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] The website, 2026-10-31 (the owner's choice: on the same server, not a separate host, and the API stays at
+      `api.`): `https://kadansplanning.com`, plain files nginx serves under their own certificate (DEPLOYMENT → The
+      website), made by `site/generate.py` in English, French and Kreyòl: home, download, support, account deletion,
+      and drafts of the privacy policy and the terms for the owner to approve. Download buttons and the desktop update
+      check go through `kadansplanning.com` to the latest GitHub release. Checked against the real nginx configuration
+      with test certificates: every redirect and header, the HTTPS starting by itself once its certificate appears,
+      no site configured, and certbot's script with a stand-in (both certificates; a failing one reads 0 for the
+      alert). Next: the desktop update check and one version number for every app, then the release workflow.
 
 4. Before opening sign-up to others. These come from the pre-launch review of 2026-09-30 and ship one
    pull request per step, in this order. Steps 1–4 are server-only and go live as each merges; 5–7 ship

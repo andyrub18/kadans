@@ -31,7 +31,10 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `docs/` – architecture, roadmap, decisions, `DEPLOYMENT.md`, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
 - `branding/` – the logo (a clock whose hands spell K) and `generate.py`, which draws every icon and the Android splash
   from one geometry: never edit a generated icon, change the script and run it (README there).
-- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (nginx with certbot, API, Postgres, nightly dump,
+- `site/` – the website (`https://kadansplanning.com`, served by the deploy's nginx): `generate.py` writes `site/public`
+  from `texts.py` (en/fr/ht) and `legal/`; never edit `public/`, run the generator and commit both (CI checks it,
+  README there).
+- `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (nginx with certbot, also serving the website, API, Postgres, nightly dump,
   and the monitoring: Prometheus, Loki, Grafana, node-exporter, configured in `deploy/observability/`).
 
 ## Commands

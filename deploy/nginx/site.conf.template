@@ -1,0 +1,15 @@
+# The website on port 80 (docs/DEPLOYMENT.md → The website): Let's Encrypt's challenge, and HTTPS for everything else,
+# www included. Rendered into conf.d/ by 40-kadans-certificate.sh when KADANS_SITE_DOMAIN is set.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${KADANS_SITE_DOMAIN} www.${KADANS_SITE_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    location / {
+        return 301 https://${KADANS_SITE_DOMAIN}$request_uri;
+    }
+}

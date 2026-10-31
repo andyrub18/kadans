@@ -1,0 +1,16 @@
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "branding/**", ".github/workflows/site.yml"]
+  pull_request:
+    paths: ["site/**", "branding/**", ".github/workflows/site.yml"]
+
+jobs:
+  generated:
+    name: site/public is what site/generate.py makes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 site/generate.py --check

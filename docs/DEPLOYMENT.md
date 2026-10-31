@@ -170,10 +170,35 @@ Pending migrations are applied as the new container starts (`Database:MigrateOnS
 image; the log names each one). Migrations only go forward: to undo a bad release, check out the previous
 commit, and if its schema is older, restore the last dump first.
 
+## The website
+
+`https://kadansplanning.com` is plain files (`site/public`, made by `site/generate.py`: `site/README.md`), served by
+the same nginx as the API, under their own certificate. Nothing of it runs in the API: a crawler on the site never takes
+one of the API's places, and an API update never touches the site.
+
+1. **DNS.** In Cloudflare, `A` records for `@` and `www` pointing at the server, **DNS only** like `api` (certbot
+   checks them over port 80).
+2. **`deploy/.env`.** `KADANS_SITE_DOMAIN=kadansplanning.com` (empty: no website).
+3. **`docker compose up -d`.** nginx answers the site on port 80 at once; certbot gets one certificate for
+   `kadansplanning.com` and `www`, and nginx serves HTTPS within a minute of it (`docker compose logs nginx` →
+   `kadans: new certificate, nginx reloaded`). nginx restarts for a few seconds; the API does not.
+
+Afterwards a change to the site is a `git pull`: nginx reads the files from the checkout. A change to `deploy/nginx/`
+still needs `docker compose up -d`.
+
+- **Addresses.** `/en/…`, `/fr/…`, `/ht/…`; an address without a language (`/`, the app's `/privacy` and `/terms`)
+  goes to the visitor's, from the browser's first language. `www` goes to the bare name.
+- **Downloads.** The buttons point at `/files/<name>` and the desktop app's update check at `/desktop/latest.json`;
+  nginx sends both to the latest GitHub release, whose files keep the same names. A release changes nothing here.
+- **What nginx adds**: HSTS, a Content-Security-Policy that lets a page load its own files only (no inline script, no
+  third party, no framing, no form), `nosniff`, a referrer policy; pages kept 10 minutes, the style and the mark a week
+  (their addresses carry a hash of their content).
+
 ## Proxy and certificates
 
-nginx terminates TLS in front of the API (`deploy/nginx/`), and certbot gets the Let's Encrypt certificate and
-renews it; both are services in the compose file. Until October 2026 it was Caddy: the load test measured nginx doing
+nginx terminates TLS in front of the API and the website (`deploy/nginx/`), and certbot gets the Let's Encrypt
+certificates and renews them; both are services in the compose file. The TLS profile is one file, `nginx/tls.conf`,
+for both. Until October 2026 it was Caddy: the load test measured nginx doing
 the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per request (docs/LOADTEST.md).
 
 - **First start.** nginx answers on port 80 only (Let's Encrypt's challenge, and a redirect to HTTPS for everything
@@ -181,9 +206,10 @@ the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per reque
   (`docker compose logs nginx` → `kadans: new certificate, nginx reloaded`). It needs the DNS record pointing here
   and port 80 open; until then certbot retries every 15 minutes (`docker compose restart certbot` tries at once), and
   `docker compose logs certbot` says why.
-- **Renewal.** certbot checks twice a day and renews well before the end; nginx reloads by itself. The expiry date is
-  a metric (`kadans_tls_certificate_expiry_timestamp_seconds`, the dashboard's "Certificate expires in"), and the
-  alert "Certificate expiring" fires 14 days before it or when there is no certificate at all.
+- **Renewal.** certbot checks twice a day and renews well before the end; nginx reloads by itself. The expiry dates
+  are a metric (`kadans_tls_certificate_expiry_timestamp_seconds`, one per certificate, labelled `domain`; the
+  dashboard's "Certificate expires in" shows the first to expire), and the alert "Certificate expiring" fires 14 days
+  before the first, when there is no certificate at all, or while the website's cannot be obtained (it reads 0).
 - **Keep the `letsencrypt` volume**: the certificate and the Let's Encrypt account. Re-issuing the same name is
   rate-limited (5 a week).
 - **What nginx does**: TLS 1.2 and 1.3 (Mozilla's intermediate profile), HTTP/2, gzip for the apps' JSON, HSTS,

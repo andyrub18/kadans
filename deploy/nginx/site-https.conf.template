@@ -1,0 +1,80 @@
+# The website over HTTPS (docs/DEPLOYMENT.md → The website): the static pages of site/public, made by site/generate.py,
+# in English, French and Kreyòl. Nothing here runs on the server, posts a form or sets a cookie. Rendered into conf.d/
+# by 40-kadans-certificate.sh once the certificate exists.
+
+# The visitor's first language, for an address without one ("/", the app's "/privacy" and "/terms"): French or
+# Kreyòl when the browser asks for it first, else English.
+map $http_accept_language $kadans_site_lang {
+    default en;
+    ~*^fr   fr;
+    ~*^ht   ht;
+}
+
+# www goes to the bare name.
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name www.${KADANS_SITE_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${KADANS_SITE_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${KADANS_SITE_DOMAIN}/privkey.pem;
+    include /etc/nginx/kadans/tls.conf;
+
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    return 301 https://${KADANS_SITE_DOMAIN}$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${KADANS_SITE_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${KADANS_SITE_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${KADANS_SITE_DOMAIN}/privkey.pem;
+    include /etc/nginx/kadans/tls.conf;
+
+    root /usr/share/nginx/kadans-site/public;
+    charset utf-8;
+    error_page 404 /404.html;
+
+    # Every response: HTTPS for two years, and a page that may load its own files only (no inline script, no
+    # third party, no framing, no form). A location with an add_header of its own would drop these: none has one.
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    add_header Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()" always;
+
+    gzip_types text/css application/javascript image/svg+xml application/json text/plain; # text/html always is
+
+    # Pages: /en/privacy is en/privacy.html. Short-lived, so a change shows within minutes.
+    location / {
+        try_files $uri $uri.html $uri/index.html =404;
+        expires 10m;
+    }
+
+    # The style, the script and the mark: their addresses carry a hash of their content, so they keep a week.
+    location /assets/ {
+        expires 7d;
+    }
+
+    # An address without a language: the visitor's. The page is a named capture: the language's map is a regex too,
+    # and would overwrite $1.
+    location = / {
+        return 302 /$kadans_site_lang/;
+    }
+    location ~ ^/(?<kadans_page>privacy|terms|download|support|delete-account)/?$ {
+        return 302 /$kadans_site_lang/$kadans_page;
+    }
+
+    # The desktop app's update check and the download buttons: the latest GitHub release, under file names that never
+    # change. The apps ask this address, not GitHub's: the files can move without breaking them.
+    location = /desktop/latest.json {
+        return 302 https://github.com/andyrub18/kadans/releases/latest/download/latest.json;
+    }
+    location ~ ^/files/(kadans-linux-amd64\.deb|kadans-linux-x86_64\.rpm|kadans-windows-x64\.msi)$ {
+        return 302 https://github.com/andyrub18/kadans/releases/latest/download/$1;
+    }
+}

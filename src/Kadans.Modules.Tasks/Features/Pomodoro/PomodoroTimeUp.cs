@@ -101,6 +101,7 @@ internal sealed class PomodoroTimeUp(
                     ["todoId"] = run.TodoId.ToString(),
                     ["runId"] = run.Id.ToString(),
                     ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
+                    ["link"] = PomodoroAutoAdvancer.FocusLink(run.TodoId),
                 }
             ),
             cancellationToken

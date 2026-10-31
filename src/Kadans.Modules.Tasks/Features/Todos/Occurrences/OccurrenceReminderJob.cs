@@ -12,7 +12,8 @@ namespace Kadans.Modules.Tasks.Features.Todos.Occurrences;
 /// <summary>
 /// Sends each pending occurrence's reminders, once each: the one before the start when <c>NotifyAt</c> has passed
 /// (<c>NotifiedAt</c>), then "starts now" when the start has come (<c>StartNotifiedAt</c>), so the moment to begin never
-/// passes in silence. A todo whose focus session is running gets neither: the person has begun. Occurrences already
+/// passes in silence. An occurrence whose focus session is running gets neither: the person has begun (a session left
+/// running from the one before ends as this one starts, and does not silence it). Occurrences already
 /// long past are skipped silently rather than delivered late. A pass keeps going, 500 at a time, until nothing is due:
 /// a peak (thousands of people's 08:00) goes out in one pass, each batch with one lookup of its people and one save,
 /// instead of 500 every five seconds, one by one (docs/LOADTEST.md).
@@ -84,12 +85,14 @@ internal sealed class OccurrenceReminderJob(
             var versions = await dbContext
                 .ReminderChanges.Where(c => accounts.Contains(c.UserId))
                 .ToDictionaryAsync(c => c.UserId, c => c.Version, cancellationToken);
-            var todos = due.Select(o => o.TodoId).Distinct().ToList();
+            var occurrences = due.Select(o => (Guid?)o.Id).ToList();
             var focusing = (
                 await dbContext
                     .PomodoroRuns.IgnoreQueryFilters()
-                    .Where(r => todos.Contains(r.TodoId) && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused))
-                    .Select(r => r.TodoId)
+                    .Where(r =>
+                        occurrences.Contains(r.OccurrenceId) && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused)
+                    )
+                    .Select(r => r.OccurrenceId!.Value)
                     .ToListAsync(cancellationToken)
             ).ToHashSet();
 
@@ -99,7 +102,7 @@ internal sealed class OccurrenceReminderJob(
             {
                 var moment = occurrence.ReminderMoment(now);
                 occurrence.MarkReminded(now);
-                if (focusing.Contains(occurrence.TodoId))
+                if (focusing.Contains(occurrence.Id))
                     continue;
                 var userId = occurrence.Todo!.UserId;
                 var message = ReminderNotification.Message(occurrence, people.GetValueOrDefault(userId), now, versions.GetValueOrDefault(userId), moment);

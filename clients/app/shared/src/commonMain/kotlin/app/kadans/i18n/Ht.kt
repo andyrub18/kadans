@@ -98,6 +98,12 @@ val CreoleStrings = StringsCatalog(
         markDone = "Make l fini",
         notYet = "Poko",
         markedDone = "Make fini",
+        endsAtNextFormat = "Ap fini a %s, lè pwochen an kòmanse",
+        endsTomorrowAtNextFormat = "Ap fini demen a %s, lè pwochen an kòmanse",
+        endHintRepeating = "Seyans lan ap fini pou kont li a lè sa a, menm si ou bliye, oswa pi bonè lè pwochen an kòmanse.",
+        cycleDoneFormat = "Sik %d fini",
+        anotherCycleQuestion = "Yon lòt? Seyans lan ap tann ou.",
+        anotherCycle = "Yon lòt sik",
     ),
     deletion = DeletionStrings(
         section = "Efase kont mwen",

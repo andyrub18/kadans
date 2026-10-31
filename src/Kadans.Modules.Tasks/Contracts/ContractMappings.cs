@@ -102,7 +102,8 @@ internal static class ContractMappings
 
     extension(PomodoroRun run)
     {
-        public PomodoroRunResponse ToResponse() =>
+        /// <param name="nextOccurrenceAt">When the todo's next occurrence starts (<c>SessionOccurrence.NextStartAsync</c>): a running session ends there at the latest.</param>
+        public PomodoroRunResponse ToResponse(DateTimeOffset? nextOccurrenceAt = null) =>
             new(
                 run.Id,
                 run.TodoId,
@@ -119,8 +120,10 @@ internal static class ContractMappings
                 run.PausedAt,
                 run.CompletedAt,
                 run.UpdatedAt,
-                run.FinishBy,
-                run.OccurrenceId
+                run.IsRunning ? run.EndsAt(nextOccurrenceAt) : run.FinishBy,
+                run.OccurrenceId,
+                run.IsRunning && run.IsBetweenLaps,
+                run.IsRunning && nextOccurrenceAt is { } next && next < run.FinishBy
             );
     }
 

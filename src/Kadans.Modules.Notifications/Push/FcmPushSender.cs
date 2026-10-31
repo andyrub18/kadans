@@ -67,7 +67,8 @@ internal sealed class FcmPushSender : IPushSender
     /// One device's message. A reminder lives as long as it is of use (its start, or ten minutes after a "starts now";
     /// delivered later it is only noise) and collapses per occurrence: the later of its two reminders replaces the first. To an app that rings reminders itself it is a data message the app shows, so the app can drop one it
     /// already rang (ARCHITECTURE → "Reminders ring on the phone"); to any other it stays a notification the system
-    /// shows, in the reminders channel. A silent signal is data only, at normal priority: nothing is shown.
+    /// shows, in the reminders channel. A silent signal is data only, at normal priority: nothing is shown. A message the
+    /// app builds itself (<see cref="NotificationMessage.ShownByApp"/>) is data too, to an app that rings reminders.
     /// </summary>
     internal static Message Build(PushEnvelope envelope, DateTimeOffset now)
     {
@@ -89,6 +90,13 @@ internal sealed class FcmPushSender : IPushSender
             };
 
         var notification = new Notification { Title = message.Title, Body = message.Body };
+        if (message.ShownByApp && envelope.Target.RemindersSyncedAt is not null)
+        {
+            // The app builds it, buttons and all: data, at high priority (shown at once, Doze or not).
+            data["title"] = message.Title;
+            data["body"] = message.Body;
+            return new Message { Token = token, Data = data, Android = new AndroidConfig { Priority = Priority.High } };
+        }
         if (message.Reminder is not { } reminder)
             return new Message { Token = token, Notification = notification, Data = data };
 

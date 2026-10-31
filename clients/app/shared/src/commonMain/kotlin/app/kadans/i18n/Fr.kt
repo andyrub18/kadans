@@ -98,6 +98,12 @@ val FrenchStrings = StringsCatalog(
         markDone = "Marquer comme fait",
         notYet = "Pas encore",
         markedDone = "Marqué comme fait",
+        endsAtNextFormat = "Se termine à %s, au début de la suivante",
+        endsTomorrowAtNextFormat = "Se termine demain à %s, au début de la suivante",
+        endHintRepeating = "La session s'arrête d'elle-même à cette heure, même en cas d'oubli, ou plus tôt au début de la suivante.",
+        cycleDoneFormat = "Cycle %d terminé",
+        anotherCycleQuestion = "Un autre ? La session vous attend.",
+        anotherCycle = "Un autre cycle",
     ),
     deletion = DeletionStrings(
         section = "Supprimer mon compte",

@@ -76,8 +76,9 @@ closed at once, kept through the sign-in offer);
 connection go, a push token moves to the next account on the phone);
 `python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, stats, and the hands-free
 deadline: it races a client against the server and fails if the phase change is more than 1 s late; a manual run
-alongside must get one "time's up" within 1 s, an early "ran out" must change nothing, and a session moved to end
-~65 s later must finish there by itself);
+alongside must get one "time's up" within 1 s, an early "ran out" must change nothing, a session moved to end
+~65 s later must finish there by itself, a hands-free cycle must wait for "Another cycle" or "Done", and a todo's
+next occurrence must end the session still running, its reminders ringing; ~3.5 min);
 the task, notification, reminder, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/admin/free_accounts.py add|remove|list` keeps the free accounts (an admin's task, DEPLOYMENT →

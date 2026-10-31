@@ -181,8 +181,23 @@ internal sealed class PomodoroRun
         return new Success();
     }
 
-    /// <summary>The end time has come and nobody pressed Finish.</summary>
-    public bool FinishDue(DateTimeOffset now) => IsRunning && FinishBy is { } end && end <= now;
+    /// <summary>
+    /// When the session ends by itself: its end time, or sooner when another occurrence of its todo starts first
+    /// (<paramref name="nextOccurrenceAt"/>, see <c>SessionOccurrence.NextStartAsync</c>). A session is for one occurrence.
+    /// </summary>
+    public DateTimeOffset? EndsAt(DateTimeOffset? nextOccurrenceAt) =>
+        nextOccurrenceAt is { } next && (FinishBy is null || next < FinishBy) ? next : FinishBy;
+
+    /// <summary>The end time has come, or the next occurrence has begun, and nobody pressed Finish.</summary>
+    public bool FinishDue(DateTimeOffset now, DateTimeOffset? nextOccurrenceAt = null) =>
+        IsRunning && EndsAt(nextOccurrenceAt) is { } end && end <= now;
+
+    /// <summary>
+    /// A hands-free lap (one pass through the cycle) ran out and the session waits for the person before the next one:
+    /// paused, its next phase not begun. "Another cycle" is <see cref="Resume"/>; a forgotten session counts no more than
+    /// the lap it did.
+    /// </summary>
+    public bool IsBetweenLaps => Status == PomodoroRunStatus.Paused && CurrentPhase.StartedAt is null;
 
     public OneOf<ApplicationError, Success> Pause(DateTimeOffset now)
     {
@@ -203,7 +218,11 @@ internal sealed class PomodoroRun
         if (Status != PomodoroRunStatus.Paused)
             return InvalidState("Only paused runs can be resumed.");
 
-        CurrentPhase.PausedSeconds += PausedSecondsUntil(now);
+        // Between laps, the next lap begins now: nothing of it was spent waiting.
+        if (CurrentPhase.StartedAt is null)
+            CurrentPhase.StartedAt = now;
+        else
+            CurrentPhase.PausedSeconds += PausedSecondsUntil(now);
         PhaseEndsAt = now + PausedRemaining!.Value;
         PausedRemaining = null;
         PausedAt = null;
@@ -213,7 +232,11 @@ internal sealed class PomodoroRun
     }
 
     /// <summary>Finishes the current phase and starts the next one, or completes the run after the last.</summary>
-    public OneOf<ApplicationError, Success> Advance(int? expectedPhaseIndex, DateTimeOffset now)
+    /// <param name="onItsOwn">
+    /// The phase ran out (the deadline watcher, or a watching app's "this phase ran out"), rather than the person pressing
+    /// Next: a hands-free looping run then waits between laps (<see cref="IsBetweenLaps"/>) instead of starting the next.
+    /// </param>
+    public OneOf<ApplicationError, Success> Advance(int? expectedPhaseIndex, DateTimeOffset now, bool onItsOwn = false)
     {
         if (Status != PomodoroRunStatus.Active)
             return InvalidState("Only active runs can advance phases.");
@@ -249,8 +272,19 @@ internal sealed class PomodoroRun
                     .ToList();
                 Phases.AddRange(lap);
                 CurrentPhaseIndex = lapStart;
-                lap[0].StartedAt = now;
-                PhaseEndsAt = now + TimeSpan.FromMinutes(lap[0].DurationMinutes);
+                if (onItsOwn && AutoAdvance)
+                {
+                    // The lap ran out by itself: the next one starts when the person says so ("Another cycle").
+                    Status = PomodoroRunStatus.Paused;
+                    PausedAt = now;
+                    PausedRemaining = TimeSpan.FromMinutes(lap[0].DurationMinutes);
+                    PhaseEndsAt = null;
+                }
+                else
+                {
+                    lap[0].StartedAt = now;
+                    PhaseEndsAt = now + TimeSpan.FromMinutes(lap[0].DurationMinutes);
+                }
             }
             else
             {
@@ -275,21 +309,26 @@ internal sealed class PomodoroRun
     /// The workday is over: a looping session ends as completed, not cancelled. The phase under way ends here too,
     /// so the focus time it holds counts (a pause it ends in counts as paused).
     /// </summary>
-    public OneOf<ApplicationError, Success> Finish(DateTimeOffset now)
+    /// <param name="onItsOwn">
+    /// Nobody pressed Finish: its end time came, or the next occurrence began. A phase left at 0:00 then counts up to its
+    /// timer only, and a session waiting between laps ended with its last lap: nobody was there after either.
+    /// </param>
+    public OneOf<ApplicationError, Success> Finish(DateTimeOffset now, bool onItsOwn = false)
     {
         if (!IsRunning)
             return InvalidState("Only active or paused runs can be finished.");
 
+        var endedWithItsLap = onItsOwn && IsBetweenLaps;
         var current = CurrentPhase;
         if (current.StartedAt is not null && current.CompletedAt is null)
         {
             if (Status == PomodoroRunStatus.Paused)
                 current.PausedSeconds += PausedSecondsUntil(now);
-            current.CompletedAt = now;
+            current.CompletedAt = onItsOwn && PhaseEndsAt is { } ranOut && ranOut < now ? ranOut : now;
         }
 
         Status = PomodoroRunStatus.Completed;
-        CompletedAt = now;
+        CompletedAt = endedWithItsLap ? PausedAt : now;
         PhaseEndsAt = null;
         PausedRemaining = null;
         UpdatedAt = now;

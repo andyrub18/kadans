@@ -197,12 +197,16 @@ zone = ZoneInfo(HAITI)
 fall_back = next(t for t in (now + dt.timedelta(hours=h) for h in range(1, 400 * 24))
                  if t.astimezone(zone).utcoffset() < (t - dt.timedelta(hours=1)).astimezone(zone).utcoffset())
 before, after = fall_back - dt.timedelta(hours=12), fall_back + dt.timedelta(hours=24)
+# A start must not be in the past: within 12 h of the change, start at the first of those hours still ahead.
+while before <= dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=1):
+    before += dt.timedelta(hours=1)
+hours = round((after - before) / dt.timedelta(hours=1)) + 1
 try:
     s, hourly = call("POST", "/todos/recurring", {"title": "smoke: hourly across DST", "description": "", "notificationEnabled": False,
                      "recurrenceRule": {"frequency": "Hourly", "startDate": iso(before), "timeZone": HAITI}}, token=T)
     s, window = call("GET", f"/occurrences?from={iso(before)}&to={iso(after)}", token=T)
     mine = [o for o in window if o["todoId"] == hourly["id"]] if s == 200 else []
-    C(f"calendar across the {fall_back:%Y-%m-%d} fall-back answers, one per hour (used to hang)", s == 200 and len(mine) == 37, f"{s}, {len(mine)}")
+    C(f"calendar across the {fall_back:%Y-%m-%d} fall-back answers, one per hour (used to hang)", s == 200 and len(mine) == hours, f"{s}, {len(mine)} of {hours}")
     call("PUT", f"/todos/{hourly['id']}/cancel", {"reason": "cleanup"}, token=T)
 except OSError as e:  # the request timed out: the server is stuck in the expansion
     C("calendar across the fall-back answers (used to hang)", False, repr(e))

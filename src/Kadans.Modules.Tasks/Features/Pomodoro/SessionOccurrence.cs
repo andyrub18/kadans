@@ -1,3 +1,6 @@
+using Kadans.Modules.Tasks.Domain;
+using Microsoft.EntityFrameworkCore;
+
 namespace Kadans.Modules.Tasks.Features.Pomodoro;
 
 /// <summary>
@@ -22,4 +25,24 @@ internal static class SessionOccurrence
             (null, { } a) => a.Id,
             _ => null,
         };
+
+    /// <summary>
+    /// When the next occurrence of the session's todo starts: the first pending one, other than its own, starting after
+    /// the session began. The session ends there at the latest (<see cref="PomodoroRun.EndsAt"/>): a session is for one
+    /// occurrence, and the next one rings as usual. <c>PomodoroAutoFinish</c> asks the same of every running session at
+    /// once, in SQL.
+    /// </summary>
+    public static Task<DateTimeOffset?> NextStartAsync(
+        IQueryable<TodoOccurrence> occurrences,
+        PomodoroRun run,
+        CancellationToken cancellationToken = default
+    ) =>
+        occurrences
+            .Where(o =>
+                o.TodoId == run.TodoId
+                && o.Status == OccurrenceStatus.Pending
+                && o.Id != run.OccurrenceId
+                && o.ScheduledAt > run.StartedAt
+            )
+            .MinAsync(o => (DateTimeOffset?)o.ScheduledAt, cancellationToken);
 }

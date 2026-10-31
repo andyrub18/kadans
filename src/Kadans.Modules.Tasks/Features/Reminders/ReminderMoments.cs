@@ -3,7 +3,7 @@ namespace Kadans.Modules.Tasks.Features.Reminders;
 /// <summary>
 /// When an occurrence's reminders ring (ARCHITECTURE → "Reminders ring on the phone"): its lead before the start, then
 /// the start itself ("starts now"), so the moment to begin never passes in silence. A lead of zero is the start alone.
-/// A todo whose focus session is running rings neither: the person has begun.
+/// An occurrence whose focus session is running rings neither: the person has begun.
 /// </summary>
 internal static class ReminderMoments
 {

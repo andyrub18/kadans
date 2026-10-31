@@ -93,7 +93,7 @@ internal sealed class ReminderWindows(
     /// <summary>
     /// Asked by a device as its alarm rings, when it is online: does the reminder at <paramref name="at"/> still ring?
     /// Not when its occurrence was deleted, done, cancelled or moved elsewhere since the window was fetched (that time
-    /// is no longer one of its reminders), nor while a focus session on the todo runs: the person has begun. Without a
+    /// is no longer one of its reminders), nor while a focus session for this occurrence runs: the person has begun. Without a
     /// time (apps from before the "starts now" reminder): whether the occurrence still has a reminder.
     /// </summary>
     public async Task<ReminderCheckResponse> Check(Guid occurrenceId, DateTimeOffset? at, CancellationToken cancellationToken)
@@ -116,7 +116,7 @@ internal sealed class ReminderWindows(
         var due =
             ReminderMoments.Includes(ReminderMoments.Of(notifyAt, occurrence.ScheduledAt), moment)
             && !await dbContext.PomodoroRuns.AnyAsync(
-                r => r.TodoId == occurrence.TodoId && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused),
+                r => r.OccurrenceId == occurrenceId && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused),
                 cancellationToken
             );
         return new ReminderCheckResponse(occurrenceId, due, notifyAt, occurrence.ScheduledAt);

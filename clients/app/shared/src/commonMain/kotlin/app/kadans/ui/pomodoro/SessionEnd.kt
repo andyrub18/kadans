@@ -29,10 +29,19 @@ object SessionEnd {
         return minOf(at, now + MAX_AHEAD) // a day that gains an hour (autumn DST) could put it 25 hours away
     }
 
-    /** "Ends at 17:00", or "Ends tomorrow at 02:00" when it is past midnight. */
-    fun label(end: Instant, now: Instant, zone: TimeZone, strings: PomodoroStrings): String {
+    /**
+     * "Ends at 17:00", or "Ends tomorrow at 02:00" when it is past midnight; [withNext]: that is when the todo's next
+     * occurrence starts ("…, when the next one starts").
+     */
+    fun label(end: Instant, now: Instant, zone: TimeZone, strings: PomodoroStrings, withNext: Boolean = false): String {
         val local = end.toLocalDateTime(zone)
         val clock = "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
-        return if (local.date == now.toLocalDateTime(zone).date) strings.endsAt(clock) else strings.endsTomorrowAt(clock)
+        val today = local.date == now.toLocalDateTime(zone).date
+        return when {
+            withNext && today -> strings.endsAtNext(clock)
+            withNext -> strings.endsTomorrowAtNext(clock)
+            today -> strings.endsAt(clock)
+            else -> strings.endsTomorrowAt(clock)
+        }
     }
 }

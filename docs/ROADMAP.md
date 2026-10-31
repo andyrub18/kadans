@@ -470,6 +470,12 @@ installing on real devices second, hosting last.
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] Step 3 of the site plan, the release workflow (2026-10-31): a tag `v<kadans.version>` builds the `.deb` and
+      `.rpm` (Ubuntu 22.04, for libraries every distribution has) and the `.msi` (Windows) with Java 25, and publishes
+      the GitHub Release with `latest.json` (notes from `clients/app/releases/<version>.json`) and `SHA256SUMS`; a pull
+      request touching it is a dry run. The packages now say who makes them (maintainer, vendor, description), and the
+      `.msi` has a fixed upgrade id, a Start menu entry and a per-user install. Checked: the script's rules (tests),
+      the `.deb` built here, and the workflow's dry run on its pull request.
 - [x] Step 2 of the site plan (2026-10-31): the desktop app's update check (a newer version announced once, Settings
       → This computer shows it, a dialog when this one is below `minimumVersion`; never downloads or installs anything,
       its own client, no token), one version for every app (`kadans.version`, 1.0.0: Android had said 0.1.0), the

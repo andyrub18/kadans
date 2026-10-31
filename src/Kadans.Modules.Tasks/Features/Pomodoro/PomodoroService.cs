@@ -364,7 +364,7 @@ internal sealed class PomodoroService(
                 return current.ToResponse();
         }
 
-        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
+        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now, onItsOwn: request.OnlyIfEnded));
         // Hands-free phase changes notify every device, no matter who won the advance — this
         // request or the deadline watcher; the row version guarantees it is exactly one of them.
         // Manual runs stay silent: the user did it.
@@ -388,8 +388,8 @@ internal sealed class PomodoroService(
             await dispatcher.DispatchAsync(
                 userId,
                 PomodoroAutoAdvancer.PhaseMessage(
-                    texts, title, run.TodoId, run.Id,
-                    run.Status, phase.Type, phase.DurationMinutes, run.CurrentPhaseIndex, run.CycleLength, run.Loop
+                    texts, title, run.TodoId, run.Id, run.OccurrenceId,
+                    run.Status, phase.Type, phase.DurationMinutes, run.CurrentPhaseIndex, run.CycleLength, run.Loop, run.BetweenLaps
                 )
             );
         }

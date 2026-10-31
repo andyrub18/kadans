@@ -61,7 +61,7 @@
         <receiver
             android:name="app.kadans.reminders.ReminderActionReceiver"
             android:exported="false" />
-        <!-- A focus session's new cycle: "Finish session" (the app's own immutable PendingIntent). -->
+        <!-- A focus session's cycle done: "Another cycle", "Done" (the app's own immutable PendingIntents). -->
         <receiver
             android:name="app.kadans.pomodoro.PomodoroActionReceiver"
             android:exported="false" />

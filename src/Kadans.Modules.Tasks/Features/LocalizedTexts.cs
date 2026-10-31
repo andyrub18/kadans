@@ -12,8 +12,8 @@ internal sealed record ReminderTexts(
 /// <summary>
 /// Pomodoro wording ({0} = minutes; lap prefix uses {0} = lap number). The time's-up texts are for manual runs, which
 /// wait for the person at the end of each phase; they name what comes next. Finished, next began: {0} = the local end
-/// time. Cycle began: {0} = the cycle just done, {1} = minutes of the next one's first phase; the session goes on, and
-/// the notice asks whether the person is done (its button finishes the session).
+/// time. Cycle done: {0} = the cycle just done; a looping session waits for the person before the next one (its notice's
+/// buttons: "Another cycle", "Done").
 /// </summary>
 internal sealed record PomodoroTexts(
     string BreakFormat,
@@ -25,8 +25,7 @@ internal sealed record PomodoroTexts(
     string TimeUpLast,
     string FinishedFormat,
     string NextBeganFormat,
-    string CycleBeganFocusFormat,
-    string CycleBeganBreakFormat
+    string CycleDoneFormat
 );
 
 internal static class LocalizedTexts
@@ -49,8 +48,7 @@ internal static class LocalizedTexts
                 "Temps écoulé. C'était la dernière phase : terminez quand vous voulez.",
                 "La session s'est terminée à {0}, comme prévu.",
                 "La session s'est terminée à {0}, au début de la suivante.",
-                "Cycle {0} terminé, le suivant commence ({1} min de concentration). Vous avez fini ?",
-                "Cycle {0} terminé, le suivant commence (pause de {1} min). Vous avez fini ?"
+                "Cycle {0} terminé. Un autre ? La session vous attend."
             ),
             "ht" => new(
                 "Poz — {0} min", "Konsantrasyon — {0} min", "Pomodoro fini. Bèl travay!", "Tou {0} · ",
@@ -59,8 +57,7 @@ internal static class LocalizedTexts
                 "Tan an fini. Se te dènye etap la: fini lè ou vle.",
                 "Seyans lan fini a {0}, jan sa te prevwa.",
                 "Seyans lan fini a {0}, lè pwochen an kòmanse.",
-                "Sik {0} fini, pwochen an kòmanse ({1} min konsantrasyon). Ou fini?",
-                "Sik {0} fini, pwochen an kòmanse ({1} min poz). Ou fini?"
+                "Sik {0} fini. Yon lòt? Seyans lan ap tann ou."
             ),
             _ => new(
                 "Break — {0} min", "Focus — {0} min", "Pomodoro complete. Well done!", "Lap {0} · ",
@@ -69,8 +66,7 @@ internal static class LocalizedTexts
                 "Time's up. That was the last phase: finish when you're ready.",
                 "The session ended at {0}, as planned.",
                 "The session ended at {0}, as the next one began.",
-                "Cycle {0} done, the next one begins ({1} min of focus). Finished with the task?",
-                "Cycle {0} done, the next one begins (a {1}-minute break). Finished with the task?"
+                "Cycle {0} done. Another one? The session waits for you."
             ),
         };
 }

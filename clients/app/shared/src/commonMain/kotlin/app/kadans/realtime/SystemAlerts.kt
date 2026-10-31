@@ -31,7 +31,7 @@ class SystemAlerts(private val realtime: KadansRealtime, private val localRemind
                     val cycle = CycleNotice.of(notification.kind, notification.data, notification.title, notification.body)
                     when {
                         reminder != null && localReminders.showsReminders() -> localReminders.pushed(reminder)
-                        cycle != null -> showCycleNotice(cycle) // with "Finish session" where it can
+                        cycle != null -> showCycleNotice(cycle) // with "Another cycle" and "Done" where it can
                         else -> showSystemNotification(notification.title, notification.body)
                     }
                 }

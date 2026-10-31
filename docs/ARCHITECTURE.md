@@ -693,17 +693,24 @@ panel), so CI needs no desktop.
   that ran out more than 15 minutes earlier is marked without a notification: the server was down, or the
   run was left at 0:00.
 - Hands-free is the default for a new session, and each device remembers the last choice.
-- **A looping session goes on by itself; each new cycle asks whether the person is done** (2026-10-31, the owner's
-  design). When the last phase of a cycle runs out, the next cycle begins as before, and that phase change's
-  notification says so: "Cycle 1 done, the next one begins (25 min of focus). Finished with the task?"
-  (`PomodoroAutoAdvancer.PhaseMessage`, `CycleDone`; the data carries `cycleDone`, the cycle just done). The apps add
-  "Finish session" to it, the session's own Finish (`pomodoro/CycleActions`): Android builds it from its push
-  (`PomodoroCycleNotices`, `PomodoroActionReceiver`; one per session, the next cycle's replaces it, a failed finish
-  says Kadans could not be reached), the Linux desktop shows it over D-Bus (`DesktopCycleNotices`); a tap opens the
-  session. Doing nothing goes on. For that the push is `NotificationMessage.ShownByApp`: data, at high priority, to a
-  phone that rings its reminders (an app that builds its notifications); any other device gets it as a notification the
-  system shows, without the button. Manual runs wait at every phase anyway: nothing to add there. A session nobody
-  looks at keeps counting until its end: its end time, or the next occurrence (below).
+- **A hands-free cycle waits for the person at its end** (2026-10-31, the owner's design, after trying the other way
+  round: a session that goes on by itself, forgotten, fills the stats with focus nobody did and notifies until evening;
+  one that stops costs a working person one tap per cycle, at the end of the long break, where the decision is anyway).
+  When the last phase of a cycle runs out by itself (the watcher, or a watching app's "ran out"), the next lap is added
+  but not begun: the session is paused before its first phase (`PomodoroRun.IsBetweenLaps`: paused, the current phase
+  never started; `BetweenLaps` in the response). One notification says "Cycle 1 done. Another one? The session waits
+  for you." (`PomodoroAutoAdvancer.PhaseMessage`, `CycleDone`; its data carries `cycleDone` and the session's
+  `occurrenceId`). The apps give it two buttons (`pomodoro/CycleActions`): "Another cycle" resumes, which starts that
+  phase then, so a longer break costs nothing; "Done" finishes the session and marks its occurrence done, as a
+  reminder's "Done" does (either already so counts, so pressing again is safe). Android builds it from its push
+  (`PomodoroCycleNotices`, `PomodoroActionReceiver`; one per session, a failed button says Kadans could not be
+  reached), the Linux desktop shows it over D-Bus (`DesktopCycleNotices`), a tap opens the session, whose screen asks
+  the same (Another cycle, Finish). The push is `NotificationMessage.ShownByApp`: data at high priority to a phone that
+  rings its reminders (an app that builds its notifications); any other device gets it as a notification the system
+  shows, without the buttons. Neither button: nothing more counts and nothing more notifies; the session ends at its end
+  (below) as it ended, with its last cycle, silently (it asked already), and its occurrence stays pending: never marked
+  done on a guess. Pressing Next on the last phase goes straight on (the person is there); manual runs wait at every
+  phase anyway.
 - **A session is for one occurrence, and ends when the next one starts** (2026-10-31; the owner's question: a forgotten
   looping session, and the todo's next occurrence arrives). Before, the next occurrence's reminders stayed quiet ("a
   session runs"), it stayed pending unmentioned, starting a session for it was refused, and the stats kept counting until

@@ -122,6 +122,7 @@ internal static class ContractMappings
                 run.UpdatedAt,
                 run.IsRunning ? run.EndsAt(nextOccurrenceAt) : run.FinishBy,
                 run.OccurrenceId,
+                run.IsRunning && run.IsBetweenLaps,
                 run.IsRunning && nextOccurrenceAt is { } next && next < run.FinishBy
             );
     }

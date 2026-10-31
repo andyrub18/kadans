@@ -3,17 +3,26 @@ package app.kadans.pomodoro
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.i18n.StringsCatalog
+import app.kadans.sync.DataArea
+import app.kadans.sync.DataChanges
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * A looping focus session began its next cycle by itself (ARCHITECTURE → Pomodoro): the notice says so and asks whether
- * the person is done with the task. By default the session goes on; its button, "Finish session", ends it. Android
- * shows it with the button (`PomodoroCycleNotices`), the Linux desktop too (`DesktopCycleNotices`), elsewhere it is
- * the server's words alone.
+ * A looping focus session's cycle ended and the session waits (ARCHITECTURE → Pomodoro): the notice asks for another
+ * one. Its buttons: "Another cycle" starts it, "Done" finishes the session and marks its occurrence done (as a reminder's
+ * "Done" does). Neither: the session counts nothing more and ends by itself. Android shows it with the buttons
+ * (`PomodoroCycleNotices`), the Linux desktop too (`DesktopCycleNotices`); elsewhere it is the server's words alone.
+ * [occurrenceId]: the occurrence the session is for, null when none was near its start ("Done" then only finishes).
  */
-data class CycleNotice(val runId: String, val todoId: String, val title: String, val body: String) {
+data class CycleNotice(
+    val runId: String,
+    val todoId: String,
+    val title: String,
+    val body: String,
+    val occurrenceId: String? = null,
+) {
     companion object {
-        /** The phase notification's kind, and its mark that a new cycle began (the server's `CycleDoneKey`). */
+        /** The phase notification's kind, and its mark that a cycle ended (the server's `CycleDoneKey`). */
         const val KIND = "pomodoro.phase.completed"
         const val CYCLE_DONE = "cycleDone"
 
@@ -25,27 +34,47 @@ data class CycleNotice(val runId: String, val todoId: String, val title: String,
                 todoId = data["todoId"]?.takeIf { it.isNotBlank() } ?: return null,
                 title = title ?: return null,
                 body = body.orEmpty(),
+                occurrenceId = data["occurrenceId"]?.takeIf { it.isNotBlank() },
             )
         }
     }
 }
 
-/** What a cycle notice needs on every platform: its words ([strings], the app's language) and its button. */
-class CycleActions(private val api: KadansApi, private val catalog: () -> StringsCatalog) {
+/** What a cycle notice needs on every platform: its words ([strings], the app's language) and its two buttons. */
+class CycleActions(
+    private val api: KadansApi,
+    private val dataChanges: DataChanges,
+    private val catalog: () -> StringsCatalog,
+) {
     val strings: StringsCatalog get() = catalog()
 
     /**
-     * "Finish session", as the session's own Finish: true once it is over, by this or already (finished on another
-     * device, ended by itself). False when the server could not be reached: the notice stays, with its button.
+     * "Another cycle": the session goes on from the first phase, now. True as well when it cannot any more (ended by
+     * itself, finished on another device): the notice is of no use then. False when the server could not be reached:
+     * the notice stays, with its buttons.
      */
-    suspend fun finish(notice: CycleNotice): Boolean =
+    suspend fun anotherCycle(notice: CycleNotice): Boolean = settles { api.pomodoro.resume(notice.runId) }
+
+    /**
+     * "Done": the session finishes and its occurrence is marked done. Either already so (another device, the session
+     * ended by itself) counts as done, so pressing it again after a failure is safe.
+     */
+    suspend fun done(notice: CycleNotice): Boolean {
+        if (!settles { api.pomodoro.finish(notice.runId) }) return false
+        val occurrence = notice.occurrenceId ?: return true
+        return settles(ALREADY_DONE, ALREADY_CANCELLED) { api.todos.completeOccurrence(occurrence) }
+            .also { if (it) dataChanges.changed(DataArea.Todos) }
+    }
+
+    /** True once [call] went through, or the server says it is so already ([alreadySo]); false when it was not reached. */
+    private suspend fun settles(vararg alreadySo: String = arrayOf(RUN_NOT_FOUND, RUN_NOT_RUNNING), call: suspend () -> Unit): Boolean =
         try {
-            api.pomodoro.finish(notice.runId)
+            call()
             true
         } catch (e: CancellationException) {
             throw e
         } catch (e: KadansApiException) {
-            e.errorCode == RUN_NOT_RUNNING || e.errorCode == RUN_NOT_FOUND
+            e.errorCode in alreadySo
         } catch (_: Exception) {
             false
         }
@@ -53,5 +82,7 @@ class CycleActions(private val api: KadansApi, private val catalog: () -> String
     internal companion object {
         const val RUN_NOT_FOUND = "10028"
         const val RUN_NOT_RUNNING = "10029"
+        const val ALREADY_DONE = "10005"
+        const val ALREADY_CANCELLED = "10020"
     }
 }

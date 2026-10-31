@@ -14,10 +14,10 @@ import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
 /**
- * A looping session's new cycle on the desktop (ARCHITECTURE → Pomodoro). On Linux a freedesktop notification with
- * "Finish session" ([CycleActions.finish]) and a click opening the session; one per session, the next cycle's taking
- * its place. A finish that fails shows it again saying Kadans could not be reached, its button still there. Elsewhere
- * (or a desktop without a notification server) the system's own notification, without the button.
+ * A looping session's cycle done on the desktop (ARCHITECTURE → Pomodoro). On Linux a freedesktop notification with
+ * "Another cycle" and "Done" ([CycleActions]) and a click opening the session; one per session, the next cycle's taking
+ * its place. A button whose request fails shows it again saying Kadans could not be reached, its buttons still there.
+ * Elsewhere (or a desktop without a notification server) the system's own notification, without the buttons.
  */
 internal class DesktopCycleNotices(
     private val linux: () -> FreedesktopNotifications? = { if (isLinux) DesktopReminderNotices.session else null },
@@ -32,7 +32,8 @@ internal class DesktopCycleNotices(
         val notifications = linux()
         val actions = actions()
         if (notifications?.clickable == true && actions != null) {
-            val buttons = listOf(FINISH to actions.strings.finishSession)
+            val s = actions.strings
+            val buttons = listOf(ANOTHER to s.pomodoro.anotherCycle, DONE to s.reminders.done)
             val id = notifications.show(notice.title, body, notificationIcon, buttons, replaces = shown[notice.runId] ?: 0) { key ->
                 clicked(notice, key)
             }
@@ -47,16 +48,18 @@ internal class DesktopCycleNotices(
     private fun clicked(notice: CycleNotice, key: String) {
         when (key) {
             FreedesktopNotifications.DEFAULT -> DesktopWindow.open(focusLink(notice.todoId))
-            FINISH -> scope.launch {
+            ANOTHER, DONE -> scope.launch {
                 val actions = actions() ?: return@launch
-                if (actions.finish(notice)) shown.remove(notice.runId)
+                val settled = if (key == ANOTHER) actions.anotherCycle(notice) else actions.done(notice)
+                if (settled) shown.remove(notice.runId)
                 else show(notice, "${notice.body}\n${actions.strings.reminders.actionFailed}")
             }
         }
     }
 
     internal companion object {
-        const val FINISH = "finish-session"
+        const val ANOTHER = "another-cycle"
+        const val DONE = "done"
 
         private val isLinux = "linux" in System.getProperty("os.name").lowercase()
 

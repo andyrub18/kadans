@@ -2,7 +2,7 @@ namespace Kadans.SharedKernel.Notifications;
 
 /// <summary>A user-facing notification: stored, pushed to devices and broadcast to connected clients.</summary>
 /// <param name="ShownByApp">
-/// The app builds this notification itself, with its buttons (a focus session's new cycle: "Finish session"), where it
+/// The app builds this notification itself, with its buttons (a focus session's cycle done: "Another cycle", "Done"), where it
 /// can: a phone that rings its reminders gets it as data. Any other device gets the notification as it is.
 /// </param>
 public sealed record NotificationMessage(

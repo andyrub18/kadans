@@ -338,13 +338,13 @@ public class PushWorkerTests
         var cycle = new NotificationMessage(
             "pomodoro.phase.completed",
             "Study",
-            "Cycle 1 done, the next one begins (25 min of focus). Finished with the task?",
+            "Cycle 1 done. Another one? The session waits for you.",
             new Dictionary<string, string> { ["runId"] = "r1", ["cycleDone"] = "1" },
             ShownByApp: true
         );
 
         var toApp = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", Now, Now.AddDays(7)), cycle), Now);
-        await Assert.That(toApp.Notification).IsNull(); // the app shows it, with "Finish session"
+        await Assert.That(toApp.Notification).IsNull(); // the app shows it, with "Another cycle" and "Done"
         await Assert.That(toApp.Data["title"]).IsEqualTo("Study");
         await Assert.That(toApp.Data["body"]).IsEqualTo(cycle.Body);
         await Assert.That(toApp.Data["cycleDone"]).IsEqualTo("1");

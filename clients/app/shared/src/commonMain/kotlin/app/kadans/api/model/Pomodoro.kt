@@ -82,6 +82,8 @@ data class PomodoroRunResponse(
     val finishAt: Instant? = null,
     /** The occurrence the session is for: its end offers to mark it done. Null when none was near its start. */
     val occurrenceId: String? = null,
+    /** A hands-free cycle ran out and the session waits (paused): "Another cycle" is resuming it. */
+    val betweenLaps: Boolean = false,
     /** [finishAt] is when the todo's next occurrence starts: a session is for one occurrence. */
     val endsWithNextOccurrence: Boolean = false,
 )

@@ -239,6 +239,10 @@ data class PomodoroStrings(
     val endsTomorrowAtNextFormat: String,
     /** [endHint] for a todo that repeats: its next occurrence ends the session too. */
     val endHintRepeating: String,
+    /** A hands-free session waits at the end of each cycle. `%d` = the cycle just done. */
+    val cycleDoneFormat: String,
+    val anotherCycleQuestion: String,
+    val anotherCycle: String,
 ) {
     fun endsAt(time: String): String = endsAtFormat.replace("%s", time)
 
@@ -249,6 +253,8 @@ data class PomodoroStrings(
     fun endsTomorrowAtNext(time: String): String = endsTomorrowAtNextFormat.replace("%s", time)
 
     fun doneWith(title: String): String = doneWithFormat.replace("%s", title)
+
+    fun cycleDone(cycle: Int): String = cycleDoneFormat.replace("%d", cycle.toString())
 }
 
 /** Deleting the account (closed now, erased after 7 days unless kept) and deleting one todo. A feature group. */

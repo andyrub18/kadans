@@ -53,6 +53,9 @@ class SessionEndAndCycleTests {
             "Ends tomorrow at 02:00, when the next one starts",
             SessionEnd.label(nineAm + 17.hours, nineAm, portAuPrince, EnglishStrings.pomodoro, withNext = true),
         )
+        assertEquals("Cycle 3 done", EnglishStrings.pomodoro.cycleDone(3))
+        assertEquals("Cycle 3 terminé", FrenchStrings.pomodoro.cycleDone(3))
+        assertEquals("Sik 3 fini", CreoleStrings.pomodoro.cycleDone(3))
     }
 
     @Test

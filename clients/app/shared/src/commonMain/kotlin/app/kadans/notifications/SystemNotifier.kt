@@ -10,7 +10,7 @@ import app.kadans.pomodoro.CycleNotice
 expect fun showSystemNotification(title: String, body: String)
 
 /**
- * A looping focus session's new cycle, with "Finish session" where the platform has buttons (the Linux desktop). Android
- * shows it from its push (`PomodoroCycleNotices`); elsewhere it is [showSystemNotification].
+ * A looping focus session's cycle done, with "Another cycle" and "Done" where the platform has buttons (the Linux
+ * desktop). Android shows it from its push (`PomodoroCycleNotices`); elsewhere it is [showSystemNotification].
  */
 expect fun showCycleNotice(notice: CycleNotice)

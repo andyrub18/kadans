@@ -6,9 +6,9 @@
 The auto-advance part uses a 1-minute phase, races a client against the deadline watcher and
 measures how late the phase change and its notification are (must be under a second). A manual run
 started alongside must get exactly one "time's up" at its phase end, and stay where it is. An app
-that asks too early ("ran out" by its own clock) changes nothing. A hands-free looping session goes on into its next
-cycle, whose notice offers to finish it, and the todo's next occurrence ends a session still running, its reminders
-ringing.
+that asks too early ("ran out" by its own clock) changes nothing. A hands-free looping session waits at the end of its
+cycle, whose notice asks for another ("Another cycle", "Done"), and the todo's next occurrence ends a session still
+running, its reminders ringing.
 Whole script ≈ 3.5 min. Standard library only.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt
@@ -217,7 +217,7 @@ s, stats = call("GET", "/pomodoro/stats", token=T)
 C("finished loop counts as a completed run", stats["completedRuns"] - base["completedRuns"] >= 2, str(stats["completedRuns"]))
 call("PUT", f"/todos/{todo3['id']}/cancel", {"reason": "cleanup"}, token=T)
 
-# --- a looping session: each new cycle's notice offers to finish it, and the todo's next occurrence ends it ---
+# --- a looping session: it waits at the end of each cycle for "Another cycle" or "Done", and the todo's next occurrence ends it ---
 s, minute = call("POST", "/pomodoro/templates", {"name": "smoke one minute", "phases": [{"type": "Focus", "durationMinutes": 1}]}, token=T)
 s, todo6 = call("POST", "/todos/one-time", {"title": "smoke: forgotten", "description": "", "notificationEnabled": False,
                "dueDate": iso(dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)), "pomodoroTemplateId": minute["id"]}, token=T)
@@ -243,19 +243,27 @@ C("and ends when the next one starts, saying why", s == 200 and parse_ts(run7["f
 s, check = call("GET", f"/reminders/{next_one.get('id')}?at={iso(next_start)}", token=T)
 C("the next one's \"starts now\" is still due while this session runs", s == 200 and check.get("due") is True, check)
 
-print("  ...  waiting for the cycle to end and the next occurrence to start")
+print("  ...  waiting for the cycle to run out and the next occurrence to start")
 time.sleep(max(0, (max(lap_end, next_start) - dt.datetime.now(dt.timezone.utc)).total_seconds()) + 8)
 
-s, going = call("GET", f"/todos/{todo6['id']}/pomodoro/active-run", token=T)
-C("the next cycle began by itself", s == 200 and going["status"] == "Active" and going["currentPhaseIndex"] == 1
-  and going["phases"][1]["startedAt"] is not None, f"{s} {going.get('status')} idx={going.get('currentPhaseIndex')}")
+s, waiting = call("GET", f"/todos/{todo6['id']}/pomodoro/active-run", token=T)
+C("the cycle ran out and the session waits", s == 200 and waiting["status"] == "Paused" and waiting["betweenLaps"]
+  and waiting["currentPhaseIndex"] == 1 and waiting["phases"][1]["startedAt"] is None, f"{s} {waiting.get('status')} {waiting.get('betweenLaps')}")
 s, items = call("GET", "/notifications?unreadOnly=true", token=T)
 asked = [n for n in items if n["kind"] == "pomodoro.phase.completed" and (n.get("data") or {}).get("runId") == run6["id"]
          and n["data"].get("cycleDone") == "1"] if s == 200 else []
-C("its notice says the cycle is done, asks whether the task is, and opens the session", len(asked) == 1
+C("one notice asks for another cycle, with what its buttons need, and opens the session", len(asked) == 1
+  and asked[0]["data"].get("occurrenceId") == run6.get("occurrenceId") and run6.get("occurrenceId")
   and asked[0]["data"].get("link") == f"kadans://todos/{todo6['id']}/focus", [n["body"] for n in asked])
+s, again = call("PUT", f"/pomodoro/runs/{run6['id']}/resume", token=T)
+C("'Another cycle' starts it now", s == 200 and again["status"] == "Active" and not again["betweenLaps"] and again["phases"][1]["startedAt"]
+  and abs((parse_ts(again["phaseEndsAt"]) - dt.datetime.now(dt.timezone.utc)).total_seconds() - 60) < 3, f"{s}")
+# "Done", as the apps do it: the session finishes, its occurrence is marked done.
 s, done6 = call("PUT", f"/pomodoro/runs/{run6['id']}/finish", token=T)
-C("its button finishes the session", s == 200 and done6["status"] == "Completed", f"{s}")
+s2, _ = call("PUT", f"/occurrences/{run6.get('occurrenceId')}/complete", token=T)
+s3, occ6 = call("GET", f"/occurrences/{run6.get('occurrenceId')}", token=T)
+C("'Done' finishes the session and marks its occurrence done", s == 200 and done6["status"] == "Completed" and s2 == 200
+  and s3 == 200 and occ6["status"] == "Completed", f"{s} {s2} {occ6.get('status') if s3 == 200 else s3}")
 
 s, runs7 = call("GET", f"/todos/{todo7['id']}/pomodoro/runs?page=1&pageSize=1", token=T)
 ended7 = runs7[0] if s == 200 and runs7 else {}

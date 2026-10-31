@@ -611,6 +611,16 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   hidden then) before doing without: someone typing Chinese through IBus keeps it. The calls go through Java's
   foreign-function API, so the packaged app runs with `--enable-native-access=ALL-UNNAMED`. Windows and macOS combine
   dead keys in the system; phones' keyboards do it themselves.
+- **Updates** (2026-10-31). The installed app (never a Gradle run) asks `https://kadansplanning.com/desktop/latest.json`
+  a minute after it starts and then once a day; nginx sends that address to the latest GitHub release's `latest.json`
+  (DEPLOYMENT → The website). It reads `version`, `minimumVersion` (older apps no longer work with the server) and
+  `notes` by language (`updates/AppUpdates`). A newer version is announced once, by a notification whose click (or its
+  "Download" button on Linux) opens the site's download page; Settings → This computer shows the app's version and the
+  newer one for as long as it is out; one older than `minimumVersion` also gets a dialog at each start
+  (`UpdateRequiredDialog`). The app never downloads or installs anything itself, and the request is its own client's,
+  never the API's: no token, nothing about the person. Offline, a 404 (before the first release) or a file that is not
+  latest.json changes nothing. Phones are updated by their stores and never ask. Every app reports one version,
+  `kadans.version` in `clients/app/gradle.properties` (Android's `versionName`, the desktop package, `BuildConfig`).
 
 Checked on COSMIC (Pop!_OS 24.04), from Gradle and from the packaged runtime: the icon in the panel, close hides, the
 icon's click and the menu bring the window back, Quit ends the app and removes the icon, and a second start shows the

@@ -90,6 +90,8 @@ val appModule = org.koin.dsl.module {
         )
     }
     single { ReminderActions(get(), get(), get(), get()) }
+    // The desktop app's update check fills it (startUpdateChecks); phones are updated by their stores and leave it empty.
+    single { app.kadans.updates.AppUpdates() }
     // A looping session's cycle done: its notice's "Another cycle" and "Done", in the app's language.
     single {
         val settings = get<Settings>()

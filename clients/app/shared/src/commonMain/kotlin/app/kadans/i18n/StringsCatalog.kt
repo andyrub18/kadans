@@ -350,6 +350,26 @@ data class TwoFactorStrings(
     val keyCopied: String,
 )
 
+/**
+ * The desktop app's update check: its notification, Settings → This computer, and the dialog when this version no
+ * longer works with the server. A feature group.
+ */
+data class UpdateStrings(
+    /** `%s` = the new version. */
+    val availableFormat: String,
+    val availableText: String,
+    val requiredTitle: String,
+    val requiredText: String,
+    val download: String,
+    val later: String,
+    /** `%s` = this app's version. */
+    val versionFormat: String,
+) {
+    fun available(version: String): String = availableFormat.replace("%s", version)
+
+    fun version(version: String): String = versionFormat.replace("%s", version)
+}
+
 /** The desktop app's own words: its tray menu, and opening with the session (Settings → This computer). A feature group. */
 data class DesktopStrings(
     val trayOpen: String,
@@ -487,6 +507,7 @@ data class StringsCatalog(
     val notifications: NotificationStrings,
     val desktop: DesktopStrings,
     val twoFactor: TwoFactorStrings,
+    val updates: UpdateStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

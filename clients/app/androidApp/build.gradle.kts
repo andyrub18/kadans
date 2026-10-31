@@ -48,7 +48,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         // Every upload to Play needs a higher versionCode: -Pkadans.versionCode=2, 3, …
         versionCode = providers.gradleProperty("kadans.versionCode").orNull?.toInt() ?: 1
-        versionName = "0.1.0"
+        versionName = providers.gradleProperty("kadans.version").get() // one version for every app (gradle.properties)
     }
     signingConfigs {
         if (uploadStoreFile != null) {

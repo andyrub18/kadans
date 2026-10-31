@@ -108,7 +108,7 @@ val FrenchStrings = StringsCatalog(
     deletion = DeletionStrings(
         section = "Supprimer mon compte",
         explanation = "Votre compte est fermé aussitôt et effacé avec tout son contenu (tâches, historique de concentration, budget) 7 jours plus tard. Connectez-vous avant pour le garder.",
-        subscriptionNote = "Supprimer le compte n'annule pas un abonnement acheté sur Google Play ou l'App Store : annulez-le là-bas.",
+        subscriptionNote = "Un abonnement Google Play cesse de se renouveler quand le compte est effacé ; pour l'arrêter plus tôt, annulez-le sur Google Play. Un abonnement pris sur l'App Store s'annule sur l'App Store.",
         deleteAccount = "Supprimer mon compte",
         confirmTitle = "Supprimer votre compte ?",
         confirmText = "Il est fermé maintenant, et tout son contenu sera effacé dans 7 jours, sauf si vous vous connectez avant pour le garder.",
@@ -244,6 +244,15 @@ val FrenchStrings = StringsCatalog(
         noAuthenticator = "Aucune application d'authentification ne l'a ouvert. Installez-en une (Google Authenticator, Aegis…), ou scannez le code depuis un autre appareil.",
         copyKey = "Copier la clé",
         keyCopied = "Clé copiée",
+    ),
+    updates = UpdateStrings(
+        availableFormat = "Kadans %s est disponible",
+        availableText = "Téléchargez la nouvelle version sur le site de Kadans.",
+        requiredTitle = "Kadans doit être mis à jour",
+        requiredText = "Cette version ne fonctionne plus avec le serveur de Kadans. Téléchargez la nouvelle pour continuer.",
+        download = "Télécharger",
+        later = "Plus tard",
+        versionFormat = "Version %s",
     ),
     desktop = DesktopStrings(
         trayOpen = "Ouvrir Kadans",

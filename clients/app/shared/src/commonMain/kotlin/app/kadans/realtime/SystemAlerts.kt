@@ -1,6 +1,8 @@
 package app.kadans.realtime
 
+import app.kadans.notifications.showCycleNotice
 import app.kadans.notifications.showSystemNotification
+import app.kadans.pomodoro.CycleNotice
 import app.kadans.reminders.LocalReminders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,9 +26,14 @@ class SystemAlerts(private val realtime: KadansRealtime, private val localRemind
             realtime.events.collect { event ->
                 if (event is RealtimeEvent.NotificationReceived) {
                     // A reminder, where this device shows reminders itself: once, whether its timer or the hub is first.
-                    val reminder = LocalReminders.reminderOf(event.notification)
-                    if (reminder != null && localReminders.showsReminders()) localReminders.pushed(reminder)
-                    else showSystemNotification(event.notification.title, event.notification.body)
+                    val notification = event.notification
+                    val reminder = LocalReminders.reminderOf(notification)
+                    val cycle = CycleNotice.of(notification.kind, notification.data, notification.title, notification.body)
+                    when {
+                        reminder != null && localReminders.showsReminders() -> localReminders.pushed(reminder)
+                        cycle != null -> showCycleNotice(cycle) // with "Finish session" where it can
+                        else -> showSystemNotification(notification.title, notification.body)
+                    }
                 }
             }
         }

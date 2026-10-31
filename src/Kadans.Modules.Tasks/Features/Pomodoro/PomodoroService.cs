@@ -364,7 +364,7 @@ internal sealed class PomodoroService(
                 return current.ToResponse();
         }
 
-        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now, onItsOwn: request.OnlyIfEnded));
+        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
         // Hands-free phase changes notify every device, no matter who won the advance — this
         // request or the deadline watcher; the row version guarantees it is exactly one of them.
         // Manual runs stay silent: the user did it.
@@ -385,24 +385,11 @@ internal sealed class PomodoroService(
                 .Select(t => t.Title)
                 .FirstOrDefaultAsync() ?? "Kadans";
             var phase = run.Phases[run.CurrentPhaseIndex];
-            var body = PomodoroAutoAdvancer.PhaseBody(
-                texts, run.Status, phase.Type, phase.DurationMinutes,
-                run.CurrentPhaseIndex, run.CycleLength, run.Loop, run.BetweenLaps
-            );
             await dispatcher.DispatchAsync(
                 userId,
-                new NotificationMessage(
-                    PomodoroAutoAdvancer.Kind,
-                    title,
-                    body,
-                    new Dictionary<string, string>
-                    {
-                        ["todoId"] = run.TodoId.ToString(),
-                        ["runId"] = run.Id.ToString(),
-                        ["status"] = run.Status.ToString(),
-                        ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
-                        ["link"] = PomodoroAutoAdvancer.FocusLink(run.TodoId),
-                    }
+                PomodoroAutoAdvancer.PhaseMessage(
+                    texts, title, run.TodoId, run.Id,
+                    run.Status, phase.Type, phase.DurationMinutes, run.CurrentPhaseIndex, run.CycleLength, run.Loop
                 )
             );
         }

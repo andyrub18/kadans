@@ -5,6 +5,9 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import app.kadans.api.model.UpcomingReminder
+import app.kadans.pomodoro.CycleActions
+import app.kadans.pomodoro.CycleNotice
+import app.kadans.pomodoro.PomodoroCycleNotices
 import app.kadans.push.DeviceRegistrar
 import app.kadans.reminders.AndroidReminderScheduler
 import app.kadans.reminders.LocalReminders
@@ -41,7 +44,8 @@ object KadansPushChannel {
 /**
  * Foreground FCM messages don't reach the system tray by themselves — this shows them.
  * (Backgrounded, the system displays notification-type messages on its own.) Reminders go through [LocalReminders]:
- * one this phone already rang is not shown twice, and "reminders changed" fetches the window again.
+ * one this phone already rang is not shown twice, and "reminders changed" fetches the window again. A focus session's
+ * new cycle comes as data, foreground or not, and is shown with its button ([PomodoroCycleNotices]).
  */
 class KadansMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
@@ -70,6 +74,13 @@ class KadansMessagingService : FirebaseMessagingService() {
         }
         val title = message.notification?.title ?: message.data["title"] ?: return
         val body = message.notification?.body ?: message.data["body"] ?: ""
+        // A focus session's new cycle: with "Finish session" (the server sends it as data to an app like this one).
+        val cycle = CycleNotice.of(message.data["kind"], message.data, title, body)
+        val cycleActions = koin?.getOrNull<CycleActions>()
+        if (cycle != null && cycleActions != null) {
+            PomodoroCycleNotices.show(this, cycle, cycleActions)
+            return
+        }
         runCatching {
             KadansPushChannel.ensure(this)
             val builder =

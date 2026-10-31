@@ -25,6 +25,8 @@ actual fun showSystemNotification(title: String, body: String) {
     runCatching { Toolkit.getDefaultToolkit().beep() }
 }
 
+actual fun showCycleNotice(notice: app.kadans.pomodoro.CycleNotice) = app.kadans.pomodoro.DesktopCycleNotices.shared.show(notice)
+
 /** The app's icon for a Linux notification (a file the server reads), or a themed stand-in. */
 internal val notificationIcon: String get() = iconFile ?: "appointment-soon"
 

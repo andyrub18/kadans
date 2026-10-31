@@ -101,9 +101,6 @@ val EnglishStrings = StringsCatalog(
         endsAtNextFormat = "Ends at %s, when the next one starts",
         endsTomorrowAtNextFormat = "Ends tomorrow at %s, when the next one starts",
         endHintRepeating = "The session finishes by itself then, even if you forget, or sooner when the next one starts.",
-        cycleDoneFormat = "Cycle %d done",
-        anotherCycleQuestion = "Another cycle? The session waits for you.",
-        anotherCycle = "Another cycle",
     ),
     deletion = DeletionStrings(
         section = "Delete my account",

@@ -331,4 +331,26 @@ public class PushWorkerTests
         await Assert.That(other.Notification!.Body).IsEqualTo("Break — 5 min");
         await Assert.That(other.Android).IsNull();
     }
+
+    [Test]
+    public async Task A_notice_the_app_builds_with_its_button_reaches_it_as_data_and_older_apps_as_before()
+    {
+        var cycle = new NotificationMessage(
+            "pomodoro.phase.completed",
+            "Study",
+            "Cycle 1 done, the next one begins (25 min of focus). Finished with the task?",
+            new Dictionary<string, string> { ["runId"] = "r1", ["cycleDone"] = "1" },
+            ShownByApp: true
+        );
+
+        var toApp = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", Now, Now.AddDays(7)), cycle), Now);
+        await Assert.That(toApp.Notification).IsNull(); // the app shows it, with "Finish session"
+        await Assert.That(toApp.Data["title"]).IsEqualTo("Study");
+        await Assert.That(toApp.Data["body"]).IsEqualTo(cycle.Body);
+        await Assert.That(toApp.Data["cycleDone"]).IsEqualTo("1");
+        await Assert.That(toApp.Android.Priority).IsEqualTo(FirebaseAdmin.Messaging.Priority.High);
+
+        var toOlderApp = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), cycle), Now);
+        await Assert.That(toOlderApp.Notification!.Body).IsEqualTo(cycle.Body); // shown by the system, without a button
+    }
 }

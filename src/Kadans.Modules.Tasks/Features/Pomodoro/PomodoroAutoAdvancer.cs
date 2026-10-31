@@ -12,7 +12,7 @@ namespace Kadans.Modules.Tasks.Features.Pomodoro;
 /// Advances opted-in runs whose phase has run out, so the session keeps its cadence even when no
 /// client is watching. Overdue runs (server downtime) are stepped phase by phase on the original
 /// schedule; the user gets one broadcast and one notification describing where the run is now.
-/// A looping run stops at the end of each lap and asks "Another cycle?" (<see cref="PomodoroRun.IsBetweenLaps"/>).
+/// A looping run goes on into its next cycle, and that notification offers to finish the session (<see cref="CycleDone"/>).
 /// Driven by <see cref="PomodoroDeadlineWatcher"/>, which wakes up exactly when a phase ends.
 /// </summary>
 internal sealed class PomodoroAutoAdvancer(
@@ -28,6 +28,12 @@ internal sealed class PomodoroAutoAdvancer(
 
     /// <summary>A pomodoro notification opens its session (the app's focus link).</summary>
     internal static string FocusLink(Guid todoId) => $"kadans://todos/{todoId}/focus";
+
+    /// <summary>
+    /// The phase notification's mark that a looping run began its next cycle: the number of the one just done. The apps
+    /// then add "Finish session" to it (ARCHITECTURE → Pomodoro).
+    /// </summary>
+    public const string CycleDoneKey = "cycleDone";
 
     /// <summary>Steps every due run and returns when the next hands-free phase ends (null: none is running).</summary>
     public async Task<DateTimeOffset?> StepDueRunsAsync(DateTimeOffset now, CancellationToken cancellationToken)
@@ -80,7 +86,7 @@ internal sealed class PomodoroAutoAdvancer(
         // Never past the session's end: PomodoroAutoFinish ends it there.
         while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now && !(run.PhaseEndsAt >= run.FinishBy) && steps++ < 500)
         {
-            if (run.Advance(expectedPhaseIndex: null, run.PhaseEndsAt!.Value, onItsOwn: true).IsT0)
+            if (run.Advance(expectedPhaseIndex: null, run.PhaseEndsAt!.Value).IsT0)
                 break;
         }
 
@@ -116,36 +122,56 @@ internal sealed class PomodoroAutoAdvancer(
             languages[run.UserId] = language;
         }
 
-        var body = PhaseBody(
-            LocalizedTexts.Pomodoro(language),
-            run.Status,
-            run.CurrentPhase.Type,
-            run.CurrentPhase.DurationMinutes,
-            run.CurrentPhaseIndex,
-            run.CycleLength,
-            run.Loop,
-            run.IsBetweenLaps
-        );
-
+        var phase = run.CurrentPhase;
         await dispatcher.DispatchAsync(
             run.UserId,
-            new NotificationMessage(
-                Kind,
-                run.Todo.Title,
-                body,
-                new Dictionary<string, string>
-                {
-                    ["todoId"] = run.TodoId.ToString(),
-                    ["runId"] = run.Id.ToString(),
-                    ["status"] = run.Status.ToString(),
-                    ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
-                    ["link"] = FocusLink(run.TodoId),
-                }
+            PhaseMessage(
+                LocalizedTexts.Pomodoro(language), run.Todo.Title, run.TodoId, run.Id,
+                run.Status, phase.Type, phase.DurationMinutes, run.CurrentPhaseIndex, run.CycleLength, run.Loop
             ),
             cancellationToken
         );
         return true;
     }
+
+    /// <summary>One notification for every phase change, whoever advanced the run (this, or a watching app).</summary>
+    internal static NotificationMessage PhaseMessage(
+        PomodoroTexts texts,
+        string title,
+        Guid todoId,
+        Guid runId,
+        PomodoroRunStatus status,
+        PomodoroPhaseType currentType,
+        int currentDurationMinutes,
+        int currentPhaseIndex,
+        int cycleLength,
+        bool loop
+    )
+    {
+        var data = new Dictionary<string, string>
+        {
+            ["todoId"] = todoId.ToString(),
+            ["runId"] = runId.ToString(),
+            ["status"] = status.ToString(),
+            ["currentPhaseIndex"] = currentPhaseIndex.ToString(),
+            ["link"] = FocusLink(todoId),
+        };
+        var cycleDone = CycleDone(status, currentPhaseIndex, cycleLength, loop);
+        if (cycleDone is { } done)
+            data[CycleDoneKey] = done.ToString();
+        var body = PhaseBody(texts, status, currentType, currentDurationMinutes, currentPhaseIndex, cycleLength, loop);
+        // With its button, built by the app where it can (a phone that rings its reminders); elsewhere as it is.
+        return new NotificationMessage(Kind, title, body, data, ShownByApp: cycleDone is not null);
+    }
+
+    /// <summary>
+    /// The cycle just done, when a looping run's current phase is the first of the next cycle; else null. A session goes
+    /// on by itself: its notice asks whether the person is done (the owner's choice, 2026-10-31).
+    /// </summary>
+    internal static int? CycleDone(PomodoroRunStatus status, int currentPhaseIndex, int cycleLength, bool loop) =>
+        loop && status == PomodoroRunStatus.Active && cycleLength > 0 && currentPhaseIndex > 0 && currentPhaseIndex % cycleLength == 0
+            ? currentPhaseIndex / cycleLength
+            : null;
 
     /// <summary>One phrasing for every phase notification, whoever advanced the run.</summary>
     internal static string PhaseBody(
@@ -155,13 +181,16 @@ internal sealed class PomodoroAutoAdvancer(
         int currentDurationMinutes,
         int currentPhaseIndex,
         int cycleLength,
-        bool loop,
-        bool betweenLaps = false
+        bool loop
     )
     {
+        if (CycleDone(status, currentPhaseIndex, cycleLength, loop) is { } done)
+            return string.Format(
+                currentType == PomodoroPhaseType.Break ? texts.CycleBeganBreakFormat : texts.CycleBeganFocusFormat,
+                done,
+                currentDurationMinutes
+            );
         var lap = cycleLength > 0 ? currentPhaseIndex / cycleLength + 1 : 1;
-        if (betweenLaps)
-            return string.Format(texts.LapDoneFormat, lap - 1);
         var lapPrefix = loop && lap > 1 ? string.Format(texts.LapFormat, lap) : "";
         return status == PomodoroRunStatus.Completed
             ? texts.Complete

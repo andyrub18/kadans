@@ -6,14 +6,14 @@ using Kadans.Modules.Tasks.Features.Pomodoro;
 namespace Kadans.Tasks.Tests;
 
 /// <summary>
-/// A session nobody watches any more: it waits at the end of each cycle for "Another cycle?", ends when the todo's next
-/// occurrence starts, and counts only what was really done.
+/// A session nobody watches any more: each new cycle's notice offers to finish it, it ends when the todo's next
+/// occurrence starts, and it counts only what was really done.
 /// </summary>
 public class ForgottenSessionTests
 {
     private static readonly DateTimeOffset T0 = new(2027, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
-    /// <summary>25 minutes of focus and a 5-minute break, repeated: one lap is 30 minutes.</summary>
+    /// <summary>25 minutes of focus and a 5-minute break, repeated: one cycle is 30 minutes.</summary>
     private static PomodoroRun Start(bool autoAdvance = true) =>
         PomodoroRun.Start(
             new Todo("Study", "", RecurrenceRule.CreateOneTimeRule(T0.AddYears(10)).AsT1),
@@ -27,94 +27,68 @@ public class ForgottenSessionTests
             loop: true
         );
 
-    /// <summary>The first lap runs out by itself, as the deadline watcher steps it.</summary>
-    private static PomodoroRun AfterOneLap()
+    private static NotificationMessageView Notice(PomodoroRun run, string language = "en")
+    {
+        var phase = run.CurrentPhase;
+        var message = PomodoroAutoAdvancer.PhaseMessage(
+            LocalizedTexts.Pomodoro(language), "Study", run.TodoId, run.Id,
+            run.Status, phase.Type, phase.DurationMinutes, run.CurrentPhaseIndex, run.CycleLength, run.Loop
+        );
+        return new(message.Body, message.Data!.GetValueOrDefault(PomodoroAutoAdvancer.CycleDoneKey), message.ShownByApp);
+    }
+
+    private sealed record NotificationMessageView(string Body, string? CycleDone, bool ShownByApp);
+
+    [Test]
+    public async Task A_new_cycle_begins_by_itself_and_its_notice_asks_whether_the_person_is_done()
     {
         var run = Start();
-        run.Advance(null, T0.AddMinutes(25), onItsOwn: true);
-        run.Advance(null, T0.AddMinutes(30), onItsOwn: true);
-        return run;
-    }
-
-    [Test]
-    public async Task A_hands_free_cycle_that_runs_out_waits_for_the_person()
-    {
-        var run = AfterOneLap();
-
-        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Paused);
-        await Assert.That(run.IsBetweenLaps).IsTrue();
-        await Assert.That(run.CurrentPhaseIndex).IsEqualTo(2);
-        await Assert.That(run.CurrentPhase.StartedAt).IsNull();
-        await Assert.That(run.PausedAt).IsEqualTo(T0.AddMinutes(30));
-        await Assert.That(run.PausedRemaining).IsEqualTo(TimeSpan.FromMinutes(25));
-        await Assert.That(run.PhaseEndsAt).IsNull();
-        await Assert.That(run.Phases[1].CompletedAt).IsEqualTo(T0.AddMinutes(30));
-        // Nothing more advances on its own: the watcher only steps active runs.
-        await Assert.That(run.DeadlineReached(T0.AddHours(5))).IsFalse();
-    }
-
-    [Test]
-    public async Task Next_pressed_at_the_end_of_a_cycle_goes_straight_on()
-    {
-        var run = Start();
-        run.Advance(null, T0.AddMinutes(25), onItsOwn: true);
-        run.Advance(null, T0.AddMinutes(28)); // the person skips the rest of the break
-
-        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Active);
-        await Assert.That(run.IsBetweenLaps).IsFalse();
-        await Assert.That(run.CurrentPhase.StartedAt).IsEqualTo(T0.AddMinutes(28));
-    }
-
-    [Test]
-    public async Task A_manual_session_moves_on_only_when_the_person_does_as_before()
-    {
-        var run = Start(autoAdvance: false);
         run.Advance(null, T0.AddMinutes(25));
-        run.Advance(null, T0.AddMinutes(31));
+        await Assert.That(Notice(run).CycleDone).IsNull(); // the break inside the cycle: nothing to ask
+
+        run.Advance(null, T0.AddMinutes(30));
 
         await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Active);
-        await Assert.That(run.CurrentPhaseIndex).IsEqualTo(2);
+        await Assert.That(run.CurrentPhase.StartedAt).IsEqualTo(T0.AddMinutes(30));
+        var notice = Notice(run);
+        await Assert.That(notice.Body).IsEqualTo("Cycle 1 done, the next one begins (25 min of focus). Finished with the task?");
+        await Assert.That(notice.CycleDone).IsEqualTo("1");
+        await Assert.That(notice.ShownByApp).IsTrue();
     }
 
     [Test]
-    public async Task Another_cycle_starts_it_when_the_person_comes_back()
+    [Arguments("fr", "Cycle 2 terminé, le suivant commence (25 min de concentration). Vous avez fini ?")]
+    [Arguments("ht", "Sik 2 fini, pwochen an kòmanse (25 min konsantrasyon). Ou fini?")]
+    public async Task The_notice_counts_the_cycles_in_the_persons_language(string language, string expected)
     {
-        var run = AfterOneLap();
-        var back = T0.AddMinutes(42); // a longer break than planned
+        var run = Start();
+        for (var minutes = 25; minutes <= 60; minutes += minutes % 30 == 0 ? 25 : 5)
+            run.Advance(null, T0.AddMinutes(minutes));
 
-        await Assert.That(run.Resume(back).IsT1).IsTrue();
-
-        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Active);
-        await Assert.That(run.IsBetweenLaps).IsFalse();
-        await Assert.That(run.CurrentPhase.StartedAt).IsEqualTo(back);
-        await Assert.That(run.CurrentPhase.PausedSeconds).IsEqualTo(0);
-        await Assert.That(run.PhaseEndsAt).IsEqualTo(back.AddMinutes(25));
-        run.Advance(null, back.AddMinutes(25), onItsOwn: true);
-        await Assert.That(run.Phases[2].ActualSeconds).IsEqualTo(25 * 60);
+        await Assert.That(run.CurrentPhaseIndex).IsEqualTo(4);
+        await Assert.That(Notice(run, language).Body).IsEqualTo(expected);
+        await Assert.That(Notice(run, language).CycleDone).IsEqualTo("2");
     }
 
     [Test]
-    public async Task Nobody_came_back_so_the_session_ended_with_its_last_cycle()
+    public async Task Other_phase_changes_and_a_session_that_does_not_repeat_ask_nothing()
     {
-        var run = AfterOneLap();
-
-        await Assert.That(run.Finish(T0.AddHours(12), onItsOwn: true).IsT1).IsTrue();
-
-        await Assert.That(run.Status).IsEqualTo(PomodoroRunStatus.Completed);
-        await Assert.That(run.CompletedAt).IsEqualTo(T0.AddMinutes(30));
-        await Assert.That(run.Phases[2].ActualSeconds).IsNull();
-        await Assert.That(run.Phases.Sum(p => p.ActualSeconds ?? 0)).IsEqualTo(30 * 60);
+        await Assert.That(PomodoroAutoAdvancer.CycleDone(PomodoroRunStatus.Active, 1, 2, loop: true)).IsNull();
+        await Assert.That(PomodoroAutoAdvancer.CycleDone(PomodoroRunStatus.Active, 2, 2, loop: false)).IsNull();
+        await Assert.That(PomodoroAutoAdvancer.CycleDone(PomodoroRunStatus.Completed, 2, 2, loop: true)).IsNull();
+        await Assert.That(PomodoroAutoAdvancer.CycleDone(PomodoroRunStatus.Active, 0, 2, loop: true)).IsNull();
+        await Assert.That(PomodoroAutoAdvancer.CycleDone(PomodoroRunStatus.Active, 6, 2, loop: true)).IsEqualTo(3);
+        await Assert.That(
+            PomodoroAutoAdvancer.PhaseBody(LocalizedTexts.Pomodoro("en"), PomodoroRunStatus.Active, PomodoroPhaseType.Break, 5, 1, 2, loop: true)
+        ).IsEqualTo("Break — 5 min");
     }
 
     [Test]
-    public async Task Finish_pressed_between_cycles_ends_it_then()
+    public async Task A_cycle_that_begins_with_a_break_says_so()
     {
-        var run = AfterOneLap();
+        var body = PomodoroAutoAdvancer.PhaseBody(LocalizedTexts.Pomodoro("en"), PomodoroRunStatus.Active, PomodoroPhaseType.Break, 10, 3, 3, loop: true);
 
-        run.Finish(T0.AddMinutes(33));
-
-        await Assert.That(run.CompletedAt).IsEqualTo(T0.AddMinutes(33));
-        await Assert.That(run.Phases[2].ActualSeconds).IsNull();
+        await Assert.That(body).IsEqualTo("Cycle 1 done, the next one begins (a 10-minute break). Finished with the task?");
     }
 
     [Test]
@@ -126,6 +100,7 @@ public class ForgottenSessionTests
 
         await Assert.That(run.Phases[0].CompletedAt).IsEqualTo(T0.AddMinutes(25));
         await Assert.That(run.Phases[0].ActualSeconds).IsEqualTo(25 * 60);
+        await Assert.That(run.CompletedAt).IsEqualTo(T0.AddHours(5));
     }
 
     [Test]
@@ -155,42 +130,17 @@ public class ForgottenSessionTests
     [Test]
     public async Task The_app_sees_the_end_it_will_have_and_why()
     {
-        var run = AfterOneLap();
+        var run = Start();
 
         var ends = run.ToResponse(T0.AddHours(5));
         await Assert.That(ends.FinishAt).IsEqualTo(T0.AddHours(5));
         await Assert.That(ends.EndsWithNextOccurrence).IsTrue();
-        await Assert.That(ends.BetweenLaps).IsTrue();
 
         var later = run.ToResponse(T0.AddHours(13));
         await Assert.That(later.FinishAt).IsEqualTo(T0.AddHours(12));
         await Assert.That(later.EndsWithNextOccurrence).IsFalse();
 
         run.Finish(T0.AddMinutes(40));
-        var done = run.ToResponse(T0.AddHours(5));
-        await Assert.That(done.BetweenLaps).IsFalse();
-        await Assert.That(done.EndsWithNextOccurrence).IsFalse();
-    }
-
-    [Test]
-    [Arguments("en", "Cycle 1 done. Another one? The session waits for you.")]
-    [Arguments("fr", "Cycle 1 terminé. Un autre ? La session vous attend.")]
-    [Arguments("ht", "Sik 1 fini. Yon lòt? Seyans lan ap tann ou.")]
-    public async Task The_notification_asks_for_another_cycle(string language, string expected)
-    {
-        var run = AfterOneLap();
-
-        var body = PomodoroAutoAdvancer.PhaseBody(
-            LocalizedTexts.Pomodoro(language),
-            run.Status,
-            run.CurrentPhase.Type,
-            run.CurrentPhase.DurationMinutes,
-            run.CurrentPhaseIndex,
-            run.CycleLength,
-            run.Loop,
-            run.IsBetweenLaps
-        );
-
-        await Assert.That(body).IsEqualTo(expected);
+        await Assert.That(run.ToResponse(T0.AddHours(5)).EndsWithNextOccurrence).IsFalse();
     }
 }

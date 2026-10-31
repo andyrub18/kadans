@@ -90,6 +90,11 @@ val appModule = org.koin.dsl.module {
         )
     }
     single { ReminderActions(get(), get(), get(), get()) }
+    // A looping session's new cycle: its notice's "Finish session", in the app's language.
+    single {
+        val settings = get<Settings>()
+        app.kadans.pomodoro.CycleActions(get()) { Language.fromTag(LanguageController.currentTag(settings)).catalog }
+    }
     // When the screens load again what they show: the server's word, a notification's button here, back in front.
     single { DataChanges(get<KadansRealtime>().events) }
     single { LanguageController(get(), get()) }

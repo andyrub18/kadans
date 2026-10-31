@@ -74,7 +74,10 @@ internal class DesktopReminderNotices(
 
         private val isLinux = "linux" in System.getProperty("os.name").lowercase()
 
-        /** One connection to the session's notification server for the app's life, made at the first reminder. */
-        private val session: FreedesktopNotifications? by lazy { FreedesktopNotifications.connect() }
+        /**
+         * One connection to the session's notification server for the app's life, made at the first reminder or cycle
+         * notice (`DesktopCycleNotices` shares it).
+         */
+        val session: FreedesktopNotifications? by lazy { FreedesktopNotifications.connect() }
     }
 }

@@ -2,12 +2,22 @@
 
 package app.kadans.notifications
 
+import app.kadans.api.KadansApi
 import app.kadans.api.model.UpcomingReminder
 import app.kadans.desktop.DesktopWindow
 import app.kadans.i18n.Language
+import app.kadans.pomodoro.CycleActions
+import app.kadans.pomodoro.CycleNotice
+import app.kadans.pomodoro.DesktopCycleNotices
 import app.kadans.reminders.DesktopReminderNotices
 import app.kadans.ui.IncomingLinks
+import app.kadans.ui.focusLink
 import app.kadans.ui.todoLink
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import java.nio.file.Files
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -217,6 +227,77 @@ class FreedesktopNotificationsTests {
         opened.next()
         val link = runBlocking { withTimeout(5_000) { IncomingLinks.links.first() } }
         assertEquals(todoLink(reminder(focus = true).todoId), link)
+        DesktopWindow.show = {}
+    }
+
+    /** The server's side of "Finish session": [up] false answers as an unreachable one would. */
+    private fun cycleActions(calls: LinkedBlockingQueue<String>, up: Boolean = true): CycleActions {
+        val engine = MockEngine { request ->
+            calls.add("${request.method.value} ${request.url.encodedPath}")
+            if (up) respond(
+                """{"id":"r1","todoId":"t1","status":"Completed","currentPhaseIndex":2,"startedAt":"2027-01-04T14:00:00Z","updatedAt":"2027-01-04T14:31:00Z"}""",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+            else respond("""{"title":"busy","status":503}""", HttpStatusCode.ServiceUnavailable, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        return CycleActions(KadansApi.create("http://test", engine = engine)) { Language.En.catalog }
+    }
+
+    private val cycle = CycleNotice("r1", "t1", "Study", "Cycle 1 done, the next one begins (25 min of focus). Finished with the task?")
+
+    @Test
+    fun a_new_cycle_offers_finish_session_which_finishes_it_and_the_next_cycle_replaces_it() {
+        val server = server()
+        val calls = LinkedBlockingQueue<String>()
+        val actions = cycleActions(calls)
+        val notifications = notifications()
+        val notices = DesktopCycleNotices(linux = { notifications }, actions = { actions })
+
+        notices.show(cycle)
+        val first = server.shown.next()
+        assertEquals(listOf("default", "", "finish-session", "Finish session"), first.actions)
+        assertEquals(cycle.body, first.body)
+        notices.show(cycle.copy(body = "Cycle 2 done, the next one begins (25 min of focus). Finished with the task?"))
+        assertEquals(first.id, server.shown.next().id, "one notice per session")
+
+        server.click(first.id, "finish-session")
+        assertEquals("PUT /pomodoro/runs/r1/finish", calls.next())
+        assertNull(server.shown.poll(300, TimeUnit.MILLISECONDS), "finished: nothing more to say")
+    }
+
+    @Test
+    fun a_finish_that_could_not_reach_kadans_says_so_and_keeps_its_button() {
+        val server = server()
+        val calls = LinkedBlockingQueue<String>()
+        val actions = cycleActions(calls, up = false)
+        val notifications = notifications()
+        val notices = DesktopCycleNotices(linux = { notifications }, actions = { actions })
+
+        notices.show(cycle)
+        val shown = server.shown.next()
+        server.click(shown.id, "finish-session")
+        calls.next()
+
+        val again = server.shown.next()
+        assertEquals("${cycle.body}\n${Language.En.catalog.reminders.actionFailed}", again.body)
+        assertEquals(listOf("default", "", "finish-session", "Finish session"), again.actions)
+    }
+
+    @Test
+    fun a_click_on_a_cycle_notice_opens_the_session() {
+        val server = server()
+        val actions = cycleActions(LinkedBlockingQueue())
+        val notifications = notifications()
+        val notices = DesktopCycleNotices(linux = { notifications }, actions = { actions })
+        val opened = LinkedBlockingQueue<Boolean>()
+        DesktopWindow.show = { opened.add(true) }
+
+        notices.show(cycle)
+        server.click(server.shown.next().id, FreedesktopNotifications.DEFAULT)
+        opened.next()
+        val link = runBlocking { withTimeout(5_000) { IncomingLinks.links.first() } }
+        assertEquals(focusLink("t1"), link)
         DesktopWindow.show = {}
     }
 

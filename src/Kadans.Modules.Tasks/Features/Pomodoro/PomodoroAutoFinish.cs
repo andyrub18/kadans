@@ -103,7 +103,6 @@ internal sealed class PomodoroAutoFinish(
         // On the end, not on wake-up time: the phase under way counts up to then.
         var end = run.EndsAt(next)!.Value;
         var byNext = next == end && end < run.FinishBy;
-        var betweenLaps = run.IsBetweenLaps;
         if (run.Finish(end, onItsOwn: true).IsT0)
             return;
 
@@ -127,8 +126,8 @@ internal sealed class PomodoroAutoFinish(
             logger.LogWarning(ex, "Could not broadcast run {RunId}", run.Id);
         }
 
-        // Said already, or about to be: "Another cycle?" when the lap ended, or the next occurrence's own "starts now".
-        if (now - end > StaleAfter || betweenLaps || byNext && await NextRingsAsync(run, end, cancellationToken))
+        // The next occurrence's own "starts now" says it already: no second notification at the same moment.
+        if (now - end > StaleAfter || byNext && await NextRingsAsync(run, end, cancellationToken))
             return;
 
         var user = await users.FindAsync(run.UserId, cancellationToken);

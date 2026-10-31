@@ -9,8 +9,8 @@ plugins {
 }
 
 // The server a build talks to by default. Unset (every dev build): the per-platform localhost
-// defaults. A release build passes the public API:
-//   ./gradlew :androidApp:assembleRelease -Pkadans.apiBaseUrl=https://api.kadans.app
+// defaults. A release build passes the public API (an Android one stops without an https address):
+//   ./gradlew :androidApp:assembleRelease -Pkadans.apiBaseUrl=https://api.<domain>
 // (or put kadans.apiBaseUrl=… in ~/.gradle/gradle.properties on the release machine).
 val kadansApiBaseUrl: String = providers.gradleProperty("kadans.apiBaseUrl").orNull?.trim()?.trimEnd('/').orEmpty()
 val generateKadansBuildConfig by tasks.registering {

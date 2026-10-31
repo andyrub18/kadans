@@ -131,6 +131,12 @@ Put `kadans.apiBaseUrl=https://api.<domain>` in `~/.gradle/gradle.properties` on
 stop typing it. The Login screen's server field still overrides it on a device (order: typed address →
 built-for address → dev default).
 
+An Android release build speaks https only: plain http is refused for every host, and only the system's certificate
+authorities are trusted (`androidApp/src/main/res/xml/network_security_config.xml`). So it needs an https server, and
+`assembleRelease` / `bundleRelease` stop before building without one ("A release build needs the server it is for,
+over https"). An http address typed in the Login screen's server field fails on a release build as an unreachable
+server would. Debug builds allow http (`src/debug/res/xml`), for the API on a laptop.
+
 Google Play takes an Android App Bundle signed with your **upload key** (Play App Signing keeps the real app
 signing key). Create the upload key once, keep it and its password out of the repository and backed up (losing it
 means asking Google to reset it), and tell Gradle where it is in `~/.gradle/gradle.properties`:

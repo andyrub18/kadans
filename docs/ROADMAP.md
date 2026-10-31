@@ -464,8 +464,12 @@ installing on real devices second, hosting last.
 - [x] Owner: `api` record DNS only, `deploy/.env` on the server, first start – see OWNER-CHECKLIST →
       Domain and hosting. Live at `https://api.kadansplanning.com`; next, the phone test against it
       (OWNER-CHECKLIST → Testing on a real Android phone).
-- [ ] After the first deploy: `android:usesCleartextTraffic="false"` for release builds (dev needs http),
-      and https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] Android release builds speak https only (2026-10-31): a network security config refuses plain http to every
+      host and trusts only the system's certificate authorities; debug builds keep http for the API on a laptop
+      (`src/debug/res/xml`). A release build without an https `-Pkadans.apiBaseUrl` stops before building: it would
+      have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
+      built files: the release APK and the Play bundle refuse http, the debug APK allows it.
+- [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
 
 4. Before opening sign-up to others. These come from the pre-launch review of 2026-09-30 and ship one
    pull request per step, in this order. Steps 1–4 are server-only and go live as each merges; 5–7 ship

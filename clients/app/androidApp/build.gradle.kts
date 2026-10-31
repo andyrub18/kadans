@@ -16,6 +16,21 @@ if (file("google-services.json").exists()) {
 // Without them a release build comes out unsigned, which Play Console refuses.
 val uploadStoreFile: String? = providers.gradleProperty("kadans.upload.storeFile").orNull
 
+// A release build speaks https only (res/xml/network_security_config.xml), so it must be told an https server: without
+// -Pkadans.apiBaseUrl it would talk to the emulator's http://10.0.2.2:5199 and reach nothing. Checked before it builds.
+val apiBaseUrl = providers.gradleProperty("kadans.apiBaseUrl")
+val checkReleaseServer by tasks.registering {
+    val url = apiBaseUrl
+    doLast {
+        val server = url.orNull?.trim().orEmpty()
+        check(server.startsWith("https://") && server.length > "https://".length) {
+            "A release build needs the server it is for, over https: -Pkadans.apiBaseUrl=https://api.<domain> " +
+                "(got ${server.ifEmpty { "none" }}). DEPLOYMENT → Building the apps."
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(checkReleaseServer) }
+
 dependencies {
     implementation(projects.shared)
     implementation(libs.androidx.activity.compose)

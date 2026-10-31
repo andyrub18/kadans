@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release builds speak https only: no plain http to any host, and only the system's certificate authorities (never
+     ones a person added). Debug builds have their own copy that allows http, for a server on a laptop
+     (src/debug/res/xml). DEPLOYMENT → Building the apps. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

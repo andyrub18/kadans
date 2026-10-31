@@ -176,7 +176,8 @@ first), and an installed build opens with the session (`startup/StartAtLogin`, `
 On Linux it types accents with dead keys through Xlib's own input method when the session's (IBus) is not running
 (`desktop/LinuxInputMethod`, before AWT starts). ARCHITECTURE → "The desktop app: in the tray, once". With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
 :shared:jvmTest` also runs the live checks against it (the hub and its `data.changed`, the desktop's reminders; ~2 min, as `smoke`). The app talks to `http://localhost:5199`
-(desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. `local.properties`
+(desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. Plain http works in Android debug builds
+only: a release build is https-only and stops without `-Pkadans.apiBaseUrl=https://…` (DEPLOYMENT → Building the apps). `local.properties`
 (untracked) points at the
 Android SDK. Versions are pinned in `gradle/libs.versions.toml` to the combo the official
 KMP-App-Template tests together – bump them as a set, not piecemeal. Gradle stays (Amper is

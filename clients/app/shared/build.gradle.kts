@@ -116,12 +116,17 @@ kotlin {
 
             implementation(libs.multiplatform.settings)
             implementation(libs.multiplatform.settings.noarg)
+
+            implementation(libs.qrcode.kotlin) // two-factor enrollment's QR code
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.ktor.client.mock)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.multiplatform.settings.test)
+        }
+        jvmTest.dependencies {
+            implementation(libs.zxing.core) // reads the QR code back
         }
     }
 }

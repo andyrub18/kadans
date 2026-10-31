@@ -1,4 +1,8 @@
 [versions]
+# A QR code for two-factor enrollment: pure Kotlin (every target, iOS too), stdlib only, MIT. Not part of the template's set.
+qrcode-kotlin = "4.5.0"
+# Test only: reads the drawn QR code back, as a phone's scanner would.
+zxing = "3.5.4"
 agp = "9.1.0"
 android-compileSdk = "36"
 android-minSdk = "24"
@@ -22,6 +26,8 @@ google-services = "4.4.2"
 dbus-java = "5.2.1"
 
 [libraries]
+qrcode-kotlin = { module = "io.github.g0dkar:qrcode-kotlin", version.ref = "qrcode-kotlin" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-lifecycle-runtimeCompose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-viewmodelCompose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }

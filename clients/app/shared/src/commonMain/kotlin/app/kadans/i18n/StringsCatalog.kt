@@ -333,6 +333,23 @@ data class PaywallStrings(
     fun endsOn(date: String): String = endsOnFormat.replace("{date}", date)
 }
 
+/**
+ * Turning two-factor authentication on (Settings): the QR code an authenticator app scans, and on a phone the button
+ * that opens that app on the phone itself. A feature group.
+ */
+data class TwoFactorStrings(
+    /** On a computer: the phone's authenticator scans the code. */
+    val scanHint: String,
+    /** On a phone: the button, or the code scanned from another device. */
+    val phoneHint: String,
+    /** What a screen reader says for the QR code. */
+    val qrDescription: String,
+    val openAuthenticator: String,
+    val noAuthenticator: String,
+    val copyKey: String,
+    val keyCopied: String,
+)
+
 /** The desktop app's own words: its tray menu, and opening with the session (Settings → This computer). A feature group. */
 data class DesktopStrings(
     val trayOpen: String,
@@ -469,6 +486,7 @@ data class StringsCatalog(
     val limits: LimitStrings,
     val notifications: NotificationStrings,
     val desktop: DesktopStrings,
+    val twoFactor: TwoFactorStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,
@@ -611,7 +629,6 @@ data class StringsCatalog(
     val mfaDisabledBadge: String,
     val enableMfa: String,
     val disableMfa: String,
-    val mfaEnrollHint: String,
     val mfaManualKey: String,
     val recoveryCodesTitle: String,
     val recoveryCodesHint: String,

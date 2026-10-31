@@ -236,6 +236,15 @@ val EnglishStrings = StringsCatalog(
         empty = "Nothing yet. Reminders and phase changes will show up here.",
         loadMore = "Load more",
     ),
+    twoFactor = TwoFactorStrings(
+        scanHint = "Scan this code with the authenticator app on your phone (Google Authenticator, Aegis…), then enter the 6-digit code it shows.",
+        phoneHint = "Add Kadans to your authenticator app (Google Authenticator, Aegis…) with the button below, or scan the code from another device. Then enter the 6-digit code it shows.",
+        qrDescription = "QR code to add Kadans to an authenticator app",
+        openAuthenticator = "Open in my authenticator app",
+        noAuthenticator = "No authenticator app opened it. Install one (Google Authenticator, Aegis…), or scan the code from another device.",
+        copyKey = "Copy the key",
+        keyCopied = "Key copied",
+    ),
     desktop = DesktopStrings(
         trayOpen = "Open Kadans",
         trayQuit = "Quit",
@@ -295,7 +304,6 @@ val EnglishStrings = StringsCatalog(
     passwordChangedSignInAgain = "Changing it signs you out everywhere, this device included.",
     mfaSection = "Two-factor authentication", mfaEnabledBadge = "On", mfaDisabledBadge = "Off",
     enableMfa = "Enable two-factor", disableMfa = "Disable",
-    mfaEnrollHint = "Add the key below to your authenticator app (Google Authenticator, Aegis…), then enter the 6-digit code it shows.",
     mfaManualKey = "Setup key",
     recoveryCodesTitle = "Recovery codes", recoveryCodesHint = "Save these somewhere safe — each one can replace a code once if you lose your phone.",
     regenerateRecoveryCodes = "New recovery codes", signOutEverywhere = "Sign out everywhere",

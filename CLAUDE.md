@@ -177,7 +177,9 @@ StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; elsewhere AWT's tray),
 `./gradlew :desktopApp:run` too, shows the running one's window and exits (`desktop/SingleInstance`; quit it from the tray
 first), and an installed build opens with the session (`startup/StartAtLogin`, `--background`; a Gradle run never does).
 On Linux it types accents with dead keys through Xlib's own input method when the session's (IBus) is not running
-(`desktop/LinuxInputMethod`, before AWT starts). ARCHITECTURE → "The desktop app: in the tray, once". With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
+(`desktop/LinuxInputMethod`, before AWT starts), and an installed one checks the site daily for a newer version
+(`updates/AppUpdates`; it never downloads anything). ARCHITECTURE → "The desktop app: in the tray, once". Every app
+reports one version, `kadans.version` in `clients/app/gradle.properties`. With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
 :shared:jvmTest` also runs the live checks against it (the hub and its `data.changed`, the desktop's reminders; ~2 min, as `smoke`). The app talks to `http://localhost:5199`
 (desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. Plain http works in Android debug builds
 only: a release build is https-only and stops without `-Pkadans.apiBaseUrl=https://…` (DEPLOYMENT → Building the apps). `local.properties`

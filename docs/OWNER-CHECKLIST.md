@@ -230,16 +230,17 @@ Both:
       "Kadans"), the country of the server if you want it stated, and the governing law (the drafts say Haiti's).
       The privacy policy states what is kept and for how long: the table in ARCHITECTURE → Data retention, including
       the 14 days of backups; change both together. Have a native speaker read the Kreyòl.
-- [ ] Google Play's data-deletion question: the web address is `https://kadansplanning.com/delete-account`.
 
 ## Client (Compose Multiplatform)
 
 - [ ] Google Play / App Store developer accounts when it is time to ship
 - [ ] Play Console → Grow → Store presence → Main store listing: the app icon is `branding/play-store-icon.png`
-      (512 x 512, the logo: branding/README.md). Still to make: the feature graphic (1024 x 500) and phone screenshots.
-- [ ] Play Console → App content → Data safety → "Delete account URL": `https://api.kadansplanning.com/account/delete`
-      (the web route Google Play requires; the app has its own in Settings). The form also asks how long deletion
-      takes: closed at once, erased after 7 days, out of the backups 14 days after that.
+      (512 x 512, the logo: branding/README.md) and the feature graphic `branding/play-feature-graphic.png`
+      (1024 x 500, no text: Play writes the name beside it). Still to make: phone screenshots (at least two).
+- [ ] Play Console → App content → Data safety → "Delete account URL": `https://kadansplanning.com/delete-account`
+      (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
+      `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
+      erased after 7 days, out of the backups 14 days after that.
 - [x] Deep links: `kadans://auth/...` custom scheme handled on Android; the email landing pages
       offer the app link. Verified https App Links / Universal Links wait for the domain.
 - [x] Device registration on every sign-in: `PUT /users/me/devices/{installationId}` with the

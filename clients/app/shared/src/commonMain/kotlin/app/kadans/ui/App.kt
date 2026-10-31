@@ -119,6 +119,7 @@ fun App(deepLink: String? = null) {
                             languageController = languageController,
                             deepLinkRoute = parseDeepLink(deepLink),
                         )
+                        app.kadans.updates.UpdateRequiredDialog()
                     }
                 }
             }

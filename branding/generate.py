@@ -93,6 +93,37 @@ def icon_square():
     return svg_doc(f'<rect width="100" height="100" fill="{PURPLE}"/>' + scaled(svg_mark(WHITE), 0.56))
 
 
+# Google Play's feature graphic: the dial, white, between two rows of beats, the cadence, in a lighter purple (white
+# at 20 % over the purple, written out: the renderer has no opacity).
+FEATURE_W, FEATURE_H = 1024, 500
+FEATURE_DIAL = 300  # px across
+BEAT = "#8573B6"
+BEAT_GAP, BEAT_SPACING, BEAT_MARGIN = 56, 28, 48  # from the dial, between beats, to the edge
+BEAT_DOWN, BEAT_UP = (72, 7), (40, 5)  # (height, width): every fourth beat, the downbeat, is longer and bolder
+
+
+def feature_graphic():
+    """1024 x 500, no text: Play shows the app's name beside it, in every language, and Google advises against text."""
+    cx, cy = FEATURE_W / 2, FEATURE_H / 2
+    beats = []
+    for side in (-1, 1):
+        i = 0
+        while True:
+            x = cx + side * (FEATURE_DIAL / 2 + BEAT_GAP + i * BEAT_SPACING)
+            if not BEAT_MARGIN <= x <= FEATURE_W - BEAT_MARGIN:
+                break
+            h, w = BEAT_DOWN if i % 4 == 0 else BEAT_UP
+            beats.append(f'<path d="M{fmt(x)},{fmt(cy - h / 2)} L{fmt(x)},{fmt(cy + h / 2)}" stroke="{BEAT}" '
+                         f'stroke-width="{w}" stroke-linecap="round"/>')
+            i += 1
+    scale = FEATURE_DIAL / 100
+    dial = f'<g transform="translate({fmt(cx - FEATURE_DIAL / 2)} {fmt(cy - FEATURE_DIAL / 2)}) scale({fmt(scale)})">{svg_mark(WHITE)}</g>'
+    # A small nominal size, the drawing in viewBox units: png_flat renders it 4 times over, then scales down.
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{FEATURE_W // 4}" height="{FEATURE_H // 4}" '
+            f'viewBox="0 0 {FEATURE_W} {FEATURE_H}"><rect width="{FEATURE_W}" height="{FEATURE_H}" fill="{PURPLE}"/>'
+            + "".join(beats) + dial + "</svg>\n")
+
+
 # ---------------------------------------------------------------- Android vector drawables
 
 ANDROID_NS = 'xmlns:android="http://schemas.android.com/apk/res/android"'
@@ -212,6 +243,24 @@ def png(svg_text, rel, px):
     print("wrote", rel, f"({px} px)")
 
 
+def png_flat(svg_text, rel, width, height, nominal_width):
+    """
+    A picture with no transparency (Play's feature graphic must be JPEG or 24-bit PNG), drawn 4 times over first, and
+    without ImageMagick's dates, so the same drawing makes the same file.
+    """
+    path = os.path.join(ROOT, rel)
+    with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as f:
+        f.write(svg_text)
+        src = f.name
+    try:
+        density = 96 * width * 4 // nominal_width
+        subprocess.run(["convert", "-density", str(density), f"MSVG:{src}", "-resize", f"{width}x{height}!",
+                        "-background", PURPLE, "-flatten", "-alpha", "off", "-strip", f"PNG24:{path}"], check=True)
+    finally:
+        os.unlink(src)
+    print("wrote", rel, f"({width} x {height} px)")
+
+
 def main():
     # Master files
     write("branding/kadans-mark.svg", svg_doc(svg_mark(PURPLE)))
@@ -219,6 +268,7 @@ def main():
     write("branding/kadans-mark-small.svg", svg_doc(svg_mark(PURPLE, small=True)))
     write("branding/kadans-icon.svg", icon_round())
     png(icon_square(), "branding/play-store-icon.png", 512)
+    png_flat(feature_graphic(), "branding/play-feature-graphic.png", FEATURE_W, FEATURE_H, FEATURE_W // 4)
 
     # Android launcher: adaptive (8.0+, themed on 13+), and PNGs for 7.x
     app = "clients/app/androidApp/src/main/res"

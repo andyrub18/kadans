@@ -29,6 +29,7 @@ import app.kadans.ui.brand.KadansIconPainter
 import app.kadans.ui.brand.SplashOver
 import app.kadans.ui.currentAppStrings
 import app.kadans.ui.rememberAppStrings
+import app.kadans.updates.startUpdateChecks
 import java.awt.Desktop
 import java.awt.SystemTray
 import java.awt.desktop.AppReopenedListener
@@ -56,6 +57,8 @@ fun main(args: Array<String> = emptyArray()) {
     restoreDesktopReminders()
     // An installed Kadans opens with the session from its first run on (Settings → This computer turns it off).
     applyStartAtLogin()
+    // And asks the site, a minute in and then daily, whether a newer version is out (never a dev run).
+    startUpdateChecks()
 
     // Linux desktops host the freedesktop tray (COSMIC, KDE Plasma, GNOME with AppIndicator); AWT's tray speaks only
     // XEmbed, which they no longer host. Elsewhere AWT's tray is the system's own.

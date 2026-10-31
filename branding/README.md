@@ -27,6 +27,7 @@ for the desktop's window, tray and splash: keep its numbers in step with the scr
 | `kadans-mark-small.svg` | The small mark: no hour marks, bolder strokes, for 24 px and under |
 | `kadans-icon.svg` | The app icon: the white dial on a purple disc |
 | `play-store-icon.png` | 512 x 512 for Play Console (a full square: Google applies its own mask) |
+| `play-feature-graphic.png` | 1024 x 500 for Play Console's listing: the dial between two rows of beats, no text, a 24-bit PNG (Play takes no transparency) |
 | Android `res/` (generated) | Adaptive launcher icon with Android 13's themed version, PNG icons for Android 7, the splash's animated icon (Android 12+) and its still mark (before), the notification icon (in `shared`) |
 | `clients/app/desktopApp/icons/` | The packaged desktop app's icon (`.png` for Linux, `.ico` for Windows) |
 

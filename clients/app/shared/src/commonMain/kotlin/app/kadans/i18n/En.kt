@@ -108,7 +108,7 @@ val EnglishStrings = StringsCatalog(
     deletion = DeletionStrings(
         section = "Delete my account",
         explanation = "Your account closes at once and is erased with everything in it (todos, focus history, budget) 7 days later. Sign in before then to keep it.",
-        subscriptionNote = "Deleting the account does not cancel a subscription bought in Google Play or the App Store: cancel it there.",
+        subscriptionNote = "A Google Play subscription stops renewing when the account is erased; to stop it sooner, cancel it in Google Play. One bought in the App Store is cancelled there.",
         deleteAccount = "Delete my account",
         confirmTitle = "Delete your account?",
         confirmText = "It closes now, and everything in it is erased in 7 days unless you sign in before then to keep it.",
@@ -244,6 +244,15 @@ val EnglishStrings = StringsCatalog(
         noAuthenticator = "No authenticator app opened it. Install one (Google Authenticator, Aegis…), or scan the code from another device.",
         copyKey = "Copy the key",
         keyCopied = "Key copied",
+    ),
+    updates = UpdateStrings(
+        availableFormat = "Kadans %s is available",
+        availableText = "Download the new version from the Kadans site.",
+        requiredTitle = "Kadans needs updating",
+        requiredText = "This version no longer works with the Kadans server. Download the new one to keep going.",
+        download = "Download",
+        later = "Later",
+        versionFormat = "Version %s",
     ),
     desktop = DesktopStrings(
         trayOpen = "Open Kadans",

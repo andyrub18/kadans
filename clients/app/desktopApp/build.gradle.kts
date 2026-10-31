@@ -22,7 +22,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Kadans"
-            packageVersion = "1.0.0"
+            packageVersion = providers.gradleProperty("kadans.version").get() // one version for every app (gradle.properties)
             // The runtime is cut down to what the app uses. Beyond java.desktop's modules, the Linux tray's D-Bus
             // (dbus-java) needs the user id for its login (jdk.security.auth) and the Unix socket's options (jdk.net).
             modules("jdk.security.auth", "jdk.net")

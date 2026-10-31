@@ -470,6 +470,12 @@ installing on real devices second, hosting last.
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] Step 2 of the site plan (2026-10-31): the desktop app's update check (a newer version announced once, Settings
+      → This computer shows it, a dialog when this one is below `minimumVersion`; never downloads or installs anything,
+      its own client, no token), one version for every app (`kadans.version`, 1.0.0: Android had said 0.1.0), the
+      deletion note in the app (it said deleting does not cancel a Google Play subscription; erasing does), and Play's
+      feature graphic (`branding/play-feature-graphic.png`). The privacy policy says GitHub also serves the daily check.
+      Next: the release workflow (a tag builds the installers and latest.json).
 - [x] Two-factor by QR code (2026-10-31, the owner, turning it on for the production admin: "copying the code is
       definitely not practical"). Settings shows the authenticator address as a QR code; on a phone, "Open in my
       authenticator app" hands it to the app there (a phone cannot scan its own screen); the key stays, with "Copy the

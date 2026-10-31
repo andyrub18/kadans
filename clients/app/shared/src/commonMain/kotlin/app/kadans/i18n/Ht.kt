@@ -108,7 +108,7 @@ val CreoleStrings = StringsCatalog(
     deletion = DeletionStrings(
         section = "Efase kont mwen",
         explanation = "Kont ou fèmen touswit epi l ap efase ak tout sa ki ladan l (travay yo, istwa konsantrasyon, bidjè) 7 jou apre. Konekte anvan sa pou kenbe l.",
-        subscriptionNote = "Efase kont lan pa anile yon abònman ou te achte nan Google Play oswa App Store: anile l la.",
+        subscriptionNote = "Yon abònman Google Play sispann renouvle lè kont lan efase; pou rete l pi bonè, anile l sou Google Play. Yon abònman ou pran sou App Store, se sou App Store pou anile l.",
         deleteAccount = "Efase kont mwen",
         confirmTitle = "Efase kont ou?",
         confirmText = "Li fèmen kounye a, epi tout sa ki ladan l ap efase nan 7 jou, sòf si ou konekte anvan sa pou kenbe l.",
@@ -244,6 +244,15 @@ val CreoleStrings = StringsCatalog(
         noAuthenticator = "Okenn aplikasyon otantifikasyon pa louvri l. Enstale youn (Google Authenticator, Aegis…), oswa eskane kòd la sou yon lòt aparèy.",
         copyKey = "Kopye kle a",
         keyCopied = "Kle a kopye",
+    ),
+    updates = UpdateStrings(
+        availableFormat = "Kadans %s disponib",
+        availableText = "Telechaje nouvo vèsyon an sou sit Kadans lan.",
+        requiredTitle = "Fòk ou mete Kadans ajou",
+        requiredText = "Vèsyon sa a pa mache ak sèvè Kadans lan ankò. Telechaje nouvo a pou ou kontinye.",
+        download = "Telechaje",
+        later = "Pita",
+        versionFormat = "Vèsyon %s",
     ),
     desktop = DesktopStrings(
         trayOpen = "Ouvri Kadans",

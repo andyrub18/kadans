@@ -131,6 +131,26 @@ Put `kadans.apiBaseUrl=https://api.<domain>` in `~/.gradle/gradle.properties` on
 stop typing it. The Login screen's server field still overrides it on a device (order: typed address →
 built-for address → dev default).
 
+One version number for every app: `kadans.version` in `clients/app/gradle.properties` (`1.0.0` for the first store
+release), which a release can override (`-Pkadans.version=1.1.0`). It is Android's `versionName`, the desktop package's
+version, and what the desktop's update check compares; Android's `kadans.versionCode` still goes up by one for every
+upload to Play.
+
+The desktop app learns of a new version from `latest.json` on the latest GitHub release (the site's
+`/desktop/latest.json` sends it there), next to the installers under names that never change
+(`kadans-linux-amd64.deb`, `kadans-linux-x86_64.rpm`, `kadans-windows-x64.msi`):
+
+```json
+{
+  "version": "1.1.0",
+  "minimumVersion": "1.0.0",
+  "notes": { "en": "Faster reminders.", "fr": "Rappels plus rapides.", "ht": "Rapèl pi rapid." }
+}
+```
+
+`minimumVersion` (optional) is the oldest version that still works with the server: raise it only with a release that
+changed the API in a way older apps cannot follow; apps below it ask to update at every start. `notes` are optional.
+
 An Android release build speaks https only: plain http is refused for every host, and only the system's certificate
 authorities are trusted (`androidApp/src/main/res/xml/network_security_config.xml`). So it needs an https server, and
 `assembleRelease` / `bundleRelease` stop before building without one ("A release build needs the server it is for,

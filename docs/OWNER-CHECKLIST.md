@@ -134,7 +134,14 @@ line – it applies immediately, no restart.
 The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). What only you can do:
 
 - [x] Buy the domain: **`kadansplanning.com`**. The backend is **`https://api.kadansplanning.com`** (what
-      the apps and emailed links use); the bare domain stays free for a website later.
+      the apps and emailed links use); the bare domain is the website.
+- [x] Cloudflare → DNS: `A` records for `@` and `www` → the server (148.113.254.227), **DNS only** (2026-10-31).
+- [ ] The website (DEPLOYMENT.md → The website): `KADANS_SITE_DOMAIN=kadansplanning.com` in `deploy/.env` on the
+      server, then `git pull && docker compose up -d`. Check: `https://kadansplanning.com` opens, and
+      `https://www.kadansplanning.com` goes to it.
+- [ ] A mailbox for **`support@kadansplanning.com`**: the site and the privacy policy give it. Resend only sends;
+      Cloudflare → Email → Email Routing (free) can forward that address to your own inbox. It adds `MX` records on
+      the bare domain, which do not touch Resend's.
 - [x] Resend → Domains → `kadansplanning.com` verified. Still to do: a production API key as
       `RESEND_API_KEY` in `deploy/.env` (`EMAIL_FROM` is already filled in).
 - [x] A server, with DNS `api` → its address.
@@ -216,10 +223,14 @@ Apple (no App Store in Haiti; the iPhone subscription is sold in the storefronts
 - [ ] Sandbox testers, to buy test subscriptions without paying.
 
 Both:
-- [ ] Terms of Use (with the subscription terms) and a Privacy Policy at **`https://kadansplanning.com/terms`**
-      and **`https://kadansplanning.com/privacy`**: the paywall already links there (`config/LegalLinks.kt`;
-      change both together if they live elsewhere), and both store listings need them too. The privacy policy states what is kept and for how long: the table in
-      ARCHITECTURE → Data retention, including the 14 days of backups.
+- [ ] Read and approve the Terms of Use (with the subscription terms) and the Privacy Policy, drafted 2026-10-31 in
+      `site/legal/` in the three languages, served at **`https://kadansplanning.com/terms`** and
+      **`https://kadansplanning.com/privacy`** (the paywall links there: `config/LegalLinks.kt`), and give both
+      addresses to the store listings. To decide or add: your name or company as the one responsible (the drafts say
+      "Kadans"), the country of the server if you want it stated, and the governing law (the drafts say Haiti's).
+      The privacy policy states what is kept and for how long: the table in ARCHITECTURE → Data retention, including
+      the 14 days of backups; change both together. Have a native speaker read the Kreyòl.
+- [ ] Google Play's data-deletion question: the web address is `https://kadansplanning.com/delete-account`.
 
 ## Client (Compose Multiplatform)
 

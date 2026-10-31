@@ -17,7 +17,8 @@ x-logging: &logging
 
 services:
   # The proxy (docs/DEPLOYMENT.md → Proxy and certificates): TLS, gzip, WebSockets, HTTP to HTTPS. nginx took half of
-  # Caddy's CPU for the same work (docs/LOADTEST.md); certbot gets and renews the certificate, nginx picks it up.
+  # Caddy's CPU for the same work (docs/LOADTEST.md); certbot gets and renews the certificates, nginx picks them up.
+  # It also serves the website, plain files from ../site/public (DEPLOYMENT → The website): a `git pull` updates it.
   nginx:
     image: nginx:1.30
     restart: unless-stopped
@@ -27,11 +28,16 @@ services:
       - "443:443"
     environment:
       KADANS_DOMAIN: ${KADANS_DOMAIN:?set KADANS_DOMAIN in .env, e.g. api.kadansplanning.com}
+      KADANS_SITE_DOMAIN: ${KADANS_SITE_DOMAIN:-}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/tls.conf:/etc/nginx/kadans/tls.conf:ro
       - ./nginx/https.conf.template:/etc/nginx/kadans/https.conf.template:ro
+      - ./nginx/site.conf.template:/etc/nginx/kadans/site.conf.template:ro
+      - ./nginx/site-https.conf.template:/etc/nginx/kadans/site-https.conf.template:ro
       - ./nginx/40-kadans-certificate.sh:/docker-entrypoint.d/40-kadans-certificate.sh:ro
+      - ../site:/usr/share/nginx/kadans-site:ro # its public/ is served: the folder above it never moves
       - letsencrypt:/etc/letsencrypt:ro
       - acme_challenges:/var/www/acme:ro
     depends_on:
@@ -44,6 +50,7 @@ services:
     entrypoint: ["/bin/sh", "/kadans/certbot.sh"]
     environment:
       KADANS_DOMAIN: ${KADANS_DOMAIN:?}
+      KADANS_SITE_DOMAIN: ${KADANS_SITE_DOMAIN:-}
     volumes:
       - ./nginx/certbot.sh:/kadans/certbot.sh:ro
       - letsencrypt:/etc/letsencrypt # the certificate and the Let's Encrypt account: keep this volume (rate limits)

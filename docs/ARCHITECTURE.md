@@ -137,7 +137,9 @@ never two replicas. Because of that, migrations run at startup in production
 (`Database:MigrateOnStartup`, set by the image) and a deploy is "start the new image". The image is
 host-neutral (environment variables only, port 8080 behind a TLS-terminating proxy whose forwarded
 headers it trusts); `deploy/` is the reference setup for a single VPS (nginx with certbot, API, Postgres,
-nightly dump). Outside Development the process refuses to start on an incomplete configuration. The only state
+nightly dump). The same nginx serves the website, `https://kadansplanning.com`: plain files (`site/`), outside the
+API, so a crawler never takes one of its admission places and an API update never touches the site (DEPLOYMENT →
+The website). Outside Development the process refuses to start on an incomplete configuration. The only state
 besides Postgres would have been ASP.NET Core's Data Protection key ring (it protects the tokens in emailed
 links, and its default home is a folder inside the container, lost on every update); it lives in the
 Identity schema instead (`data_protection_keys`), encrypted with AES-GCM under a key derived from `Jwt:Key`

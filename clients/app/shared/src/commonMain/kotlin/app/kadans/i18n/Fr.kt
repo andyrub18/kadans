@@ -236,6 +236,15 @@ val FrenchStrings = StringsCatalog(
         empty = "Rien pour l'instant. Les rappels et les changements de phase apparaîtront ici.",
         loadMore = "Charger plus",
     ),
+    twoFactor = TwoFactorStrings(
+        scanHint = "Scannez ce code avec l'application d'authentification de votre téléphone (Google Authenticator, Aegis…), puis saisissez le code à 6 chiffres affiché.",
+        phoneHint = "Ajoutez Kadans à votre application d'authentification (Google Authenticator, Aegis…) avec le bouton ci-dessous, ou scannez le code depuis un autre appareil. Puis saisissez le code à 6 chiffres affiché.",
+        qrDescription = "Code QR pour ajouter Kadans à une application d'authentification",
+        openAuthenticator = "Ouvrir dans mon application d'authentification",
+        noAuthenticator = "Aucune application d'authentification ne l'a ouvert. Installez-en une (Google Authenticator, Aegis…), ou scannez le code depuis un autre appareil.",
+        copyKey = "Copier la clé",
+        keyCopied = "Clé copiée",
+    ),
     desktop = DesktopStrings(
         trayOpen = "Ouvrir Kadans",
         trayQuit = "Quitter",
@@ -295,7 +304,6 @@ val FrenchStrings = StringsCatalog(
     passwordChangedSignInAgain = "Le changement vous déconnecte partout, y compris sur cet appareil.",
     mfaSection = "Authentification à deux facteurs", mfaEnabledBadge = "Activée", mfaDisabledBadge = "Désactivée",
     enableMfa = "Activer la double authentification", disableMfa = "Désactiver",
-    mfaEnrollHint = "Ajoutez la clé ci-dessous dans votre application d'authentification (Google Authenticator, Aegis…), puis saisissez le code à 6 chiffres affiché.",
     mfaManualKey = "Clé de configuration",
     recoveryCodesTitle = "Codes de récupération", recoveryCodesHint = "Conservez-les en lieu sûr — chacun peut remplacer un code une fois si vous perdez votre téléphone.",
     regenerateRecoveryCodes = "Nouveaux codes de récupération", signOutEverywhere = "Se déconnecter partout",

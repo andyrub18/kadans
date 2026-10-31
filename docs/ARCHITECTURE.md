@@ -79,7 +79,10 @@ Implemented (Phase 2): sessions are refresh-token *families* (one per login/devi
 SHA-256 hashes; refreshing rotates inside the family and replaying a rotated token revokes the whole
 family. Password change/reset revokes all families. TOTP MFA is a two-step login: the password step
 returns a short-lived challenge JWT with audience `<Audience>:mfa` (never accepted as a bearer token),
-exchanged with a TOTP or recovery code. External login verifies Google/Apple ID tokens obtained natively
+exchanged with a TOTP or recovery code. Turning it on, the app shows the server's `otpauth://` address as a QR code
+(`ui/settings/AuthenticatorSetup`, drawn by the app from `qrcode-kotlin`'s squares, black on white in both themes, on
+whole pixels), and on a phone a button that hands that address to the authenticator app there; the key stays below,
+with a copy button (the owner, 2026-10-31: typing the key is not practical). External login verifies Google/Apple ID tokens obtained natively
 by the client against the provider's JWKS (OIDC discovery). A login already linked signs straight in.
 Otherwise only a **verified** address counts: without one, nothing is linked or created. With one, the
 login is linked to a confirmed account with that address, or a new account is created. An account whose

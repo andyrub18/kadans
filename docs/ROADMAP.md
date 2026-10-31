@@ -470,6 +470,12 @@ installing on real devices second, hosting last.
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] Two-factor by QR code (2026-10-31, the owner, turning it on for the production admin: "copying the code is
+      definitely not practical"). Settings shows the authenticator address as a QR code; on a phone, "Open in my
+      authenticator app" hands it to the app there (a phone cannot scan its own screen); the key stays, with "Copy the
+      key". The server already sent the address. Checked: the code reads back as the exact address and the right way
+      round (zxing, a test), and the drawn code scans at six sizes from 220 to 910 px; the first render did not (a
+      half-pixel start turned every edge grey) and the start is now rounded.
 - [x] The website, 2026-10-31 (the owner's choice: on the same server, not a separate host, and the API stays at
       `api.`): `https://kadansplanning.com`, plain files nginx serves under their own certificate (DEPLOYMENT → The
       website), made by `site/generate.py` in English, French and Kreyòl: home, download, support, account deletion,

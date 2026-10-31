@@ -200,23 +200,7 @@ fun SettingsScreen(
             val enrollment = state.enrollment
             when {
                 enrollment != null -> {
-                    Text(s.mfaEnrollHint, style = MaterialTheme.typography.bodySmall)
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(s.mfaManualKey, style = MaterialTheme.typography.labelMedium)
-                            SelectionContainer {
-                                Text(enrollment.sharedKey, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
-                            }
-                            SelectionContainer {
-                                Text(
-                                    enrollment.authenticatorUri,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
+                    AuthenticatorEnrollment(enrollment.sharedKey, enrollment.authenticatorUri)
                     MfaCodeField(state.mfaCode, viewModel)
                     Button(
                         onClick = viewModel::confirmMfa,

@@ -236,6 +236,15 @@ val CreoleStrings = StringsCatalog(
         empty = "Poko gen anyen. Rapèl yo ak chanjman faz yo ap parèt la a.",
         loadMore = "Chaje plis",
     ),
+    twoFactor = TwoFactorStrings(
+        scanHint = "Eskane kòd sa a ak aplikasyon otantifikasyon ki sou telefòn ou (Google Authenticator, Aegis…), epi antre kòd 6 chif li montre a.",
+        phoneHint = "Ajoute Kadans nan aplikasyon otantifikasyon ou (Google Authenticator, Aegis…) ak bouton ki anba a, oswa eskane kòd la sou yon lòt aparèy. Apre sa, antre kòd 6 chif li montre a.",
+        qrDescription = "Kòd QR pou ajoute Kadans nan yon aplikasyon otantifikasyon",
+        openAuthenticator = "Louvri l nan aplikasyon otantifikasyon mwen",
+        noAuthenticator = "Okenn aplikasyon otantifikasyon pa louvri l. Enstale youn (Google Authenticator, Aegis…), oswa eskane kòd la sou yon lòt aparèy.",
+        copyKey = "Kopye kle a",
+        keyCopied = "Kle a kopye",
+    ),
     desktop = DesktopStrings(
         trayOpen = "Ouvri Kadans",
         trayQuit = "Kite",
@@ -295,7 +304,6 @@ val CreoleStrings = StringsCatalog(
     passwordChangedSignInAgain = "Chanjman an ap dekonekte w tout kote, menm sou aparèy sa a.",
     mfaSection = "Otantifikasyon de faktè", mfaEnabledBadge = "Aktive", mfaDisabledBadge = "Pa aktive",
     enableMfa = "Aktive de faktè", disableMfa = "Dezaktive",
-    mfaEnrollHint = "Mete kle ki anba a nan aplikasyon otantifikasyon ou (Google Authenticator, Aegis…), epi antre kòd 6 chif li montre a.",
     mfaManualKey = "Kle konfigirasyon",
     recoveryCodesTitle = "Kòd rekiperasyon yo", recoveryCodesHint = "Sere yo yon kote ki an sekirite — chak ka ranplase yon kòd yon sèl fwa si w pèdi telefòn ou.",
     regenerateRecoveryCodes = "Nouvo kòd rekiperasyon", signOutEverywhere = "Dekonekte tout kote",

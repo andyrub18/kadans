@@ -401,6 +401,14 @@ installing on real devices second, hosting last.
         on one already so shows it so (ARCHITECTURE → "Screens stay in step"). Checked: the server's and the app's tests,
         the live hub check, `task_flows.py` and `budget_flows.py`, a recurring booking reaching the hub by itself. Needs
         a deploy (the server's signal) and the new app; then the owner's sync test, phone and desktop side by side.
+- [x] A forgotten focus session (2026-10-31, the owner's question: a looping session left on, and the todo's next
+      occurrence arrives). It used to keep going for 12 hours: the next occurrence rang nothing, stayed pending
+      unmentioned, a session for it was refused, and the stats counted focus nobody did. Now a session ends when the
+      next occurrence starts, which rings as usual; a hands-free session waits at the end of each cycle for "Another
+      cycle?" (the owner's idea), so a forgotten one counts at most one cycle; and a phase left at 0:00 counts up to its
+      timer when nobody finishes (ARCHITECTURE → Pomodoro). Pomodoro notifications open the session on Android. Checked:
+      the server's and the app's tests, `pomodoro_flows.py` (both rules end to end), `notification_flows.py`,
+      `reminder_flows.py`, `task_flows.py`, the app's live checks. Needs a deploy and the new apps.
 - [ ] Android after the desktop test (2026-10-09): what each change means for the phone app.
       - Shared code, in the Android app as soon as merged; to look at on a phone: the rule builder (#69: the day, date and
         month grids, "by day of the week", several times a day), the rule in words, occurrences in local time, French

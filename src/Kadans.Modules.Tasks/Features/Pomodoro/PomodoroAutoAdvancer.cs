@@ -12,6 +12,7 @@ namespace Kadans.Modules.Tasks.Features.Pomodoro;
 /// Advances opted-in runs whose phase has run out, so the session keeps its cadence even when no
 /// client is watching. Overdue runs (server downtime) are stepped phase by phase on the original
 /// schedule; the user gets one broadcast and one notification describing where the run is now.
+/// A looping run stops at the end of each lap and asks "Another cycle?" (<see cref="PomodoroRun.IsBetweenLaps"/>).
 /// Driven by <see cref="PomodoroDeadlineWatcher"/>, which wakes up exactly when a phase ends.
 /// </summary>
 internal sealed class PomodoroAutoAdvancer(
@@ -24,6 +25,9 @@ internal sealed class PomodoroAutoAdvancer(
 )
 {
     public const string Kind = "pomodoro.phase.completed";
+
+    /// <summary>A pomodoro notification opens its session (the app's focus link).</summary>
+    internal static string FocusLink(Guid todoId) => $"kadans://todos/{todoId}/focus";
 
     /// <summary>Steps every due run and returns when the next hands-free phase ends (null: none is running).</summary>
     public async Task<DateTimeOffset?> StepDueRunsAsync(DateTimeOffset now, CancellationToken cancellationToken)
@@ -76,7 +80,7 @@ internal sealed class PomodoroAutoAdvancer(
         // Never past the session's end: PomodoroAutoFinish ends it there.
         while (run.Status == PomodoroRunStatus.Active && run.PhaseEndsAt <= now && !(run.PhaseEndsAt >= run.FinishBy) && steps++ < 500)
         {
-            if (run.Advance(expectedPhaseIndex: null, run.PhaseEndsAt!.Value).IsT0)
+            if (run.Advance(expectedPhaseIndex: null, run.PhaseEndsAt!.Value, onItsOwn: true).IsT0)
                 break;
         }
 
@@ -96,7 +100,10 @@ internal sealed class PomodoroAutoAdvancer(
 
         try
         {
-            await realtime.PublishToUserAsync(run.UserId, "pomodoro.run.changed", run.ToResponse(), cancellationToken);
+            var next = run.IsRunning
+                ? await SessionOccurrence.NextStartAsync(dbContext.TodoOccurrences.IgnoreQueryFilters(), run, cancellationToken)
+                : null;
+            await realtime.PublishToUserAsync(run.UserId, "pomodoro.run.changed", run.ToResponse(next), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -116,7 +123,8 @@ internal sealed class PomodoroAutoAdvancer(
             run.CurrentPhase.DurationMinutes,
             run.CurrentPhaseIndex,
             run.CycleLength,
-            run.Loop
+            run.Loop,
+            run.IsBetweenLaps
         );
 
         await dispatcher.DispatchAsync(
@@ -131,6 +139,7 @@ internal sealed class PomodoroAutoAdvancer(
                     ["runId"] = run.Id.ToString(),
                     ["status"] = run.Status.ToString(),
                     ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
+                    ["link"] = FocusLink(run.TodoId),
                 }
             ),
             cancellationToken
@@ -146,10 +155,13 @@ internal sealed class PomodoroAutoAdvancer(
         int currentDurationMinutes,
         int currentPhaseIndex,
         int cycleLength,
-        bool loop
+        bool loop,
+        bool betweenLaps = false
     )
     {
         var lap = cycleLength > 0 ? currentPhaseIndex / cycleLength + 1 : 1;
+        if (betweenLaps)
+            return string.Format(texts.LapDoneFormat, lap - 1);
         var lapPrefix = loop && lap > 1 ? string.Format(texts.LapFormat, lap) : "";
         return status == PomodoroRunStatus.Completed
             ? texts.Complete

@@ -444,11 +444,13 @@ now also rings at its start; a zero lead is the start alone (`ReminderMoments`).
 it as `NotifiedAt` stamps the other (bookkeeping: it moves no version), and `OccurrenceReminderJob` sends the reminders
 before the start, then the "starts now" ones (filtered index `ix_todo_occurrences_start_due`). A reminder sent at or
 after the start reads "starts now", carries the start as its moment and stamps both (`MarkReminded`): never two at once,
-whether the server was down or the todo was made inside its lead. A todo whose focus session is running gets neither:
-the person has begun (stamped, not sent: `kadans_reminders_skipped_total{reason="focus_running"}`). The window holds
+whether the server was down or the todo was made inside its lead. An occurrence whose focus session is running gets
+neither: the person has begun (stamped, not sent: `kadans_reminders_skipped_total{reason="focus_running"}`). Only its
+own: a session left running from the occurrence before ends as this one starts, and never quiets it (Pomodoro, below;
+until 2026-10-31 any session on the todo did, and a forgotten one swallowed the next occurrence). The window holds
 both moments as two entries (the phone's identity `occurrence@notifyAt` tells them apart), each with its todo's template
 so the app knows which button to offer. `GET /reminders/{id}?at=` checks one reminder by its time: due unless the
-occurrence is gone, done, cancelled or moved (that time is none of its reminders), or a session runs; without `at` (an
+occurrence is gone, done, cancelled or moved (that time is none of its reminders), or a session for it runs; without `at` (an
 app from before) it answers as before. A reminder push lives until it is of no more use: its start, or ten minutes after
 a "starts now" (`ReminderDelivery.UsefulUntil`, the apps' own rule); collapsed per occurrence, the later replaces the
 first. The migration stamped occurrences already under way, so none got a late "starts now".
@@ -691,6 +693,29 @@ panel), so CI needs no desktop.
   that ran out more than 15 minutes earlier is marked without a notification: the server was down, or the
   run was left at 0:00.
 - Hands-free is the default for a new session, and each device remembers the last choice.
+- **A hands-free cycle waits for the person at its end** (2026-10-31, the owner's idea). When the last phase of a lap runs
+  out by itself (the watcher, or a watching app's "ran out"), the next lap is added but not begun: the session is paused
+  before its first phase (`PomodoroRun.IsBetweenLaps`: paused, the current phase never started; `BetweenLaps` in the
+  response), and one notification asks "Cycle 1 done. Another one? The session waits for you." "Another cycle" is a
+  resume, which starts that phase then; Finish ends the session. Pressing Next on the last phase goes straight on (the
+  person is there), and manual runs wait at every phase anyway. A forgotten session thus counts at most the lap it did,
+  and stops notifying. Left waiting, it ends at its end (below) as it ended: with its last lap, silently (it asked
+  already). Asked at the end of the cycle, never in a focus phase: the person decides when they come back from the break.
+- **A session is for one occurrence, and ends when the next one starts** (2026-10-31; the owner's question: a forgotten
+  looping session, and the todo's next occurrence arrives). Before, the next occurrence's reminders stayed quiet ("a
+  session runs"), it stayed pending unmentioned, starting a session for it was refused, and the stats kept counting until
+  the end time. Now the session's end is the earlier of its end time and the start of the next pending occurrence of its
+  todo after it began (`SessionOccurrence.NextStartAsync`, `PomodoroRun.EndsAt`): it ends there as completed, its focus
+  counting up to then, and asks "Done with…?" about its own occurrence, never marking it. The next one rings as usual,
+  heads-up and "starts now" with "Start focus" (a session quiets its own occurrence only), so someone really still at
+  work taps once and each occurrence keeps its session. No "session ended" on top of that "starts now"; one whose next
+  occurrence has no reminders says "The session ended at 14:00, as the next one began." The end is computed, not stored:
+  an occurrence moved, added or done meanwhile moves it, and the response's `FinishAt` is that end, with
+  `EndsWithNextOccurrence` ("Ends at 14:00, when the next one starts"). Starting a session ends one that is due first, so
+  a "Start focus" tapped before the watcher's pass is not refused. The todo's screen says so before a session starts
+  ("…, or sooner when the next one starts") rather than guessing which occurrence the server will pick.
+- A session that ends by itself counts a phase left at 0:00 (a manual run nobody came back to) up to its timer, not up to
+  the end: nobody was there. Finish pressed late still counts the time kept going.
 - A session ends by itself at its end time (`FinishBy`), as completed, as if Finish were pressed: a looping session
   left running overnight would otherwise notify all night. The end is 12 hours after the start unless one is picked
   when starting or moved while running, between 1 minute and 24 hours ahead. The app picks a clock time ("until

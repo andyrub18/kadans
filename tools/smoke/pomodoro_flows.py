@@ -6,7 +6,9 @@
 The auto-advance part uses a 1-minute phase, races a client against the deadline watcher and
 measures how late the phase change and its notification are (must be under a second). A manual run
 started alongside must get exactly one "time's up" at its phase end, and stay where it is. An app
-that asks too early ("ran out" by its own clock) changes nothing. Whole script ≈ 2 min. Standard library only.
+that asks too early ("ran out" by its own clock) changes nothing. A hands-free looping session waits at the end of its
+cycle for "Another cycle?", and the todo's next occurrence ends a session that is still running, its reminders ringing.
+Whole script ≈ 3.5 min. Standard library only.
 """
 import json, sys, time, urllib.request, urllib.error, datetime as dt
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5199"
@@ -213,8 +215,65 @@ C("finish ends the loop as Completed", s == 200 and run3["status"] == "Completed
 s, stats = call("GET", "/pomodoro/stats", token=T)
 C("finished loop counts as a completed run", stats["completedRuns"] - base["completedRuns"] >= 2, str(stats["completedRuns"]))
 call("PUT", f"/todos/{todo3['id']}/cancel", {"reason": "cleanup"}, token=T)
-for t in (todo, todo2, todo4, todo5):
+
+# --- a forgotten session: it waits at the end of each cycle, and the todo's next occurrence ends it ---
+s, minute = call("POST", "/pomodoro/templates", {"name": "smoke one minute", "phases": [{"type": "Focus", "durationMinutes": 1}]}, token=T)
+s, todo6 = call("POST", "/todos/one-time", {"title": "smoke: forgotten", "description": "", "notificationEnabled": False,
+               "dueDate": iso(dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)), "pomodoroTemplateId": minute["id"]}, token=T)
+s, run6 = call("POST", f"/todos/{todo6['id']}/pomodoro/start?autoAdvance=true&loop=true", token=T)
+C("a hands-free looping session on a one-minute cycle", s == 200 and run6["autoAdvance"] and run6["loop"] and not run6["betweenLaps"], f"{s}")
+lap_end = parse_ts(run6["phaseEndsAt"]) if s == 200 else dt.datetime.now(dt.timezone.utc)
+
+# A todo every day, starting in 20 s, its next one moved to ~80 s from now: a session for the first (the nearest) ends
+# when the second starts.
+first = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=20)).replace(microsecond=0)
+s, todo7 = call("POST", "/todos/recurring", {"title": "smoke: twice today", "description": "", "notificationEnabled": True, "notifyBeforeInMinutes": 1,
+               "recurrenceRule": {"frequency": "Daily", "startDate": iso(first), "timeZone": "UTC"}}, token=T)
+call("PUT", f"/todos/{todo7['id']}/pomodoro-template", {"pomodoroTemplateId": tpl["id"]}, token=T)
+s, occs = call("GET", f"/todos/{todo7['id']}/occurrences", token=T)
+this_one, next_one = (occs[0], occs[1]) if s == 200 and len(occs) > 1 else ({}, {})
+next_start = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=80)).replace(microsecond=0)
+s, _ = call("PUT", f"/occurrences/{next_one.get('id')}/reschedule", {"newDate": iso(next_start)}, token=T)
+C("the next occurrence moved to ~80 s from now", s == 200, f"{s}")
+s, run7 = call("POST", f"/todos/{todo7['id']}/pomodoro/start?autoAdvance=true&loop=true", token=T)
+C("the session is for this occurrence", s == 200 and run7["occurrenceId"] == this_one.get("id"), f"{s}")
+C("and ends when the next one starts, saying why", s == 200 and parse_ts(run7["finishAt"]) == next_start and run7["endsWithNextOccurrence"],
+  f"{run7.get('finishAt')} {run7.get('endsWithNextOccurrence')}")
+s, check = call("GET", f"/reminders/{next_one.get('id')}?at={iso(next_start)}", token=T)
+C("the next one's \"starts now\" is still due while this session runs", s == 200 and check.get("due") is True, check)
+
+print("  ...  waiting for the cycle to run out and the next occurrence to start")
+time.sleep(max(0, (max(lap_end, next_start) - dt.datetime.now(dt.timezone.utc)).total_seconds()) + 8)
+
+s, waiting = call("GET", f"/todos/{todo6['id']}/pomodoro/active-run", token=T)
+C("the cycle ran out and the session waits between cycles", s == 200 and waiting["status"] == "Paused" and waiting["betweenLaps"]
+  and waiting["currentPhaseIndex"] == 1 and waiting["phases"][1]["startedAt"] is None, f"{s} {waiting.get('status')} {waiting.get('betweenLaps')}")
+s, items = call("GET", "/notifications?unreadOnly=true", token=T)
+asked = [n for n in items if n["kind"] == "pomodoro.phase.completed" and (n.get("data") or {}).get("runId") == run6["id"]] if s == 200 else []
+C("one notification asks for another cycle, and opens the session", len(asked) == 1 and "1" in asked[0]["body"]
+  and asked[0]["data"].get("link") == f"kadans://todos/{todo6['id']}/focus", [n["body"] for n in asked])
+s, again = call("PUT", f"/pomodoro/runs/{run6['id']}/resume", token=T)
+C("another cycle starts it now", s == 200 and again["status"] == "Active" and not again["betweenLaps"] and again["phases"][1]["startedAt"]
+  and abs((parse_ts(again["phaseEndsAt"]) - dt.datetime.now(dt.timezone.utc)).total_seconds() - 60) < 3, f"{s}")
+s, done6 = call("PUT", f"/pomodoro/runs/{run6['id']}/finish", token=T)
+C("and Finish ends it", s == 200 and done6["status"] == "Completed", f"{s}")
+
+s, runs7 = call("GET", f"/todos/{todo7['id']}/pomodoro/runs?page=1&pageSize=1", token=T)
+ended7 = runs7[0] if s == 200 and runs7 else {}
+C("the next occurrence's start ended the session", ended7.get("id") == run7.get("id") and ended7.get("status") == "Completed"
+  and abs((parse_ts(ended7["completedAt"]) - next_start).total_seconds()) < 0.5, f"{ended7.get('status')} {ended7.get('completedAt')}")
+s, items = call("GET", "/notifications?pageSize=100", token=T)
+rang = [n["body"] for n in items if n["kind"] == "occurrence.due" and (n.get("data") or {}).get("occurrenceId") == next_one.get("id")] if s == 200 else []
+C("the next one rang both its reminders, the session notwithstanding", len(rang) == 2, rang)
+told = [n for n in items if n["kind"] == "pomodoro.run.finished" and (n.get("data") or {}).get("runId") == run7.get("id")] if s == 200 else []
+C("and no 'session ended' on top of its \"starts now\"", not told, [n["body"] for n in told])
+s, run8 = call("POST", f"/todos/{todo7['id']}/pomodoro/start?autoAdvance=true&loop=true", token=T)
+C("a session started now is for the one that began", s == 200 and run8["occurrenceId"] == next_one.get("id"), f"{s}")
+call("PUT", f"/pomodoro/runs/{run8.get('id')}/cancel", token=T)
+
+for t in (todo, todo2, todo4, todo5, todo6, todo7):
     call("PUT", f"/todos/{t['id']}/cancel", {"reason": "cleanup"}, token=T)
+call("DELETE", f"/pomodoro/templates/{minute['id']}", token=T)
 
 print(f"\n{'ALL PASSED' if fails == 0 else str(fails) + ' FAILED'}")
 sys.exit(1 if fails else 0)

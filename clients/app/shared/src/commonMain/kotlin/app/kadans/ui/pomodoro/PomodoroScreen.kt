@@ -109,7 +109,7 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                 Button(onClick = viewModel::startNew, modifier = Modifier.padding(top = 24.dp)) { Text(s.startNewSession) }
                 TextButton(onClick = onBack) { Text(s.backToTodo) }
             }
-            else -> {
+            else -> if (run.betweenLaps) BetweenLaps(run, viewModel, onBack) else {
                 Text(
                     if (phase?.type == PomodoroPhaseType.Break) s.breakWord else s.focus,
                     style = MaterialTheme.typography.titleLarge,
@@ -138,9 +138,10 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     val zone = TimeZone.currentSystemDefault()
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            SessionEnd.label(end, Clock.System.now(), zone, s.pomodoro),
+                            SessionEnd.label(end, Clock.System.now(), zone, s.pomodoro, withNext = run.endsWithNextOccurrence),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
                         TextButton(onClick = { choosingEnd = true }) { Text(s.change) }
                     }
@@ -175,6 +176,36 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
             }
         }
     }
+}
+
+/**
+ * A hands-free cycle ran out and the session waits for the person: another cycle starts it again from its first phase,
+ * Finish ends it. Left alone, it ends by itself at its end, counting nothing more.
+ */
+@Composable
+private fun BetweenLaps(run: app.kadans.api.model.PomodoroRunResponse, viewModel: PomodoroViewModel, onBack: () -> Unit) {
+    val s = LocalStrings.current
+    Text(
+        s.pomodoro.cycleDone(PomodoroViewModel.lapOf(run.currentPhaseIndex, run.cycleLength) - 1),
+        style = MaterialTheme.typography.headlineMedium,
+    )
+    Text(
+        s.pomodoro.anotherCycleQuestion,
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+    run.finishAt?.let { end ->
+        Text(
+            SessionEnd.label(end, Clock.System.now(), TimeZone.currentSystemDefault(), s.pomodoro, withNext = run.endsWithNextOccurrence),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+    Button(onClick = viewModel::resume, modifier = Modifier.padding(top = 24.dp)) { Text(s.pomodoro.anotherCycle) }
+    TextButton(onClick = viewModel::finish) { Text(s.finishSession) }
+    TextButton(onClick = onBack) { Text(s.back) }
 }
 
 /** "When should the session end?": a clock time, its next occurrence (see [SessionEnd.next]). */

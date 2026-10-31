@@ -20,6 +20,7 @@ internal sealed class PomodoroService(
     IRealtimePublisher realtime,
     INotificationDispatcher dispatcher,
     PomodoroDeadlineSignal deadlines,
+    PomodoroAutoFinish autoFinish,
     ILogger<PomodoroService> logger
 )
 {
@@ -167,6 +168,17 @@ internal sealed class PomodoroService(
         if (finishAt is { } end && PomodoroRun.CheckFinishBy(end, now) is { } endError)
             return endError;
 
+        // The todo's next occurrence has begun ("Start focus" on its reminder): the session for the one before is over,
+        // even if the deadline watcher has not ended it yet. Before anything is loaded: a save lost to the watcher
+        // leaves nothing behind.
+        var running = await context
+            .PomodoroRuns.Where(r => r.TodoId == todoId && (r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused))
+            .Select(r => r.Id)
+            .ToListAsync();
+        foreach (var runningId in running)
+            await autoFinish.FinishIfDueAsync(runningId, now, CancellationToken.None);
+        context.ChangeTracker.Clear();
+
         var todo = await context
             .Todos.Include(t => t.RecurrenceRule)
             .Include(t => t.PomodoroTemplate)
@@ -243,7 +255,7 @@ internal sealed class PomodoroService(
         if (run is null)
             return new ApplicationError(ErrorTypes.PomodoroRunNotFound, "No active Pomodoro run found for this todo.");
 
-        return run.ToResponse();
+        return run.ToResponse(await SessionOccurrence.NextStartAsync(context.TodoOccurrences, run));
     }
 
     public async Task<OneOf<ApplicationError, List<PomodoroRunResponse>>> GetRunHistory(Guid todoId, int page = 1, int pageSize = 20)
@@ -352,7 +364,7 @@ internal sealed class PomodoroService(
                 return current.ToResponse();
         }
 
-        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now));
+        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now, onItsOwn: request.OnlyIfEnded));
         // Hands-free phase changes notify every device, no matter who won the advance — this
         // request or the deadline watcher; the row version guarantees it is exactly one of them.
         // Manual runs stay silent: the user did it.
@@ -375,7 +387,7 @@ internal sealed class PomodoroService(
             var phase = run.Phases[run.CurrentPhaseIndex];
             var body = PomodoroAutoAdvancer.PhaseBody(
                 texts, run.Status, phase.Type, phase.DurationMinutes,
-                run.CurrentPhaseIndex, run.CycleLength, run.Loop
+                run.CurrentPhaseIndex, run.CycleLength, run.Loop, run.BetweenLaps
             );
             await dispatcher.DispatchAsync(
                 userId,
@@ -389,6 +401,7 @@ internal sealed class PomodoroService(
                         ["runId"] = run.Id.ToString(),
                         ["status"] = run.Status.ToString(),
                         ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
+                        ["link"] = PomodoroAutoAdvancer.FocusLink(run.TodoId),
                     }
                 )
             );
@@ -455,7 +468,7 @@ internal sealed class PomodoroService(
     /// <summary>Every device of the user sees the same run state; the API is the source of truth.</summary>
     private async Task<PomodoroRunResponse> PublishAsync(PomodoroRun run)
     {
-        var response = run.ToResponse();
+        var response = run.ToResponse(run.IsRunning ? await SessionOccurrence.NextStartAsync(context.TodoOccurrences, run) : null);
         try
         {
             await realtime.PublishToUserAsync(run.UserId, "pomodoro.run.changed", response);

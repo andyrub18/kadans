@@ -44,6 +44,21 @@ class SessionEndAndCycleTests {
     }
 
     @Test
+    fun the_end_says_when_the_next_occurrence_ends_the_session() {
+        val two = nineAm + 5.hours
+        assertEquals("Ends at 14:00, when the next one starts", SessionEnd.label(two, nineAm, portAuPrince, EnglishStrings.pomodoro, withNext = true))
+        assertEquals("Se termine à 14:00, au début de la suivante", SessionEnd.label(two, nineAm, portAuPrince, FrenchStrings.pomodoro, withNext = true))
+        assertEquals("Ap fini a 14:00, lè pwochen an kòmanse", SessionEnd.label(two, nineAm, portAuPrince, CreoleStrings.pomodoro, withNext = true))
+        assertEquals(
+            "Ends tomorrow at 02:00, when the next one starts",
+            SessionEnd.label(nineAm + 17.hours, nineAm, portAuPrince, EnglishStrings.pomodoro, withNext = true),
+        )
+        assertEquals("Cycle 3 done", EnglishStrings.pomodoro.cycleDone(3))
+        assertEquals("Cycle 3 terminé", FrenchStrings.pomodoro.cycleDone(3))
+        assertEquals("Sik 3 fini", CreoleStrings.pomodoro.cycleDone(3))
+    }
+
+    @Test
     fun the_classic_cycle_is_rounds_of_focus_and_break_the_last_break_long() {
         val cycle = TemplateEditorState.classicCycle(focus = 15, shortBreak = 5, rounds = 4, longBreak = 30)
 

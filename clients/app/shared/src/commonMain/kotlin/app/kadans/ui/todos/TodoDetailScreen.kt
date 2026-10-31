@@ -148,7 +148,11 @@ private fun Detail(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(SessionEnd.label(end, now, zone, s.pomodoro), style = MaterialTheme.typography.bodyMedium)
-                            Text(s.pomodoro.endHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                if (content.todo.recurrenceRule?.isOneTime == false) s.pomodoro.endHintRepeating else s.pomodoro.endHint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         TextButton(onClick = { choosingEnd = true }) { Text(s.change) }
                     }

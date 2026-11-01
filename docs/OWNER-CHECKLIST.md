@@ -233,6 +233,10 @@ Both:
 
 ## Client (Compose Multiplatform)
 
+- [ ] The first desktop release: once the release workflow is merged, `git tag v1.0.0 && git push origin v1.0.0`
+      (DEPLOYMENT → Releasing the desktop app); then `https://kadansplanning.com/download`'s buttons work.
+- [ ] Optional, for Windows: a code-signing certificate, or the Microsoft Store, so Windows stops warning that the
+      installer's publisher is unknown. The release workflow would sign the `.msi` with it.
 - [ ] Google Play / App Store developer accounts when it is time to ship
 - [ ] Play Console → Grow → Store presence → Main store listing: the app icon is `branding/play-store-icon.png`
       (512 x 512, the logo: branding/README.md) and the feature graphic `branding/play-feature-graphic.png`

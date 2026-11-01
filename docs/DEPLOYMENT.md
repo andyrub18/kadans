@@ -180,6 +180,33 @@ kadans.upload.keyPassword=…
 Every upload needs a higher `kadans.versionCode` (1, 2, 3, …). Without the upload properties the bundle comes out
 unsigned and Play Console refuses it.
 
+## Releasing the desktop app
+
+The desktop installers are built by GitHub, not on your computer (`.github/workflows/release.yml`), from a tag:
+
+1. In a pull request, set `kadans.version` in `clients/app/gradle.properties` to the new version (the Android build
+   uses it too), and if you want, write what is new in `clients/app/releases/<version>.json` (its README). Merge it.
+2. Tag `main` with that version:
+
+   ```bash
+   cd ~/Desktop/Projects/Kadans && git checkout main && git pull
+   git tag v1.0.1 && git push origin v1.0.1
+   ```
+
+3. GitHub → Actions → Release builds the `.deb` and `.rpm` on Ubuntu 22.04 and the `.msi` on Windows, with Java 25
+   and the production address, and publishes the GitHub Release "Kadans 1.0.1": the three installers under names that
+   never change, `latest.json` and `SHA256SUMS` (about 15 minutes). The site's download buttons point at it at once;
+   the installed apps see it within a day.
+
+- **The tag must be `kadans.version`**: the workflow stops at once otherwise, before building anything.
+- **Why 22.04 and Java 25**: a `.deb` lists the libraries of the system that builds it, and 24.04's renamed ones
+  (`libasound2t64`) do not exist on Ubuntu 22.04, Debian 12 or Mint 21; the Linux accents need Java 22 or later.
+- **A bad release**: GitHub → Releases → edit it into a pre-release (or delete it), and "latest" is the previous one
+  again; the apps that already installed it keep it until a fixed version with a higher number is out.
+- **Windows** warns that the installer's publisher is unknown until it is signed (OWNER-CHECKLIST → Client).
+- A pull request that changes the workflow, its script or the release notes builds all three installers and
+  publishes nothing: a dry run.
+
 ## Updating
 
 ```bash

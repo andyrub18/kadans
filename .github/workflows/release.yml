@@ -1,0 +1,120 @@
+name: Release
+
+# The desktop app's release (docs/DEPLOYMENT.md → Releasing the desktop app). Pushing the tag v1.2.3, the same as
+# kadans.version in clients/app/gradle.properties, builds the .deb and .rpm on Linux and the .msi on Windows, and
+# publishes them on a GitHub Release with latest.json, which every installed desktop app reads once a day through
+# https://kadansplanning.com/desktop/latest.json. A pull request that changes this workflow or its script builds
+# everything and publishes nothing.
+on:
+  push:
+    tags: ["v*.*.*"]
+  pull_request:
+    paths: [".github/workflows/release.yml", "tools/release/**", "clients/app/releases/**"]
+
+permissions:
+  contents: read
+
+# The apps talk to production; the API's address is public.
+env:
+  API: https://api.kadansplanning.com
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: The release script's rules
+        run: python3 tools/release/test_release.py
+      - id: version
+        name: The tag is kadans.version
+        run: python3 tools/release/release.py version --ref "$GITHUB_REF_NAME" --event "$GITHUB_EVENT_NAME" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Linux (.deb, .rpm)
+    needs: version
+    # 22.04, not the latest: a .deb lists the libraries of the system that builds it, and 24.04's renamed ones
+    # (libasound2t64, libpng16-16t64) do not exist on Ubuntu 22.04, Debian 12 or Mint 21. 24.04 still provides the
+    # old names, so a 22.04 build installs on both.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      # Java 25: the packaged runtime is this JDK's, and the Linux accents need its foreign-function API (final since
+      # Java 22; a preview, switched off, in 21).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: rpmbuild, for the .rpm
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Build
+        working-directory: clients/app
+        run: ./gradlew :desktopApp:packageDeb :desktopApp:packageRpm -Pkadans.apiBaseUrl="$API"
+      - name: Under the names that never change
+        run: |
+          mkdir out
+          cp clients/app/desktopApp/build/compose/binaries/main/deb/*.deb out/kadans-linux-amd64.deb
+          cp clients/app/desktopApp/build/compose/binaries/main/rpm/*.rpm out/kadans-linux-x86_64.rpm
+          dpkg-deb --info out/kadans-linux-amd64.deb | grep -E "Version|Depends|Maintainer"
+          rpm -qpi out/kadans-linux-x86_64.rpm | grep -E "^(Version|License|Vendor)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: out/
+          if-no-files-found: error
+
+  windows:
+    name: Windows (.msi)
+    needs: version
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        working-directory: clients/app
+        run: ./gradlew :desktopApp:packageMsi -Pkadans.apiBaseUrl="$API"
+      - name: Under the name that never changes
+        run: |
+          mkdir out
+          cp clients/app/desktopApp/build/compose/binaries/main/msi/*.msi out/kadans-windows-x64.msi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: [version, linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: latest.json, SHA256SUMS and the release's text
+        run: python3 tools/release/release.py assemble out
+      - name: The GitHub Release (a tag only; a pull request stops here)
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" --title "Kadans $VERSION" --notes-file out/notes.md --latest \
+            out/kadans-linux-amd64.deb out/kadans-linux-x86_64.rpm out/kadans-windows-x64.msi out/latest.json out/SHA256SUMS
+      - name: What a tag would publish
+        if: github.event_name != 'push'
+        run: cat out/latest.json out/SHA256SUMS

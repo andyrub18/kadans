@@ -238,9 +238,15 @@ Both:
 - [ ] Optional, for Windows: a code-signing certificate, or the Microsoft Store, so Windows stops warning that the
       installer's publisher is unknown. The release workflow would sign the `.msi` with it.
 - [ ] Google Play / App Store developer accounts when it is time to ship
-- [ ] Play Console → Grow → Store presence → Main store listing: the app icon is `branding/play-store-icon.png`
-      (512 x 512, the logo: branding/README.md) and the feature graphic `branding/play-feature-graphic.png`
-      (1024 x 500, no text: Play writes the name beside it). Still to make: phone screenshots (at least two).
+- [ ] Play Console → Grow → Store presence → Main store listing: the texts are in `store/play/<language>/` (English
+      default, French under "Manage translations", Kreyòl when Play offers it: store/play/README.md), the app icon
+      is `branding/play-store-icon.png` (512 x 512, the logo: branding/README.md) and the feature graphic
+      `branding/play-feature-graphic.png` (1024 x 500, no text: Play writes the name beside it). Phone screenshots
+      (two to eight): register a demo account per language in the app, fill it with
+      `python3 tools/demo/seed_demo.py <username> --language en|fr|ht` (it refuses an account with data), take the
+      screenshots on the phone within a few hours (today's todos are on Home), then
+      `python3 tools/store/play.py crop <files>` (Play refuses taller than 2:1; a 1080 x 2340 capture is). Run the
+      script on `googleTest` too: Google's reviewers then find a lived-in account.
 - [ ] Play Console → App content → Data safety → "Delete account URL": `https://kadansplanning.com/delete-account`
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,

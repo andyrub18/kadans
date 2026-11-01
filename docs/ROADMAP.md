@@ -470,6 +470,13 @@ installing on real devices second, hosting last.
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
+      Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
+      `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts
+      in gourdes and dollars, limits, a month of movements, the salary as a rule) for the screenshots and the
+      reviewers' account; `play.py crop` trims phone captures to Play's 2:1. Checked: the script on a scratch server in
+      English and French (balances add up, today's occurrences there, an account with data refused), the crop on a
+      1080 x 2340 picture.
 - [x] Step 3 of the site plan, the release workflow (2026-10-31): a tag `v<kadans.version>` builds the `.deb` and
       `.rpm` (Ubuntu 22.04, for libraries every distribution has) and the `.msi` (Windows) with Java 25, and publishes
       the GitHub Release with `latest.json` (notes from `clients/app/releases/<version>.json`) and `SHA256SUMS`; a pull

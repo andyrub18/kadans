@@ -469,6 +469,10 @@ installing on real devices second, hosting last.
       (`src/debug/res/xml`). A release build without an https `-Pkadans.apiBaseUrl` stops before building: it would
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
+- [x] A build made for a server talks to it only (2026-11-04, found taking the store screenshots): the Login screen
+      showed its address under a ⚙, and anyone holding the phone could type another one and send the next sign-in
+      there. Now the ⚙ line is a dev build's only (no `-Pkadans.apiBaseUrl`), and a build made for a server ignores an
+      address saved by an earlier build (`ServerAddress`, `ServerAddressTests`).
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
 - [x] Step 3 of the site plan, the release workflow (2026-10-31): a tag `v<kadans.version>` builds the `.deb` and
       `.rpm` (Ubuntu 22.04, for libraries every distribution has) and the `.msi` (Windows) with Java 25, and publishes

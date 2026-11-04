@@ -18,13 +18,19 @@ class ServerAddressTests {
     }
 
     @Test
-    fun what_the_user_typed_on_the_login_screen_always_wins() {
-        assertEquals("http://192.168.1.10:5199", ServerAddress.resolve("http://192.168.1.10:5199", production, dev))
+    fun what_was_typed_on_the_login_screen_wins_in_a_dev_build() {
+        assertEquals("http://192.168.1.10:5199", ServerAddress.resolve("http://192.168.1.10:5199", null, dev))
+    }
+
+    @Test
+    fun a_build_made_for_a_server_ignores_any_address_saved_on_the_device() {
+        // Typed into an earlier dev build, or planted: the sign-ins still go only where the build says.
+        assertEquals(production, ServerAddress.resolve("https://elsewhere.example", production, dev))
     }
 
     @Test
     fun blanks_count_as_unset() {
         assertEquals(production, ServerAddress.resolve(override = " ", builtFor = production, platformDefault = dev))
-        assertEquals(dev, ServerAddress.resolve(override = null, builtFor = "", platformDefault = dev))
+        assertEquals(dev, ServerAddress.resolve(override = " ", builtFor = "", platformDefault = dev))
     }
 }

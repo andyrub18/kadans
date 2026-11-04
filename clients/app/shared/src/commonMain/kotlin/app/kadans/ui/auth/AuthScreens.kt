@@ -136,13 +136,14 @@ fun LoginScreen(
             TextButton(onClick = onRegister) { Text(s.createAccount) }
             TextButton(onClick = onForgotPassword) { Text(s.forgotPassword) }
         }
-        ServerAddressButton(onChanged = viewModel::refreshProviders)
+        if (ServerAddress.adjustable) ServerAddressButton(onChanged = viewModel::refreshProviders)
     }
 }
 
 /**
- * The pre-auth escape hatch: a phone on Wi-Fi must point at the computer's LAN address before
- * it can sign in at all. Applies immediately (the API reads the address per request).
+ * The pre-auth escape hatch of a dev build: a phone on Wi-Fi must point at the computer's LAN address
+ * before it can sign in at all. Applies immediately (the API reads the address per request). A build made
+ * for a server never shows it (ServerAddress).
  */
 @Composable
 private fun ServerAddressButton(onChanged: () -> Unit = {}) {

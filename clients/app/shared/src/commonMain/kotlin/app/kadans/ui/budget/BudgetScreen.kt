@@ -92,7 +92,7 @@ fun BudgetScreen(
         topBar = {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    s.monthNames[state.month - 1] + " " + state.year,
+                    (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )

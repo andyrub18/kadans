@@ -57,7 +57,7 @@ fun CalendarScreen(
         // The destination's name is in the bar above; the month and its arrows lead the screen.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                s.monthNames[state.month - 1] + " " + state.year,
+                (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )

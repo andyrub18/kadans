@@ -1,11 +1,11 @@
-name: Website
+name: Website and store listing
 
 on:
   push:
     branches: [main]
-    paths: ["site/**", "branding/**", ".github/workflows/site.yml"]
+    paths: ["site/**", "branding/**", "store/**", "tools/store/**", ".github/workflows/site.yml"]
   pull_request:
-    paths: ["site/**", "branding/**", ".github/workflows/site.yml"]
+    paths: ["site/**", "branding/**", "store/**", "tools/store/**", ".github/workflows/site.yml"]
 
 jobs:
   generated:
@@ -14,3 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 site/generate.py --check
+
+  store:
+    name: store/play is within Play's limits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/store/play.py check
+

@@ -113,12 +113,12 @@ Against the server: nothing runs on your computer, and the phone works on any ne
 
    Or copy the APK to the phone and open it (allow "install unknown apps"). A debug build, because it is
    signed with the debug key the Android OAuth client names; a release build needs the upload key
-   (DEPLOYMENT → Building the apps).
-3. Leave the **Login screen's ⚙ server line** empty: an address typed there wins over the one built in.
-4. Sign in (password, or **Continue with Google**: the Android OAuth client's check), allow notifications
+   (DEPLOYMENT → Building the apps). Built for the server, it has no ⚙ server line on the Login screen: it
+   talks to that server only.
+3. Sign in (password, or **Continue with Google**: the Android OAuth client's check), allow notifications
    (Android 13+) and "Alarms & reminders". Signing in registers the phone's FCM token (Settings → devices
    shows it as e.g. "Google Pixel").
-5. Start a hands-free session with 1-minute phases and lock the phone: each phase change should arrive as a
+4. Start a hands-free session with 1-minute phases and lock the phone: each phase change should arrive as a
    real notification, even with the app closed — the server does the counting.
 
 What you create lands in the production database, under your account. If nothing arrives: on the server,

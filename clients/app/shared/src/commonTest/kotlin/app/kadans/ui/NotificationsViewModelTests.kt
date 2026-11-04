@@ -3,9 +3,9 @@ package app.kadans.ui
 import app.kadans.api.KadansApi
 import app.kadans.api.model.NotificationResponse
 import app.kadans.realtime.RealtimeEvent
-import app.kadans.ui.home.HomeViewModel
 import app.kadans.ui.notifications.NotificationsUiState
 import app.kadans.ui.notifications.NotificationsViewModel
+import app.kadans.ui.shell.UnreadNotifications
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -137,9 +137,9 @@ class NotificationsViewModelTests {
 
     @Test
     fun the_badge_stays_a_badge() {
-        assertEquals("7", HomeViewModel.badgeText(7))
-        assertEquals("99", HomeViewModel.badgeText(99))
-        assertEquals("99+", HomeViewModel.badgeText(100))
-        assertTrue(HomeViewModel.badgeText(12_345).length <= 3)
+        assertEquals("7", UnreadNotifications.badgeText(7))
+        assertEquals("99", UnreadNotifications.badgeText(99))
+        assertEquals("99+", UnreadNotifications.badgeText(100))
+        assertTrue(UnreadNotifications.badgeText(12_345).length <= 3)
     }
 }

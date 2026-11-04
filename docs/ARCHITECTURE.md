@@ -578,6 +578,17 @@ Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/
 codebase, which matches the requirement of reliable background timers + OS notifications on
 desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 
+**Navigation** (approved 2026-11-04 on a design canvas). Four destinations, one tap from each other: Home,
+Calendar, Budget and Focus (the focus stats and the Pomodoro cycles, one switch apart). `ui/shell/MainShell` frames
+them: the destination's name, the bell (its unread count shared by every destination, `UnreadNotifications`) and
+Settings on top; the destinations in a bar at the bottom of a phone, or in a column on the left of a window 600 dp
+wide or more (a computer, a tablet), with + at its top on Home (a todo) and Budget (a movement). Home stays at the
+bottom of the back stack and another destination sits alone on it (`selectTab`), so Back from a destination leads
+Home and Back from Home leaves the app; everything else (a todo, a form, the notifications, Settings) opens over the
+frame with its own back arrow. Settings' main page holds the account with Sign out, the language, the time format,
+the time zone and what belongs to the device; Profile, Email and password, Two-factor, Devices (with "Sign out
+everywhere") and Delete my account are pages of their own. The icons are drawn in `KadansIcons` (no icon library).
+
 ### The desktop app: in the tray, once
 
 Closing the window hides it: the timer that rings reminders, the live connection and a running focus session go on, and

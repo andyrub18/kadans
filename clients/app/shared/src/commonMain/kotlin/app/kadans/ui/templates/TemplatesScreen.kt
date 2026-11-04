@@ -38,9 +38,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
+/** The Pomodoro cycles, the other side of the Focus destination (FocusScreen); a cycle opens in place to edit. */
 @Composable
-fun TemplatesScreen(
-    onBack: () -> Unit,
+fun TemplatesPane(
+    modifier: Modifier = Modifier,
     viewModel: TemplatesViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -48,23 +49,22 @@ fun TemplatesScreen(
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    val editing = editor
-    if (editing != null) {
-        TemplateEditor(editing, viewModel)
-        return
-    }
-
     val s = LocalStrings.current
-    when (val current = state) {
-        is TemplatesUiState.Loading ->
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        is TemplatesUiState.Error ->
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
-                TextButton(onClick = viewModel::refresh) { Text(s.retry) }
-                TextButton(onClick = onBack) { Text(s.back) }
+    Box(modifier) {
+        val editing = editor
+        when {
+            editing != null -> TemplateEditor(editing, viewModel)
+            else -> when (val current = state) {
+                is TemplatesUiState.Loading ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                is TemplatesUiState.Error ->
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
+                        TextButton(onClick = viewModel::refresh) { Text(s.retry) }
+                    }
+                is TemplatesUiState.Content -> TemplateList(current.templates, viewModel)
             }
-        is TemplatesUiState.Content -> TemplateList(current.templates, viewModel, onBack)
+        }
     }
 }
 
@@ -72,7 +72,6 @@ fun TemplatesScreen(
 private fun TemplateList(
     templates: List<PomodoroTemplateResponse>,
     viewModel: TemplatesViewModel,
-    onBack: () -> Unit,
 ) {
     val s = LocalStrings.current
     LazyColumn(
@@ -81,10 +80,9 @@ private fun TemplateList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("← " + s.back) }
-                Text(s.pomodoroCycles, style = MaterialTheme.typography.headlineSmall)
-                TextButton(onClick = viewModel::openNew) { Text(s.newWord) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(s.pomodoroCycles, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = viewModel::openNew) { Text(s.newCycle) }
             }
         }
         if (templates.isEmpty()) {

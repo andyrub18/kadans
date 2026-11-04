@@ -27,7 +27,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -65,12 +64,14 @@ import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import app.kadans.ui.shell.KadansIcons
 
 @Composable
 fun BudgetScreen(
-    onAddTransaction: () -> Unit,
     onEditTransaction: (String) -> Unit,
-    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: BudgetViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -85,26 +86,19 @@ fun BudgetScreen(
 
     LaunchedEffect(Unit) { viewModel.refresh() }
 
+    // The destination's name, the bell and + are the frame's (MainShell); the month and its arrows lead the screen.
     Scaffold(
+        modifier = modifier,
         topBar = {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onBack) { Text("← " + s.back) }
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    s.monthNames[state.month - 1] + " " + state.year,
-                    style = MaterialTheme.typography.titleLarge,
+                    (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
                 )
-                Row {
-                    TextButton(onClick = viewModel::previousMonth) { Text("‹") }
-                    TextButton(onClick = viewModel::nextMonth) { Text("›") }
-                }
+                IconButton(onClick = viewModel::previousMonth) { Icon(KadansIcons.Previous, contentDescription = s.nav.previousMonth) }
+                IconButton(onClick = viewModel::nextMonth) { Icon(KadansIcons.Next, contentDescription = s.nav.nextMonth) }
             }
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onAddTransaction) { Text("+", style = MaterialTheme.typography.headlineSmall) }
         },
     ) { padding ->
         val summary = state.summary

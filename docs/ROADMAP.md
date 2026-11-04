@@ -481,6 +481,12 @@ installing on real devices second, hosting last.
       (sign-up with and without a clock, the change and a refused value, a phone's reminder window in "12:15 AM" then
       "00:15"), and the desktop app on a seeded account (Home, a todo, Settings; 12-hour, 24-hour after a change on
       the account, French).
+- [x] The navigation (2026-11-04, designed on a canvas the owner approved as drawn): a bar of four destinations
+      (Home, Calendar, Budget, Focus) with icons at the bottom of a phone, a column on the left of a wide window; the
+      destination's name, the bell with its unread count and Settings on top of each; + on Home and Budget. Focus
+      joins the stats and the cycles. Settings: the account with Sign out first, then language, time format and time
+      zone, then rows to Profile, Email and password, Two-factor, Devices (and "Sign out everywhere") and Delete my
+      account. Gone: the row of text links, the language button and Sign out on Home (ARCHITECTURE → Client).
 - [x] A build made for a server talks to it only (2026-11-04, found taking the store screenshots): the Login screen
       showed its address under a ⚙, and anyone holding the phone could type another one and send the next sign-in
       there. Now the ⚙ line is a dev build's only (no `-Pkadans.apiBaseUrl`), and a build made for a server ignores an

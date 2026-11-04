@@ -16,6 +16,7 @@ import app.kadans.realtime.SystemAlerts
 import app.kadans.reminders.LocalReminders
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
+import app.kadans.ui.shell.UnreadNotifications
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -51,6 +52,7 @@ class HomeViewModel(
     private val gate: SubscriptionGate,
     private val localReminders: LocalReminders,
     private val dataChanges: DataChanges,
+    private val unread: UnreadNotifications,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -61,10 +63,6 @@ class HomeViewModel(
     /** Live notifications pushed over the hub, surfaced as a snackbar. */
     private val _liveNotifications = MutableSharedFlow<NotificationResponse>(extraBufferCapacity = 4)
     val liveNotifications: SharedFlow<NotificationResponse> = _liveNotifications.asSharedFlow()
-
-    /** Unread notifications, shown as the badge on the bell. */
-    private val _unread = MutableStateFlow(0)
-    val unread: StateFlow<Int> = _unread.asStateFlow()
 
     private val _access = MutableStateFlow(if (gate.appliesHere) HomeAccess.Checking else HomeAccess.Open)
     val access: StateFlow<HomeAccess> = _access.asStateFlow()
@@ -98,7 +96,7 @@ class HomeViewModel(
                     // here it only updates the bell.
                     val reminder = LocalReminders.reminderOf(event.notification)
                     if (reminder == null || !localReminders.showsReminders()) _liveNotifications.emit(event.notification)
-                    _unread.value += 1 // instant; quietRefresh below replaces it with the server's count
+                    unread.arrived() // the bell at once; quietRefresh below replaces it with the server's count
                     quietRefresh()
                 }
             }
@@ -126,7 +124,7 @@ class HomeViewModel(
                 .filter { !it.isPreview }
             _state.value = HomeUiState.Content(todos, upcoming)
             // The badge is a nicety: never let it turn a loaded Home into an error.
-            runCatching { api.notifications.unreadCount() }.onSuccess { _unread.value = it }
+            runCatching { api.notifications.unreadCount() }.onSuccess(unread::set)
         } catch (e: CancellationException) {
             throw e
         } catch (e: KadansApiException) {
@@ -134,19 +132,6 @@ class HomeViewModel(
             else if (!(quiet && _state.value is HomeUiState.Content)) _state.value = HomeUiState.Error(e.message, e.errorCode)
         } catch (e: Exception) {
             if (!(quiet && _state.value is HomeUiState.Content)) _state.value = HomeUiState.Error(null, "network")
-        }
-    }
-
-    internal companion object {
-        /** A badge must stay a badge: past 99 the exact number stops mattering. */
-        fun badgeText(unread: Int): String = if (unread > 99) "99+" else unread.toString()
-    }
-
-    fun logout() {
-        viewModelScope.launch {
-            realtime.stop()
-            runCatching { api.auth.logout() }
-            _loggedOut.emit(Unit)
         }
     }
 }

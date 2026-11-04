@@ -34,13 +34,16 @@ import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.Dates
 import app.kadans.ui.LocalDates
+import app.kadans.ui.shell.KadansIcons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun CalendarScreen(
     onOpenTodo: (String) -> Unit,
-    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: CalendarViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -49,18 +52,17 @@ fun CalendarScreen(
 
     // Width-capped so desktop windows don't blow the day cells up; the day detail below shares
     // the height via weight, so tapping a date always shows its list on screen.
-    Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(Modifier.widthIn(max = 480.dp).fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("← " + s.back) }
+        // The destination's name is in the bar above; the month and its arrows lead the screen.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                s.monthNames[state.month - 1] + " " + state.year,
-                style = MaterialTheme.typography.titleLarge,
+                (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
             )
-            Row {
-                TextButton(onClick = viewModel::previous) { Text("‹") }
-                TextButton(onClick = viewModel::next) { Text("›") }
-            }
+            IconButton(onClick = viewModel::previous) { Icon(KadansIcons.Previous, contentDescription = s.nav.previousMonth) }
+            IconButton(onClick = viewModel::next) { Icon(KadansIcons.Next, contentDescription = s.nav.nextMonth) }
         }
 
         Row(Modifier.fillMaxWidth()) {

@@ -113,12 +113,12 @@ Against the server: nothing runs on your computer, and the phone works on any ne
 
    Or copy the APK to the phone and open it (allow "install unknown apps"). A debug build, because it is
    signed with the debug key the Android OAuth client names; a release build needs the upload key
-   (DEPLOYMENT → Building the apps).
-3. Leave the **Login screen's ⚙ server line** empty: an address typed there wins over the one built in.
-4. Sign in (password, or **Continue with Google**: the Android OAuth client's check), allow notifications
+   (DEPLOYMENT → Building the apps). Built for the server, it has no ⚙ server line on the Login screen: it
+   talks to that server only.
+3. Sign in (password, or **Continue with Google**: the Android OAuth client's check), allow notifications
    (Android 13+) and "Alarms & reminders". Signing in registers the phone's FCM token (Settings → devices
    shows it as e.g. "Google Pixel").
-5. Start a hands-free session with 1-minute phases and lock the phone: each phase change should arrive as a
+4. Start a hands-free session with 1-minute phases and lock the phone: each phase change should arrive as a
    real notification, even with the app closed — the server does the counting.
 
 What you create lands in the production database, under your account. If nothing arrives: on the server,
@@ -238,9 +238,17 @@ Both:
 - [ ] Optional, for Windows: a code-signing certificate, or the Microsoft Store, so Windows stops warning that the
       installer's publisher is unknown. The release workflow would sign the `.msi` with it.
 - [ ] Google Play / App Store developer accounts when it is time to ship
-- [ ] Play Console → Grow → Store presence → Main store listing: the app icon is `branding/play-store-icon.png`
-      (512 x 512, the logo: branding/README.md) and the feature graphic `branding/play-feature-graphic.png`
-      (1024 x 500, no text: Play writes the name beside it). Still to make: phone screenshots (at least two).
+- [ ] Play Console → Grow → Store presence → Main store listing: the texts are in `store/play/<language>/` (English
+      default, French under "Manage translations", Kreyòl when Play offers it: store/play/README.md), the app icon
+      is `branding/play-store-icon.png` (512 x 512, the logo: branding/README.md) and the feature graphic
+      `branding/play-feature-graphic.png` (1024 x 500, no text: Play writes the name beside it). Phone screenshots:
+      the English set is `store/play/en-US/images/phoneScreenshots/`, uploaded in its order (Play shows it to every
+      language until one has its own). To take a set again (two to eight): register a demo account per language in
+      the app, fill it with
+      `python3 tools/demo/seed_demo.py <username> --language en|fr|ht` (it refuses an account with data), take the
+      screenshots on the phone within a few hours (today's todos are on Home), then
+      `python3 tools/store/play.py crop <files>` (Play refuses taller than 2:1; a 1080 x 2340 capture is). Run the
+      script on `googleTest` too: Google's reviewers then find a lived-in account.
 - [ ] Play Console → App content → Data safety → "Delete account URL": `https://kadansplanning.com/delete-account`
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,

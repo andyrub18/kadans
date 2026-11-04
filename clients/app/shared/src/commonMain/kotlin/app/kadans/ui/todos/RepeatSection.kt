@@ -26,6 +26,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.Dates
+import app.kadans.ui.LocalDates
 import app.kadans.ui.DateRange
 import app.kadans.ui.MonthDayPicker
 import app.kadans.ui.MonthPicker
@@ -150,7 +152,7 @@ internal fun RepeatSection(
                 InputChip(
                     selected = false,
                     onClick = { update { it.copy(times = it.times - t) } },
-                    label = { Text(t.formatted() + "  ✕") },
+                    label = { Text(LocalDates.current.time(t) + "  ✕") },
                 )
             }
             OutlinedButton(onClick = { pickingTime = RepeatTime.Extra }) { Text(s.addTime) }
@@ -192,7 +194,7 @@ internal fun RepeatSection(
             )
         EndMode.OnDate -> {
             PickerField(
-                value = state.untilDate?.toString() ?: "",
+                value = state.untilDate?.let { LocalDates.current.short(it, Dates.today()) } ?: "",
                 label = s.lastOccurrenceOn,
                 kind = PickerKind.Date,
                 onPick = { pickingEnd = true },
@@ -202,7 +204,7 @@ internal fun RepeatSection(
             // A date alone ends the rule with that day; a time makes it a precise moment.
             if (endTime) {
                 PickerField(
-                    value = state.untilTime?.formatted() ?: s.endOfDay,
+                    value = state.untilTime?.let { LocalDates.current.time(it) } ?: s.endOfDay,
                     label = s.lastOccurrenceAt,
                     kind = PickerKind.Time,
                     onPick = { pickingTime = RepeatTime.Until },

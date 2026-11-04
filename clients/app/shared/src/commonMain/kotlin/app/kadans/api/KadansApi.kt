@@ -1,6 +1,7 @@
 package app.kadans.api
 
 import app.kadans.api.model.ApiProblem
+import app.kadans.api.model.ClockFormat
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import app.kadans.api.model.LoginResponse
 import app.kadans.api.model.RefreshTokenRequest
+import app.kadans.profile.deviceClockFormat
 import app.kadans.profile.deviceTimeZone
 
 /**
@@ -41,13 +43,16 @@ class KadansApi internal constructor(
     private val baseUrlProvider: () -> String,
     private val languageProvider: (() -> String)? = null,
     private val timeZoneProvider: () -> String? = ::deviceTimeZone,
+    private val clockProvider: () -> ClockFormat? = ::deviceClockFormat,
 ) {
     internal val baseUrl: String get() = baseUrlProvider().trimEnd('/')
 
-    /** The in-app language and the device's time zone: what a new account starts with (sign-up, Google). */
+    /** The in-app language, the device's time zone and clock: what a new account starts with (sign-up, Google). */
     internal fun newAccountLanguage(): String? = languageProvider?.invoke()
 
     internal fun newAccountTimeZone(): String? = timeZoneProvider()
+
+    internal fun newAccountClock(): ClockFormat? = clockProvider()
 
     val auth: AuthApi = AuthApi(this)
     val account: AccountApi = AccountApi(this)
@@ -65,7 +70,7 @@ class KadansApi internal constructor(
 
     private val _profileChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    /** This device changed the account's language or time zone: what the server words for it reads differently now. */
+    /** This device changed the account's language, time zone or clock: what the server words for it reads differently now. */
     val profileChanged: SharedFlow<Unit> = _profileChanged.asSharedFlow()
 
     internal fun profileChanged() {
@@ -106,6 +111,7 @@ class KadansApi internal constructor(
             baseUrlProvider: (() -> String)? = null,
             languageProvider: (() -> String)? = null,
             timeZoneProvider: () -> String? = ::deviceTimeZone,
+            clockProvider: () -> ClockFormat? = ::deviceClockFormat,
         ): KadansApi {
             // The provider is consulted per request, so a settings change applies immediately.
             val provider = baseUrlProvider ?: { baseUrl }
@@ -148,7 +154,7 @@ class KadansApi internal constructor(
                 }
             }
             val http = if (engine is HttpClientEngine) HttpClient(engine, { configure() }) else HttpClient { configure() }
-            api = KadansApi(http, tokenStore, provider, languageProvider, timeZoneProvider)
+            api = KadansApi(http, tokenStore, provider, languageProvider, timeZoneProvider, clockProvider)
             return api
         }
     }

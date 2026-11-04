@@ -9,17 +9,20 @@ import app.kadans.i18n.LanguageSync
  * Brings the account in line with this device after each sign-in and app start (Home runs it). The server
  * renders reminders, stats days, budget months and emails in the account's time zone and language:
  * - time zone: the device's, while this install follows it ([TimeZonePreference]); travel included;
- * - language: see [LanguageController.syncWith].
+ * - language: see [LanguageController.syncWith];
+ * - clock ("21:00" or "9:00 PM"): the account's, chosen in Settings on any device ([ClockPreference]).
  * Best-effort: a failure changes nothing, and the next start tries again.
  */
 class ProfileSync(
     private val api: KadansApi,
     private val timeZones: TimeZonePreference,
     private val languages: LanguageController,
+    private val clocks: ClockPreference,
     private val deviceZone: () -> String? = ::deviceTimeZone,
 ) {
     suspend fun sync() {
         val account = api.account.me()
+        clocks.adopt(account.clockFormat)
         val language = languages.syncWith(account.language)
         if (language is LanguageSync.Adopt) languages.adopt(language.tag)
 

@@ -33,6 +33,10 @@ import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.Dates
+import app.kadans.ui.LocalDates
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -126,6 +130,11 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Unit, modifier: Modifier = Modifier) {
     val s = LocalStrings.current
+    val d = LocalDates.current
+    val zone = TimeZone.currentSystemDefault()
+    val today = Dates.today(zone)
+    // Under each day, "Today", "Tomorrow", then its name: the times on the device's clock, as the person lives them.
+    val days = content.upcoming.groupBy { it.scheduledAt.toLocalDateTime(zone).date }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -135,8 +144,18 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
         if (content.upcoming.isEmpty()) {
             item { Text(s.nothingScheduled, style = MaterialTheme.typography.bodyMedium) }
         }
-        items(content.upcoming, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
-            OccurrenceCard(occurrence, onClick = { onOpenTodo(occurrence.todoId) })
+        days.forEach { (day, occurrences) ->
+            item(key = "day $day") {
+                Text(
+                    d.day(day, today),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            items(occurrences, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
+                OccurrenceCard(occurrence, d.time(occurrence.scheduledAt, zone), onClick = { onOpenTodo(occurrence.todoId) })
+            }
         }
 
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
@@ -149,15 +168,11 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
 }
 
 @Composable
-private fun OccurrenceCard(occurrence: TodoOccurrenceResponse, onClick: () -> Unit) {
+private fun OccurrenceCard(occurrence: TodoOccurrenceResponse, time: String, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(occurrence.todoTitle, style = MaterialTheme.typography.titleSmall)
-            Text(
-                occurrence.scheduledAt.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(time, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

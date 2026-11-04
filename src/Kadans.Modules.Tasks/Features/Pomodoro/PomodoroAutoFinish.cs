@@ -139,7 +139,10 @@ internal sealed class PomodoroAutoFinish(
             new NotificationMessage(
                 Kind,
                 run.Todo.Title,
-                string.Format(byNext ? texts.NextBeganFormat : texts.FinishedFormat, $"{TimeZoneInfo.ConvertTime(end, zone):HH:mm}"),
+                string.Format(
+                    byNext ? texts.NextBeganFormat : texts.FinishedFormat,
+                    TimeZoneInfo.ConvertTime(end, zone).Clock(user?.ClockFormat ?? ClockFormat.TwentyFourHour)
+                ),
                 new Dictionary<string, string>
                 {
                     ["todoId"] = run.TodoId.ToString(),

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.LocalDates
 import app.kadans.ui.pomodoro.PomodoroPreference
 import app.kadans.ui.pomodoro.EndTimeDialog
 import app.kadans.ui.pomodoro.SessionEnd
@@ -102,7 +103,7 @@ private fun Detail(
         content.todo.recurrenceRule?.let { rule ->
             item {
                 Text(
-                    RuleSummary.describe(rule, s, kotlinx.datetime.TimeZone.currentSystemDefault()),
+                    RuleSummary.describe(rule, s, kotlinx.datetime.TimeZone.currentSystemDefault(), clock = LocalDates.current.clock),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -147,7 +148,7 @@ private fun Detail(
                     val end = endTime?.let { SessionEnd.next(it, now, zone) } ?: (now + SessionEnd.DEFAULT)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(SessionEnd.label(end, now, zone, s.pomodoro), style = MaterialTheme.typography.bodyMedium)
+                            Text(SessionEnd.label(end, now, zone, s.pomodoro, clockFormat = LocalDates.current.clock), style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 if (content.todo.recurrenceRule?.isOneTime == false) s.pomodoro.endHintRepeating else s.pomodoro.endHint,
                                 style = MaterialTheme.typography.bodySmall,
@@ -207,7 +208,7 @@ private fun Detail(
                 val laps = app.kadans.ui.stats.StatsViewModel.lapsOf(run)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
-                        app.kadans.ui.notifications.NotificationsViewModel.formatTimestamp(run.startedAt, zone) +
+                        LocalDates.current.moment(run.startedAt, zone) +
                             (if (laps > 1) " · ×$laps" else ""),
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -287,7 +288,7 @@ private fun OccurrenceRow(
         Column(Modifier.padding(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    RuleSummary.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault(), s),
+                    LocalDates.current.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault()),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
@@ -352,7 +353,7 @@ private fun NoteDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    RuleSummary.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault(), s),
+                    LocalDates.current.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -406,14 +407,14 @@ private fun RescheduleDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 app.kadans.ui.PickerField(
-                    value = date.toString(),
+                    value = LocalDates.current.short(date, app.kadans.ui.Dates.today(timeZone)),
                     label = s.dueDate,
                     kind = app.kadans.ui.PickerKind.Date,
                     onPick = { pickingDate = true },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 app.kadans.ui.PickerField(
-                    value = time.hour.toString().padStart(2, '0') + ":" + time.minute.toString().padStart(2, '0'),
+                    value = LocalDates.current.time(time),
                     label = s.timeLabel,
                     kind = app.kadans.ui.PickerKind.Time,
                     onPick = { pickingTime = true },
@@ -455,7 +456,7 @@ private fun RescheduleDialog(
 
     if (pickingTime) {
         val timeState = androidx.compose.material3.rememberTimePickerState(
-            initialHour = time.hour, initialMinute = time.minute, is24Hour = true,
+            initialHour = time.hour, initialMinute = time.minute, is24Hour = !LocalDates.current.twelveHour,
         )
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { pickingTime = false },

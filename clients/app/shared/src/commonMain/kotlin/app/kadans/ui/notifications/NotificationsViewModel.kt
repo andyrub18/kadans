@@ -7,14 +7,11 @@ import app.kadans.api.KadansApiException
 import app.kadans.api.model.NotificationResponse
 import app.kadans.realtime.RealtimeEvent
 import kotlin.time.Clock
-import kotlin.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 sealed interface NotificationsUiState {
     data object Loading : NotificationsUiState
@@ -120,12 +117,5 @@ class NotificationsViewModel(
 
     internal companion object {
         const val PAGE_SIZE = 30
-
-        /** `2026-09-17 14:05` in the device's zone — sortable, unambiguous in all three languages. */
-        fun formatTimestamp(at: Instant, timeZone: TimeZone): String {
-            val local = at.toLocalDateTime(timeZone)
-            fun two(value: Int) = value.toString().padStart(2, '0')
-            return "${local.year}-${two(local.month.ordinal + 1)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}"
-        }
     }
 }

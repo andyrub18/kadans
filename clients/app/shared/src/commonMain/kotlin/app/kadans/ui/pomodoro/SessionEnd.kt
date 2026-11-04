@@ -1,6 +1,8 @@
 package app.kadans.ui.pomodoro
 
+import app.kadans.api.model.ClockFormat
 import app.kadans.i18n.PomodoroStrings
+import app.kadans.ui.Dates
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -30,12 +32,19 @@ object SessionEnd {
     }
 
     /**
-     * "Ends at 17:00", or "Ends tomorrow at 02:00" when it is past midnight; [withNext]: that is when the todo's next
-     * occurrence starts ("…, when the next one starts").
+     * "Ends at 17:00" (or "5:00 PM", the account's [clockFormat]), or "Ends tomorrow at 02:00" when it is past midnight;
+     * [withNext]: that is when the todo's next occurrence starts ("…, when the next one starts").
      */
-    fun label(end: Instant, now: Instant, zone: TimeZone, strings: PomodoroStrings, withNext: Boolean = false): String {
+    fun label(
+        end: Instant,
+        now: Instant,
+        zone: TimeZone,
+        strings: PomodoroStrings,
+        withNext: Boolean = false,
+        clockFormat: ClockFormat = ClockFormat.TwentyFourHour,
+    ): String {
         val local = end.toLocalDateTime(zone)
-        val clock = "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
+        val clock = Dates.time(local.time, clockFormat)
         val today = local.date == now.toLocalDateTime(zone).date
         return when {
             withNext && today -> strings.endsAtNext(clock)

@@ -12,17 +12,21 @@ internal static class ReminderNotification
 {
     public const string Kind = "occurrence.due";
 
-    /// <summary>The todo's title, and "Starts at 08:00 — in 15 min" as it reads at <paramref name="at"/>.</summary>
+    /// <summary>
+    /// The todo's title, and "Starts at 08:00 — in 15 min" (or "8:00 AM", the account's clock) as it reads at
+    /// <paramref name="at"/>.
+    /// </summary>
     public static (string Title, string Body) Texts(TodoOccurrence occurrence, UserSummary? user, DateTimeOffset at)
     {
         var timeZone = user is not null && TimeZoneInfo.TryFindSystemTimeZoneById(user.TimeZoneId, out var found) ? found : TimeZoneInfo.Utc;
         var texts = LocalizedTexts.Reminder(user?.Language ?? "en");
         var local = TimeZoneInfo.ConvertTime(occurrence.ScheduledAt, timeZone);
         var untilStart = occurrence.ScheduledAt - at;
+        var clock = local.Clock(user?.ClockFormat ?? ClockFormat.TwentyFourHour);
 
         var body = untilStart > TimeSpan.FromSeconds(30)
-            ? string.Format(texts.StartsAtFormat, $"{local:HH:mm}", Describe(untilStart, texts))
-            : string.Format(texts.StartsNowFormat, $"{local:HH:mm}");
+            ? string.Format(texts.StartsAtFormat, clock, Describe(untilStart, texts))
+            : string.Format(texts.StartsNowFormat, clock);
         return (occurrence.Todo!.Title, body);
     }
 

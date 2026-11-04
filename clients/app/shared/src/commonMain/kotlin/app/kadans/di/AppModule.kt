@@ -22,6 +22,7 @@ import app.kadans.reminders.ReminderActions
 import app.kadans.reminders.platformReminderScheduler
 import app.kadans.realtime.KadansRealtime
 import app.kadans.sync.DataChanges
+import app.kadans.profile.ClockPreference
 import app.kadans.profile.ProfileSync
 import app.kadans.profile.TimeZonePreference
 import app.kadans.ui.pomodoro.PomodoroPreference
@@ -85,7 +86,9 @@ val appModule = org.koin.dsl.module {
             get(), get(), get(), get(), get<KadansRealtime>().events,
             snoozedText = { reminder, now ->
                 val strings = Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders
-                LocalReminders.snoozedBody(reminder, now, strings, kotlinx.datetime.TimeZone.currentSystemDefault())
+                LocalReminders.snoozedBody(
+                    reminder, now, strings, kotlinx.datetime.TimeZone.currentSystemDefault(), ClockPreference.current(settings),
+                )
             },
         )
     }
@@ -102,7 +105,8 @@ val appModule = org.koin.dsl.module {
     single { LanguageController(get(), get()) }
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }
-    single { ProfileSync(get(), get(), get()) }
+    single { ClockPreference(get()) }
+    single { ProfileSync(get(), get(), get(), get()) }
     single<StoreBilling> { platformStoreBilling() }
     single<StartAtLogin> { platformStartAtLogin() }
     single { SubscriptionGate(get(), get()) }
@@ -126,7 +130,7 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::BudgetViewModel)
     // A new movement, or one to correct (its id).
     viewModel { params -> BudgetAddViewModel(get(), params.getOrNull<String>()) }
-    viewModel { SettingsViewModel(get(), get(), get(), get()) }
+    viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }
     viewModelOf(::CreateTodoViewModel)

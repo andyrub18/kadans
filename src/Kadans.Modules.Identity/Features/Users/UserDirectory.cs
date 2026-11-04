@@ -28,5 +28,5 @@ internal sealed class UserDirectory(UserManager<ApplicationUser> userManager) : 
     }
 
     private static UserSummary Summary(ApplicationUser user) =>
-        new(user.Id, user.DisplayName, user.Email, user.TimeZoneId, user.PreferredLanguage, user.UserName, user.EmailConfirmed);
+        new(user.Id, user.DisplayName, user.Email, user.TimeZoneId, user.PreferredLanguage, user.UserName, user.EmailConfirmed, user.ClockFormat);
 }

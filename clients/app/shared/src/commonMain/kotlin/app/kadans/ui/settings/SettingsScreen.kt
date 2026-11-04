@@ -34,6 +34,8 @@ import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.billing.SubscriptionSection
+import app.kadans.ui.LocalDates
+import app.kadans.api.model.ClockFormat
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -96,7 +98,7 @@ fun SettingsScreen(
                 Text(s.profileSaved, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
             }
 
-            // Language and time zone apply as soon as they are chosen.
+            // Language, time format and time zone apply as soon as they are chosen.
             Text(s.languageLabel, style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Language.entries.forEach { candidate ->
@@ -107,6 +109,19 @@ fun SettingsScreen(
                     )
                 }
             }
+            Text(s.dates.clockSection, style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val clock = LocalDates.current.clock
+                listOf(ClockFormat.TwelveHour to s.dates.clock12, ClockFormat.TwentyFourHour to s.dates.clock24).forEach { (format, label) ->
+                    FilterChip(
+                        selected = clock == format,
+                        onClick = { if (clock != format) viewModel.setClock(format) },
+                        enabled = !state.isBusy,
+                        label = { Text(label) },
+                    )
+                }
+            }
+            Text(s.dates.clockHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             TimeZoneSection(state, viewModel)
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -271,7 +286,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
-                                a.lastSeen + " " + app.kadans.ui.notifications.NotificationsViewModel.formatTimestamp(device.lastSeenAt, zone),
+                                a.lastSeen + " " + LocalDates.current.moment(device.lastSeenAt, zone),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

@@ -136,14 +136,6 @@ class NotificationsViewModelTests {
     }
 
     @Test
-    fun timestamps_are_shown_in_the_devices_zone() {
-        val at = Instant.parse("2026-09-17T03:05:00Z")
-
-        assertEquals("2026-09-16 23:05", NotificationsViewModel.formatTimestamp(at, TimeZone.of("America/Port-au-Prince")))
-        assertEquals("2026-09-17 03:05", NotificationsViewModel.formatTimestamp(at, TimeZone.UTC))
-    }
-
-    @Test
     fun the_badge_stays_a_badge() {
         assertEquals("7", HomeViewModel.badgeText(7))
         assertEquals("99", HomeViewModel.badgeText(99))

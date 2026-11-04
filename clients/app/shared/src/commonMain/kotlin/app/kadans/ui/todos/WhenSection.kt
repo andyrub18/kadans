@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.LocalDates
 import app.kadans.ui.DateRange
 import app.kadans.ui.PickerField
 import app.kadans.ui.PickerKind
@@ -42,14 +43,16 @@ internal fun WhenSection(
     zone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
     val s = LocalStrings.current
+    val d = LocalDates.current
     val now = Clock.System.now()
+    val today = Clock.System.todayIn(zone)
     var pickingDate by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf(false) }
 
     // Tapped anywhere, the fields open their pickers: the value keeps the room a "Pick" button used to take.
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         PickerField(
-            value = state.date?.toString() ?: "",
+            value = state.date?.let { d.short(it, today) } ?: "",
             label = if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn,
             kind = PickerKind.Date,
             onPick = { pickingDate = true },
@@ -58,7 +61,7 @@ internal fun WhenSection(
         )
         if (state.times.isEmpty()) {
             PickerField(
-                value = state.time.formatted(),
+                value = d.time(state.time),
                 label = s.timeLabel,
                 kind = PickerKind.Time,
                 onPick = { pickingTime = true },
@@ -74,7 +77,7 @@ internal fun WhenSection(
         RepeatSection(state, update)
 
         // The rule as it will be sent, in words, and its first moment when that is not the date and time picked.
-        val words = remember(state, s) { CreateTodoViewModel.ruleInWords(state, s, zone, now) }
+        val words = remember(state, s, d) { CreateTodoViewModel.ruleInWords(state, s, zone, now, d.clock) }
         if (words != null) {
             Text(words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
         }
@@ -82,7 +85,7 @@ internal fun WhenSection(
         val picked = state.date?.let { LocalDateTime(it, CreateTodoViewModel.effectiveTime(state)) }
         if (first != null && first != picked) {
             Text(
-                s.repeat.firstTime(RuleSummary.day(first.date, s) + " " + first.time.formatted()),
+                s.repeat.firstTime(d.moment(first, today)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -94,7 +97,6 @@ internal fun WhenSection(
 
     if (pickingDate) {
         // Only dates the server accepts: a start from today on (the end's picker is the rule's, in RepeatSection).
-        val today = remember { Clock.System.todayIn(zone) }
         val pickerState = rememberDatePickerState(selectableDates = DateRange(today, null))
         DatePickerDialog(
             onDismissRequest = { pickingDate = false },
@@ -120,7 +122,8 @@ internal fun WhenSection(
 @Composable
 internal fun TimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, onDismiss: () -> Unit) {
     val s = LocalStrings.current
-    val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    // The dial reads like the account's clock: AM/PM with 12 hours.
+    val timeState = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = !LocalDates.current.twelveHour)
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -133,6 +136,3 @@ internal fun TimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, onDismi
         text = { TimePicker(state = timeState) },
     )
 }
-
-internal fun LocalTime.formatted(): String =
-    hour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0')

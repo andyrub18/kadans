@@ -302,10 +302,16 @@ class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
         }
 
         /** The rule as it would be sent, in words, once it falls on a date; an end still being filled in is left out. */
-        fun ruleInWords(state: CreateTodoUiState, s: StringsCatalog, timeZone: TimeZone, now: Instant = Clock.System.now()): String? {
+        fun ruleInWords(
+            state: CreateTodoUiState,
+            s: StringsCatalog,
+            timeZone: TimeZone,
+            now: Instant = Clock.System.now(),
+            clock: app.kadans.api.model.ClockFormat = app.kadans.api.model.ClockFormat.TwentyFourHour,
+        ): String? {
             if (state.mode != TodoMode.Recurring || firstStart(state, timeZone, now) == null) return null
             val complete = if (state.endMode == EndMode.OnDate && state.untilDate == null) state.copy(endMode = EndMode.Never) else state
-            return RuleSummary.describe(buildRecurring(complete, timeZone, now).recurrenceRule, s)
+            return RuleSummary.describe(buildRecurring(complete, timeZone, now).recurrenceRule, s, clock)
         }
 
         fun buildOneTime(state: CreateTodoUiState, timeZone: TimeZone, now: Instant = Clock.System.now()) = CreateOneTimeTodo(

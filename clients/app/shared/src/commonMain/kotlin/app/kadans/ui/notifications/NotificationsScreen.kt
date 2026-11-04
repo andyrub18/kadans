@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.NotificationResponse
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -127,7 +128,7 @@ private fun NotificationCard(notification: NotificationResponse, onClick: () -> 
             )
             Text(notification.body, style = MaterialTheme.typography.bodyMedium)
             Text(
-                NotificationsViewModel.formatTimestamp(notification.createdAt, timeZone),
+                LocalDates.current.moment(notification.createdAt, timeZone),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

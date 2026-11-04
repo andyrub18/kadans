@@ -6,6 +6,7 @@ using Kadans.SharedKernel.Errors;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Account;
 using Kadans.Modules.Identity.Security;
+using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OneOf;
@@ -26,6 +27,7 @@ internal sealed class UserManagement(
     private const string AdminRoleName = "Admin";
     private static readonly string[] SupportedLanguages = ["en", "fr", "ht"];
     private string? pendingLanguage;
+    private ClockFormat? pendingClockFormat;
 
     public async Task<OneOf<ApplicationError, UserResponse>> GetCurrentUser()
     {
@@ -51,6 +53,7 @@ internal sealed class UserManagement(
         );
 
         pendingLanguage = NormalizeLanguage(request.Language);
+        pendingClockFormat = ClockFormats.Known(request.ClockFormat);
         return CreateUserInternal(createRequest, canManageRoles: false, sendConfirmationEmail: true);
     }
 
@@ -101,6 +104,7 @@ internal sealed class UserManagement(
             DisplayName = NormalizeDisplayName(request.DisplayName),
             TimeZoneId = request.TimeZone ?? "UTC",
             PreferredLanguage = pendingLanguage ?? "en",
+            ClockFormat = pendingClockFormat ?? ClockFormat.TwentyFourHour,
         };
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
@@ -163,6 +167,7 @@ internal sealed class UserManagement(
         }
 
         pendingLanguage = NormalizeLanguage(request.Language);
+        pendingClockFormat = ClockFormats.Known(request.ClockFormat);
         var updateRequest = new UpdateUserRequest(
             request.Username,
             null,
@@ -240,7 +245,7 @@ internal sealed class UserManagement(
             }
         }
 
-        if (request.DisplayName is not null || request.TimeZone is not null || pendingLanguage is not null)
+        if (request.DisplayName is not null || request.TimeZone is not null || pendingLanguage is not null || pendingClockFormat is not null)
         {
             if (request.TimeZone is not null)
             {
@@ -258,6 +263,9 @@ internal sealed class UserManagement(
 
             if (pendingLanguage is not null)
                 user.PreferredLanguage = pendingLanguage;
+
+            if (pendingClockFormat is { } clockFormat)
+                user.ClockFormat = clockFormat;
 
             user.UpdatedAt = DateTimeOffset.UtcNow;
             var profileResult = await userManager.UpdateAsync(user);
@@ -432,7 +440,8 @@ internal sealed class UserManagement(
             // Deactivated, not merely locked for a few minutes after wrong passwords.
             !AccountLock.IsDeactivated(user),
             [.. roles],
-            await userManager.HasPasswordAsync(user)
+            await userManager.HasPasswordAsync(user),
+            user.ClockFormat
         );
     }
 

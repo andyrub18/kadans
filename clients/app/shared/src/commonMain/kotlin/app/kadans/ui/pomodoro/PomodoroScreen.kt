@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroRunStatus
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.LocalDates
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import androidx.compose.material3.AlertDialog
@@ -138,7 +139,7 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     val zone = TimeZone.currentSystemDefault()
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            SessionEnd.label(end, Clock.System.now(), zone, s.pomodoro, withNext = run.endsWithNextOccurrence),
+                            SessionEnd.label(end, Clock.System.now(), zone, s.pomodoro, run.endsWithNextOccurrence, LocalDates.current.clock),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f, fill = false),
@@ -197,7 +198,7 @@ private fun BetweenLaps(run: app.kadans.api.model.PomodoroRunResponse, viewModel
     )
     run.finishAt?.let { end ->
         Text(
-            SessionEnd.label(end, Clock.System.now(), TimeZone.currentSystemDefault(), s.pomodoro, withNext = run.endsWithNextOccurrence),
+            SessionEnd.label(end, Clock.System.now(), TimeZone.currentSystemDefault(), s.pomodoro, run.endsWithNextOccurrence, LocalDates.current.clock),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
@@ -212,7 +213,7 @@ private fun BetweenLaps(run: app.kadans.api.model.PomodoroRunResponse, viewModel
 @Composable
 fun EndTimeDialog(initial: LocalTime, onPick: (LocalTime) -> Unit, onDismiss: () -> Unit) {
     val s = LocalStrings.current
-    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = !LocalDates.current.twelveHour)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(s.pomodoro.chooseEnd) },

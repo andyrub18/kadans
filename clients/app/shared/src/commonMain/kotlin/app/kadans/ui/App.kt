@@ -95,6 +95,8 @@ fun App(deepLink: String? = null) {
             Box(Modifier.fillMaxSize().safeDrawingPadding()) {
                 val languageController = koinInject<LanguageController>()
                 val language by languageController.language.collectAsState()
+                val clock by koinInject<app.kadans.profile.ClockPreference>().format.collectAsState()
+                val dates = remember(language, clock) { Dates(language.catalog.dates, clock) }
                 val tokenStore = koinInject<TokenStore>()
                 var hasSession by remember { mutableStateOf<Boolean?>(null) }
                 LaunchedEffect(Unit) { hasSession = tokenStore.load() != null }
@@ -113,7 +115,7 @@ fun App(deepLink: String? = null) {
                     null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
-                    else -> CompositionLocalProvider(LocalStrings provides language.catalog) {
+                    else -> CompositionLocalProvider(LocalStrings provides language.catalog, LocalDates provides dates) {
                         KadansNav(
                             startAtHome = hasSession == true,
                             languageController = languageController,

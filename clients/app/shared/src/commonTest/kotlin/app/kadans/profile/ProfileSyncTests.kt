@@ -1,6 +1,7 @@
 package app.kadans.profile
 
 import app.kadans.api.KadansApi
+import app.kadans.api.model.ClockFormat
 import app.kadans.api.model.UpdateSelfUserRequest
 import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
@@ -49,8 +50,8 @@ class ProfileSyncTests {
         assertEquals(LanguageSync.None, LanguageController.decide(chosen = "ht", synced = "ht", account = "ht"))
     }
 
-    /** A server whose account has [zone] and [language]; records each profile update it receives. */
-    private class Server(val zone: String, val language: String) {
+    /** A server whose account has [zone], [language] and [clock]; records each profile update it receives. */
+    private class Server(val zone: String, val language: String, val clock: String = "TwentyFourHour") {
         val updates = mutableListOf<String>()
     }
 
@@ -59,7 +60,7 @@ class ProfileSyncTests {
         engine = MockEngine { request ->
             if (request.method == HttpMethod.Put) updates += request.body.toByteArray().decodeToString()
             respond(
-                """{"id":"u1","username":"alice","timeZone":"$zone","language":"$language"}""",
+                """{"id":"u1","username":"alice","timeZone":"$zone","language":"$language","clockFormat":"$clock"}""",
                 HttpStatusCode.OK,
                 jsonHeaders,
             )
@@ -72,7 +73,7 @@ class ProfileSyncTests {
         val settings = MapSettings()
         val languages = LanguageController(settings, server.api())
 
-        ProfileSync(server.api(), TimeZonePreference(settings), languages) { "America/Port-au-Prince" }.sync()
+        ProfileSync(server.api(), TimeZonePreference(settings), languages, ClockPreference(settings)) { "America/Port-au-Prince" }.sync()
 
         assertEquals(Language.Ht, languages.language.value)
         assertEquals(listOf("""{"timeZone":"America/Port-au-Prince"}"""), server.updates)
@@ -86,7 +87,7 @@ class ProfileSyncTests {
         val settings = MapSettings("kadans.language" to "fr")
         val languages = LanguageController(settings, server.api())
 
-        ProfileSync(server.api(), TimeZonePreference(settings), languages) { "America/Port-au-Prince" }.sync()
+        ProfileSync(server.api(), TimeZonePreference(settings), languages, ClockPreference(settings)) { "America/Port-au-Prince" }.sync()
 
         assertEquals(listOf("""{"language":"fr"}"""), server.updates)
         assertEquals(LanguageSync.None, languages.syncWith("fr"))
@@ -98,7 +99,7 @@ class ProfileSyncTests {
         val settings = MapSettings("kadans.language" to "en", "kadans.language.synced" to "en")
         val timeZones = TimeZonePreference(settings).apply { followsDevice = false }
 
-        ProfileSync(server.api(), timeZones, LanguageController(settings, server.api())) { "America/Port-au-Prince" }.sync()
+        ProfileSync(server.api(), timeZones, LanguageController(settings, server.api()), ClockPreference(settings)) { "America/Port-au-Prince" }.sync()
 
         assertEquals(emptyList(), server.updates)
     }
@@ -108,9 +109,23 @@ class ProfileSyncTests {
         val server = Server(zone = "Europe/Paris", language = "en")
         val settings = MapSettings("kadans.language" to "en", "kadans.language.synced" to "en")
 
-        ProfileSync(server.api(), TimeZonePreference(settings), LanguageController(settings, server.api())) { null }.sync()
+        ProfileSync(server.api(), TimeZonePreference(settings), LanguageController(settings, server.api()), ClockPreference(settings)) { null }.sync()
 
         assertEquals(emptyList(), server.updates)
         assertEquals(true, TimeZonePreference(MapSettings()).followsDevice, "following the device is the default")
+    }
+
+    @Test
+    fun every_screen_shows_the_accounts_clock() = runTest {
+        val settings = MapSettings()
+        val clocks = ClockPreference(settings)
+        val server = Server(zone = "UTC", language = "en", clock = "TwelveHour")
+
+        ProfileSync(server.api(), TimeZonePreference(settings), LanguageController(settings, server.api()), clocks) { null }.sync()
+
+        assertEquals(ClockFormat.TwelveHour, clocks.format.value)
+        // Kept for the next start, offline too, and for what rings away from the screens.
+        assertEquals(ClockFormat.TwelveHour, ClockPreference.current(settings))
+        assertEquals(emptyList(), server.updates) // the account's choice: nothing to send back
     }
 }

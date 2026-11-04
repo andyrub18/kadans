@@ -142,8 +142,10 @@ Anything a production host needs must be in `appsettings.json` or an environment
   with a number is one whole phrase per case (`RepeatStrings`: "Toutes les %d semaines", "Tous les %d jours"),
   never a prefix glued to a unit: French agrees with the unit. Server-rendered
   texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
-  `PreferredLanguage`; error responses follow the request's `Accept-Language`, which the client sets from
-  its in-app language on every call.
+  `PreferredLanguage`, their times through `Clock(user.ClockFormat)` ("21:00" or "9:00 PM"); error responses
+  follow the request's `Accept-Language`, which the client sets from its in-app language on every call. The
+  client writes every date and time through `ui/Dates` (`LocalDates.current`: "Today", "Thu, Nov 5", the
+  account's clock), never an ISO date or a `toString()`; a clock dial takes `is24Hour = !twelveHour`.
 - Observability (ARCHITECTURE → Observability): a new metric goes on the module's meter (`Kadans.<Module>`, created
   from `IMeterFactory` in a `*Metrics` singleton), named `kadans.<area>.<thing>` with a unit, and histograms get
   explicit buckets (`InstrumentAdvice`). Labels stay bounded: never a user id. Logs carry user ids, never an email

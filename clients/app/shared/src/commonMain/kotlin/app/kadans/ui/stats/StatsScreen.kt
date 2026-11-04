@@ -21,9 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,48 +37,37 @@ import app.kadans.ui.Dates
 import app.kadans.ui.LocalDates
 import org.koin.compose.viewmodel.koinViewModel
 
+/** The focus stats, one side of the Focus destination (FocusScreen). */
 @Composable
-fun StatsScreen(onBack: () -> Unit, viewModel: StatsViewModel = koinViewModel()) {
+fun StatsPane(modifier: Modifier = Modifier, viewModel: StatsViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    Scaffold(
-        topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onBack) { Text("← " + s.back) }
-                Text(s.focusStats.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 560.dp).fillMaxSize()) {
+            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatsRange.entries.forEach { range ->
+                    FilterChip(
+                        selected = state.range == range,
+                        onClick = { viewModel.select(range) },
+                        label = { Text(s.focusStats.rangeName(range)) },
+                    )
+                }
             }
-        },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.widthIn(max = 560.dp).fillMaxSize()) {
-                Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatsRange.entries.forEach { range ->
-                        FilterChip(
-                            selected = state.range == range,
-                            onClick = { viewModel.select(range) },
-                            label = { Text(s.focusStats.rangeName(range)) },
-                        )
+            when (val current = state) {
+                is StatsUiState.Loading ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                is StatsUiState.Error ->
+                    Column(
+                        Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
+                        Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
                     }
-                }
-                when (val current = state) {
-                    is StatsUiState.Loading ->
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                    is StatsUiState.Error ->
-                        Column(
-                            Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
-                            Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
-                        }
-                    is StatsUiState.Content -> StatsContent(current.summary, s)
-                }
+                is StatsUiState.Content -> StatsContent(current.summary, s)
             }
         }
     }

@@ -386,6 +386,21 @@ data class DateStrings(
     val clockHint: String,
 )
 
+/** The four destinations and the bar above them (ui/shell/MainShell), and the Settings pages' names. */
+data class NavStrings(
+    val home: String,
+    val focus: String,
+    /** The bell's spoken label with unread notifications; `%d` = how many. */
+    val unreadFormat: String,
+    val newMovement: String,
+    val emailAndPassword: String,
+    /** The month arrows' spoken labels (Calendar, Budget). */
+    val previousMonth: String,
+    val nextMonth: String,
+) {
+    fun unread(count: Int): String = unreadFormat.replace("%d", "$count")
+}
+
 data class UpdateStrings(
     /** `%s` = the new version. */
     val availableFormat: String,
@@ -541,6 +556,7 @@ data class StringsCatalog(
     val twoFactor: TwoFactorStrings,
     val updates: UpdateStrings,
     val dates: DateStrings,
+    val nav: NavStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

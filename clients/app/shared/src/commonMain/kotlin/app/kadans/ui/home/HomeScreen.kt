@@ -3,24 +3,22 @@ package app.kadans.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
-import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.Dates
 import app.kadans.ui.LocalDates
@@ -39,19 +36,13 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
+/** Home's list, inside the destinations' frame (MainShell: the bar, the bell, + for a new todo). */
 @Composable
 fun HomeScreen(
-    languageController: LanguageController,
     onLoggedOut: () -> Unit,
-    onCreateTodo: () -> Unit,
-    onOpenTemplates: () -> Unit,
-    onOpenCalendar: () -> Unit,
-    onOpenBudget: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenNotifications: () -> Unit,
-    onOpenStats: () -> Unit,
     onOpenTodo: (String) -> Unit,
     onPaywall: () -> Unit = {},
+    modifier: Modifier = Modifier,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val access by viewModel.access.collectAsState()
@@ -62,9 +53,7 @@ fun HomeScreen(
     }
 
     val state by viewModel.state.collectAsState()
-    val unread by viewModel.unread.collectAsState()
     val s = LocalStrings.current
-    val language by languageController.language.collectAsState()
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) { viewModel.loggedOut.collect { onLoggedOut() } }
@@ -76,38 +65,7 @@ fun HomeScreen(
     // Reload whenever this entry comes (back) on screen; data may have changed behind us.
     LaunchedEffect(Unit) { viewModel.refresh() }
 
-    Scaffold(
-        topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Kadans", style = MaterialTheme.typography.headlineSmall)
-                // FlowRow: five actions won't fit one line on a phone; let them wrap.
-                FlowRow(horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { languageController.cycle() }) { Text(language.tag.uppercase()) }
-                    TextButton(onClick = onOpenCalendar) { Text(s.calendar) }
-                    TextButton(onClick = onOpenBudget) { Text(s.budget) }
-                    TextButton(onClick = onOpenTemplates) { Text(s.cycles) }
-                    TextButton(onClick = onOpenStats) { Text(s.focusStats.homeButton) }
-                    TextButton(onClick = onOpenNotifications) {
-                        androidx.compose.material3.BadgedBox(
-                            badge = {
-                                if (unread > 0) androidx.compose.material3.Badge { Text(HomeViewModel.badgeText(unread)) }
-                            },
-                        ) { Text("🔔") }
-                    }
-                    TextButton(onClick = onOpenSettings) { Text("⚙") }
-                    TextButton(onClick = viewModel::logout) { Text(s.signOut) }
-                }
-            }
-        },
-        snackbarHost = { SnackbarHost(snackbar) },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onCreateTodo) { Text("+", style = MaterialTheme.typography.headlineSmall) }
-        },
-    ) { padding ->
+    Scaffold(modifier = modifier, snackbarHost = { SnackbarHost(snackbar) }) { padding ->
         when (val current = state) {
             is HomeUiState.Loading ->
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -136,7 +94,7 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
     // Under each day, "Today", "Tomorrow", then its name: the times on the device's clock, as the person lives them.
     val days = content.upcoming.groupBy { it.scheduledAt.toLocalDateTime(zone).date }
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.widthIn(max = 760.dp).fillMaxSize(), // a wide window keeps the lines readable
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

@@ -102,6 +102,8 @@ val appModule = org.koin.dsl.module {
     }
     // When the screens load again what they show: the server's word, a notification's button here, back in front.
     single { DataChanges(get<KadansRealtime>().events) }
+    // The bell's count, the same on every destination's bar (MainShell).
+    single { app.kadans.ui.shell.UnreadNotifications(get()) }
     single { LanguageController(get(), get()) }
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }

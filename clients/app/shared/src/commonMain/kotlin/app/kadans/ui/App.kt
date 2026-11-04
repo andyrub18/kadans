@@ -39,13 +39,16 @@ import app.kadans.ui.budget.BudgetScreen
 import app.kadans.ui.calendar.CalendarScreen
 import app.kadans.ui.home.HomeScreen
 import app.kadans.ui.notifications.NotificationsScreen
+import app.kadans.ui.focus.FocusScreen
+import app.kadans.ui.settings.SettingsPage
 import app.kadans.ui.settings.SettingsScreen
-import app.kadans.ui.stats.StatsScreen
+import app.kadans.ui.shell.AddAction
+import app.kadans.ui.shell.MainShell
+import app.kadans.ui.shell.MainTab
 import app.kadans.ui.todos.CreateTodoScreen
 import app.kadans.ui.todos.EditTodoScreen
 import app.kadans.ui.todos.TodoDetailScreen
 import app.kadans.ui.pomodoro.PomodoroScreen
-import app.kadans.ui.templates.TemplatesScreen
 import app.kadans.ui.auth.KeepAccountScreen
 import app.kadans.ui.billing.PaywallScreen
 import org.koin.compose.koinInject
@@ -65,11 +68,13 @@ data object HomeRoute
 /** A phone whose account has no subscription (once they are required): subscribe, restore, or sign out. */
 data object PaywallRoute
 data object CreateTodoRoute
-data object TemplatesRoute
 data object CalendarRoute
+/** The focus stats and the Pomodoro cycles (FocusScreen). */
+data object FocusRoute
 data object SettingsRoute
+/** One of Settings' pages, opened from a row of the main one. */
+data class SettingsPageRoute(val page: SettingsPage)
 data object NotificationsRoute
-data object StatsRoute
 data object BudgetRoute
 data object BudgetAddRoute
 /** A movement of the budget opened to correct it. */
@@ -142,6 +147,31 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
         backStack.add(route)
     }
 
+    // The four destinations: Home stays at the bottom of the stack, any other one sits alone on it, so Back from a
+    // destination leads Home and Back from Home leaves the app. What was open over the last one closes.
+    fun selectTab(tab: MainTab) {
+        val home = backStack.indexOfFirst { it is HomeRoute }.takeIf { it >= 0 } ?: return resetTo(HomeRoute)
+        while (backStack.size > home + 1) backStack.removeAt(backStack.lastIndex)
+        when (tab) {
+            MainTab.Home -> Unit
+            MainTab.Calendar -> backStack.add(CalendarRoute)
+            MainTab.Budget -> backStack.add(BudgetRoute)
+            MainTab.Focus -> backStack.add(FocusRoute)
+        }
+    }
+
+    @Composable
+    fun Destination(tab: MainTab, title: String, add: AddAction? = null, content: @Composable (Modifier) -> Unit) =
+        MainShell(
+            tab = tab,
+            title = title,
+            onTab = ::selectTab,
+            onNotifications = { backStack.add(NotificationsRoute) },
+            onSettings = { backStack.add(SettingsRoute) },
+            add = add,
+            content = content,
+        )
+
     // The server refused this device's session (signed out elsewhere, password changed, deactivated): back to
     // sign-in from wherever the person is, with a word about why.
     val api = koinInject<KadansApi>()
@@ -163,7 +193,8 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
     LaunchedEffect(Unit) {
         IncomingLinks.links.collect { link ->
             val route = parseDeepLink(link) ?: return@collect
-            if (opensWith(route, signedIn = tokenStore.load() != null) && backStack.lastOrNull() != route) backStack.add(route)
+            if (!opensWith(route, signedIn = tokenStore.load() != null) || backStack.lastOrNull() == route) return@collect
+            if (route is BudgetRoute) selectTab(MainTab.Budget) else backStack.add(route)
         }
     }
 
@@ -240,19 +271,15 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                     )
                 }
                 is HomeRoute -> NavEntry(key) {
-                    HomeScreen(
-                        onLoggedOut = { resetTo(LoginRoute) },
-                        languageController = languageController,
-                        onCreateTodo = { backStack.add(CreateTodoRoute) },
-                        onOpenTemplates = { backStack.add(TemplatesRoute) },
-                        onOpenCalendar = { backStack.add(CalendarRoute) },
-                        onOpenBudget = { backStack.add(BudgetRoute) },
-                        onOpenSettings = { backStack.add(SettingsRoute) },
-                        onOpenNotifications = { backStack.add(NotificationsRoute) },
-                        onOpenStats = { backStack.add(StatsRoute) },
-                        onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
-                        onPaywall = { resetTo(PaywallRoute) },
-                    )
+                    val s = LocalStrings.current
+                    Destination(MainTab.Home, "Kadans", AddAction(s.newTodo) { backStack.add(CreateTodoRoute) }) { modifier ->
+                        HomeScreen(
+                            onLoggedOut = { resetTo(LoginRoute) },
+                            onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
+                            onPaywall = { resetTo(PaywallRoute) },
+                            modifier = modifier,
+                        )
+                    }
                 }
                 is PaywallRoute -> NavEntry(key) {
                     PaywallScreen(
@@ -267,22 +294,19 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onBack = { backStack.removeLastOrNull() },
                     )
                 }
-                is StatsRoute -> NavEntry(key) { StatsScreen(onBack = { backStack.removeLastOrNull() }) }
-                is TemplatesRoute -> NavEntry(key) {
-                    TemplatesScreen(onBack = { backStack.removeLastOrNull() })
+                is FocusRoute -> NavEntry(key) {
+                    Destination(MainTab.Focus, LocalStrings.current.nav.focus) { modifier -> FocusScreen(modifier) }
                 }
                 is CalendarRoute -> NavEntry(key) {
-                    CalendarScreen(
-                        onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },
-                        onBack = { backStack.removeLastOrNull() },
-                    )
+                    Destination(MainTab.Calendar, LocalStrings.current.calendar) { modifier ->
+                        CalendarScreen(onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) }, modifier = modifier)
+                    }
                 }
                 is BudgetRoute -> NavEntry(key) {
-                    BudgetScreen(
-                        onAddTransaction = { backStack.add(BudgetAddRoute) },
-                        onEditTransaction = { id -> backStack.add(BudgetEditRoute(id)) },
-                        onBack = { backStack.removeLastOrNull() },
-                    )
+                    val s = LocalStrings.current
+                    Destination(MainTab.Budget, s.budget, AddAction(s.nav.newMovement) { backStack.add(BudgetAddRoute) }) { modifier ->
+                        BudgetScreen(onEditTransaction = { id -> backStack.add(BudgetEditRoute(id)) }, modifier = modifier)
+                    }
                 }
                 is BudgetAddRoute -> NavEntry(key) {
                     BudgetAddScreen(
@@ -297,11 +321,13 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         transactionId = key.transactionId,
                     )
                 }
-                is SettingsRoute -> NavEntry(key) {
+                is SettingsRoute, is SettingsPageRoute -> NavEntry(key) {
                     SettingsScreen(
                         languageController = languageController,
                         onLoggedOut = { resetTo(LoginRoute) },
                         onBack = { backStack.removeLastOrNull() },
+                        page = (key as? SettingsPageRoute)?.page ?: SettingsPage.Main,
+                        onOpen = { page -> backStack.add(SettingsPageRoute(page)) },
                         onAccountClosed = { eraseAfter ->
                             closedUntil = eraseAfter
                             resetTo(LoginRoute)

@@ -264,6 +264,15 @@ val FrenchStrings = StringsCatalog(
         clock24 = "24 heures (21:00)",
         clockHint = "Sur tous vos appareils, et dans les notifications.",
     ),
+    nav = NavStrings(
+        home = "Accueil",
+        focus = "Concentration",
+        unreadFormat = "Notifications, %d non lues",
+        newMovement = "Nouveau mouvement",
+        emailAndPassword = "E-mail et mot de passe",
+        previousMonth = "Mois précédent",
+        nextMonth = "Mois suivant",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s est disponible",
         availableText = "Téléchargez la nouvelle version sur le site de Kadans.",

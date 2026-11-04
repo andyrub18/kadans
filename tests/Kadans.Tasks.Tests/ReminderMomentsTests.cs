@@ -1,5 +1,6 @@
 using Kadans.Modules.Tasks.Domain;
 using Kadans.Modules.Tasks.Features.Reminders;
+using Kadans.SharedKernel.Users;
 
 namespace Kadans.Tasks.Tests;
 
@@ -144,5 +145,20 @@ public class ReminderMomentsTests
         await Assert.That(message.Data["pomodoroTemplateId"]).IsEqualTo(""); // not a focus todo: its buttons say "Done"
         await Assert.That(message.Reminder!.NotifyAt).IsEqualTo(Now);
         await Assert.That(message.Reminder.UsefulUntil).IsEqualTo(Now.AddMinutes(10));
+    }
+
+    [Test]
+    public async Task The_time_reads_as_the_account_reads_its_clock()
+    {
+        var evening = At(Now.AddHours(9).AddMinutes(5), 15); // 21:05 UTC
+        UserSummary Reader(ClockFormat clock, string zone = "UTC") => new("u1", null, null, zone, "fr", ClockFormat: clock);
+
+        await Assert.That(ReminderNotification.Texts(evening, Reader(ClockFormat.TwentyFourHour), evening.ScheduledAt).Body)
+            .IsEqualTo("Commence maintenant (21:05)");
+        await Assert.That(ReminderNotification.Texts(evening, Reader(ClockFormat.TwelveHour), evening.ScheduledAt).Body)
+            .IsEqualTo("Commence maintenant (9:05 PM)");
+        // Port-au-Prince is UTC-5 in January: 09:00 UTC is early morning there.
+        await Assert.That(ReminderNotification.Texts(At(Now.AddHours(-3), 15), Reader(ClockFormat.TwelveHour, "America/Port-au-Prince"), Now.AddHours(-3)).Body)
+            .IsEqualTo("Commence maintenant (4:00 AM)");
     }
 }

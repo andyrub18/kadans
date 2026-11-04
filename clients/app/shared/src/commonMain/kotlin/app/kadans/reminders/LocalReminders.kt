@@ -2,6 +2,7 @@ package app.kadans.reminders
 
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
+import app.kadans.api.model.ClockFormat
 import app.kadans.api.model.NotificationResponse
 import app.kadans.api.model.ReminderCheckResponse
 import app.kadans.api.model.ReminderWindowResponse
@@ -9,6 +10,7 @@ import app.kadans.api.model.UpcomingReminder
 import app.kadans.i18n.ReminderStrings
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.RealtimeEvent
+import app.kadans.ui.Dates
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -313,10 +315,18 @@ class LocalReminders(
 
         fun lastUseful(reminder: UpcomingReminder): Instant = maxOf(reminder.startsAt, reminder.notifyAt + LATE)
 
-        /** A reminder rung again after "In 10 min", as it reads at [now]: "Starts at 09:00", or "Started at 09:00". */
-        fun snoozedBody(reminder: UpcomingReminder, now: Instant, strings: ReminderStrings, zone: TimeZone): String {
-            val start = reminder.startsAt.toLocalDateTime(zone).time
-            val clock = "${start.hour.toString().padStart(2, '0')}:${start.minute.toString().padStart(2, '0')}"
+        /**
+         * A reminder rung again after "In 10 min", as it reads at [now]: "Starts at 09:00", or "Started at 9:00 AM" on a
+         * 12-hour [clockFormat].
+         */
+        fun snoozedBody(
+            reminder: UpcomingReminder,
+            now: Instant,
+            strings: ReminderStrings,
+            zone: TimeZone,
+            clockFormat: ClockFormat = ClockFormat.TwentyFourHour,
+        ): String {
+            val clock = Dates.time(reminder.startsAt.toLocalDateTime(zone).time, clockFormat)
             return if (now < reminder.startsAt) strings.startsAt(clock) else strings.startedAt(clock)
         }
 

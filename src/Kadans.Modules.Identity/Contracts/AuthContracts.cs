@@ -1,4 +1,5 @@
 using Kadans.Modules.Identity.Domain;
+using Kadans.SharedKernel.Users;
 
 namespace Kadans.Modules.Identity.Contracts;
 
@@ -36,11 +37,27 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 
 public sealed record RevokeRefreshTokenRequest(string RefreshToken);
 
-/// <summary><c>TimeZone</c> and <c>Language</c> are the device's; they seed the account only if this sign-in creates it.</summary>
-public sealed record ExternalLoginRequest(string Provider, string IdToken, string? TimeZone = null, string? Language = null);
+/// <summary>
+/// <c>TimeZone</c>, <c>Language</c> and <c>ClockFormat</c> are the device's; they seed the account only if this sign-in
+/// creates it.
+/// </summary>
+public sealed record ExternalLoginRequest(
+    string Provider,
+    string IdToken,
+    string? TimeZone = null,
+    string? Language = null,
+    ClockFormat? ClockFormat = null
+);
 
 /// <summary>Desktop loopback flow: the code Google redirected to the app, plus its PKCE verifier.</summary>
-public sealed record GoogleCodeLoginRequest(string Code, string CodeVerifier, string RedirectUri, string? TimeZone = null, string? Language = null);
+public sealed record GoogleCodeLoginRequest(
+    string Code,
+    string CodeVerifier,
+    string RedirectUri,
+    string? TimeZone = null,
+    string? Language = null,
+    ClockFormat? ClockFormat = null
+);
 
 /// <summary>Which external sign-ins this server can complete; a null provider means "hide the button".</summary>
 public sealed record AuthProvidersResponse(GoogleProviderResponse? Google);
@@ -56,7 +73,9 @@ public sealed record RegisterUserRequest(
     string? Email,
     string? DisplayName = null,
     string? TimeZone = null,
-    string? Language = null
+    string? Language = null,
+    /// <summary>The device's: "9:00 PM" or "21:00" as its own clock shows.</summary>
+    ClockFormat? ClockFormat = null
 );
 
 public sealed record ConfirmEmailRequest(string UserId, string Token);
@@ -111,7 +130,8 @@ public sealed record UpdateSelfUserRequest(
     string? Username,
     string? DisplayName = null,
     string? TimeZone = null,
-    string? Language = null
+    string? Language = null,
+    ClockFormat? ClockFormat = null
 );
 
 public sealed record UpdateUserRequest(
@@ -135,5 +155,6 @@ public sealed record UserResponse(
     bool IsActive,
     IReadOnlyCollection<string> Roles,
     /// <summary>False for an account that only signs in with Google: nothing to confirm a change with.</summary>
-    bool HasPassword = true
+    bool HasPassword = true,
+    ClockFormat ClockFormat = ClockFormat.TwentyFourHour
 );

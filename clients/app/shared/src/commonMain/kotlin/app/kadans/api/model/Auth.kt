@@ -38,9 +38,10 @@ data class MfaVerifyRequest(val mfaToken: String, val code: String)
 data class ExternalLoginRequest(
     val provider: String,
     val idToken: String,
-    /** This device's zone and language: used only if the sign-in creates the account. */
+    /** This device's zone, language and clock: used only if the sign-in creates the account. */
     val timeZone: String? = null,
     val language: String? = null,
+    val clockFormat: ClockFormat? = null,
 )
 
 /** Desktop loopback flow: the server trades the code for an ID token (it holds the client secret). */
@@ -51,6 +52,7 @@ data class GoogleCodeLoginRequest(
     val redirectUri: String,
     val timeZone: String? = null,
     val language: String? = null,
+    val clockFormat: ClockFormat? = null,
 )
 
 /** `google == null` ⇔ the server cannot complete a Google sign-in: hide the button. */
@@ -69,6 +71,7 @@ data class RegisterUserRequest(
     val displayName: String? = null,
     val timeZone: String? = null,
     val language: String? = null,
+    val clockFormat: ClockFormat? = null,
 )
 
 @Serializable
@@ -77,7 +80,12 @@ data class UpdateSelfUserRequest(
     val displayName: String? = null,
     val timeZone: String? = null,
     val language: String? = null,
+    val clockFormat: ClockFormat? = null,
 )
+
+/** How the account reads the time: "21:00" or "9:00 PM", on every device and in the server's notifications. */
+@Serializable
+enum class ClockFormat { TwentyFourHour, TwelveHour }
 
 @Serializable
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String)
@@ -112,6 +120,7 @@ data class UserResponse(
     val roles: List<String> = emptyList(),
     /** False for an account that only signs in with Google: an email change asks for no password then. */
     val hasPassword: Boolean = true,
+    val clockFormat: ClockFormat = ClockFormat.TwentyFourHour,
 )
 
 /** TOTP enrollment: nothing is enforced until the code is confirmed via `mfa/enable`. */

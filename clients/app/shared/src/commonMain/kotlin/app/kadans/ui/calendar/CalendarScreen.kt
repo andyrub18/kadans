@@ -32,8 +32,9 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.Dates
+import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -102,7 +103,7 @@ fun CalendarScreen(
 
         state.selected?.let { selected ->
             Text(
-                selected.toString(),
+                LocalDates.current.long(selected, Dates.today()),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
             )
@@ -178,7 +179,7 @@ private fun DayOccurrenceCard(occurrence: TodoOccurrenceResponse, onClick: () ->
             Column {
                 Text(occurrence.todoTitle, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    timeOf(occurrence),
+                    LocalDates.current.time(occurrence.scheduledAt, TimeZone.currentSystemDefault()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -190,9 +191,4 @@ private fun DayOccurrenceCard(occurrence: TodoOccurrenceResponse, onClick: () ->
             )
         }
     }
-}
-
-private fun timeOf(occurrence: TodoOccurrenceResponse): String {
-    val local = occurrence.scheduledAt.toLocalDateTime(TimeZone.currentSystemDefault())
-    return local.hour.toString().padStart(2, '0') + ":" + local.minute.toString().padStart(2, '0')
 }

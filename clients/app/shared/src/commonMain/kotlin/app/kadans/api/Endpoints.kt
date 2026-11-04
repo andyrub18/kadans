@@ -33,14 +33,14 @@ class AuthApi internal constructor(private val api: KadansApi) {
 
     suspend fun loginExternal(provider: String, idToken: String): LoginResponse =
         // Zone and language only matter if this sign-in creates the account.
-        api.http.post("auth/external") { setBody(ExternalLoginRequest(provider, idToken, api.newAccountTimeZone(), api.newAccountLanguage())) }
+        api.http.post("auth/external") { setBody(ExternalLoginRequest(provider, idToken, api.newAccountTimeZone(), api.newAccountLanguage(), api.newAccountClock())) }
             .orThrow<LoginResponse>()
             .also { api.adopt(it) }
 
     /** Desktop: the authorization code from Google's loopback redirect, plus its PKCE verifier. */
     suspend fun loginGoogleCode(code: String, codeVerifier: String, redirectUri: String): LoginResponse =
         api.http.post("auth/external/google/code") {
-            setBody(GoogleCodeLoginRequest(code, codeVerifier, redirectUri, api.newAccountTimeZone(), api.newAccountLanguage()))
+            setBody(GoogleCodeLoginRequest(code, codeVerifier, redirectUri, api.newAccountTimeZone(), api.newAccountLanguage(), api.newAccountClock()))
         }
             .orThrow<LoginResponse>()
             .also { api.adopt(it) }
@@ -48,10 +48,16 @@ class AuthApi internal constructor(private val api: KadansApi) {
     /** Which external sign-ins the server is configured for (public client ids, never a secret). */
     suspend fun providers(): AuthProvidersResponse = api.http.get("auth/providers").orThrow()
 
-    /** The account starts with this device's time zone and language, unless the request names them. */
+    /** The account starts with this device's time zone, language and clock, unless the request names them. */
     suspend fun register(request: RegisterUserRequest): UserResponse =
         api.http.post("auth/register") {
-            setBody(request.copy(timeZone = request.timeZone ?: api.newAccountTimeZone(), language = request.language ?: api.newAccountLanguage()))
+            setBody(
+                request.copy(
+                    timeZone = request.timeZone ?: api.newAccountTimeZone(),
+                    language = request.language ?: api.newAccountLanguage(),
+                    clockFormat = request.clockFormat ?: api.newAccountClock(),
+                )
+            )
         }.orThrow()
 
     suspend fun forgotPassword(email: String) {
@@ -82,7 +88,7 @@ class AccountApi internal constructor(private val api: KadansApi) {
 
     suspend fun update(request: UpdateSelfUserRequest): UserResponse =
         api.http.put("users/me") { setBody(request) }.orThrow<UserResponse>()
-            .also { if (request.language != null || request.timeZone != null) api.profileChanged() }
+            .also { if (request.language != null || request.timeZone != null || request.clockFormat != null) api.profileChanged() }
 
     suspend fun changePassword(currentPassword: String, newPassword: String) {
         api.http.put("users/me/password") { setBody(ChangePasswordRequest(currentPassword, newPassword)) }

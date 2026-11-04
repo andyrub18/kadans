@@ -60,6 +60,8 @@ import app.kadans.api.model.RecurringTransactionResponse
 import app.kadans.i18n.StringsCatalog
 import app.kadans.ui.todos.RuleSummary
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.Dates
+import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
@@ -215,12 +217,14 @@ fun BudgetScreen(
                                 )
                                 // How it repeats, as the form said it ("Every month · on days 15, 30"), then the next one.
                                 Text(
-                                    RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false),
+                                    RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false, clock = LocalDates.current.clock),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                                 Text(
                                     listOfNotNull(
-                                        rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let { s.movements.next(it.toString()) },
+                                        rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let {
+                                            s.movements.next(LocalDates.current.shortDay(it, Dates.today()))
+                                        },
                                         accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
                                     ).joinToString(" · "),
                                     style = MaterialTheme.typography.bodySmall,
@@ -660,7 +664,7 @@ private fun MovementRow(
             )
             Text(
                 listOfNotNull(
-                    tx.occurredAt.toLocalDateTime(TimeZone.currentSystemDefault()).date.toString(),
+                    LocalDates.current.shortDay(tx.occurredAt.toLocalDateTime(TimeZone.currentSystemDefault()).date, Dates.today()),
                     accountsLine(tx.accountId, tx.transferAccountId, accounts),
                     tx.note.takeIf { it.isNotBlank() },
                 ).joinToString(" · "),

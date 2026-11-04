@@ -2,10 +2,12 @@ package app.kadans.ui.todos
 
 import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.BudgetRecurrence
+import app.kadans.api.model.ClockFormat
 import app.kadans.api.model.CreateRecurrenceRule
 import app.kadans.api.model.Frequency
 import app.kadans.api.model.RecurrenceRuleResponse
 import app.kadans.i18n.StringsCatalog
+import app.kadans.ui.Dates
 import app.kadans.ui.mondayFirstDays
 import app.kadans.ui.toApi
 import kotlin.time.Instant
@@ -13,14 +15,14 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toLocalDateTime
 
 /**
  * A todo's rule and times in words, on the todo screen and under the form as it is filled: "Every week · Mon–Fri ·
- * 07:00", "Every month · the last weekday · 18:00", "Every year · January, July · on day 1 · 09:00". Every rule the
- * app creates reads in full. A rule made elsewhere with a part this does not word (BYWEEKNO, BYYEARDAY, "the first
- * Monday" written 1MO) shows as its RRULE, as it always did.
+ * 07:00", "Every month · the last weekday · 6:00 PM", "Every year · January, July · on day 1 · 09:00". Times read on
+ * the account's clock ([ClockFormat]), dates as [Dates] writes them. Every rule the app creates reads in full. A rule
+ * made elsewhere with a part this does not word (BYWEEKNO, BYYEARDAY, "the first Monday" written 1MO) shows as its
+ * RRULE, as it always did.
  */
 internal object RuleSummary {
     /** The parts this words, with RFC 5545's names. */
@@ -37,25 +39,33 @@ internal object RuleSummary {
         val until: Instant? = null,
     )
 
-    /** [withTime] false for money, which moves on a day, not at a time. */
-    fun describe(rule: RecurrenceRuleResponse, s: StringsCatalog, deviceZone: TimeZone, withTime: Boolean = true): String {
+    /** [withTime] false for money, which moves on a day, not at a time. [today]: in [deviceZone] when not given. */
+    fun describe(
+        rule: RecurrenceRuleResponse,
+        s: StringsCatalog,
+        deviceZone: TimeZone,
+        withTime: Boolean = true,
+        clock: ClockFormat = ClockFormat.TwentyFourHour,
+        today: LocalDate = Dates.today(deviceZone),
+    ): String {
         val zone = runCatching { TimeZone.of(rule.timeZoneId) }.getOrNull()
+        val d = Dates(s.dates, clock)
         val words = zone?.let {
-            if (rule.isOneTime) s.oneTime + " · " + moment(rule.startDate, it, s)
-            else parts(rule)?.let { parts -> words(parts, rule.startDate.toLocalDateTime(it), it, s, withTime) }
+            if (rule.isOneTime) s.oneTime + " · " + d.moment(rule.startDate, it, today)
+            else parts(rule)?.let { parts -> words(parts, rule.startDate.toLocalDateTime(it), it, s, d, withTime) }
         } ?: rule.rrule
         // The rule's times are its own zone's wall clock: say which when this device is elsewhere.
         return if (rule.timeZoneId == deviceZone.id) words else "$words · ${rule.timeZoneId}"
     }
 
     /** The rule the form is about to send, in words (in its zone, the device's); null if a part cannot be worded. */
-    fun describe(rule: CreateRecurrenceRule, s: StringsCatalog): String? {
+    fun describe(rule: CreateRecurrenceRule, s: StringsCatalog, clock: ClockFormat = ClockFormat.TwentyFourHour): String? {
         val zone = rule.timeZone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: return null
         val parts = Parts(
             rule.frequency, rule.interval, rule.byDayOfWeek, rule.byMonthDay, rule.bySetPos, rule.byMonth,
             rule.byHour, rule.byMinute, rule.count, rule.until,
         )
-        return words(parts, rule.startDate.toLocalDateTime(zone), zone, s)
+        return words(parts, rule.startDate.toLocalDateTime(zone), zone, s, Dates(s.dates, clock))
     }
 
     /** A budget rule the movement form is about to send, in words without its time; null if a part cannot be worded. */
@@ -65,17 +75,8 @@ internal object RuleSummary {
             rule.frequency, rule.interval, rule.byDayOfWeek, rule.byMonthDay, rule.bySetPos, rule.byMonth,
             count = rule.count, until = rule.until,
         )
-        return words(parts, rule.startDate.toLocalDateTime(zone), zone, s, withTime = false)
+        return words(parts, rule.startDate.toLocalDateTime(zone), zone, s, Dates(s.dates, ClockFormat.TwentyFourHour), withTime = false)
     }
-
-    /** "Mon 2026-10-12 07:00" in [zone]: an occurrence as the person lives it, not as UTC. */
-    fun moment(at: Instant, zone: TimeZone, s: StringsCatalog): String {
-        val local = at.toLocalDateTime(zone)
-        return day(local.date, s) + " " + local.time.clock()
-    }
-
-    /** "Mon 2026-10-12". */
-    fun day(date: LocalDate, s: StringsCatalog): String = s.weekdayShort[date.dayOfWeek.isoDayNumber - 1] + " " + date
 
     /** "Mon–Fri", "Mon, Wed, Fri", "Sat, Sun": three days in a row or more read as a range. */
     fun dayList(days: Set<ApiDayOfWeek>, s: StringsCatalog): String {
@@ -105,7 +106,8 @@ internal object RuleSummary {
     fun canWord(rule: RecurrenceRuleResponse): Boolean {
         val zone = runCatching { TimeZone.of(rule.timeZoneId) }.getOrNull() ?: return false
         // Any language does: the question is whether a sentence exists.
-        return parts(rule)?.let { words(it, rule.startDate.toLocalDateTime(zone), zone, app.kadans.i18n.EnglishStrings) } != null
+        val english = app.kadans.i18n.EnglishStrings
+        return parts(rule)?.let { words(it, rule.startDate.toLocalDateTime(zone), zone, english, Dates(english.dates, ClockFormat.TwentyFourHour)) } != null
     }
 
     /** A stored rule's parts, read back from its RRULE; null with a part this does not word. */
@@ -129,7 +131,7 @@ internal object RuleSummary {
     }
 
     /** Null when the rule has a part, or a mix of parts, this cannot word. */
-    private fun words(rule: Parts, start: LocalDateTime, zone: TimeZone, s: StringsCatalog, withTime: Boolean = true): String? {
+    private fun words(rule: Parts, start: LocalDateTime, zone: TimeZone, s: StringsCatalog, d: Dates, withTime: Boolean = true): String? {
         val months = rule.byMonth?.distinct()?.sorted()
         // A monthly rule kept to some months, every month: how the form says "the second Sunday" of several months.
         val yearlyInMonths = rule.frequency == Frequency.Monthly && months != null && rule.interval == 1
@@ -175,10 +177,10 @@ internal object RuleSummary {
         if (withTime && rule.frequency != Frequency.Minutely && rule.frequency != Frequency.Hourly) {
             val hours = rule.byHour ?: listOf(start.hour)
             val minutes = rule.byMinute ?: listOf(start.minute)
-            words += hours.flatMap { hour -> minutes.map { LocalTime(hour, it) } }.distinct().sorted().joinToString(", ") { it.clock() }
+            words += hours.flatMap { hour -> minutes.map { LocalTime(hour, it) } }.distinct().sorted().joinToString(", ") { d.time(it) }
         }
         rule.count?.let { words += s.repeat.count(it) }
-        rule.until?.let { words += s.repeat.until(untilLabel(it, zone)) }
+        rule.until?.let { words += s.repeat.until(untilLabel(it, zone, d)) }
         return words.joinToString(" · ")
     }
 
@@ -193,17 +195,15 @@ internal object RuleSummary {
         }
     }
 
-    /** The last day, with its time unless it is the end of that day (what the form sends without a time). */
-    private fun untilLabel(until: Instant, zone: TimeZone): String {
+    /** "March 31, 2027": the last day, with its time unless it is the end of that day (what the form sends without one). */
+    private fun untilLabel(until: Instant, zone: TimeZone, d: Dates): String {
         val local = until.toLocalDateTime(zone)
-        return if (local.time.hour == END_OF_DAY.hour && local.time.minute == END_OF_DAY.minute) "${local.date}"
-        else "${local.date} ${local.time.clock()}"
+        return if (local.time.hour == END_OF_DAY.hour && local.time.minute == END_OF_DAY.minute) d.date(local.date)
+        else d.date(local.date) + ", " + d.time(local.time)
     }
 
     private fun numbers(list: String, range: IntRange): List<Int>? =
         list.split(',').map { it.trim().toIntOrNull()?.takeIf { n -> n in range } ?: return null }
-
-    private fun LocalTime.clock(): String = hour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0')
 
     private val WORDED = setOf(
         "FREQ", "INTERVAL", "COUNT", "UNTIL", "WKST", "BYDAY", "BYMONTHDAY", "BYSETPOS", "BYMONTH", "BYHOUR", "BYMINUTE",

@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import app.kadans.api.model.PomodoroDayStats
 import app.kadans.i18n.LocalStrings
 import app.kadans.i18n.StringsCatalog
+import app.kadans.ui.Dates
+import app.kadans.ui.LocalDates
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -97,7 +99,9 @@ private fun StatsContent(summary: StatsSummary, s: StringsCatalog) {
                 Tile(s.focusStats.sessionsCompleted, summary.stats.completedRuns.toString())
                 Tile(s.focusStats.sessionsCancelled, summary.stats.cancelledRuns.toString())
                 Tile(s.focusStats.dailyAverage, StatsViewModel.formatMinutes(summary.dailyAverageFocusMinutes))
-                summary.bestDay?.let { Tile(s.focusStats.bestDay, it.date.toString() + " · " + StatsViewModel.formatMinutes(it.focusMinutes)) }
+                summary.bestDay?.let {
+                    Tile(s.focusStats.bestDay, LocalDates.current.shortDay(it.date, Dates.today()) + " · " + StatsViewModel.formatMinutes(it.focusMinutes))
+                }
             }
         }
         if (summary.stats.focusMinutes == 0) {
@@ -123,7 +127,8 @@ private fun Tile(label: String, value: String) {
 @Composable
 private fun DayBar(day: PomodoroDayStats, max: Int) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(day.date.toString(), style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(88.dp))
+        // "Today", "Yesterday", "Mon, Nov 2", "lun. 2 nov.": the widest fit.
+        Text(LocalDates.current.shortDay(day.date, Dates.today()), style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(104.dp))
         Box(Modifier.weight(1f).height(14.dp)) {
             if (day.focusMinutes > 0 && max > 0) {
                 Box(

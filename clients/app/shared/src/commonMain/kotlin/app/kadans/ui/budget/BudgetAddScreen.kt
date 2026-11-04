@@ -44,6 +44,8 @@ import app.kadans.ui.PickerField
 import app.kadans.ui.PickerKind
 import app.kadans.ui.todos.RepeatSection
 import app.kadans.ui.todos.RuleSummary
+import app.kadans.ui.Dates
+import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.LocalDate
 import org.koin.compose.viewmodel.koinViewModel
@@ -191,7 +193,7 @@ fun BudgetAddScreen(
             }
 
             PickerField(
-                value = state.date?.toString() ?: "",
+                value = state.date?.let { LocalDates.current.short(it, Dates.today()) } ?: "",
                 label = if (state.repeating) s.firstOn else s.dueDate,
                 kind = PickerKind.Date,
                 onPick = { pickingDate = true },
@@ -229,7 +231,7 @@ fun BudgetAddScreen(
                     val first = state.firstDate
                     if (first != null && first != state.date) {
                         Text(
-                            s.repeat.firstTime(RuleSummary.day(first, s)),
+                            s.repeat.firstTime(LocalDates.current.shortDay(first, Dates.today(zone))),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

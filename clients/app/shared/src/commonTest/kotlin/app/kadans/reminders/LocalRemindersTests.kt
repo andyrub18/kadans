@@ -595,6 +595,11 @@ class LocalRemindersTests {
 
         assertEquals("Starts at 12:06", LocalReminders.snoozedBody(putOff, t0 + 5.minutes, strings, zone))
         assertEquals("Started at 12:06", LocalReminders.snoozedBody(putOff, t0 + 11.minutes, strings, zone))
+        // On a 12-hour account, as everywhere else.
+        assertEquals(
+            "Starts at 12:06 PM",
+            LocalReminders.snoozedBody(putOff, t0 + 5.minutes, strings, zone, app.kadans.api.model.ClockFormat.TwelveHour),
+        )
     }
 
     @Test

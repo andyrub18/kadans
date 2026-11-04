@@ -7,7 +7,8 @@ public sealed record UserSummary(
     string TimeZoneId,
     string Language,
     string? Username = null,
-    bool EmailConfirmed = false
+    bool EmailConfirmed = false,
+    ClockFormat ClockFormat = ClockFormat.TwentyFourHour
 );
 
 /// <summary>Read-only view of users for other modules (implemented by Identity).</summary>

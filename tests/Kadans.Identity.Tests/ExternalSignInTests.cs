@@ -4,6 +4,7 @@ using Kadans.Modules.Identity.Features.Auth;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -142,12 +143,12 @@ public sealed class ExternalSignInTests : IAsyncDisposable
     }
 
     [Test]
-    public async Task A_new_account_takes_the_devices_time_zone_and_language()
+    public async Task A_new_account_takes_the_devices_time_zone_language_and_clock()
     {
         await using var scope = services.CreateAsyncScope();
         var external = scope.ServiceProvider.GetRequiredService<ExternalAuthentication>();
-        await external.SignInAsync(Google("haiti@gmail.com", subject: "haiti-sub"), CancellationToken.None, new NewAccountProfile("America/Port-au-Prince", "HT"));
-        await external.SignInAsync(Google("odd@gmail.com", subject: "odd-sub"), CancellationToken.None, new NewAccountProfile("Mars/Olympus_Mons", "de"));
+        await external.SignInAsync(Google("haiti@gmail.com", subject: "haiti-sub"), CancellationToken.None, new NewAccountProfile("America/Port-au-Prince", "HT", ClockFormat.TwelveHour));
+        await external.SignInAsync(Google("odd@gmail.com", subject: "odd-sub"), CancellationToken.None, new NewAccountProfile("Mars/Olympus_Mons", "de", (ClockFormat)7));
 
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var haiti = (await users.FindByLoginAsync("google", "haiti-sub"))!;
@@ -156,6 +157,8 @@ public sealed class ExternalSignInTests : IAsyncDisposable
         await Assert.That(haiti.PreferredLanguage).IsEqualTo("ht");
         await Assert.That(odd.TimeZoneId).IsEqualTo("UTC"); // unknown zone and language fall back, as at registration
         await Assert.That(odd.PreferredLanguage).IsEqualTo("en");
+        await Assert.That(haiti.ClockFormat).IsEqualTo(ClockFormat.TwelveHour);
+        await Assert.That(odd.ClockFormat).IsEqualTo(ClockFormat.TwentyFourHour); // a number JSON let through names nothing
     }
 
     [Test]

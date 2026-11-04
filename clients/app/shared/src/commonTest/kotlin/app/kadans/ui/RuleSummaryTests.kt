@@ -1,6 +1,7 @@
 package app.kadans.ui
 
 import app.kadans.api.model.ApiDayOfWeek
+import app.kadans.api.model.ClockFormat
 import app.kadans.api.model.Frequency
 import app.kadans.api.model.RecurrenceRuleResponse
 import app.kadans.i18n.CreoleStrings
@@ -10,6 +11,7 @@ import app.kadans.ui.todos.RuleSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 
 /** A todo's rule and its occurrences read in words, in the person's time, in each language. */
@@ -63,9 +65,26 @@ class RuleSummaryTests {
 
         // The form's end without a time is the end of that day: the date alone. A picked time is kept.
         val endOfDay = rule("FREQ=DAILY;UNTIL=20270401T035900Z", Frequency.Daily, until = "2027-04-01T03:59:00Z")
-        assertEquals("Every day · 07:00 · until 2027-03-31", RuleSummary.describe(endOfDay, EnglishStrings, portAuPrince))
+        assertEquals("Every day · 07:00 · until March 31, 2027", RuleSummary.describe(endOfDay, EnglishStrings, portAuPrince))
         val atSix = rule("FREQ=HOURLY;INTERVAL=2;UNTIL=20270331T220000Z", Frequency.Hourly, interval = 2, until = "2027-03-31T22:00:00Z")
-        assertEquals("Chak 2 èdtan · jiska 2027-03-31 18:00", RuleSummary.describe(atSix, CreoleStrings, portAuPrince))
+        assertEquals("Chak 2 èdtan · jiska 31 mas 2027, 18:00", RuleSummary.describe(atSix, CreoleStrings, portAuPrince))
+        assertEquals(
+            "Every hour · until March 31, 2027, 6:00 PM",
+            RuleSummary.describe(atSix.copy(interval = 1), EnglishStrings, portAuPrince, clock = ClockFormat.TwelveHour),
+        )
+    }
+
+    @Test
+    fun times_read_on_the_accounts_clock() {
+        val pills = rule("FREQ=DAILY;BYHOUR=8,14,20;BYMINUTE=0", Frequency.Daily)
+        assertEquals(
+            "Every day · 8:00 AM, 2:00 PM, 8:00 PM",
+            RuleSummary.describe(pills, EnglishStrings, portAuPrince, clock = ClockFormat.TwelveHour),
+        )
+        assertEquals(
+            "Chak jou · 8:00 AM, 2:00 PM, 8:00 PM",
+            RuleSummary.describe(pills, CreoleStrings, portAuPrince, clock = ClockFormat.TwelveHour),
+        )
     }
 
     @Test
@@ -82,7 +101,13 @@ class RuleSummaryTests {
     fun a_one_time_todo_reads_as_its_moment() {
         val once = rule("FREQ=DAILY;COUNT=1", Frequency.Daily, count = 1, isOneTime = true)
 
-        assertEquals("One-time · Mon 2027-01-04 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince))
+        val newYear = LocalDate(2027, 1, 1)
+
+        assertEquals("One-time · Mon, Jan 4 · 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince, today = newYear))
+        assertEquals("Unique · Lun. 4 janv. · 07:00", RuleSummary.describe(once, FrenchStrings, portAuPrince, today = newYear))
+        // Seen from the year before, it says its year; the day before, it is tomorrow.
+        assertEquals("One-time · Mon, Jan 4, 2027 · 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince, today = LocalDate(2026, 12, 30)))
+        assertEquals("One-time · Tomorrow · 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince, today = LocalDate(2027, 1, 3)))
     }
 
     @Test
@@ -163,14 +188,6 @@ class RuleSummaryTests {
             "Every week · Mon–Fri · 07:00 · America/Port-au-Prince",
             RuleSummary.describe(alarm, EnglishStrings, TimeZone.of("Europe/Paris")),
         )
-    }
-
-    @Test
-    fun an_occurrence_reads_in_the_devices_time() {
-        val at = Instant.parse("2027-01-04T12:00:00Z")
-
-        assertEquals("Mon 2027-01-04 07:00", RuleSummary.moment(at, portAuPrince, EnglishStrings))
-        assertEquals("lun 2027-01-04 13:00", RuleSummary.moment(at, TimeZone.of("Europe/Paris"), FrenchStrings))
     }
 
     @Test

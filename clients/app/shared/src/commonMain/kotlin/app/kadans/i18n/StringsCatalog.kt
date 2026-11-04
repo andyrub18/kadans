@@ -354,6 +354,38 @@ data class TwoFactorStrings(
  * The desktop app's update check: its notification, Settings → This computer, and the dialog when this version no
  * longer works with the server. A feature group.
  */
+/**
+ * Dates and times as every screen writes them ([app.kadans.ui.Dates]). Patterns: `{wd}` the weekday, `{d}` the day of
+ * the month, `{m}` the month, `{y}` the year. A long date takes [weekdays] and [months], a short one [weekdaysShort]
+ * and [monthsShort]; the year shows only when it is not this one.
+ */
+data class DateStrings(
+    /** Monday … Sunday, as they read inside a date. */
+    val weekdays: List<String>,
+    val weekdaysShort: List<String>,
+    /** January … December, as they read inside a date. */
+    val months: List<String>,
+    val monthsShort: List<String>,
+    /** The first of the month: "1", "1er", "1ye". */
+    val firstOfMonth: String,
+    val today: String,
+    val tomorrow: String,
+    val yesterday: String,
+    /** "Thursday, November 5", "jeudi 5 novembre". */
+    val dayPattern: String,
+    val dayYearPattern: String,
+    /** "Thu, Nov 5", "jeu. 5 nov.". */
+    val shortPattern: String,
+    val shortYearPattern: String,
+    /** A date without its weekday, inside a sentence: "until March 31, 2027", "jusqu'au 31 mars 2027". */
+    val datePattern: String,
+    /** Settings: how times read. */
+    val clockSection: String,
+    val clock12: String,
+    val clock24: String,
+    val clockHint: String,
+)
+
 data class UpdateStrings(
     /** `%s` = the new version. */
     val availableFormat: String,
@@ -508,6 +540,7 @@ data class StringsCatalog(
     val desktop: DesktopStrings,
     val twoFactor: TwoFactorStrings,
     val updates: UpdateStrings,
+    val dates: DateStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

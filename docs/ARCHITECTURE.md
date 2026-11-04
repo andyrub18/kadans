@@ -191,7 +191,7 @@ an id or a name), then English. ASP.NET Identity's messages carry numbers and na
 translated where the parameters are: `LocalizedIdentityErrorDescriber`. Emails and notifications keep
 using the account's language – there is no request to read a header from.
 
-### The account's time zone and language follow the device
+### The account's time zone, language and clock
 
 The server works in the account's time zone and language: reminder texts, focus-stats days, Budget months and
 emails. Both come from the device, not from a form. A new account starts with the device's IANA zone and the
@@ -209,6 +209,16 @@ existing profile alone). After that the client's `ProfileSync` runs after every 
   phone is often in French while the person reads Kreyòl. An install whose choice the account already has
   follows a change made on another device. The install remembers the last language the account confirmed
   (`kadans.language.synced`), which tells "chosen here, not sent yet" from "changed elsewhere".
+- **Clock** ("21:00" or "9:00 PM"): one choice per account (`ClockFormat`), so the phone, the computer and the
+  server's own texts (reminders, "the session ended at …") always agree. A new account starts with the clock of
+  the device it is created on (Android's 24-hour setting, the computer's region, iOS's 24-Hour Time); accounts
+  from before keep 24 hours. Settings changes it on the account; every install adopts the account's choice at
+  each start (`ClockPreference`, kept on the device for offline starts and for what rings away from the screens).
+  12-hour times read "9:00 PM" in every language, as they are written in Haiti.
+
+Every screen writes dates and times through one formatter, `ui/Dates` (`LocalDates`): "Today", "Tomorrow",
+"Thursday, November 5" / "jeudi 5 novembre" / "jedi 5 novanm" (the year only when it is not this one), in the
+device's zone, on the account's clock. Never an ISO date or a `toString()` of one.
 
 Considered and rejected: asking for a zone in the sign-up form (people do not know their IANA id, and it goes
 stale when they travel), and syncing on every request (a header the server would trust on each call).

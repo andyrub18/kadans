@@ -39,6 +39,7 @@ internal sealed class IdentityModuleDbContext(DbContextOptions<IdentityModuleDbC
             u.Property(x => x.DisplayName).HasMaxLength(100);
             u.Property(x => x.TimeZoneId).IsRequired().HasMaxLength(64);
             u.Property(x => x.PreferredLanguage).IsRequired().HasMaxLength(8);
+            u.Property(x => x.ClockFormat).HasConversion<string>().HasMaxLength(16);
         });
 
         builder.Entity<RefreshToken>(t =>

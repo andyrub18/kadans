@@ -4,6 +4,7 @@ using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Errors;
 using Kadans.SharedKernel.Localization;
+using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -32,12 +33,12 @@ internal sealed class ExternalAuthentication(
         if (validation.IsT0)
             return validation.AsT0;
 
-        return await SignInAsync(validation.AsT1, cancellationToken, new NewAccountProfile(request.TimeZone, request.Language));
+        return await SignInAsync(validation.AsT1, cancellationToken, new NewAccountProfile(request.TimeZone, request.Language, request.ClockFormat));
     }
 
     /// <summary>
     /// After the provider's ID token checked out: find, link or create the account, then hand out tokens.
-    /// <paramref name="newAccount"/> (the device's time zone and language) is used only when the account is created.
+    /// <paramref name="newAccount"/> (the device's time zone, language and clock) is used only when the account is created.
     /// </summary>
     internal async Task<OneOf<ApplicationError, LoginResponse>> SignInAsync(
         ExternalIdentity external,
@@ -73,7 +74,7 @@ internal sealed class ExternalAuthentication(
             return exchanged.AsT0;
 
         return await SignIn(
-            new ExternalLoginRequest(ExternalIdTokenValidator.Google, exchanged.AsT1, request.TimeZone, request.Language),
+            new ExternalLoginRequest(ExternalIdTokenValidator.Google, exchanged.AsT1, request.TimeZone, request.Language, request.ClockFormat),
             cancellationToken
         );
     }
@@ -123,6 +124,7 @@ internal sealed class ExternalAuthentication(
                 PreferredLanguage = newAccount?.Language?.Trim().ToLowerInvariant() is { } language && RequestLanguage.Supported.Contains(language)
                     ? language
                     : RequestLanguage.Default,
+                ClockFormat = ClockFormats.Known(newAccount?.ClockFormat) ?? ClockFormat.TwentyFourHour,
             };
 
             var created = await userManager.CreateAsync(user);
@@ -206,4 +208,4 @@ internal sealed class ExternalAuthentication(
 }
 
 /// <summary>What the signing-in device says about its user, applied only to an account the sign-in creates.</summary>
-internal sealed record NewAccountProfile(string? TimeZone, string? Language);
+internal sealed record NewAccountProfile(string? TimeZone, string? Language, ClockFormat? ClockFormat = null);

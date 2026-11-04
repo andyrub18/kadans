@@ -469,6 +469,18 @@ installing on real devices second, hosting last.
       (`src/debug/res/xml`). A release build without an https `-Pkadans.apiBaseUrl` stops before building: it would
       have talked to the emulator's http address and reached nothing (DEPLOYMENT → Building the apps). Checked in the
       built files: the release APK and the Play bundle refuse http, the debug APK allows it.
+- [x] Dates people read, and their clock (2026-11-04, found taking the store screenshots: Home listed
+      `2026-11-04T03:15:00Z`, the other screens ISO dates). One formatter for every screen (`ui/Dates`): Home grouped
+      under "Today", "Tomorrow", "Thursday, November 5" with each time on the device's wall clock; occurrences "Today ·
+      9:00 PM", "Thu, Nov 5 · 21:00"; the calendar's day, forms, budget movements, stats, notifications and devices
+      written out in en/fr/ht ("jeudi 5 novembre", "jedi 5 novanm", "1er"), the year only when it is not this one.
+      Settings → Time format: 12-hour ("9:00 PM") or 24-hour ("21:00"), kept on the account (`ClockFormat`, migration
+      `AccountClockFormat`, existing accounts 24 hours) so every device and the server's reminders and "session ended"
+      texts agree; a new account starts with its device's clock; the clock dials follow it. Checked: unit tests on
+      both sides (`ClockFormatTests`, `DatesTests`, the reminder words, a Google account's clock), a scratch server
+      (sign-up with and without a clock, the change and a refused value, a phone's reminder window in "12:15 AM" then
+      "00:15"), and the desktop app on a seeded account (Home, a todo, Settings; 12-hour, 24-hour after a change on
+      the account, French).
 - [x] A build made for a server talks to it only (2026-11-04, found taking the store screenshots): the Login screen
       showed its address under a ⚙, and anyone holding the phone could type another one and send the next sign-in
       there. Now the ⚙ line is a dev build's only (no `-Pkadans.apiBaseUrl`), and a build made for a server ignores an
@@ -548,8 +560,7 @@ installing on real devices second, hosting last.
       Docker kept them forever. Measured with production limits: the 6th mail request is refused with
       `Retry-After: 180`, the 21st sign-in attempt too, 50 health checks pass, and a second reset mail to
       the same address within 2 minutes is held back.
-- [x] The profile follows the device (design: ARCHITECTURE → "The account's time zone and language follow
-      the device"):
+- [x] The profile follows the device (design: ARCHITECTURE → "The account's time zone, language and clock"):
       - **New accounts.** A new account starts in the device's time zone and the app's language. Sign-up
         sends both, and so does a Google sign-in that creates the account. The server keeps a zone its tz
         database knows and en, fr or ht, else UTC and English.

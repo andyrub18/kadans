@@ -14,6 +14,8 @@ import app.kadans.profile.TimeZonePreference
 import app.kadans.profile.deviceTimeZone
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.KadansRealtime
+import app.kadans.api.model.ClockFormat
+import app.kadans.profile.ClockPreference
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,6 +79,7 @@ class SettingsViewModel(
     private val realtime: KadansRealtime,
     private val deviceRegistrar: DeviceRegistrar,
     private val timeZones: TimeZonePreference,
+    private val clocks: ClockPreference,
     private val deviceZone: () -> String? = ::deviceTimeZone,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsUiState())
@@ -101,6 +104,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 val user = api.account.me()
+                clocks.adopt(user.clockFormat) // changed on another device since this one started
                 _state.value = _state.value.copy(
                     user = user,
                     username = user.username,
@@ -168,6 +172,13 @@ class SettingsViewModel(
     private fun saveTimeZone(id: String) = busy {
         val user = api.account.update(UpdateSelfUserRequest(timeZone = id))
         _state.value = _state.value.copy(user = user, timeZoneSaved = true)
+    }
+
+    /** "9:00 PM" or "21:00": the account's, so every device and the server's notifications follow it. */
+    fun setClock(format: ClockFormat) = busy {
+        val user = api.account.update(UpdateSelfUserRequest(clockFormat = format))
+        clocks.adopt(user.clockFormat)
+        _state.value = _state.value.copy(user = user)
     }
 
     /** Nothing changes yet: the server mails a link to the new address and applies the change when it is opened. */

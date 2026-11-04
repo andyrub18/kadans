@@ -85,7 +85,8 @@ next occurrence must end the session still running, its reminders ringing; ~3.5 
 the task, notification, reminder, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/admin/free_accounts.py add|remove|list` keeps the free accounts (an admin's task, DEPLOYMENT →
-Subscriptions → Free accounts); `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category
+Subscriptions → Free accounts); `python3 tools/demo/seed_demo.py <username> [--language fr]` fills an empty demo account
+for the store screenshots (Google Play's listing: `store/play/`, checked by `tools/store/play.py check`); `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category
 limits (periods, other currencies at the person's rate, the 80% and 100% alerts), summary, correcting a movement
 (another account, another destination) and recurring rules, transfers too, on the todo's day parts (the 15th and the
 30th, the last Friday) (restart the API right before: the recurring job's first pass runs ~15 s after boot).

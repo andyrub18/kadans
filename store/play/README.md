@@ -20,9 +20,12 @@ python3 tools/store/play.py crop ~/Pictures/Screenshot*.png   # screenshots trim
 
 The graphics: the icon `branding/play-store-icon.png` (512 x 512) and the feature graphic
 `branding/play-feature-graphic.png` (1024 x 500), both drawn by `branding/generate.py`. The screenshots (two to eight,
-phone, portrait): taken on a phone in a demo account filled by `tools/demo/seed_demo.py`, in each language, then
-cropped with `play.py crop`. Suggested screens: Home with today's todos, a todo with its rhythm and reminders, a focus
-session, the budget month, a reminder notification.
+phone, portrait) are in `<language>/images/phoneScreenshots/`, in the listing's order (fastlane sorts by name); Play
+shows a language without its own the default language's. They are taken in a demo account filled by
+`tools/demo/seed_demo.py` (its time zone chosen so today's todos are still ahead), on a phone or on the emulator
+(`adb shell wm size 1080x1920`, `wm density 420`, the status bar's demo mode for a clean clock), then passed through
+`play.py crop`: within 2:1 and 24-bit PNG without transparency, as Play wants. Retake them when a screen in them
+changes.
 
 The texts state what the app does today; change them with the app (and the website, `site/texts.py`, says the same
 things). The price and the trial follow OWNER-CHECKLIST → Subscriptions.

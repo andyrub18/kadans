@@ -241,8 +241,10 @@ Both:
 - [ ] Play Console → Grow → Store presence → Main store listing: the texts are in `store/play/<language>/` (English
       default, French under "Manage translations", Kreyòl when Play offers it: store/play/README.md), the app icon
       is `branding/play-store-icon.png` (512 x 512, the logo: branding/README.md) and the feature graphic
-      `branding/play-feature-graphic.png` (1024 x 500, no text: Play writes the name beside it). Phone screenshots
-      (two to eight): register a demo account per language in the app, fill it with
+      `branding/play-feature-graphic.png` (1024 x 500, no text: Play writes the name beside it). Phone screenshots:
+      the English set is `store/play/en-US/images/phoneScreenshots/`, uploaded in its order (Play shows it to every
+      language until one has its own). To take a set again (two to eight): register a demo account per language in
+      the app, fill it with
       `python3 tools/demo/seed_demo.py <username> --language en|fr|ht` (it refuses an account with data), take the
       screenshots on the phone within a few hours (today's todos are on Home), then
       `python3 tools/store/play.py crop <files>` (Play refuses taller than 2:1; a 1080 x 2340 capture is). Run the

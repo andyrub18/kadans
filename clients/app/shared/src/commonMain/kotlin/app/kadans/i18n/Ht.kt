@@ -264,6 +264,15 @@ val CreoleStrings = StringsCatalog(
         clock24 = "24 è (21:00)",
         clockHint = "Sou tout aparèy ou yo, ak nan notifikasyon yo.",
     ),
+    nav = NavStrings(
+        home = "Akèy",
+        focus = "Konsantrasyon",
+        unreadFormat = "Notifikasyon, %d poko li",
+        newMovement = "Nouvo mouvman",
+        emailAndPassword = "Imèl ak modpas",
+        previousMonth = "Mwa anvan an",
+        nextMonth = "Mwa apre a",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s disponib",
         availableText = "Telechaje nouvo vèsyon an sou sit Kadans lan.",

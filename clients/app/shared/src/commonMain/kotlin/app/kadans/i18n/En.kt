@@ -264,6 +264,15 @@ val EnglishStrings = StringsCatalog(
         clock24 = "24-hour (21:00)",
         clockHint = "On all your devices, and in the notifications.",
     ),
+    nav = NavStrings(
+        home = "Home",
+        focus = "Focus",
+        unreadFormat = "Notifications, %d unread",
+        newMovement = "New movement",
+        emailAndPassword = "Email and password",
+        previousMonth = "Previous month",
+        nextMonth = "Next month",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s is available",
         availableText = "Download the new version from the Kadans site.",

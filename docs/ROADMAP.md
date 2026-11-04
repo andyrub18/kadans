@@ -498,10 +498,11 @@ installing on real devices second, hosting last.
       in gourdes and dollars, limits, a month of movements, the salary as a rule) for the screenshots and the
       reviewers' account; `play.py crop` trims phone captures to Play's 2:1. Checked: the script on a scratch server in
       English and French (balances add up, today's occurrences there, an account with data refused), the crop on a
-      1080 x 2340 picture. The English screenshots (2026-11-04, `store/play/en-US/images/phoneScreenshots/`): the
-      calendar, a reminder ringing with its buttons, a todo with its cycle, a focus session, the budget month and its
-      limits, on the emulator in a seeded account. Home is left out while it lists raw UTC times; the French and
-      Kreyòl sets wait for that fix.
+      1080 x 2340 picture. The screenshots (2026-11-04, after the dates and the navigation), English and French in
+      `store/play/<language>/images/phoneScreenshots/`: Home, a reminder ringing with its buttons, a todo with its
+      cycle, a focus session, the calendar, the budget month and its limits, Settings (three languages, 12 or 24
+      hours); English on a 12-hour account, French on a 24-hour one, on the emulator in seeded accounts. Kreyòl waits
+      for Play to offer the language.
 - [x] Step 3 of the site plan, the release workflow (2026-10-31): a tag `v<kadans.version>` builds the `.deb` and
       `.rpm` (Ubuntu 22.04, for libraries every distribution has) and the `.msi` (Windows) with Java 25, and publishes
       the GitHub Release with `latest.json` (notes from `clients/app/releases/<version>.json`) and `SHA256SUMS`; a pull

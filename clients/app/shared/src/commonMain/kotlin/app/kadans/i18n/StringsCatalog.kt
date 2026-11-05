@@ -401,6 +401,14 @@ data class NavStrings(
     fun unread(count: Int): String = unreadFormat.replace("%d", "$count")
 }
 
+/** Settings → Appearance: light or dark, the system's by default (ui/Theme). */
+data class AppearanceStrings(
+    val section: String,
+    val system: String,
+    val light: String,
+    val dark: String,
+)
+
 data class UpdateStrings(
     /** `%s` = the new version. */
     val availableFormat: String,
@@ -557,6 +565,7 @@ data class StringsCatalog(
     val updates: UpdateStrings,
     val dates: DateStrings,
     val nav: NavStrings,
+    val appearance: AppearanceStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

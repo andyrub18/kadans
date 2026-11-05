@@ -3,6 +3,7 @@ package app.kadans.ui.shell
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +42,8 @@ class AddAction(val label: String, val onClick: () -> Unit)
 
 /**
  * The destinations' frame: their name, the bell (with the unread count) and Settings on top; the destinations in a
- * bar at the bottom of a phone, or in a column on the left of a wide window (a computer, a tablet), + at its top.
+ * bar at the bottom of a phone, or in a column on the left of a wide window (a computer, a tablet); + floating at the
+ * bottom right of the list on both.
  * Everything else (a todo, a form, Settings) opens over it with its own way back.
  */
 @Composable
@@ -65,14 +67,8 @@ fun MainShell(
             Row(Modifier.fillMaxSize()) {
                 NavigationRail(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer, // set apart from the page, as the phone's bar
-                    header = {
-                        add?.let {
-                            FloatingActionButton(onClick = it.onClick, modifier = Modifier.padding(vertical = 8.dp)) {
-                                Icon(KadansIcons.Add, contentDescription = it.label)
-                            }
-                        }
-                    },
                 ) {
+                    Spacer(Modifier.height(12.dp))
                     MainTab.entries.forEach { t ->
                         NavigationRailItem(
                             selected = t == tab,
@@ -82,10 +78,12 @@ fun MainShell(
                         )
                     }
                 }
-                Column(Modifier.weight(1f).fillMaxHeight()) {
-                    TopBar(title, count, onNotifications, onSettings)
-                    content(Modifier.weight(1f).fillMaxWidth())
-                }
+                // + floats over the list, bottom right, as on a phone.
+                Scaffold(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    topBar = { TopBar(title, count, onNotifications, onSettings) },
+                    floatingActionButton = { add?.let { AddButton(it) } },
+                ) { padding -> content(Modifier.padding(padding).fillMaxSize()) }
             }
         } else {
             Scaffold(
@@ -102,12 +100,15 @@ fun MainShell(
                         }
                     }
                 },
-                floatingActionButton = {
-                    add?.let { FloatingActionButton(onClick = it.onClick) { Icon(KadansIcons.Add, contentDescription = it.label) } }
-                },
+                floatingActionButton = { add?.let { AddButton(it) } },
             ) { padding -> content(Modifier.padding(padding).fillMaxSize()) }
         }
     }
+}
+
+@Composable
+private fun AddButton(add: AddAction) {
+    FloatingActionButton(onClick = add.onClick) { Icon(KadansIcons.Add, contentDescription = add.label) }
 }
 
 @Composable

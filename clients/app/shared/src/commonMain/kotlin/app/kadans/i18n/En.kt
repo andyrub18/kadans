@@ -273,6 +273,12 @@ val EnglishStrings = StringsCatalog(
         previousMonth = "Previous month",
         nextMonth = "Next month",
     ),
+    appearance = AppearanceStrings(
+        section = "Appearance",
+        system = "System",
+        light = "Light",
+        dark = "Dark",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s is available",
         availableText = "Download the new version from the Kadans site.",

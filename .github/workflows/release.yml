@@ -1,15 +1,15 @@
 name: Release
 
 # The desktop app's release (docs/DEPLOYMENT.md → Releasing the desktop app). Pushing the tag v1.2.3, the same as
-# kadans.version in clients/app/gradle.properties, builds the .deb and .rpm on Linux and the .msi on Windows, and
-# publishes them on a GitHub Release with latest.json, which every installed desktop app reads once a day through
-# https://kadansplanning.com/desktop/latest.json. A pull request that changes this workflow or its script builds
-# everything and publishes nothing.
+# kadans.version in clients/app/gradle.properties, builds the .deb and .rpm on Linux, the .msi and the Microsoft Store's
+# .msix on Windows, and publishes them on a GitHub Release with latest.json, which every installed desktop app reads
+# once a day through https://kadansplanning.com/desktop/latest.json. A pull request that changes this workflow, its
+# scripts or the Store's package builds everything and publishes nothing (its files are the run's artifacts).
 on:
   push:
     tags: ["v*.*.*"]
   pull_request:
-    paths: [".github/workflows/release.yml", "tools/release/**", "clients/app/releases/**"]
+    paths: [".github/workflows/release.yml", "tools/release/**", "clients/app/releases/**", "clients/app/desktopApp/msix/**"]
 
 permissions:
   contents: read
@@ -26,8 +26,10 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-      - name: The release script's rules
-        run: python3 tools/release/test_release.py
+      - name: The release scripts' rules
+        run: |
+          python3 tools/release/test_release.py
+          python3 tools/release/test_msix.py
       - id: version
         name: The tag is kadans.version
         run: python3 tools/release/release.py version --ref "$GITHUB_REF_NAME" --event "$GITHUB_EVENT_NAME" >> "$GITHUB_OUTPUT"
@@ -67,7 +69,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    name: Windows (.msi)
+    name: Windows (.msi, .msix)
     needs: version
     runs-on: windows-latest
     defaults:
@@ -82,11 +84,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build
         working-directory: clients/app
-        run: ./gradlew :desktopApp:packageMsi -Pkadans.apiBaseUrl="$API"
+        # The app folder (createDistributable) is the .msi's content and the .msix's.
+        run: ./gradlew :desktopApp:createDistributable :desktopApp:packageMsi -Pkadans.apiBaseUrl="$API"
       - name: Under the name that never changes
         run: |
           mkdir out
           cp clients/app/desktopApp/build/compose/binaries/main/msi/*.msi out/kadans-windows-x64.msi
+      - name: The Microsoft Store's package
+        run: python tools/release/msix.py clients/app/desktopApp/build/compose/binaries/main/app/Kadans out/kadans-microsoft-store-x64.msix
+      - name: The package installs, and Kadans starts from it
+        shell: pwsh
+        run: ./tools/release/test-msix.ps1 -Package out/kadans-microsoft-store-x64.msix
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -114,7 +122,8 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           gh release create "v$VERSION" --title "Kadans $VERSION" --notes-file out/notes.md --latest \
-            out/kadans-linux-amd64.deb out/kadans-linux-x86_64.rpm out/kadans-windows-x64.msi out/latest.json out/SHA256SUMS
+            out/kadans-linux-amd64.deb out/kadans-linux-x86_64.rpm out/kadans-windows-x64.msi \
+            out/kadans-microsoft-store-x64.msix out/latest.json out/SHA256SUMS
       - name: What a tag would publish
         if: github.event_name != 'push'
         run: cat out/latest.json out/SHA256SUMS

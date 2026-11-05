@@ -235,8 +235,15 @@ Both:
 
 - [ ] The first desktop release: once the release workflow is merged, `git tag v1.0.0 && git push origin v1.0.0`
       (DEPLOYMENT → Releasing the desktop app); then `https://kadansplanning.com/download`'s buttons work.
-- [ ] Optional, for Windows: a code-signing certificate, or the Microsoft Store, so Windows stops warning that the
-      installer's publisher is unknown. The release workflow would sign the `.msi` with it.
+- [ ] Microsoft Store (Partner Center, an "MSIX or PWA app" named Kadans: identity `AndersonRuban.Kadans`, Store ID
+      9NPHCHB96T03, already in `clients/app/desktopApp/msix/AppxManifest.xml`). A submission's Packages page takes
+      `kadans-microsoft-store-x64.msix` from the GitHub Release (DEPLOYMENT → Releasing the desktop app); before the
+      first release, from the release workflow's run on a pull request (Actions → the run → Artifacts → `windows`).
+      Partner Center asks why the package needs `runFullTrust`: "Kadans is a desktop app (Java, Compose) packaged as
+      MSIX; it runs its own desktop executable." The package declares English and French: give the Store listing
+      both (the texts of `store/play/en-US` and `fr-FR` fit). The Store installs and updates it, signed by Microsoft,
+      so Windows shows no unknown-publisher warning; the `.msi` from the site still does, until it is signed with a
+      code-signing certificate (optional).
 - [ ] Google Play / App Store developer accounts when it is time to ship
 - [ ] Play Console → Grow → Store presence → Main store listing: the texts are in `store/play/<language>/` (English
       default, French under "Manage translations", Kreyòl when Play offers it: store/play/README.md), the app icon

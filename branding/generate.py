@@ -88,6 +88,12 @@ def icon_round(small=False):
     return svg_doc(f'<circle cx="50" cy="50" r="50" fill="{PURPLE}"/>' + scaled(svg_mark(WHITE, small), 0.78))
 
 
+def icon_round_inset(scale):
+    """The round icon at `scale` of a transparent square: Windows' tiles keep a margin around their logo."""
+    body = f'<circle cx="50" cy="50" r="50" fill="{PURPLE}"/>' + scaled(svg_mark(WHITE), 0.78)
+    return svg_doc(scaled(body, scale))
+
+
 def icon_square():
     """Play Store: a full square (Google applies its own mask), the dial at the adaptive icon's proportion."""
     return svg_doc(f'<rect width="100" height="100" fill="{PURPLE}"/>' + scaled(svg_mark(WHITE), 0.56))
@@ -228,7 +234,8 @@ def write(rel, text):
     print("wrote", rel)
 
 
-def png(svg_text, rel, px):
+def png(svg_text, rel, px, strip=False):
+    """[strip]: without ImageMagick's dates, so the same drawing makes the same file (the MSIX's logos)."""
     path = os.path.join(ROOT, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as f:
@@ -237,7 +244,7 @@ def png(svg_text, rel, px):
     try:
         # Rendered large, then scaled down: smooth edges at every size.
         subprocess.run(["convert", "-background", "none", "-density", str(max(96, px * 4)), f"MSVG:{src}",
-                        "-resize", f"{px}x{px}", f"PNG32:{path}"], check=True)
+                        "-resize", f"{px}x{px}"] + (["-strip"] if strip else []) + [f"PNG32:{path}"], check=True)
     finally:
         os.unlink(src)
     print("wrote", rel, f"({px} px)")
@@ -299,6 +306,18 @@ def main():
     subprocess.run(["convert", ico_src, "-define", "icon:auto-resize=256,128,64,48,32,16",
                     os.path.join(ROOT, "clients/app/desktopApp/icons/kadans.ico")], check=True)
     print("wrote clients/app/desktopApp/icons/kadans.ico")
+
+    # The Microsoft Store's package (tools/release/msix.py): each logo at the scales Windows asks for, indexed by makepri,
+    # so a 150 % screen gets a sharp icon. The taskbar and Start take Square44x44 (its target sizes, unplated: the icon
+    # brings its own disc), Windows 10's Start tile Square150x150, the Store StoreLogo.
+    msix = "clients/app/desktopApp/msix/Assets"
+    for scale in (100, 125, 150, 200, 400):
+        png(icon_round(), f"{msix}/StoreLogo.scale-{scale}.png", round(50 * scale / 100), strip=True)
+        png(icon_round(), f"{msix}/Square44x44Logo.scale-{scale}.png", round(44 * scale / 100), strip=True)
+        png(icon_round_inset(0.66), f"{msix}/Square150x150Logo.scale-{scale}.png", round(150 * scale / 100), strip=True)
+    for size in (16, 24, 32, 48, 256):
+        for form in ("", "_altform-unplated"):
+            png(icon_round(small=size <= 24), f"{msix}/Square44x44Logo.targetsize-{size}{form}.png", size, strip=True)
 
 
 if __name__ == "__main__":

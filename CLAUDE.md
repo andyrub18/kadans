@@ -183,7 +183,8 @@ On Linux it types accents with dead keys through Xlib's own input method when th
 (`desktop/LinuxInputMethod`, before AWT starts), and an installed one checks the site daily for a newer version
 (`updates/AppUpdates`; it never downloads anything). ARCHITECTURE → "The desktop app: in the tray, once". Every app
 reports one version, `kadans.version` in `clients/app/gradle.properties`; a tag `v<that version>` releases the
-desktop installers through `.github/workflows/release.yml` (DEPLOYMENT → Releasing the desktop app). With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
+desktop installers and the Microsoft Store's `.msix` through `.github/workflows/release.yml` (DEPLOYMENT → Releasing the
+desktop app); the Store's build (`desktop/Distribution`) leaves updates and the start at sign-in to the Store's package. With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew
 :shared:jvmTest` also runs the live checks against it (the hub and its `data.changed`, the desktop's reminders; ~2 min, as `smoke`). The app talks to `http://localhost:5199`
 (desktop; Android emulator uses `10.0.2.2:5199`) – start the backend first. Plain http works in Android debug builds
 only: a release build is https-only and stops without `-Pkadans.apiBaseUrl=https://…` (DEPLOYMENT → Building the apps). `local.properties`

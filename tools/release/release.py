@@ -24,6 +24,9 @@ LANGUAGES = {"en", "fr", "ht"}
 # The names never change from one release to the next: the site's buttons and latest.json's address point at the
 # latest release's file of that name (deploy/nginx/site-https.conf.template).
 INSTALLERS = ["kadans-linux-amd64.deb", "kadans-linux-x86_64.rpm", "kadans-windows-x64.msi"]
+# What the owner uploads to Partner Center for the Microsoft Store (tools/release/msix.py): published beside them, but
+# not an installer (unsigned: the Store signs it), so neither in SHA256SUMS nor on the site.
+STORE_PACKAGE = "kadans-microsoft-store-x64.msix"
 DOWNLOAD_PAGE = "https://kadansplanning.com/download"
 
 
@@ -93,8 +96,9 @@ def sha256(path):
 
 
 def assemble(folder, version, releases=RELEASES):
-    """Beside the three installers: latest.json, SHA256SUMS and the release's text (notes.md, not published)."""
-    missing = [name for name in INSTALLERS if not (folder / name).is_file() or (folder / name).stat().st_size == 0]
+    """Beside the three installers and the Store's package: latest.json, SHA256SUMS and the release's text (notes.md,
+    not published)."""
+    missing = [name for name in INSTALLERS + [STORE_PACKAGE] if not (folder / name).is_file() or (folder / name).stat().st_size == 0]
     if missing:
         raise ReleaseError(f"missing from {folder}: {', '.join(missing)}")
     latest = {"version": version, **extras(version, releases)}
@@ -110,6 +114,8 @@ def assemble(folder, version, releases=RELEASES):
         "| `kadans-linux-amd64.deb` | Ubuntu, Debian, Mint, Pop!_OS: `sudo apt install ./kadans-linux-amd64.deb` |",
         "| `kadans-linux-x86_64.rpm` | Fedora, openSUSE: `sudo dnf install ./kadans-linux-x86_64.rpm` |",
         "| `kadans-windows-x64.msi` | Windows 10 and 11 |",
+        "",
+        f"`{STORE_PACKAGE}` is the package uploaded to the Microsoft Store; it does not install on its own.",
         "",
         "SHA-256:",
         "```",

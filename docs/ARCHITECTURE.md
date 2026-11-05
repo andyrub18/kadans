@@ -640,8 +640,16 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   newer one for as long as it is out; one older than `minimumVersion` also gets a dialog at each start
   (`UpdateRequiredDialog`). The app never downloads or installs anything itself, and the request is its own client's,
   never the API's: no token, nothing about the person. Offline, a 404 (before the first release) or a file that is not
-  latest.json changes nothing. Phones are updated by their stores and never ask. Every app reports one version,
+  latest.json changes nothing. Phones are updated by their stores and never ask, nor the Microsoft Store's package
+  (below). Every app reports one version,
   `kadans.version` in `clients/app/gradle.properties` (Android's `versionName`, the desktop package, `BuildConfig`).
+- **The Microsoft Store's package** (2026-11-04). The same app folder as the `.msi`, packaged as MSIX for the Store
+  (`tools/release/msix.py`, DEPLOYMENT → Releasing the desktop app), which signs, hosts and updates it. Its launcher
+  carries `-Dkadans.distribution=msstore` (`desktop/Distribution`): the app then never checks for updates, and has no
+  start-at-login switch, for the package opens it with the session itself: a startup task, on from the first launch
+  like the other builds' entry and turned off in Windows' Settings → Apps → Startup, which starts a second launcher,
+  `KadansBackground.exe`, whose `.cfg` passes `--background` (a startup task passes no arguments). Inside a package,
+  a Run key the app wrote would stay in the package's private registry and never reach Windows.
 
 Checked on COSMIC (Pop!_OS 24.04), from Gradle and from the packaged runtime: the icon in the panel, close hides, the
 icon's click and the menu bring the window back, Quit ends the app and removes the icon, and a second start shows the

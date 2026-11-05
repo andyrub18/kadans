@@ -491,6 +491,13 @@ installing on real devices second, hosting last.
       showed its address under a ⚙, and anyone holding the phone could type another one and send the next sign-in
       there. Now the ⚙ line is a dev build's only (no `-Pkadans.apiBaseUrl`), and a build made for a server ignores an
       address saved by an earlier build (`ServerAddress`, `ServerAddressTests`).
+- [x] The Microsoft Store's package (2026-11-04): the release workflow also builds `kadans-microsoft-store-x64.msix`
+      (`tools/release/msix.py`: jpackage's app folder, the manifest with the identity Partner Center reserved, the
+      logos at every screen scale through `makepri`, `makeappx`; unsigned, the Store signs it), installs a copy signed
+      on the runner and starts Kadans from it, and attaches it to the release. The packaged app leaves updates to the
+      Store and its start at sign-in to the package's startup task (a second launcher with `--background`). Logos drawn
+      by `branding/generate.py`. Checked: the script's rules (`test_msix.py`), the start-at-login choice under the
+      Store's mark (`DesktopStartAtLoginTests`), and the workflow's Windows run on this pull request.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);

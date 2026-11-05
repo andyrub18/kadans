@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Microsoft Store's package of the desktop app (tools/release/msix.py, DEPLOYMENT → Releasing the desktop app).
+  The identity is the one Partner Center reserved for Kadans (Product identity): never change it. {{VERSION}} is
+  kadans.version with a fourth part of 0, which the Store keeps for itself.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop rescap">
+
+  <Identity
+    Name="AndersonRuban.Kadans"
+    Publisher="CN=0F6500C3-0FC2-4B9B-9C79-28A0D1543941"
+    Version="{{VERSION}}"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Kadans</DisplayName>
+    <PublisherDisplayName>Anderson Ruban</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="fr-fr" />
+  </Resources>
+
+  <Applications>
+    <!-- jpackage's launcher, which starts the bundled Java runtime: a desktop app, so full trust. -->
+    <Application Id="Kadans" Executable="Kadans.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Kadans"
+        Description="Tasks, focus and budget, in rhythm."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <!--
+          Kadans opens with the session, in the tray, so reminders ring after a restart: on from the first launch, and
+          turned off in Windows' Settings → Apps → Startup. A startup task passes no arguments, so it starts the
+          second launcher, whose own .cfg passes the background flag (an XML comment cannot spell it).
+        -->
+        <desktop:Extension Category="windows.startupTask" Executable="KadansBackground.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="KadansAtSignIn" Enabled="true" DisplayName="Kadans" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

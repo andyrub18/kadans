@@ -4,10 +4,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.concurrent.TimeUnit
+import app.kadans.desktop.Distribution
 import org.koin.core.context.GlobalContext
 
-/** jpackage's launcher names itself in `jpackage.app-path`; a dev run (Gradle's java) has no launcher to start. */
+/**
+ * jpackage's launcher names itself in `jpackage.app-path`; a dev run (Gradle's java) has no launcher to start. The
+ * Microsoft Store's package opens with the session through its own startup task, which Windows' Settings → Apps →
+ * Startup turns off: nothing here to switch.
+ */
 actual fun platformStartAtLogin(): StartAtLogin {
+    if (Distribution.microsoftStore) return NoStartAtLogin
     val launcher = System.getProperty("jpackage.app-path")?.takeIf { it.isNotBlank() }?.let { Path.of(it) } ?: return NoStartAtLogin
     val os = System.getProperty("os.name").lowercase()
     return when {

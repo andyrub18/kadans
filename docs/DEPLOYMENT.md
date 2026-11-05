@@ -194,19 +194,30 @@ The desktop installers are built by GitHub, not on your computer (`.github/workf
    git tag v1.0.1 && git push origin v1.0.1
    ```
 
-3. GitHub → Actions → Release builds the `.deb` and `.rpm` on Ubuntu 22.04 and the `.msi` on Windows, with Java 25
-   and the production address, and publishes the GitHub Release "Kadans 1.0.1": the three installers under names that
-   never change, `latest.json` and `SHA256SUMS` (about 15 minutes). The site's download buttons point at it at once;
-   the installed apps see it within a day.
+3. GitHub → Actions → Release builds the `.deb` and `.rpm` on Ubuntu 22.04, the `.msi` and the Microsoft Store's
+   `.msix` on Windows, with Java 25 and the production address, and publishes the GitHub Release "Kadans 1.0.1": the
+   three installers under names that never change, `kadans-microsoft-store-x64.msix`, `latest.json` and `SHA256SUMS`
+   (about 20 minutes). The site's download buttons point at it at once; the installed apps see it within a day.
+4. Microsoft Store: Partner Center → Kadans → a new submission → Packages: upload that release's
+   `kadans-microsoft-store-x64.msix` (OWNER-CHECKLIST → Microsoft Store). Each submission needs a higher version
+   than the last.
 
 - **The tag must be `kadans.version`**: the workflow stops at once otherwise, before building anything.
 - **Why 22.04 and Java 25**: a `.deb` lists the libraries of the system that builds it, and 24.04's renamed ones
   (`libasound2t64`) do not exist on Ubuntu 22.04, Debian 12 or Mint 21; the Linux accents need Java 22 or later.
 - **A bad release**: GitHub → Releases → edit it into a pre-release (or delete it), and "latest" is the previous one
   again; the apps that already installed it keep it until a fixed version with a higher number is out.
-- **Windows** warns that the installer's publisher is unknown until it is signed (OWNER-CHECKLIST → Client).
-- A pull request that changes the workflow, its script or the release notes builds all three installers and
-  publishes nothing: a dry run.
+- **Windows** warns that the `.msi`'s publisher is unknown until it is signed (OWNER-CHECKLIST → Client); the Store's
+  package installs without a warning, since the Store signs it.
+- **The Store's package** (`tools/release/msix.py`): jpackage's app folder with `AppxManifest.xml` and the logos from
+  `clients/app/desktopApp/msix/` (the identity Partner Center reserved; `kadans.version` as `a.b.c.0`, the fourth part
+  being the Store's), the logos indexed by `makepri`, packed by `makeappx`, unsigned. Its launcher carries
+  `-Dkadans.distribution=msstore`, so the app leaves updates to the Store and the start at sign-in to the package's
+  startup task, which starts a second launcher, `KadansBackground.exe`, whose `.cfg` passes `--background`. x64 only:
+  the bundled Java runtime is, and Windows on ARM runs x64 apps. Before publishing, the workflow installs a copy
+  signed with a certificate made on the runner and starts Kadans from it (`tools/release/test-msix.ps1`).
+- A pull request that changes the workflow, its scripts, the release notes or `desktopApp/msix/` builds everything
+  and publishes nothing: a dry run, whose files (the `.msix` too) are the run's artifacts.
 
 ## Updating
 

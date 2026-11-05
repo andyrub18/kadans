@@ -1,5 +1,6 @@
 package app.kadans.startup
 
+import app.kadans.desktop.Distribution
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.AfterTest
@@ -109,5 +110,23 @@ class DesktopStartAtLoginTests {
         assertFalse(runKey(run = 0, approved = 0 to off).isEnabled(), "turned off in Settings → Apps → Startup")
         val on = "\r\n    Kadans    REG_BINARY    020000000000000000000000\r\n"
         assertTrue(runKey(run = 0, approved = 0 to on).isEnabled(), "turned back on there")
+    }
+
+    @Test
+    fun the_microsoft_stores_package_leaves_the_session_start_to_its_startup_task() {
+        val launcher = installed().toString()
+        val before = System.getProperty("jpackage.app-path") to System.getProperty(Distribution.PROPERTY)
+        try {
+            System.setProperty("jpackage.app-path", launcher)
+            System.setProperty(Distribution.PROPERTY, Distribution.MICROSOFT_STORE)
+            // Nothing to switch in Settings: Windows' Settings → Apps → Startup turns the package's task off.
+            assertEquals(NoStartAtLogin, platformStartAtLogin())
+
+            System.clearProperty(Distribution.PROPERTY)
+            assertTrue(platformStartAtLogin().available) // the .msi and the .deb keep their switch
+        } finally {
+            before.first?.let { System.setProperty("jpackage.app-path", it) } ?: System.clearProperty("jpackage.app-path")
+            before.second?.let { System.setProperty(Distribution.PROPERTY, it) } ?: System.clearProperty(Distribution.PROPERTY)
+        }
     }
 }

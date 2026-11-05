@@ -1,5 +1,6 @@
 package app.kadans.updates
 
+import app.kadans.desktop.Distribution
 import app.kadans.desktop.openInBrowser
 import app.kadans.i18n.LanguageController
 import app.kadans.notifications.FreedesktopNotifications
@@ -58,12 +59,13 @@ private const val DOWNLOAD = "download"
 
 /**
  * The installed desktop app's update check (ARCHITECTURE → "The desktop app: in the tray, once"), started by its main.
- * A dev run (`./gradlew :desktopApp:run`) never asks: it is built from the newest code there is. A version is announced
+ * A dev run (`./gradlew :desktopApp:run`) never asks: it is built from the newest code there is, nor the Microsoft Store's
+ * package: the Store updates it. A version is announced
  * once, by a notification whose click (or its "Download" button on Linux) opens the download page; Settings → This
  * computer shows it for as long as it is out.
  */
 fun startUpdateChecks() {
-    if (System.getProperty("jpackage.app-path").isNullOrBlank()) return
+    if (System.getProperty("jpackage.app-path").isNullOrBlank() || Distribution.microsoftStore) return
     val koin = GlobalContext.get()
     val updates = koin.get<AppUpdates>()
     val settings = koin.get<Settings>()

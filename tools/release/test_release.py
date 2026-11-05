@@ -18,7 +18,7 @@ class ReleaseTests(unittest.TestCase):
         self.notes = self.dir / "releases"
         self.out.mkdir()
         self.notes.mkdir()
-        for name in release.INSTALLERS:
+        for name in release.INSTALLERS + [release.STORE_PACKAGE]:
             (self.out / name).write_bytes(name.encode())
 
     def tearDown(self):
@@ -65,6 +65,14 @@ class ReleaseTests(unittest.TestCase):
             (self.notes / "1.1.0.json").write_text(json.dumps(bad))
             with self.assertRaises(release.ReleaseError, msg=str(bad)):
                 release.assemble(self.out, "1.1.0", self.notes)
+
+    def test_the_store_package_is_published_but_not_summed(self):
+        release.assemble(self.out, "1.1.0", self.notes)
+        self.assertNotIn(release.STORE_PACKAGE, (self.out / "SHA256SUMS").read_text())
+        self.assertIn(release.STORE_PACKAGE, (self.out / "notes.md").read_text())
+        (self.out / release.STORE_PACKAGE).unlink()
+        with self.assertRaises(release.ReleaseError):
+            release.assemble(self.out, "1.1.0", self.notes)
 
     def test_a_missing_or_empty_installer_stops_the_release(self):
         (self.out / "kadans-windows-x64.msi").unlink()

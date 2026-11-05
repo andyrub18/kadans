@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -92,14 +93,17 @@ fun BudgetScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = viewModel::previousMonth) { Icon(KadansIcons.Previous, contentDescription = s.nav.previousMonth) }
-                IconButton(onClick = viewModel::nextMonth) { Icon(KadansIcons.Next, contentDescription = s.nav.nextMonth) }
+            // Over the list's readable width (ReadableList), the month and its arrows above it on a wide window.
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                Row(Modifier.widthIn(max = 760.dp).fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = viewModel::previousMonth) { Icon(KadansIcons.Previous, contentDescription = s.nav.previousMonth) }
+                    IconButton(onClick = viewModel::nextMonth) { Icon(KadansIcons.Next, contentDescription = s.nav.nextMonth) }
+                }
             }
         },
     ) { padding ->

@@ -28,6 +28,7 @@ import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.LocalDates
+import app.kadans.ui.ReadableList
 import app.kadans.ui.pomodoro.PomodoroPreference
 import app.kadans.ui.pomodoro.EndTimeDialog
 import app.kadans.ui.pomodoro.SessionEnd
@@ -82,156 +83,159 @@ private fun Detail(
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     var noting by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("← " + s.back) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.statusName(content.todo.status), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                    TextButton(onClick = onEdit) { Text(s.editTodo) }
-                }
-            }
-        }
-        item { Text(content.todo.title, style = MaterialTheme.typography.headlineSmall) }
-        if (content.todo.description.isNotBlank()) {
-            item { Text(content.todo.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        content.todo.recurrenceRule?.let { rule ->
-            item {
-                Text(
-                    RuleSummary.describe(rule, s, kotlinx.datetime.TimeZone.currentSystemDefault(), clock = LocalDates.current.clock),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    s.cycleWord + ": " + (content.templates.firstOrNull { it.id == content.todo.pomodoroTemplateId }?.name
-                        ?: s.cycleDefault),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                TextButton(onClick = { pickingTemplate = true }) { Text(s.change) }
-            }
-        }
-        if (!content.hasActiveRun) {
+    // A readable width, in the middle of a wide window: never a row of toggles at the far right.
+    ReadableList(Modifier.fillMaxSize()) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = padding,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    // Wraps rather than run under its switch on a narrow phone.
-                    Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
-                    androidx.compose.material3.Switch(checked = loop, onCheckedChange = { loop = it })
+                    TextButton(onClick = onBack) { Text("← " + s.back) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(s.statusName(content.todo.status), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                        TextButton(onClick = onEdit) { Text(s.editTodo) }
+                    }
                 }
             }
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    // Wraps rather than run under its switch on a narrow phone.
-                    Text(s.handsFree, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
-                    androidx.compose.material3.Switch(
-                        checked = handsFree,
-                        onCheckedChange = {
-                            handsFree = it
-                            pomodoroPreference.handsFree = it // the next session on this device starts the same way
-                        },
-                    )
-                }
+            item { Text(content.todo.title, style = MaterialTheme.typography.headlineSmall) }
+            if (content.todo.description.isNotBlank()) {
+                item { Text(content.todo.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-            if (loop) {
+            content.todo.recurrenceRule?.let { rule ->
                 item {
-                    val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
-                    val now = kotlin.time.Clock.System.now()
-                    val end = endTime?.let { SessionEnd.next(it, now, zone) } ?: (now + SessionEnd.DEFAULT)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(SessionEnd.label(end, now, zone, s.pomodoro, clockFormat = LocalDates.current.clock), style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                if (content.todo.recurrenceRule?.isOneTime == false) s.pomodoro.endHintRepeating else s.pomodoro.endHint,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        TextButton(onClick = { choosingEnd = true }) { Text(s.change) }
-                    }
-                    if (choosingEnd) {
-                        EndTimeDialog(
-                            initial = end.toLocalDateTime(zone).time,
-                            onPick = { picked ->
-                                endTime = picked
-                                choosingEnd = false
-                            },
-                            onDismiss = { choosingEnd = false },
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            Button(
-                onClick = {
-                    val end = endTime?.takeIf { loop }?.let {
-                        SessionEnd.next(it, kotlin.time.Clock.System.now(), kotlinx.datetime.TimeZone.currentSystemDefault())
-                    }
-                    onOpenPomodoro(loop, handsFree, end)
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (content.hasActiveRun) s.openFocus else s.startFocus)
-            }
-        }
-
-        if (content.actionError != null || content.actionErrorCode != null) {
-            item { Text(s.errorFor(content.actionErrorCode, content.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-        }
-
-        item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(if (content.showHistory) s.history else s.pendingOccurrences, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = viewModel::toggleHistory) { Text(if (content.showHistory) s.showPending else s.showHistory) }
-            }
-        }
-        if (content.occurrences.isEmpty()) {
-            item { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
-        }
-        items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
-            OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it }, onNote = { noting = it })
-        }
-
-        if (content.runs.isNotEmpty()) {
-            item { Text(s.focusStats.focusSessions, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
-            items(content.runs, key = { "run-" + it.id }) { run ->
-                val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
-                val laps = app.kadans.ui.stats.StatsViewModel.lapsOf(run)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
-                        LocalDates.current.moment(run.startedAt, zone) +
-                            (if (laps > 1) " · ×$laps" else ""),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        s.focusStats.runStatusName(run.status) + " · " + s.focus + " " +
-                            app.kadans.ui.stats.StatsViewModel.formatMinutes(app.kadans.ui.stats.StatsViewModel.focusMinutesOf(run)),
+                        RuleSummary.describe(rule, s, kotlinx.datetime.TimeZone.currentSystemDefault(), clock = LocalDates.current.clock),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-        }
 
-        if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
             item {
-                TextButton(onClick = viewModel::cancelTodo, modifier = Modifier.fillMaxWidth()) {
-                    Text(s.cancelThisTodo, color = MaterialTheme.colorScheme.error)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        s.cycleWord + ": " + (content.templates.firstOrNull { it.id == content.todo.pomodoroTemplateId }?.name
+                            ?: s.cycleDefault),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    TextButton(onClick = { pickingTemplate = true }) { Text(s.change) }
                 }
             }
-        }
-        item {
-            TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(s.deletion.deleteTodo, color = MaterialTheme.colorScheme.error)
+            if (!content.hasActiveRun) {
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        // Wraps rather than run under its switch on a narrow phone.
+                        Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                        androidx.compose.material3.Switch(checked = loop, onCheckedChange = { loop = it })
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        // Wraps rather than run under its switch on a narrow phone.
+                        Text(s.handsFree, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                        androidx.compose.material3.Switch(
+                            checked = handsFree,
+                            onCheckedChange = {
+                                handsFree = it
+                                pomodoroPreference.handsFree = it // the next session on this device starts the same way
+                            },
+                        )
+                    }
+                }
+                if (loop) {
+                    item {
+                        val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
+                        val now = kotlin.time.Clock.System.now()
+                        val end = endTime?.let { SessionEnd.next(it, now, zone) } ?: (now + SessionEnd.DEFAULT)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(SessionEnd.label(end, now, zone, s.pomodoro, clockFormat = LocalDates.current.clock), style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    if (content.todo.recurrenceRule?.isOneTime == false) s.pomodoro.endHintRepeating else s.pomodoro.endHint,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            TextButton(onClick = { choosingEnd = true }) { Text(s.change) }
+                        }
+                        if (choosingEnd) {
+                            EndTimeDialog(
+                                initial = end.toLocalDateTime(zone).time,
+                                onPick = { picked ->
+                                    endTime = picked
+                                    choosingEnd = false
+                                },
+                                onDismiss = { choosingEnd = false },
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Button(
+                    onClick = {
+                        val end = endTime?.takeIf { loop }?.let {
+                            SessionEnd.next(it, kotlin.time.Clock.System.now(), kotlinx.datetime.TimeZone.currentSystemDefault())
+                        }
+                        onOpenPomodoro(loop, handsFree, end)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (content.hasActiveRun) s.openFocus else s.startFocus)
+                }
+            }
+
+            if (content.actionError != null || content.actionErrorCode != null) {
+                item { Text(s.errorFor(content.actionErrorCode, content.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (content.showHistory) s.history else s.pendingOccurrences, style = MaterialTheme.typography.titleMedium)
+                    TextButton(onClick = viewModel::toggleHistory) { Text(if (content.showHistory) s.showPending else s.showHistory) }
+                }
+            }
+            if (content.occurrences.isEmpty()) {
+                item { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
+            }
+            items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
+                OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it }, onNote = { noting = it })
+            }
+
+            if (content.runs.isNotEmpty()) {
+                item { Text(s.focusStats.focusSessions, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
+                items(content.runs, key = { "run-" + it.id }) { run ->
+                    val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
+                    val laps = app.kadans.ui.stats.StatsViewModel.lapsOf(run)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            LocalDates.current.moment(run.startedAt, zone) +
+                                (if (laps > 1) " · ×$laps" else ""),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            s.focusStats.runStatusName(run.status) + " · " + s.focus + " " +
+                                app.kadans.ui.stats.StatsViewModel.formatMinutes(app.kadans.ui.stats.StatsViewModel.focusMinutesOf(run)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
+                item {
+                    TextButton(onClick = viewModel::cancelTodo, modifier = Modifier.fillMaxWidth()) {
+                        Text(s.cancelThisTodo, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+            item {
+                TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(s.deletion.deleteTodo, color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }

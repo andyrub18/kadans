@@ -243,7 +243,8 @@ Both:
       first release, from the release workflow's run on a pull request (Actions → the run → Artifacts → `windows`).
       Partner Center asks why the package needs `runFullTrust`: "Kadans is a desktop app (Java, Compose) packaged as
       MSIX; it runs its own desktop executable." The package declares English and French: give the Store listing
-      both (the texts of `store/play/en-US` and `fr-FR` fit). The Store installs and updates it, signed by Microsoft,
+      both (the texts of `store/play/en-US` and `fr-FR` fit, and the desktop screenshots are in
+      `store/microsoft/<language>/screenshots/`: store/microsoft/README.md). The Store installs and updates it, signed by Microsoft,
       so Windows shows no unknown-publisher warning; the `.msi` from the site still does, until it is signed with a
       code-signing certificate (optional).
 - [ ] Google Play / App Store developer accounts when it is time to ship

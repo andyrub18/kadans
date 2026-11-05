@@ -133,7 +133,7 @@ address typed into an earlier dev build is ignored, so nobody holding the device
 a dev build (no `-Pkadans.apiBaseUrl`) shows the field, for a phone testing against a laptop (OWNER-CHECKLIST →
 Testing on a real Android phone).
 
-One version number for every app: `kadans.version` in `clients/app/gradle.properties` (`1.0.0` for the first store
+One version number for every app: `kadans.version` in `clients/app/gradle.properties` (`1.1.0` for the first store
 release), which a release can override (`-Pkadans.version=1.1.0`). It is Android's `versionName`, the desktop package's
 version, and what the desktop's update check compares; Android's `kadans.versionCode` still goes up by one for every
 upload to Play.

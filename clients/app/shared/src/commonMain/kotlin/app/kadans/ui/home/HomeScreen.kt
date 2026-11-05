@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -31,6 +30,8 @@ import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.Dates
+import app.kadans.ui.FabClearance
+import app.kadans.ui.ReadableList
 import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -93,35 +94,37 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
     val today = Dates.today(zone)
     // Under each day, "Today", "Tomorrow", then its name: the times on the device's clock, as the person lives them.
     val days = content.upcoming.groupBy { it.scheduledAt.toLocalDateTime(zone).date }
-    LazyColumn(
-        modifier = modifier.widthIn(max = 760.dp).fillMaxSize(), // a wide window keeps the lines readable
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        item { Text(s.next7Days, style = MaterialTheme.typography.titleMedium) }
-        if (content.upcoming.isEmpty()) {
-            item { Text(s.nothingScheduled, style = MaterialTheme.typography.bodyMedium) }
-        }
-        days.forEach { (day, occurrences) ->
-            item(key = "day $day") {
-                Text(
-                    d.day(day, today),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+    ReadableList(modifier.fillMaxSize(), bottom = FabClearance) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = padding,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item { Text(s.next7Days, style = MaterialTheme.typography.titleMedium) }
+            if (content.upcoming.isEmpty()) {
+                item { Text(s.nothingScheduled, style = MaterialTheme.typography.bodyMedium) }
             }
-            items(occurrences, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
-                OccurrenceCard(occurrence, d.time(occurrence.scheduledAt, zone), onClick = { onOpenTodo(occurrence.todoId) })
+            days.forEach { (day, occurrences) ->
+                item(key = "day $day") {
+                    Text(
+                        d.day(day, today),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                items(occurrences, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
+                    OccurrenceCard(occurrence, d.time(occurrence.scheduledAt, zone), onClick = { onOpenTodo(occurrence.todoId) })
+                }
             }
-        }
 
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        item { Text(s.allTodos, style = MaterialTheme.typography.titleMedium) }
-        if (content.todos.isEmpty()) {
-            item { Text(s.noTodosYet, style = MaterialTheme.typography.bodyMedium) }
+            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+            item { Text(s.allTodos, style = MaterialTheme.typography.titleMedium) }
+            if (content.todos.isEmpty()) {
+                item { Text(s.noTodosYet, style = MaterialTheme.typography.bodyMedium) }
+            }
+            items(content.todos, key = { it.id }) { todo -> TodoCard(todo, onClick = { onOpenTodo(todo.id) }) }
         }
-        items(content.todos, key = { it.id }) { todo -> TodoCard(todo, onClick = { onOpenTodo(todo.id) }) }
     }
 }
 

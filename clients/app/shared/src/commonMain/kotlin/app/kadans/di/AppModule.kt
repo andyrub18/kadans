@@ -108,6 +108,7 @@ val appModule = org.koin.dsl.module {
     single { TimeZonePreference(get()) }
     single { PomodoroPreference(get()) }
     single { ClockPreference(get()) }
+    single { app.kadans.ui.AppearancePreference(get()) }
     single { ProfileSync(get(), get(), get(), get()) }
     single<StoreBilling> { platformStoreBilling() }
     single<StartAtLogin> { platformStartAtLogin() }

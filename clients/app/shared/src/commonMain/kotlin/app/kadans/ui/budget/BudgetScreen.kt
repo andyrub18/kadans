@@ -1,7 +1,6 @@
 package app.kadans.ui.budget
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
@@ -60,6 +59,9 @@ import app.kadans.i18n.StringsCatalog
 import app.kadans.ui.todos.RuleSummary
 import app.kadans.i18n.LocalStrings
 import app.kadans.ui.Dates
+import app.kadans.ui.FabClearance
+import app.kadans.ui.ReadableList
+import app.kadans.ui.LocalDarkTheme
 import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -102,146 +104,149 @@ fun BudgetScreen(
         },
     ) { padding ->
         val summary = state.summary
-        when {
-            state.isLoading && summary == null ->
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            state.error != null || state.errorCode != null ->
-                Column(Modifier.fillMaxSize().padding(padding), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error)
-                    Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
-                }
-            summary != null -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (state.actionError != null || state.actionErrorCode != null) {
-                    item { Text(s.errorFor(state.actionErrorCode, state.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                }
+        // Centred on a wide window, and clear of the floating + at the bottom (MainShell).
+        ReadableList(Modifier.fillMaxSize().padding(padding), bottom = FabClearance) { listPadding ->
+            when {
+                state.isLoading && summary == null ->
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                state.error != null || state.errorCode != null ->
+                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error)
+                        Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
+                    }
+                summary != null -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = listPadding,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (state.actionError != null || state.actionErrorCode != null) {
+                        item { Text(s.errorFor(state.actionErrorCode, state.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    }
 
-                // ---- combined estimate: only worth showing once a second currency exists ----
-                val currencyCount = summary.accounts.map { it.currency }.distinct().size
-                if (currencyCount > 1) summary.combined?.let { combined ->
-                    item {
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(s.atYourRate, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(s.totalBalanceLabel + ": " + formatMoney(combined.totalBalance, combined.baseCurrency), style = MaterialTheme.typography.titleMedium)
-                                Text("${s.income}: ${formatAmount(combined.income)}  ·  ${s.expense}: ${formatAmount(combined.expense)}  ·  ${s.netLabel}: ${formatAmount(combined.net)}", style = MaterialTheme.typography.bodySmall)
-                                if (combined.missingRates.isNotEmpty()) {
-                                    Text(
-                                        s.missingRatesLabel + " " + combined.missingRates.joinToString { it.name.uppercase() },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
+                    // ---- combined estimate: only worth showing once a second currency exists ----
+                    val currencyCount = summary.accounts.map { it.currency }.distinct().size
+                    if (currencyCount > 1) summary.combined?.let { combined ->
+                        item {
+                            Card(Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(s.atYourRate, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(s.totalBalanceLabel + ": " + formatMoney(combined.totalBalance, combined.baseCurrency), style = MaterialTheme.typography.titleMedium)
+                                    Text("${s.income}: ${formatAmount(combined.income)}  ·  ${s.expense}: ${formatAmount(combined.expense)}  ·  ${s.netLabel}: ${formatAmount(combined.net)}", style = MaterialTheme.typography.bodySmall)
+                                    if (combined.missingRates.isNotEmpty()) {
+                                        Text(
+                                            s.missingRatesLabel + " " + combined.missingRates.joinToString { it.name.uppercase() },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                items(summary.totals, key = { "tot-" + it.currency.name }) { totals ->
-                    Text(
-                        "${totals.currency.name.uppercase()} — ${s.income}: ${formatAmount(totals.income)} · ${s.expense}: ${formatAmount(totals.expense)} · ${s.netLabel}: ${formatAmount(totals.net)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                item {
-                    TextButton(onClick = { editingRate = true }) { Text(s.exchangeRateTitle) }
-                }
-
-                // ---- accounts ----
-                item { HorizontalDivider() }
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(s.accountsSection, style = MaterialTheme.typography.titleMedium)
-                        TextButton(onClick = { creatingAccount = true }) { Text(s.newAccount) }
+                    items(summary.totals, key = { "tot-" + it.currency.name }) { totals ->
+                        Text(
+                            "${totals.currency.name.uppercase()} — ${s.income}: ${formatAmount(totals.income)} · ${s.expense}: ${formatAmount(totals.expense)} · ${s.netLabel}: ${formatAmount(totals.net)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
-                }
-                items(summary.accounts, key = { it.id }) { account ->
-                    Card(onClick = { editingAccount = account }, modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Column {
-                                Text(account.name, style = MaterialTheme.typography.titleSmall)
-                                Text(s.accountTypeName(account.type), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Text(formatMoney(account.balance, account.currency), style = MaterialTheme.typography.titleSmall)
-                        }
-                    }
-                }
-
-                // ---- categories: the month's spending, and each limit in its period ----
-                item { HorizontalDivider() }
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text(s.categoriesSection, style = MaterialTheme.typography.titleMedium)
-                        TextButton(onClick = { creatingCategory = true }) { Text(s.newCategory) }
-                    }
-                }
-                // Every expense category (a limit can be set before anything is spent), then the incomes of the month.
-                val shownCategories = state.categories.filter { !it.isArchived }
-                    .filter { c -> c.kind == CategoryKind.Expense || summary.categories.any { it.categoryId == c.id } }
-                    .sortedWith(compareBy({ it.kind != CategoryKind.Expense }, { it.name.lowercase() }))
-                items(shownCategories, key = { "cat-" + it.id }) { category ->
-                    CategoryRow(
-                        category = category,
-                        spends = summary.categories.filter { it.categoryId == category.id },
-                        limit = summary.limits.firstOrNull { it.categoryId == category.id },
-                        // A weekly limit is this week's: on another month there is no bar to show.
-                        showsWeek = state.year == today.year && state.month == today.month.number,
-                        onClick = if (category.kind == CategoryKind.Expense) ({ limitFor = category }) else null,
-                    )
-                }
-
-                // ---- recurring ----
-                if (state.recurring.isNotEmpty()) {
-                    item { HorizontalDivider() }
-                    item { Text(s.recurringSection, style = MaterialTheme.typography.titleMedium) }
-                    items(state.recurring, key = { "rec-" + it.id }) { rule ->
-                        Row(
-                            Modifier.fillMaxWidth().clickable { editingRule = rule }.padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                                Text(
-                                    "${s.transactionKindName(rule.kind)} · ${formatMoney(rule.amount, rule.currency)}" +
-                                        received(rule.kind, rule.currency, rule.transferAccountId, rule.transferAmount, state.accounts) +
-                                        (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                // How it repeats, as the form said it ("Every month · on days 15, 30"), then the next one.
-                                Text(
-                                    RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false, clock = LocalDates.current.clock),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                Text(
-                                    listOfNotNull(
-                                        rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let {
-                                            s.movements.next(LocalDates.current.shortDay(it, Dates.today()))
-                                        },
-                                        accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
-                                    ).joinToString(" · "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            TextButton(onClick = { viewModel.toggleRecurring(rule) }) { Text(if (rule.isActive) s.pause else s.resume) }
-                        }
-                    }
-                }
-
-                // ---- the month's movements: one opens to correct it ----
-                item { HorizontalDivider() }
-                item { Text(s.movements.listTitle, style = MaterialTheme.typography.titleMedium) }
-                if (state.recent.isEmpty()) {
-                    item { Text(s.noTransactionsYet, style = MaterialTheme.typography.bodyMedium) }
-                }
-                items(state.recent, key = { "tx-" + it.id }) { tx ->
-                    MovementRow(tx, state.accounts, state.categories, s, onClick = { onEditTransaction(tx.id) })
-                }
-                if (state.recentHasMore) {
                     item {
-                        TextButton(onClick = viewModel::showMore, modifier = Modifier.fillMaxWidth()) { Text(s.movements.showMore) }
+                        TextButton(onClick = { editingRate = true }) { Text(s.exchangeRateTitle) }
+                    }
+
+                    // ---- accounts ----
+                    item { HorizontalDivider() }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(s.accountsSection, style = MaterialTheme.typography.titleMedium)
+                            TextButton(onClick = { creatingAccount = true }) { Text(s.newAccount) }
+                        }
+                    }
+                    items(summary.accounts, key = { it.id }) { account ->
+                        Card(onClick = { editingAccount = account }, modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Column {
+                                    Text(account.name, style = MaterialTheme.typography.titleSmall)
+                                    Text(s.accountTypeName(account.type), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text(formatMoney(account.balance, account.currency), style = MaterialTheme.typography.titleSmall)
+                            }
+                        }
+                    }
+
+                    // ---- categories: the month's spending, and each limit in its period ----
+                    item { HorizontalDivider() }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(s.categoriesSection, style = MaterialTheme.typography.titleMedium)
+                            TextButton(onClick = { creatingCategory = true }) { Text(s.newCategory) }
+                        }
+                    }
+                    // Every expense category (a limit can be set before anything is spent), then the incomes of the month.
+                    val shownCategories = state.categories.filter { !it.isArchived }
+                        .filter { c -> c.kind == CategoryKind.Expense || summary.categories.any { it.categoryId == c.id } }
+                        .sortedWith(compareBy({ it.kind != CategoryKind.Expense }, { it.name.lowercase() }))
+                    items(shownCategories, key = { "cat-" + it.id }) { category ->
+                        CategoryRow(
+                            category = category,
+                            spends = summary.categories.filter { it.categoryId == category.id },
+                            limit = summary.limits.firstOrNull { it.categoryId == category.id },
+                            // A weekly limit is this week's: on another month there is no bar to show.
+                            showsWeek = state.year == today.year && state.month == today.month.number,
+                            onClick = if (category.kind == CategoryKind.Expense) ({ limitFor = category }) else null,
+                        )
+                    }
+
+                    // ---- recurring ----
+                    if (state.recurring.isNotEmpty()) {
+                        item { HorizontalDivider() }
+                        item { Text(s.recurringSection, style = MaterialTheme.typography.titleMedium) }
+                        items(state.recurring, key = { "rec-" + it.id }) { rule ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable { editingRule = rule }.padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        "${s.transactionKindName(rule.kind)} · ${formatMoney(rule.amount, rule.currency)}" +
+                                            received(rule.kind, rule.currency, rule.transferAccountId, rule.transferAmount, state.accounts) +
+                                            (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    // How it repeats, as the form said it ("Every month · on days 15, 30"), then the next one.
+                                    Text(
+                                        RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false, clock = LocalDates.current.clock),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                    Text(
+                                        listOfNotNull(
+                                            rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let {
+                                                s.movements.next(LocalDates.current.shortDay(it, Dates.today()))
+                                            },
+                                            accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
+                                        ).joinToString(" · "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                TextButton(onClick = { viewModel.toggleRecurring(rule) }) { Text(if (rule.isActive) s.pause else s.resume) }
+                            }
+                        }
+                    }
+
+                    // ---- the month's movements: one opens to correct it ----
+                    item { HorizontalDivider() }
+                    item { Text(s.movements.listTitle, style = MaterialTheme.typography.titleMedium) }
+                    if (state.recent.isEmpty()) {
+                        item { Text(s.noTransactionsYet, style = MaterialTheme.typography.bodyMedium) }
+                    }
+                    items(state.recent, key = { "tx-" + it.id }) { tx ->
+                        MovementRow(tx, state.accounts, state.categories, s, onClick = { onEditTransaction(tx.id) })
+                    }
+                    if (state.recentHasMore) {
+                        item {
+                            TextButton(onClick = viewModel::showMore, modifier = Modifier.fillMaxWidth()) { Text(s.movements.showMore) }
+                        }
                     }
                 }
             }
@@ -468,7 +473,7 @@ private fun RateRow(currency: Currency, base: Currency, current: Double?, onSet:
 
 /** Near a limit (80%): amber, legible on the theme's light and dark surfaces (Material has no warning colour). */
 @Composable
-private fun nearLimitColor(): Color = if (isSystemInDarkTheme()) Color(0xFFFFB951) else Color(0xFF8A5100)
+private fun nearLimitColor(): Color = if (LocalDarkTheme.current) Color(0xFFFFB951) else Color(0xFF8A5100)
 
 /**
  * A category: what it took this month per currency and, with a limit, a bar of its period's use in the limit's

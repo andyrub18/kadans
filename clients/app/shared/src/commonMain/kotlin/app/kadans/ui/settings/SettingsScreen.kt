@@ -49,9 +49,12 @@ import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
 import app.kadans.i18n.StringsCatalog
+import app.kadans.ui.Appearance
+import app.kadans.ui.AppearancePreference
 import app.kadans.ui.LocalDates
 import app.kadans.ui.billing.SubscriptionSection
 import app.kadans.ui.shell.KadansIcons
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -140,7 +143,7 @@ private fun MainPage(
 
     state.user?.let { AccountCard(it, onSignOut = viewModel::signOut) }
 
-    // Language, time format and time zone apply as soon as they are chosen.
+    // Language, time format, appearance and time zone apply as soon as they are chosen.
     Text(s.languageLabel, style = MaterialTheme.typography.labelLarge)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Language.entries.forEach { candidate ->
@@ -164,6 +167,7 @@ private fun MainPage(
         }
     }
     Text(s.dates.clockHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    AppearanceChoice()
     TimeZoneSection(state, viewModel)
 
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -182,6 +186,19 @@ private fun MainPage(
     )
     SettingsRow(s.account.devicesSection, onClick = { onOpen(SettingsPage.Devices) })
     SettingsRow(s.deletion.section, onClick = { onOpen(SettingsPage.DeleteAccount) }, danger = true)
+}
+
+/** Light or dark on this device: the system's by default, which a computer or a phone may override. */
+@Composable
+private fun AppearanceChoice(preference: AppearancePreference = koinInject()) {
+    val a = LocalStrings.current.appearance
+    val chosen by preference.appearance.collectAsState()
+    Text(a.section, style = MaterialTheme.typography.labelLarge)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(Appearance.System to a.system, Appearance.Light to a.light, Appearance.Dark to a.dark).forEach { (appearance, label) ->
+            FilterChip(selected = chosen == appearance, onClick = { preference.set(appearance) }, label = { Text(label) })
+        }
+    }
 }
 
 /** Who is signed in, and the way out: the first thing on the page. */

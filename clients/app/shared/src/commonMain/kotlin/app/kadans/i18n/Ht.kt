@@ -273,6 +273,12 @@ val CreoleStrings = StringsCatalog(
         previousMonth = "Mwa anvan an",
         nextMonth = "Mwa apre a",
     ),
+    appearance = AppearanceStrings(
+        section = "Aparans",
+        system = "Sistèm",
+        light = "Klè",
+        dark = "Fonse",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s disponib",
         availableText = "Telechaje nouvo vèsyon an sou sit Kadans lan.",

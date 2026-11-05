@@ -578,11 +578,20 @@ Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/
 codebase, which matches the requirement of reliable background timers + OS notifications on
 desktop and real push on mobile. Web is a possible later bonus (Wasm target).
 
+**Light and dark** (2026-11-05). The app follows the system's dark mode, and Settings → Appearance (System, Light,
+Dark, per device: `AppearancePreference`) overrides it. `KadansTheme` resolves it once into `LocalDarkTheme`, which every
+screen asks; none calls `isSystemInDarkTheme()` itself. The system's answer comes from Compose on Android, iOS, Windows
+and macOS; on Linux, where Compose has none and always says light, from the desktop's settings portal over D-Bus
+(`desktop/LinuxColorScheme`: `org.freedesktop.appearance` `color-scheme`, read at start and followed through its
+`SettingChanged` signal, so switching COSMIC to dark switches Kadans at once). On Android the status and navigation bars'
+icons follow the app's choice, not the system's (`SystemBarsFollow`). The QR code stays dark on white for the camera.
+
 **Navigation** (approved 2026-11-04 on a design canvas). Four destinations, one tap from each other: Home,
 Calendar, Budget and Focus (the focus stats and the Pomodoro cycles, one switch apart). `ui/shell/MainShell` frames
 them: the destination's name, the bell (its unread count shared by every destination, `UnreadNotifications`) and
 Settings on top; the destinations in a bar at the bottom of a phone, or in a column on the left of a window 600 dp
-wide or more (a computer, a tablet), with + at its top on Home (a todo) and Budget (a movement). Home stays at the
+wide or more (a computer, a tablet), with + floating at the bottom right of the list on Home (a todo) and Budget (a
+movement), on both. Their lists keep a readable width, centred on a wide window (`ReadableList`). Home stays at the
 bottom of the back stack and another destination sits alone on it (`selectTab`), so Back from a destination leads
 Home and Back from Home leaves the app; everything else (a todo, a form, the notifications, Settings) opens over the
 frame with its own back arrow. Settings' main page holds the account with Sign out, the language, the time format,

@@ -498,6 +498,14 @@ installing on real devices second, hosting last.
       Store and its start at sign-in to the package's startup task (a second launcher with `--background`). Logos drawn
       by `branding/generate.py`. Checked: the script's rules (`test_msix.py`), the start-at-login choice under the
       Store's mark (`DesktopStartAtLoginTests`), and the workflow's Windows run on this pull request.
+- [x] The desktop before the Microsoft Store (2026-11-05, the owner's review): dark mode, which the desktop never had
+      on Linux (Compose cannot read it there: the settings portal over D-Bus now tells it, and its changes are
+      followed), with Settings → Appearance (System, Light, Dark) on every device, and Android's bar icons following
+      the choice; + floats at the bottom right of the list on a wide window as on a phone (no longer atop the left
+      column); Home's and Budget's lists sit in the middle of a wide window instead of on its left. Checked:
+      `LinuxColorSchemeTests` (a stand-in portal on a private bus: dark, its switches followed, an older portal, none),
+      the desktop app against COSMIC (dark from the portal, Light chosen over it), the emulator in dark mode (Home,
+      Settings, Budget; Light chosen at once, the status bar's icons dark).
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);

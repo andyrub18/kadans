@@ -591,7 +591,8 @@ Calendar, Budget and Focus (the focus stats and the Pomodoro cycles, one switch 
 them: the destination's name, the bell (its unread count shared by every destination, `UnreadNotifications`) and
 Settings on top; the destinations in a bar at the bottom of a phone, or in a column on the left of a window 600 dp
 wide or more (a computer, a tablet), with + floating at the bottom right of the list on Home (a todo) and Budget (a
-movement), on both. Their lists keep a readable width, centred on a wide window (`ReadableList`). Home stays at the
+movement), on both. Their lists, and a todo's screen, keep a readable width, centred on a wide window
+(`ReadableList`); Budget's month and its arrows sit above its list, not at the window's edges. Home stays at the
 bottom of the back stack and another destination sits alone on it (`selectTab`), so Back from a destination leads
 Home and Back from Home leaves the app; everything else (a todo, a form, the notifications, Settings) opens over the
 frame with its own back arrow. Settings' main page holds the account with Sign out, the language, the time format,

@@ -234,9 +234,8 @@ Both:
 ## Client (Compose Multiplatform)
 
 - [x] The first desktop release, v1.0.0 (2026-11-01): `https://kadansplanning.com/download`'s buttons work.
-- [ ] v1.1.0, the first in the stores: once `kadans.version=1.1.0` is merged, `git tag v1.1.0 && git push origin v1.1.0`
-      (DEPLOYMENT → Releasing the desktop app). Its release brings the new navigation, dates, clock and dark mode to the
-      site's installers, announces them to the installed 1.0.0 apps, and carries the Microsoft Store's `.msix`.
+- [x] v1.1.0, the first in the stores (2026-11-05): its release brings the new navigation, dates, clock and dark mode
+      to the site's installers, announces them to the installed 1.0.0 apps, and carries the Microsoft Store's `.msix`.
 - [ ] Microsoft Store (Partner Center, an "MSIX or PWA app" named Kadans: identity `AndersonRuban.Kadans`, Store ID
       9NPHCHB96T03, already in `clients/app/desktopApp/msix/AppxManifest.xml`). A submission's Packages page takes
       `kadans-microsoft-store-x64.msix` from the GitHub Release (DEPLOYMENT → Releasing the desktop app); before the
@@ -244,7 +243,8 @@ Both:
       Partner Center asks why the package needs `runFullTrust`: "Kadans is a desktop app (Java, Compose) packaged as
       MSIX; it runs its own desktop executable." The package declares English and French: give the Store listing
       both (the texts of `store/play/en-US` and `fr-FR` fit, and the desktop screenshots are in
-      `store/microsoft/<language>/screenshots/`: store/microsoft/README.md). The Store installs and updates it, signed by Microsoft,
+      `store/microsoft/<language>/screenshots/`; Store logos → 1:1 App tile icon is `store/microsoft/app-tile-icon.png`,
+      the same for both: store/microsoft/README.md). The Store installs and updates it, signed by Microsoft,
       so Windows shows no unknown-publisher warning; the `.msi` from the site still does, until it is signed with a
       code-signing certificate (optional).
 - [ ] Google Play / App Store developer accounts when it is time to ship

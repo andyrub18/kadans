@@ -318,6 +318,9 @@ def main():
     for size in (16, 24, 32, 48, 256):
         for form in ("", "_altform-unplated"):
             png(icon_round(small=size <= 24), f"{msix}/Square44x44Logo.targetsize-{size}{form}.png", size, strip=True)
+    # The listing's own icon (Partner Center → Store listings → Store logos → 1:1 App tile icon): the Store shows it
+    # before the package's StoreLogo, which is at most 200 px.
+    png(icon_round(), "store/microsoft/app-tile-icon.png", 300, strip=True)
 
 
 if __name__ == "__main__":

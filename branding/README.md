@@ -29,6 +29,7 @@ for the desktop's window, tray and splash: keep its numbers in step with the scr
 | `play-store-icon.png` | 512 x 512 for Play Console (a full square: Google applies its own mask) |
 | `play-feature-graphic.png` | 1024 x 500 for Play Console's listing: the dial between two rows of beats, no text, a 24-bit PNG (Play takes no transparency) |
 | `clients/app/desktopApp/msix/Assets/` | The Microsoft Store package's logos (StoreLogo, Square44x44Logo, Square150x150Logo) at each screen scale, and the taskbar's target sizes; written without dates, so a rerun changes nothing |
+| `store/microsoft/app-tile-icon.png` | 300 x 300 for Partner Center's listing (Store logos → 1:1 App tile icon), which the Store shows before the package's StoreLogo; the round icon, without dates |
 | Android `res/` (generated) | Adaptive launcher icon with Android 13's themed version, PNG icons for Android 7, the splash's animated icon (Android 12+) and its still mark (before), the notification icon (in `shared`) |
 | `clients/app/desktopApp/icons/` | The packaged desktop app's icon (`.png` for Linux, `.ico` for Windows) |
 

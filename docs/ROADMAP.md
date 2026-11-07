@@ -510,7 +510,8 @@ installing on real devices second, hosting last.
       `store/microsoft/<language>/screenshots/`, light and dark, drawn offscreen from the real app at 1366 x 768 (2x)
       against a scratch server with the demo accounts. Seen on them and fixed: a todo's screen ran the whole width of a
       wide window (now a readable width, centred), and Budget's month and arrows sat at the window's edges above a
-      centred list (now above the list).
+      centred list (now above the list). The listing's 300 x 300 app tile icon (`store/microsoft/app-tile-icon.png`,
+      drawn by `branding/generate.py`), which Partner Center shows before the package's 200 px StoreLogo.
 - [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);

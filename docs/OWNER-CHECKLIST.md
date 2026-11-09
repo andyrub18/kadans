@@ -49,12 +49,14 @@ their platform needs – so nothing to rebuild or configure in the apps.
       has to exist in the same project, it is how Google recognises the app. Nothing outside Google Cloud
       shows it (`google-services.json` lists no sign-in client, and the app does not need it to), so a
       **Continue with Google** on the phone is its check – passed 2026-10-26 on your phone, with the debug
-      build. When the package or the SHA-1 does not match, Google opens no account list and the app shows
-      its error ("Developer console is not set up correctly"). You do **not** need release
+      build. When the package or the SHA-1 does not match, sign-in fails: the app shows Google's error ("Developer
+      console is not set up correctly") or nothing at all, as Play's copy did before its client existed (Google
+      answers "cancelled", the same as closing its sheet). You do **not** need release
       signing first: the debug keystore exists as soon as Android Studio or Gradle has built once, and
       debug builds are what you test with. When the app goes through Google Play, add a third Android
       client with the *Play App Signing* SHA-1 from the Play Console – Play re-signs the app, so the
-      release keystore's fingerprint is not the one on users' phones.
+      release keystore's fingerprint is not the one on users' phones. Done 2026-11-08 (Protected with Play → Play
+      Store protection → Manage Play app signing → App signing key).
 - [ ] **iOS** OAuth client (bundle id `app.kadans`) when iOS happens; its id goes into the
       `ExternalAuth:Google:ClientIds` list (extra accepted audiences).
 
@@ -69,7 +71,10 @@ dotnet user-secrets remove "ExternalAuth:Google:ClientIds:0" --project src/Kadan
 - Accepted ID-token audiences = `ClientIds` + `Desktop:ClientId` + `WebClientId`.
 - At public launch: switch the consent screen to Production and add `kadansplanning.com` as an authorized
       domain plus homepage/privacy-policy URLs (verification needs them). Testing mode's 7-day limit
-      applies to Google refresh tokens, which Kadans never uses — sign-in consumes fresh ID tokens only.
+      applies to Google refresh tokens, which Kadans never uses — sign-in consumes fresh ID tokens only. Testers need
+      not be listed as test users either: Google exempts a client asking only for email, profile and openid, which
+      is all Kadans asks. In Google Cloud → APIs & Services → OAuth consent screen (Google Auth Platform): Branding
+      for the domain and the URLs, Audience → Publish app.
 - To test: desktop → **Continue with Google** opens the browser and the app signs in when you come back;
       Android: a phone with your Google account (Testing on a real Android phone, below); an emulator needs
       a Google account added in its settings (and a Play Store system image).
@@ -178,8 +183,10 @@ the desktop app is free (ROADMAP → Phase 8 → Subscriptions). The server side
 create the subscription once a build with billing is uploaded to a testing track: the Android app step brings it.
 
 Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account, paid out in USD):
-- [ ] Play Console developer account, then a payments profile (merchant account) with tax and bank details.
-- [ ] Create the app (package `app.kadans`) with Play App Signing, make your upload key, and upload the signed
+- [x] Play Console developer account, then a payments profile (merchant account) with tax and bank details.
+      The app itself stays **Free** (Monetize with Play → Products → App pricing): "Paid" means paying to download,
+      and the subscription is sold inside a free app.
+- [x] (2026-11-07, version code 1) Create the app (package `app.kadans`) with Play App Signing, make your upload key, and upload the signed
       bundle to the **internal testing** track: DEPLOYMENT → Building the apps (the key, its four Gradle
       properties, then `./gradlew :androidApp:bundleRelease -Pkadans.apiBaseUrl=https://api.kadansplanning.com`).
       It contains Play Billing, which is what unlocks Monetize → Subscriptions.
@@ -264,7 +271,8 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
-- [x] Deep links: `kadans://auth/...` custom scheme handled on Android; the email landing pages
-      offer the app link. Verified https App Links / Universal Links wait for the domain.
+- [ ] Deep links: on Android the emailed password reset is a verified App Link (DEPLOYMENT → Building the apps → App
+      Links). To finish: update the server, upload version code 2, install it from Play, then tap the link in a reset
+      email: Kadans' own screen opens. Universal Links wait for the iPhone app.
 - [x] Device registration on every sign-in: `PUT /users/me/devices/{installationId}` with the
       FCM token on Android (null elsewhere)

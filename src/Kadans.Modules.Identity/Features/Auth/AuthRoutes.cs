@@ -17,6 +17,12 @@ internal static class AuthRoutes
         {
             var auth = routeBuilder.MapGroup("/auth").WithTags("Auth").AllowAnonymous();
 
+            routeBuilder.MapGet("/.well-known/assetlinks.json", () => TypedResults.Text(AppLinks.AssetLinksJson, "application/json"))
+                .WithName("AndroidAssetLinks")
+                .WithSummary("Which Android app may open this host's links (Digital Asset Links)")
+                .AllowAnonymous()
+                .ExcludeFromDescription();
+
             auth.MapPost("/login", async Task<Results<Ok<LoginResponse>, ProblemHttpResult>> (LoginRequest request, Authentication service, HttpContext context) =>
                     (await service.Login(request)).ToHttp(context))
                 .WithName("AuthLogin")
@@ -128,8 +134,8 @@ internal static class AuthRoutes
                 .WithSummary("Confirm a new email address (link target)")
                 .ExcludeFromDescription();
 
-            // The reset email lands here: a self-contained form for any browser, plus the
-            // kadans:// link for phones. Always renders — the POST judges the token, and a
+            // The reset email lands here when the app does not open it: a self-contained form
+            // for any browser. Always renders — the POST judges the token, and a
             // missing account must look no different (no enumeration).
             auth.MapGet("/reset-password", async Task<ContentHttpResult> (string email, string token, UserManager<ApplicationUser> userManager) =>
                 {

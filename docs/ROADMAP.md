@@ -32,7 +32,7 @@
 - [x] Device registration: `PUT /users/me/devices/{installationId}` (upsert push token), list, delete
 - [x] `tools/smoke/identity_flows.py` exercises all of the above against a running API
 - [x] Deep links (Phase 6): the API serves localized landing pages for the emailed links and offers a
-      `kadans://` link handled on Android. Verified https App Links / Universal Links wait for the domain.
+      `kadans://` link handled on Android (since 2026-11-08 a verified App Link instead, in Phase 8).
 
 Config: `Email:Provider` (`Resend`|`Log`), `Email:From`, `Email:LinkBaseUrl`, secret `Email:Resend:ApiKey`;
 `ExternalAuth:Google:Desktop:ClientId` / `:ClientSecret`, `ExternalAuth:Google:WebClientId`,
@@ -512,7 +512,10 @@ installing on real devices second, hosting last.
       wide window (now a readable width, centred), and Budget's month and arrows sat at the window's edges above a
       centred list (now above the list). The listing's 300 x 300 app tile icon (`store/microsoft/app-tile-icon.png`,
       drawn by `branding/generate.py`), which Partner Center shows before the package's 200 px StoreLogo.
-- [ ] After the first deploy: https App Links / Universal Links for the emailed pages now that there is a domain.
+- [x] App Links (2026-11-08): the emailed password reset opens Kadans' own screen on a phone with Google Play's copy
+      (`android:autoVerify`, the API's `/.well-known/assetlinks.json` with Play's signing key alone), and the page in any
+      other case. The `kadans://auth` link and its filter are gone: any app can claim a custom scheme, and that link
+      carried the reset token. Universal Links wait for the iPhone app.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
       `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts

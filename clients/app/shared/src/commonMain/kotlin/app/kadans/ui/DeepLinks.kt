@@ -6,24 +6,20 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
+/** The host of the emailed links, the one the app's App Links filter claims (AndroidManifest, the server's `AppLinks`). */
+private const val EMAILED_LINKS_HOST = "api.kadansplanning.com"
+
 /**
- * Maps a `kadans://` link (from an email landing page, a reminder, or an OS intent) to the route it opens.
+ * Maps a link (a reminder's `kadans://`, the emailed password reset) to the route it opens.
  * Unknown or malformed links resolve to null — the app just opens normally.
  */
 fun parseDeepLink(link: String?): Any? {
     if (link.isNullOrBlank()) return null
     val url = runCatching { Url(link) }.getOrNull() ?: return null
+    if (url.protocol.name == "https") return emailedLink(url)
     if (url.protocol.name != "kadans") return null
     val path = url.encodedPath.trim('/')
     return when (url.host) {
-        "auth" -> when (path) {
-            "reset-password" -> {
-                val email = url.parameters["email"] ?: return null
-                val token = url.parameters["token"] ?: return null
-                ResetPasswordRoute(email, token)
-            }
-            else -> null
-        }
         // A reminder's todo, or its focus session. Only an id: anything else in the path is not a link this app made.
         "todos" -> {
             val parts = path.split('/')
@@ -38,6 +34,14 @@ fun parseDeepLink(link: String?): Any? {
         "budget" -> if (path.isEmpty()) BudgetRoute else null
         else -> null
     }
+}
+
+/** The emailed password reset, from its own host. A reset token never comes through `kadans://`, which any app can claim. */
+private fun emailedLink(url: Url): Any? {
+    if (url.host != EMAILED_LINKS_HOST || url.encodedPath != "/auth/reset-password") return null
+    val email = url.parameters["email"] ?: return null
+    val token = url.parameters["token"] ?: return null
+    return ResetPasswordRoute(email, token)
 }
 
 /** What a reminder opens when tapped: its todo. */

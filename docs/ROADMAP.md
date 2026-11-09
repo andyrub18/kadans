@@ -516,6 +516,9 @@ installing on real devices second, hosting last.
       (`android:autoVerify`, the API's `/.well-known/assetlinks.json` with Play's signing key alone), and the page in any
       other case. The `kadans://auth` link and its filter are gone: any app can claim a custom scheme, and that link
       carried the reset token. Universal Links wait for the iPhone app.
+- [x] A Google sign-in that does not finish says so (2026-11-09): Android's Google answers "cancelled" both when its sheet
+      is closed and when it refuses the app's fingerprint, which left the Login screen silent during Play's first test.
+      Both now show "Google sign-in did not complete. Try again."
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
       `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts

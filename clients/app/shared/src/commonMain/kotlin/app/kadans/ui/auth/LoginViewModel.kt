@@ -82,13 +82,18 @@ class LoginViewModel(
         googleJob = viewModelScope.launch {
             try {
                 val login = when (val credential = googleSignIn.signIn(config)) {
-                    null -> null // the user backed out: not an error
+                    // It did not finish. Android's Google gives the same answer when the person closes its sheet and when it
+                    // refuses this copy of the app, so a silent screen could hide a real failure.
+                    null -> {
+                        _state.update { it.copy(isGoogleLoading = false, error = null, errorCode = "google") }
+                        return@launch
+                    }
                     is GoogleCredential.IdToken -> api.auth.loginExternal("google", credential.idToken)
                     is GoogleCredential.AuthorizationCode ->
                         api.auth.loginGoogleCode(credential.code, credential.codeVerifier, credential.redirectUri)
                 }
                 _state.update { it.copy(isGoogleLoading = false) }
-                if (login != null) emitOutcome(login)
+                emitOutcome(login)
             } catch (e: KadansApiException) {
                 _state.update { it.copy(isGoogleLoading = false, error = e.message, errorCode = e.errorCode) }
             } catch (e: GoogleSignInException) {

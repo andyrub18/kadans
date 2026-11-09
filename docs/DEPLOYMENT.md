@@ -181,6 +181,16 @@ kadans.upload.keyPassword=…
 Every upload needs a higher `kadans.versionCode` (1, 2, 3, …). Without the upload properties the bundle comes out
 unsigned and Play Console refuses it.
 
+### App Links (the emailed password reset)
+
+On a phone with Kadans from Google Play, the reset email's `https://api.kadansplanning.com/auth/reset-password` link opens
+the app's own screen; anywhere else it opens the page the API serves. Android decides per install, by fetching
+`/.well-known/assetlinks.json` from that host: the API serves it from `Features/Auth/AppLinks.cs`, with the SHA-256 of
+Play's signing key (Protected with Play → Play Store protection → Manage Play app signing) and no other key, since the
+link carries a reset token. **Update the server first**: Android 14 and older only check when the app is installed or
+updated. On a phone, `adb shell pm get-app-links app.kadans` should say `api.kadansplanning.com: verified`. The host is
+written in the manifest's filter and in `DeepLinks.kt`: they go with `Email:LinkBaseUrl` if the API ever moves.
+
 ## Releasing the desktop app
 
 The desktop installers are built by GitHub, not on your computer (`.github/workflows/release.yml`), from a tag:

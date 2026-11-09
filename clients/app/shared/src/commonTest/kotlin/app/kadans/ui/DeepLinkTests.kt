@@ -10,8 +10,8 @@ import kotlinx.coroutines.test.runTest
 
 class DeepLinkTests {
     @Test
-    fun resetPasswordLinkCarriesEmailAndDecodedToken() {
-        val route = parseDeepLink("kadans://auth/reset-password?email=a%40b.ht&token=CfDJ8-abc_123")
+    fun theEmailedResetLinkCarriesEmailAndDecodedToken() {
+        val route = parseDeepLink("https://api.kadansplanning.com/auth/reset-password?email=a%40b.ht&token=CfDJ8-abc_123")
         assertEquals(ResetPasswordRoute("a@b.ht", "CfDJ8-abc_123"), route)
     }
 
@@ -60,10 +60,12 @@ class DeepLinkTests {
     fun unknownOrMalformedLinksOpenTheAppNormally() {
         assertNull(parseDeepLink(null))
         assertNull(parseDeepLink(""))
-        assertNull(parseDeepLink("kadans://auth/unknown-path?x=1"))
-        assertNull(parseDeepLink("kadans://other/reset-password?email=a&token=b"))
+        assertNull(parseDeepLink("kadans://auth/reset-password?email=a&token=b"), "a custom scheme any app can claim")
         assertNull(parseDeepLink("https://auth/reset-password?email=a&token=b"))
-        assertNull(parseDeepLink("kadans://auth/reset-password?email=a")) // token missing
+        assertNull(parseDeepLink("https://evil.example/auth/reset-password?email=a&token=b"))
+        assertNull(parseDeepLink("http://api.kadansplanning.com/auth/reset-password?email=a&token=b"))
+        assertNull(parseDeepLink("https://api.kadansplanning.com/auth/confirm-email?userId=a&token=b"))
+        assertNull(parseDeepLink("https://api.kadansplanning.com/auth/reset-password?email=a")) // token missing
         assertNull(parseDeepLink("::not a url::"))
     }
 }

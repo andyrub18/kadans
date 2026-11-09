@@ -26,12 +26,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- The kadans:// links on the email landing pages (e.g. reset password). -->
-            <intent-filter>
+            <!-- The emailed password reset opens here rather than in the browser. Android checks the host's
+                 /.well-known/assetlinks.json against the key this copy is signed with: only Google Play's copy qualifies. -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="kadans" android:host="auth" />
+                <data android:scheme="https" android:host="api.kadansplanning.com" android:path="/auth/reset-password" />
             </intent-filter>
         </activity>
 

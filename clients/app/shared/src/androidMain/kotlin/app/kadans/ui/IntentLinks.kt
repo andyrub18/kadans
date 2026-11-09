@@ -4,7 +4,7 @@ import android.content.Intent
 import app.kadans.reminders.LocalReminders
 
 /**
- * The link an intent that reached the app carries: its data (a reminder this app showed, an email's landing page), or,
+ * The link an intent that reached the app carries: its data (a reminder this app showed, the emailed password reset), or,
  * for a push the system showed itself, the link it carries (a limit's alert) or, for a reminder (a phone that does not
  * ring reminders), the todo it is about.
  */

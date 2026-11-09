@@ -17,10 +17,12 @@ internal static class AuthPages
     public static string Confirmed(EmailTexts texts) =>
         Page($"<p>{HtmlEncoder.Default.Encode(texts.ConfirmedPage)}</p>");
 
-    /// <summary>A minimal form so the emailed link works from any browser, plus the app link.</summary>
+    /// <summary>
+    /// A minimal form so the emailed link works from any browser. The app is reached by the link itself (<see cref="AppLinks"/>),
+    /// never by a <c>kadans://</c> link here: any app can claim a custom scheme, and this one would carry the reset token.
+    /// </summary>
     public static string ResetPassword(EmailTexts texts, string email, string token)
     {
-        var appLink = $"kadans://auth/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
         var payload = JsonSerializer.Serialize(new { email, token });
         var done = JsonSerializer.Serialize(texts.ResetPageDone);
 
@@ -32,7 +34,6 @@ internal static class AuthPages
               <button>{{HtmlEncoder.Default.Encode(texts.ResetPageButton)}}</button>
             </form>
             <p id="m"></p>
-            <p><a href="{{HtmlEncoder.Default.Encode(appLink)}}">{{HtmlEncoder.Default.Encode(texts.OpenInApp)}}</a></p>
             <script>
             const c = {{payload}};
             document.getElementById('f').addEventListener('submit', async (e) => {

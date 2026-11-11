@@ -129,7 +129,7 @@ class GoogleLoginTests {
     }
 
     @Test
-    fun backing_out_of_googles_ui_is_silent() = runTest(dispatcher) {
+    fun a_sign_in_that_did_not_finish_says_so() = runTest(dispatcher) {
         val server = Server(configured)
         val viewModel = LoginViewModel(server.api(jsonHeaders, session), FakeGoogle { null })
         viewModel.state.first { it.googleAvailable }
@@ -139,7 +139,7 @@ class GoogleLoginTests {
 
         val state = viewModel.state.value
         assertEquals(false, state.isGoogleLoading)
-        assertEquals(null, state.errorCode)
+        assertEquals("google", state.errorCode)
         assertEquals(null, server.store.load())
     }
 

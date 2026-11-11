@@ -11,7 +11,7 @@ sealed interface GoogleCredential {
     data class AuthorizationCode(val code: String, val codeVerifier: String, val redirectUri: String) : GoogleCredential
 }
 
-/** The platform flow failed (not: the user backed out — that is a null credential). */
+/** The platform flow failed with a reason (a flow that just did not finish is a null credential). */
 class GoogleSignInException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 interface GoogleSignIn {
@@ -21,7 +21,7 @@ interface GoogleSignIn {
     /** True when the server published the client id this platform's flow needs. */
     fun canSignIn(config: GoogleProviderResponse): Boolean
 
-    /** Suspends while the user is in Google's UI. Null = the user cancelled. */
+    /** Suspends while the user is in Google's UI. Null = it did not finish: the user cancelled, or Google said only that. */
     suspend fun signIn(config: GoogleProviderResponse): GoogleCredential?
 }
 

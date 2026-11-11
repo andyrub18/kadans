@@ -50,8 +50,8 @@ their platform needs – so nothing to rebuild or configure in the apps.
       shows it (`google-services.json` lists no sign-in client, and the app does not need it to), so a
       **Continue with Google** on the phone is its check – passed 2026-10-26 on your phone, with the debug
       build. When the package or the SHA-1 does not match, sign-in fails: the app shows Google's error ("Developer
-      console is not set up correctly") or nothing at all, as Play's copy did before its client existed (Google
-      answers "cancelled", the same as closing its sheet). You do **not** need release
+      console is not set up correctly") or "Google sign-in did not complete", as Play's copy would before its client
+      existed (Google answers "cancelled", the same as closing its sheet). You do **not** need release
       signing first: the debug keystore exists as soon as Android Studio or Gradle has built once, and
       debug builds are what you test with. When the app goes through Google Play, add a third Android
       client with the *Play App Signing* SHA-1 from the Play Console – Play re-signs the app, so the

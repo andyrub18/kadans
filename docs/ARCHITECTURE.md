@@ -619,6 +619,16 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   Without it, a second copy would hold a second live connection and ring every reminder twice. Dev and installed builds
   share their settings, so they share the lock. Nothing about it can stop Kadans from starting: no usable folder, no
   lock.
+- **Any network, a company's too** (`desktop/DesktopNetwork`). Browsers and most programs follow the computer's proxy
+  setting and trust the certificate authorities the computer trusts; Java does neither by itself. Behind a company proxy
+  that blocks direct connections, the Store's copy reached nothing while the browser worked: no Google button, no
+  sign-in (the owner's first Windows test, 2026-11-11). First thing in `main`, `java.net.useSystemProxies` makes Java
+  ask the system for the proxy of each address (Windows: Internet Options, PAC scripts included; Linux: GNOME's
+  setting), and every desktop HTTP client (`platformHttpEngine`, the update check) uses an OkHttp engine that trusts
+  Java's authorities and, on Windows, the computer's as well (`Windows-ROOT`, `jdk.crypto.mscapi` in that runtime
+  image only): a proxy that inspects secure connections signs them with an authority its IT adds to Windows, never to
+  Java. A server is trusted when either list vouches for it, as in the browser, and OkHttp checks the hostname either
+  way. A proxy that asks for a login (407) is not handled. Phones need none of it: Android and iOS do both themselves.
 - **The installed app** (`packageDeb`): the runtime image adds `jdk.security.auth` and `jdk.net` (dbus-java's login and
   socket options). The main class is `kadans.Kadans`, so the window's X11 class is `kadans-Kadans`, the name of the
   launcher jpackage installs (it writes no `StartupWMClass`): that is how docks match the window to its icon.

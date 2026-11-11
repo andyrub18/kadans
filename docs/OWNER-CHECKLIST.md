@@ -243,6 +243,9 @@ Both:
 - [x] The first desktop release, v1.0.0 (2026-11-01): `https://kadansplanning.com/download`'s buttons work.
 - [x] v1.1.0, the first in the stores (2026-11-05): its release brings the new navigation, dates, clock and dark mode
       to the site's installers, announces them to the installed 1.0.0 apps, and carries the Microsoft Store's `.msix`.
+- [ ] v1.1.1: the desktop on a company network (its proxy, and the certificate authorities Windows trusts) and a Google
+      button that no longer goes missing. Merge, then `git tag v1.1.1 && git push origin v1.1.1`, then a new Partner Center
+      submission with that release's `kadans-microsoft-store-x64.msix`. Android takes it with its next upload.
 - [ ] Microsoft Store (Partner Center, an "MSIX or PWA app" named Kadans: identity `AndersonRuban.Kadans`, Store ID
       9NPHCHB96T03, already in `clients/app/desktopApp/msix/AppxManifest.xml`). A submission's Packages page takes
       `kadans-microsoft-store-x64.msix` from the GitHub Release (DEPLOYMENT → Releasing the desktop app); before the

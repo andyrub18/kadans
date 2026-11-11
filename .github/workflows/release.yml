@@ -4,12 +4,19 @@ name: Release
 # kadans.version in clients/app/gradle.properties, builds the .deb and .rpm on Linux, the .msi and the Microsoft Store's
 # .msix on Windows, and publishes them on a GitHub Release with latest.json, which every installed desktop app reads
 # once a day through https://kadansplanning.com/desktop/latest.json. A pull request that changes this workflow, its
-# scripts or the Store's package builds everything and publishes nothing (its files are the run's artifacts).
+# scripts, the release notes or the desktop app's code builds everything and publishes nothing (its files are the run's
+# artifacts: an installer to try on a real computer before the tag); so does a run started by hand on any branch.
 on:
   push:
     tags: ["v*.*.*"]
   pull_request:
-    paths: [".github/workflows/release.yml", "tools/release/**", "clients/app/releases/**", "clients/app/desktopApp/msix/**"]
+    paths:
+      - ".github/workflows/release.yml"
+      - "tools/release/**"
+      - "clients/app/releases/**"
+      - "clients/app/desktopApp/**"
+      - "clients/app/shared/src/jvmMain/**"
+  workflow_dispatch:
 
 permissions:
   contents: read

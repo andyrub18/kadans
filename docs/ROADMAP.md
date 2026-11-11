@@ -527,7 +527,9 @@ installing on real devices second, hosting last.
       Store's copy reached nothing, because Java ignores the computer's proxy setting. The desktop now goes through the
       system's proxy (`java.net.useSystemProxies`) and trusts Windows' certificate authorities beside Java's own, for
       proxies that inspect secure connections (ARCHITECTURE → "The desktop app: in the tray, once"). Released as 1.1.1.
-      Not handled: a proxy that asks for a login.
+      Not handled: a proxy that asks for a login. Its first build still reached nothing on the owner's company PC
+      (the proxy lets curl through without a login), so `Kadans --network-check` writes what the app sees, step by
+      step, before the tag.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
       `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts

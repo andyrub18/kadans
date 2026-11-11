@@ -226,14 +226,21 @@ The desktop installers are built by GitHub, not on your computer (`.github/workf
   startup task, which starts a second launcher, `KadansBackground.exe`, whose `.cfg` passes `--background`. x64 only:
   the bundled Java runtime is, and Windows on ARM runs x64 apps. Before publishing, the workflow installs a copy
   signed with a certificate made on the runner and starts Kadans from it (`tools/release/test-msix.ps1`).
-- A pull request that changes the workflow, its scripts, the release notes or `desktopApp/msix/` builds everything
-  and publishes nothing: a dry run, whose files (the `.msix` too) are the run's artifacts.
+- A pull request that changes the workflow, its scripts, the release notes or the desktop app's code (`desktopApp/`,
+  `shared/src/jvmMain/`) builds everything and publishes nothing: a dry run, whose files (the `.msi` and `.msix` too)
+  are the run's artifacts, an installer to try on a real computer before tagging. Actions → Release → "Run workflow"
+  does the same for any branch. Downloading an artifact needs a signed-in GitHub account
+  (`gh run download <run id> -n windows` does it from a terminal).
 
 ## Updating
 
 ```bash
 cd kadans && git pull && cd deploy && docker compose up -d --build
 ```
+
+Every build fetches the newest .NET images first (`pull: true` in `deploy/docker-compose.yml`), so an update also
+brings Microsoft's security fixes to the runtime (CVE-2026-114149 was fixed in ASP.NET Core 10.0.15); a cached image
+would keep the old one forever. Updating with no new commit is the way to take such a fix alone.
 
 Pending migrations are applied as the new container starts (`Database:MigrateOnStartup`, set by the
 image; the log names each one). Migrations only go forward: to undo a bad release, check out the previous

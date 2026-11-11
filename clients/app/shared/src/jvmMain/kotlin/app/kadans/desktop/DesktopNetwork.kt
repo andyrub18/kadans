@@ -41,10 +41,20 @@ object DesktopNetwork {
         SSLContext.getInstance("TLS").apply { init(null, arrayOf(trust), null) }.socketFactory
     }
 
+    private val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows")
+
     /** The Windows store of trusted roots (SunMSCAPI, `jdk.crypto.mscapi` in the runtime image); none elsewhere. */
     private fun windowsAuthorities(): X509TrustManager? {
-        if (!System.getProperty("os.name").orEmpty().startsWith("Windows")) return null
-        return runCatching { trustManagerOf(KeyStore.getInstance("Windows-ROOT").apply { load(null, null) }) }.getOrNull()
+        if (!isWindows) return null
+        return runCatching { trustManagerOf(windowsRoots()) }.getOrNull()
+    }
+
+    private fun windowsRoots(): KeyStore = KeyStore.getInstance("Windows-ROOT").apply { load(null, null) }
+
+    /** For `--network-check` (NetworkCheck): what reading Windows' authorities gives. */
+    internal fun windowsAuthoritiesReport(): String = when {
+        !isWindows -> "none (not Windows)"
+        else -> runCatching { "${windowsRoots().size()} certificates" }.getOrElse { "could not be read: ${it.javaClass.name}: ${it.message}" }
     }
 
     /** [store] null: Java's own authorities. */

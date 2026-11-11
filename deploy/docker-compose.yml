@@ -63,6 +63,9 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      # Every build fetches the newest .NET images (the Dockerfile's sdk:10.0 and aspnet:10.0): an update then brings
+      # Microsoft's security fixes to the runtime too, which a cached image never would.
+      pull: true
     restart: unless-stopped
     logging: *logging
     # Exactly one instance, by design: the scheduler, the pomodoro deadline watcher, the push queue and

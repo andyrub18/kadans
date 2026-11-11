@@ -56,6 +56,10 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
     <!-- Native SQLite under the provider: 2.1.11 and older ship a SQLite with GHSA-2m69-gcr7-jv3q. -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
+    <!-- Under Resend 0.15.0, which brings 8.0.20: 10.0.14 and older have GHSA-x33c-w48q-qrgc (CVE-2026-114149, a denial
+         of service). The API runs on the shared framework's copy (the runtime image, updated by every build: deploy's
+         `pull: true`); the test projects take the package, pinned here. -->
+    <PackageVersion Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.15" />
     <PackageVersion Include="TUnit" Version="1.65.68" />
   </ItemGroup>
 

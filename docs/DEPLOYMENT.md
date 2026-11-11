@@ -238,6 +238,10 @@ The desktop installers are built by GitHub, not on your computer (`.github/workf
 cd kadans && git pull && cd deploy && docker compose up -d --build
 ```
 
+Every build fetches the newest .NET images first (`pull: true` in `deploy/docker-compose.yml`), so an update also
+brings Microsoft's security fixes to the runtime (CVE-2026-114149 was fixed in ASP.NET Core 10.0.15); a cached image
+would keep the old one forever. Updating with no new commit is the way to take such a fix alone.
+
 Pending migrations are applied as the new container starts (`Database:MigrateOnStartup`, set by the
 image; the log names each one). Migrations only go forward: to undo a bad release, check out the previous
 commit, and if its schema is older, restore the last dump first.

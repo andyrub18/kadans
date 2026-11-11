@@ -183,7 +183,9 @@ StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; elsewhere AWT's tray),
 first), and an installed build opens with the session (`startup/StartAtLogin`, `--background`; a Gradle run never does).
 On Linux it types accents with dead keys through Xlib's own input method when the session's (IBus) is not running
 (`desktop/LinuxInputMethod`, before AWT starts), and an installed one checks the site daily for a newer version
-(`updates/AppUpdates`; it never downloads anything). ARCHITECTURE → "The desktop app: in the tray, once". Every app
+(`updates/AppUpdates`; it never downloads anything). It goes through the computer's proxy and trusts the certificate
+authorities Windows trusts beside Java's own (`desktop/DesktopNetwork`): a company network blocks the rest.
+ARCHITECTURE → "The desktop app: in the tray, once". Every app
 reports one version, `kadans.version` in `clients/app/gradle.properties`; a tag `v<that version>` releases the
 desktop installers and the Microsoft Store's `.msix` through `.github/workflows/release.yml` (DEPLOYMENT → Releasing the
 desktop app); the Store's build (`desktop/Distribution`) leaves updates and the start at sign-in to the Store's package. With the API running, `KADANS_API_URL=http://localhost:5199 ./gradlew

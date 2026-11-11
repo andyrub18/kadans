@@ -31,6 +31,9 @@ compose.desktop {
             // The runtime is cut down to what the app uses. Beyond java.desktop's modules, the Linux tray's D-Bus
             // (dbus-java) needs the user id for its login (jdk.security.auth) and the Unix socket's options (jdk.net).
             modules("jdk.security.auth", "jdk.net")
+            // Windows: the computer's certificate authorities, which a company proxy's is among (DesktopNetwork). The
+            // module exists in Windows JDKs only, and each package is built on its own system.
+            if (System.getProperty("os.name").startsWith("Windows")) modules("jdk.crypto.mscapi")
             // Drawn by branding/generate.py. macOS needs an .icns, made on a Mac with the DMG (not yet).
             linux {
                 iconFile.set(project.file("icons/kadans.png"))

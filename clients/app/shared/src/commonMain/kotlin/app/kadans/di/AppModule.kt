@@ -3,6 +3,7 @@ package app.kadans.di
 import app.kadans.startup.StartAtLogin
 import app.kadans.startup.platformStartAtLogin
 import app.kadans.api.KadansApi
+import app.kadans.api.platformHttpEngine
 import app.kadans.api.ClearAwareTokenStore
 import app.kadans.api.TokenStore
 import app.kadans.auth.GoogleSignIn
@@ -64,6 +65,7 @@ val appModule = org.koin.dsl.module {
         val settings = get<Settings>()
         KadansApi.create(
             tokenStore = get(),
+            engine = platformHttpEngine(),
             baseUrlProvider = { ServerAddress.current(settings) },
             languageProvider = { LanguageController.currentTag(settings) },
         )

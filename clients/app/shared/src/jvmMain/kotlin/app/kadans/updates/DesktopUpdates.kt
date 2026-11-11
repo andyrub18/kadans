@@ -1,5 +1,6 @@
 package app.kadans.updates
 
+import app.kadans.desktop.DesktopNetwork
 import app.kadans.desktop.Distribution
 import app.kadans.desktop.openInBrowser
 import app.kadans.i18n.LanguageController
@@ -10,7 +11,6 @@ import app.kadans.reminders.DesktopReminderNotices
 import app.kadans.ui.currentAppStrings
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -44,7 +44,7 @@ internal class DesktopUpdateCheck(private val client: HttpClient = defaultClient
     }
 
     private companion object {
-        fun defaultClient() = HttpClient(OkHttp) {
+        fun defaultClient() = HttpClient(DesktopNetwork.engine()) {
             expectSuccess = false
             install(HttpTimeout) { requestTimeoutMillis = 30_000 }
         }

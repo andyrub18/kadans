@@ -523,6 +523,11 @@ installing on real devices second, hosting last.
       Google sign-in was set up, and a lost answer hid the button until the app restarted. The Microsoft Store's copy,
       started as Windows signs in (before its network, often), showed no button on the owner's first Windows test. It
       now asks again until answered: after 2 s, then twice as long each time, at most once a minute.
+- [x] The desktop on a company network (2026-11-11): behind the owner's company proxy (direct connections blocked), the
+      Store's copy reached nothing, because Java ignores the computer's proxy setting. The desktop now goes through the
+      system's proxy (`java.net.useSystemProxies`) and trusts Windows' certificate authorities beside Java's own, for
+      proxies that inspect secure connections (ARCHITECTURE → "The desktop app: in the tray, once"). Released as 1.1.1.
+      Not handled: a proxy that asks for a login.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
       `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts

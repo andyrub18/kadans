@@ -37,6 +37,8 @@ import java.awt.image.BufferedImage
 import kotlinx.coroutines.channels.Channel
 
 fun main(args: Array<String> = emptyArray()) {
+    // Before any connection: the computer's proxy, as browsers use it (a company network blocks the rest).
+    DesktopNetwork.useSystemProxies()
     // The session opening Kadans at sign-in (StartAtLogin): no window, the tray only.
     val background = StartAtLogin.BACKGROUND in args
     // Before anything of AWT: accents typed with dead keys need an input method that runs (LinuxInputMethod). At sign-in

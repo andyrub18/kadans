@@ -2,6 +2,10 @@ package app.kadans.desktop
 
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.Socket
 import java.security.KeyStore
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
@@ -9,6 +13,8 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
+import javax.net.SocketFactory
+import okhttp3.OkHttpClient
 
 /**
  * How the desktop app reaches the server from any network, a company's too. Browsers and most programs follow the
@@ -27,8 +33,12 @@ object DesktopNetwork {
 
     /** The engine of every desktop HTTP client: the proxy Java picks (above), and the authorities of [trust]. */
     fun engine(): HttpClientEngine = OkHttp.create {
-        config { sslSocketFactory(socketFactory, trust) }
+        config { desktop(trust, socketFactory) }
     }
+
+    /** What every desktop OkHttp client needs (the engine above, `--network-check`): [DirectSockets], [tls] with [trust]. */
+    internal fun OkHttpClient.Builder.desktop(trust: X509TrustManager, tls: SSLSocketFactory): OkHttpClient.Builder =
+        socketFactory(DirectSockets).sslSocketFactory(tls, trust)
 
     /**
      * Java's own certificate authorities and, on Windows, the computer's as well. A company proxy that inspects secure
@@ -62,6 +72,33 @@ object DesktopNetwork {
         TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
             .apply { init(store) }
             .trustManagers.filterIsInstance<X509TrustManager>().first()
+}
+
+/**
+ * Plain sockets that never pick a proxy themselves. OkHttp picks it (the system's, above) and speaks to it in HTTP
+ * (`CONNECT`). A plain Java socket asks the proxy selector too, for "socket://", and on Windows the one proxy a computer
+ * sets for every protocol comes back there as SOCKS: the socket then greeted an HTTP proxy in SOCKS and the connection
+ * died ("Malformed reply from SOCKS server", the owner's company PC, 2026-11-11). Sockets for a SOCKS proxy OkHttp picks
+ * itself it makes with that proxy, not through here.
+ */
+internal object DirectSockets : SocketFactory() {
+    override fun createSocket(): Socket = Socket(Proxy.NO_PROXY)
+
+    override fun createSocket(host: String, port: Int): Socket = createSocket().apply { connect(InetSocketAddress(host, port)) }
+
+    override fun createSocket(host: String, port: Int, localHost: InetAddress, localPort: Int): Socket =
+        createSocket().apply {
+            bind(InetSocketAddress(localHost, localPort))
+            connect(InetSocketAddress(host, port))
+        }
+
+    override fun createSocket(host: InetAddress, port: Int): Socket = createSocket().apply { connect(InetSocketAddress(host, port)) }
+
+    override fun createSocket(address: InetAddress, port: Int, localAddress: InetAddress, localPort: Int): Socket =
+        createSocket().apply {
+            bind(InetSocketAddress(localAddress, localPort))
+            connect(InetSocketAddress(address, port))
+        }
 }
 
 /** Trusts a server when any of [managers] does (the first is Java's own); otherwise refuses with the first one's reason. */

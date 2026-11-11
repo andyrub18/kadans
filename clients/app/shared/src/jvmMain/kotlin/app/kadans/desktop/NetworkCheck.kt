@@ -2,6 +2,7 @@ package app.kadans.desktop
 
 import app.kadans.config.BuildConfig
 import app.kadans.config.ServerAddress
+import app.kadans.desktop.DesktopNetwork.desktop
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.ProxySelector
@@ -51,7 +52,7 @@ object NetworkCheck {
         val recorder = RecordingTrustManager(DesktopNetwork.trust)
         val tls = SSLContext.getInstance("TLS").apply { init(null, arrayOf(recorder), null) }
         val client = OkHttpClient.Builder()
-            .sslSocketFactory(tls.socketFactory, recorder)
+            .desktop(recorder, tls.socketFactory)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .callTimeout(40, TimeUnit.SECONDS)

@@ -628,7 +628,9 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   Java's authorities and, on Windows, the computer's as well (`Windows-ROOT`, `jdk.crypto.mscapi` in that runtime
   image only): a proxy that inspects secure connections signs them with an authority its IT adds to Windows, never to
   Java. A server is trusted when either list vouches for it, as in the browser, and OkHttp checks the hostname either
-  way. A proxy that asks for a login (407) is not handled. Phones need none of it: Android and iOS do both themselves.
+  way. Its sockets never pick a proxy themselves (`DirectSockets`): on Windows, Java hands the one proxy set for every
+  protocol to plain sockets as SOCKS, and the first build greeted the company's HTTP proxy in SOCKS ("Malformed reply
+  from SOCKS server", which `--network-check` showed); OkHttp alone picks the proxy and speaks HTTP's `CONNECT` to it. A proxy that asks for a login (407) is not handled. Phones need none of it: Android and iOS do both themselves.
   When the desktop still reaches nothing, `Kadans --network-check` (`desktop/NetworkCheck`, before anything else starts)
   writes `kadans-network-check.txt` in the home folder: the proxy Java picks, the authorities found, each step of one
   request to `/health/live` and the certificates it was shown. No account data. On Windows:

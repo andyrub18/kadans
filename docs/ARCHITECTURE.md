@@ -629,6 +629,10 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   image only): a proxy that inspects secure connections signs them with an authority its IT adds to Windows, never to
   Java. A server is trusted when either list vouches for it, as in the browser, and OkHttp checks the hostname either
   way. A proxy that asks for a login (407) is not handled. Phones need none of it: Android and iOS do both themselves.
+  When the desktop still reaches nothing, `Kadans --network-check` (`desktop/NetworkCheck`, before anything else starts)
+  writes `kadans-network-check.txt` in the home folder: the proxy Java picks, the authorities found, each step of one
+  request to `/health/live` and the certificates it was shown. No account data. On Windows:
+  `Start-Process "$env:LOCALAPPDATA\Kadans\Kadans.exe" -ArgumentList "--network-check" -Wait`.
 - **The installed app** (`packageDeb`): the runtime image adds `jdk.security.auth` and `jdk.net` (dbus-java's login and
   socket options). The main class is `kadans.Kadans`, so the window's X11 class is `kadans-Kadans`, the name of the
   launcher jpackage installs (it writes no `StartupWMClass`): that is how docks match the window to its icon.

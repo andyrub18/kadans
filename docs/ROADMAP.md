@@ -519,6 +519,10 @@ installing on real devices second, hosting last.
 - [x] A Google sign-in that does not finish says so (2026-11-09): Android's Google answers "cancelled" both when its sheet
       is closed and when it refuses the app's fingerprint, which left the Login screen silent during Play's first test.
       Both now show "Google sign-in did not complete. Try again."
+- [x] The Google button no longer depends on one answer (2026-11-11): the Login screen asked the server once whether
+      Google sign-in was set up, and a lost answer hid the button until the app restarted. The Microsoft Store's copy,
+      started as Windows signs in (before its network, often), showed no button on the owner's first Windows test. It
+      now asks again until answered: after 2 s, then twice as long each time, at most once a minute.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
       `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts

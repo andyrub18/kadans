@@ -10,7 +10,10 @@ import app.kadans.auth.GoogleCredential
 import app.kadans.auth.GoogleSignIn
 import app.kadans.auth.GoogleSignInException
 import app.kadans.auth.NoGoogleSignIn
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -55,6 +58,7 @@ class LoginViewModel(
 
     private var googleConfig: GoogleProviderResponse? = null
     private var googleJob: Job? = null
+    private var providersJob: Job? = null
 
     init {
         refreshProviders()
@@ -62,15 +66,27 @@ class LoginViewModel(
 
     /**
      * Ask the server what it can complete; the button only exists when the answer fits this
-     * platform. Best effort — an unreachable server simply means no button. Called again when
-     * the server address changes on the Login screen.
+     * platform. Until the server answers, the question is asked again, less and less often: the
+     * desktop opens this screen as the computer signs in, often before its network is up, and one
+     * lost answer must not hide the button for as long as the app runs. Called again when the
+     * server address changes on the Login screen.
      */
     fun refreshProviders() {
         if (!googleSignIn.isSupported) return
-        viewModelScope.launch {
-            val google = runCatching { api.auth.providers().google }.getOrNull()
-            googleConfig = google
-            _state.update { it.copy(googleAvailable = google != null && googleSignIn.canSignIn(google)) }
+        providersJob?.cancel()
+        providersJob = viewModelScope.launch {
+            var wait = FIRST_RETRY
+            while (true) {
+                val answer = runCatching { api.auth.providers() }.getOrNull()
+                if (answer != null) {
+                    val google = answer.google
+                    googleConfig = google
+                    _state.update { it.copy(googleAvailable = google != null && googleSignIn.canSignIn(google)) }
+                    return@launch
+                }
+                delay(wait)
+                wait = (wait * 2).coerceAtMost(LAST_RETRY)
+            }
         }
     }
 
@@ -117,6 +133,10 @@ class LoginViewModel(
     }
 
     internal companion object {
+        /** No answer about Google: asked again after 2 s, then twice as long each time, at most once a minute. */
+        val FIRST_RETRY: Duration = 2.seconds
+        val LAST_RETRY: Duration = 60.seconds
+
         fun outcomeOf(login: LoginResponse): LoginEvent = when {
             login.mfaRequired && login.mfaToken != null -> LoginEvent.MfaRequired(login.mfaToken)
             login.deletionScheduled && login.restoreToken != null && login.eraseAfter != null ->

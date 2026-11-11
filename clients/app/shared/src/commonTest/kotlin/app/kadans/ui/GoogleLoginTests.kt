@@ -55,6 +55,10 @@ class GoogleLoginTests {
     /** Records what each endpoint received, so a test can tell which sign-in route was taken. */
     private class Server(var providers: String, val store: InMemoryTokenStore = InMemoryTokenStore()) {
         val bodies = mutableMapOf<String, String>()
+
+        /** How many more times the providers question goes unanswered (no network yet). */
+        var unreachable = 0
+        var asked = 0
     }
 
     private fun Server.api(jsonHeaders: io.ktor.http.Headers, session: String): KadansApi = KadansApi.create(
@@ -62,6 +66,13 @@ class GoogleLoginTests {
         store,
         MockEngine { request ->
             val path = request.url.encodedPath
+            if (path.endsWith("auth/providers")) {
+                asked++
+                if (unreachable > 0) {
+                    unreachable--
+                    error("no network yet")
+                }
+            }
             bodies[path] = request.body.toByteArray().decodeToString()
             respond(if (path.endsWith("auth/providers")) providers else session, HttpStatusCode.OK, jsonHeaders)
         },
@@ -82,6 +93,23 @@ class GoogleLoginTests {
         viewModel.refreshProviders()
 
         assertTrue(viewModel.state.first { it.googleAvailable }.googleAvailable)
+    }
+
+    @Test
+    fun the_button_comes_once_the_server_answers_after_a_start_without_network() = runTest(dispatcher) {
+        val server = Server(configured).apply { unreachable = 3 }
+        val viewModel = LoginViewModel(server.api(jsonHeaders, session), FakeGoogle { null })
+
+        // The fake server answers on its own thread; the waits between questions run on the test's clock.
+        viewModel.state.first { it.googleAvailable }
+
+        assertEquals(4, server.asked)
+        assertTrue(testScheduler.currentTime >= 14_000, "asked again after 2 s, 4 s and 8 s: ${testScheduler.currentTime} ms")
+
+        // Answered: never asked again.
+        dispatcher.scheduler.advanceTimeBy(300_000)
+        withContext(Dispatchers.Default) { delay(200) }
+        assertEquals(4, server.asked)
     }
 
     @Test

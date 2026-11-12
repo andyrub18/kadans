@@ -23,6 +23,7 @@ import app.kadans.startup.StartAtLogin
 import app.kadans.startup.applyStartAtLogin
 import app.kadans.tray.StatusNotifierTray
 import app.kadans.tray.TrayAction
+import app.kadans.tray.WindowsTray
 import app.kadans.ui.App
 import app.kadans.ui.IncomingLinks
 import app.kadans.ui.brand.KadansIconPainter
@@ -93,6 +94,7 @@ fun main(args: Array<String> = emptyArray()) {
     // arrive); the tray brings it back. Without any tray the close button must still quit, or the app would be stranded
     // invisible, and a start in the background shows the window minimized instead of hiding it.
     val awtTray = linuxTray == null && SystemTray.isSupported()
+    val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows")
     val hasTray = linuxTray != null || awtTray
 
     application {
@@ -116,7 +118,20 @@ fun main(args: Array<String> = emptyArray()) {
         LaunchedEffect(strings) { linuxTray?.setLabels(strings.desktop.trayOpen, strings.desktop.trayQuit) }
         DisposableEffect(Unit) { onDispose { linuxTray?.close() } }
 
-        if (awtTray) {
+        if (awtTray && isWindows) {
+            // Windows: Kadans' own menu, as the app looks (tray/TrayMenu); Java's is Windows' old classic one.
+            WindowsTray(
+                openLabel = strings.desktop.trayOpen,
+                quitLabel = strings.desktop.trayQuit,
+                onAction = {
+                    requests.trySend(TrayAction.Open)
+                    // A reminder's balloon, clicked just after it showed, reaches only this action: its todo opens.
+                    ReminderBalloon.takeClick()?.let(IncomingLinks::open)
+                },
+                onOpen = { requests.trySend(TrayAction.Open) },
+                onQuit = ::exitApplication,
+            )
+        } else if (awtTray) {
             Tray(
                 state = rememberTrayState(),
                 icon = remember { KadansIconPainter(small = true) },

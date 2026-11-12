@@ -166,6 +166,22 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [ ] An uptime monitor on `https://api.<domain>/health/ready`, and an off-server copy of `deploy/backups/`.
 - [ ] Build the apps for production: `-Pkadans.apiBaseUrl=https://api.<domain>` (DEPLOYMENT.md → Building the apps).
 
+## Google Search Console
+
+Where Google says what it has indexed of the website, and why not the rest (DEPLOYMENT.md → The website → Search
+engines, which also lists the entries that are meant).
+
+- [ ] Deploy the change of 2026-11-12 (the English pages were reported as duplicates of `/`, `/privacy`, …): the
+      command under DEPLOYMENT.md → The website, which makes nginx again. Check: `https://kadansplanning.com/en`
+      (no slash) goes to `/en/`.
+- [ ] Sitemaps → submit `https://kadansplanning.com/sitemap.xml` again.
+- [ ] URL inspection → each of the six English addresses (`https://kadansplanning.com/en/`, `/en/download`,
+      `/en/support`, `/en/delete-account`, `/en/privacy`, `/en/terms`) → **Request indexing**.
+- [ ] Pages → "Duplicate, Google chose different canonical than user" → **Validate fix**. Google takes from a few
+      days to a few weeks: the six pages move to Indexed, and the addresses without a language to "Page with
+      redirect".
+- Leave "Page with redirect" and "Blocked by robots.txt" as they are: both are meant, and a validation there fails.
+
 ## Monitoring
 
 - [ ] On the server, the three new lines in `deploy/.env` (DEPLOYMENT → Monitoring): `GRAFANA_ADMIN_PASSWORD`

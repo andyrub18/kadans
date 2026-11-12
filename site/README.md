@@ -9,7 +9,7 @@ mark and (on the download page) one small script, nothing else (the Content-Secu
 
 | File | What it holds |
 |------|---------------|
-| `texts.py` | Every page's words, in English, French and Kreyòl, and the addresses (Google Play, the releases, support) |
+| `texts.py` | Every page's words, in English, French and Kreyòl, its description for search engines (`*_description`, one per page, about 150 characters), and the addresses (Google Play, the releases, support) |
 | `legal/privacy.<lang>.html`, `legal/terms.<lang>.html` | The privacy policy and the terms, one per language |
 | `assets/style.css`, `assets/download.js` | The look, and the script that puts the visitor's download first |
 | `generate.py` | The page layouts |
@@ -26,3 +26,8 @@ what ARCHITECTURE → Data retention says: change both together.
 Addresses: `/en/…`, `/fr/…`, `/ht/…`; one without a language (`/`, the app's `/privacy` and `/terms`) goes to the
 visitor's. The download buttons point at `/files/<name>` and the desktop app's update check at
 `/desktop/latest.json`; nginx sends both to the latest GitHub release, whose files keep the same names.
+
+For search engines, each page names its one address (`rel="canonical"`), its other languages and the English page
+for everyone else (`hreflang`, `x-default`: `DEFAULT_LANGUAGE`, never an address without a language), and the
+sitemap repeats it. A new page goes in `PAGES` with a title and a description of its own in the three languages; a
+link to a file that is not a page gets `rel="nofollow"` (DEPLOYMENT → The website → Search engines).

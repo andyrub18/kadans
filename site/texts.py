@@ -51,6 +51,8 @@ TEXTS = {
         "home_private_link": "How we handle your data",
 
         "dl_title": "Download Kadans",
+        "dl_description": "Download Kadans for Android, Linux (.deb and .rpm) and Windows. Free on your computer; "
+                          "on Android, USD 0.99 a month after a 14-day free trial.",
         "dl_h1": "Download Kadans",
         "dl_lead": "Sign in with the same account everywhere: your tasks, focus sessions and budget follow you.",
         "dl_phone_title": "On your phone",
@@ -72,6 +74,8 @@ TEXTS = {
                       '<a href="{releases}">the releases page</a>.',
 
         "support_title": "Support – Kadans",
+        "support_description": "Help with Kadans: reminders that do not ring, a forgotten password, your "
+                               "subscription, your account. Or write to us, in English, French or Kreyòl.",
         "support_h1": "Support",
         "support_lead": f'Write to <a href="mailto:{SUPPORT}">{SUPPORT}</a>, in English, French or Kreyòl.',
         "support_faq": "Common questions",
@@ -90,6 +94,8 @@ TEXTS = {
         "a5": "Yes. A subscription is only needed on phones.",
 
         "del_title": "Delete my account – Kadans",
+        "del_description": "Delete your Kadans account in the app or without it. It closes at once and is erased "
+                           "seven days later with everything in it: tasks, focus history, budget.",
         "del_h1": "Delete my account",
         "del_lead": "You can delete your Kadans account at any time, with or without the app.",
         "del_app_title": "In the app",
@@ -109,7 +115,12 @@ TEXTS = {
         ],
 
         "privacy_title": "Privacy policy – Kadans",
+        "privacy_description": "What Kadans keeps about you, why, and for how long. No ads, no tracking, no "
+                               "analytics, nothing sold. You can delete anything, and your whole account, at any "
+                               "time.",
         "terms_title": "Terms of use – Kadans",
+        "terms_description": "The terms of using Kadans: your account, the price and the subscription, what you put "
+                             "in Kadans, fair use, and how it ends.",
         "nf_h1": "This page does not exist.",
         "nf_home": "Kadans home",
     },
@@ -155,6 +166,8 @@ TEXTS = {
         "home_private_link": "Comment nous traitons vos données",
 
         "dl_title": "Télécharger Kadans",
+        "dl_description": "Téléchargez Kadans pour Android, Linux (.deb et .rpm) et Windows. Gratuit sur ordinateur "
+                          "; sur Android, 0,99 USD par mois après 14 jours d'essai gratuit.",
         "dl_h1": "Télécharger Kadans",
         "dl_lead": "Connectez-vous avec le même compte partout : vos tâches, vos séances et votre budget vous "
                    "suivent.",
@@ -177,6 +190,8 @@ TEXTS = {
                       'de contrôle : <a href="{releases}">la page des versions</a>.',
 
         "support_title": "Assistance – Kadans",
+        "support_description": "De l'aide pour Kadans : rappels qui ne sonnent pas, mot de passe oublié, abonnement, "
+                               "compte. Ou écrivez-nous, en français, en anglais ou en kreyòl.",
         "support_h1": "Assistance",
         "support_lead": f'Écrivez à <a href="mailto:{SUPPORT}">{SUPPORT}</a>, en français, en anglais ou en kreyòl.',
         "support_faq": "Questions fréquentes",
@@ -196,6 +211,8 @@ TEXTS = {
         "a5": "Oui. L'abonnement ne concerne que les téléphones.",
 
         "del_title": "Supprimer mon compte – Kadans",
+        "del_description": "Supprimez votre compte Kadans, avec ou sans l'application. Il est fermé aussitôt, puis "
+                           "effacé sept jours plus tard avec tout son contenu.",
         "del_h1": "Supprimer mon compte",
         "del_lead": "Vous pouvez supprimer votre compte Kadans à tout moment, avec ou sans l'application.",
         "del_app_title": "Dans l'application",
@@ -215,7 +232,11 @@ TEXTS = {
         ],
 
         "privacy_title": "Politique de confidentialité – Kadans",
+        "privacy_description": "Ce que Kadans garde sur vous, pourquoi et combien de temps. Pas de publicité, pas de "
+                               "pistage, rien n'est vendu. Vous pouvez tout supprimer à tout moment.",
         "terms_title": "Conditions d'utilisation – Kadans",
+        "terms_description": "Les conditions d'utilisation de Kadans : votre compte, le prix et l'abonnement, ce "
+                             "que vous mettez dans Kadans, l'usage loyal, et comment y mettre fin.",
         "nf_h1": "Cette page n'existe pas.",
         "nf_home": "Accueil de Kadans",
     },
@@ -259,6 +280,8 @@ TEXTS = {
         "home_private_link": "Kijan nou okipe done ou",
 
         "dl_title": "Telechaje Kadans",
+        "dl_description": "Telechaje Kadans pou Android, Linux (.deb ak .rpm) ak Windows. Gratis sou òdinatè; sou "
+                          "Android, 0,99 USD pa mwa apre 14 jou esè gratis.",
         "dl_h1": "Telechaje Kadans",
         "dl_lead": "Konekte ak menm kont lan tout kote: travay ou, seyans ou ak bidjè ou swiv ou.",
         "dl_phone_title": "Sou telefòn ou",
@@ -280,6 +303,8 @@ TEXTS = {
                       '<a href="{releases}">paj vèsyon yo</a>.',
 
         "support_title": "Èd – Kadans",
+        "support_description": "Èd pou Kadans: rapèl ki pa sonnen, yon modpas ou bliye, abònman ou, kont ou. Oswa "
+                               "ekri nou, an kreyòl, an franse oswa an angle.",
         "support_h1": "Èd",
         "support_lead": f'Ekri nou nan <a href="mailto:{SUPPORT}">{SUPPORT}</a>, an kreyòl, an franse oswa an angle.',
         "support_faq": "Kesyon moun poze souvan",
@@ -298,6 +323,8 @@ TEXTS = {
         "a5": "Wi. Se sèlman sou telefòn ou bezwen yon abònman.",
 
         "del_title": "Efase kont mwen – Kadans",
+        "del_description": "Efase kont Kadans ou nan aplikasyon an oswa san li. Li fèmen touswit, epi li efase sèt "
+                           "jou apre ak tout sa ki ladan l: travay, istwa konsantrasyon, bidjè.",
         "del_h1": "Efase kont mwen",
         "del_lead": "Ou ka efase kont Kadans ou nenpòt ki lè, avèk oswa san aplikasyon an.",
         "del_app_title": "Nan aplikasyon an",
@@ -317,7 +344,12 @@ TEXTS = {
         ],
 
         "privacy_title": "Politik konfidansyalite – Kadans",
+        "privacy_description": "Sa Kadans kenbe sou ou, poukisa, ak pou konbyen tan. Pa gen piblisite, pa gen "
+                               "swivi, pa gen estatistik vizit, nou pa vann anyen. Ou ka efase nenpòt bagay, nenpòt "
+                               "ki lè.",
         "terms_title": "Kondisyon itilizasyon – Kadans",
+        "terms_description": "Kondisyon pou sèvi ak Kadans: kont ou, pri a ak abònman an, sa ou mete nan Kadans, "
+                             "bon itilizasyon, ak kijan sa fini.",
         "nf_h1": "Paj sa a pa egziste.",
         "nf_home": "Lakay Kadans",
     },

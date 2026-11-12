@@ -260,10 +260,30 @@ one of the API's places, and an API update never touches the site.
    `kadans: new certificate, nginx reloaded`). nginx restarts for a few seconds; the API does not.
 
 Afterwards a change to the site is a `git pull`: nginx reads the files from the checkout. A change to `deploy/nginx/`
-still needs `docker compose up -d`.
+needs nginx made again, since it reads its configuration once, as it starts, and a plain `docker compose up -d` leaves
+a container alone when nothing in the compose file changed:
+
+```bash
+cd kadans && git pull && cd deploy && docker compose up -d --force-recreate --no-deps nginx
+```
+
+nginx is away for a few seconds; the API does not restart.
 
 - **Addresses.** `/en/…`, `/fr/…`, `/ht/…`; an address without a language (`/`, the app's `/privacy` and `/terms`)
-  goes to the visitor's, from the browser's first language. `www` goes to the bare name.
+  goes to the visitor's, from the browser's first language (English when it is none of the three). `www` goes to the
+  bare name. A page has one address: another spelling of it (`/en`, `/en/index.html`, `/en/download.html`,
+  `/en/download/`) goes to that one. All of these are permanent redirects (301); the one that depends on the
+  visitor's language is never kept by a browser (`Cache-Control: no-cache`).
+- **Search engines.** Every page declares its address (`rel="canonical"`), itself in the other languages and the
+  English one for everyone else (`hreflang`, `x-default`), and has its own description; `sitemap.xml` lists the 18
+  pages with the same alternates, and `robots.txt` forbids nothing. The addresses without a language are redirects
+  and are named nowhere: when the pages gave them as `x-default` and nginx answered 302, Google indexed them in
+  place of the English pages and reported those as "Duplicate, Google chose different canonical than user". In
+  Google Search Console's page report, these are meant and need no fix: "Page with redirect" for the `http://`, `www`
+  and language-less addresses, and "Blocked by robots.txt" for an installer under `/files/` (GitHub, where it leads,
+  forbids crawlers its downloads; the buttons are `rel="nofollow"`). After a change to any of this, resubmit the
+  sitemap there. The API's host answers `X-Robots-Tag: noindex`: its few pages (confirming an address, deleting an
+  account) are reached from an email or from the website, not from a search.
 - **Downloads.** The buttons point at `/files/<name>` and the desktop app's update check at `/desktop/latest.json`;
   nginx sends both to the latest GitHub release, whose files keep the same names. A release changes nothing here.
 - **What nginx adds**: HSTS, a Content-Security-Policy that lets a page load its own files only (no inline script, no

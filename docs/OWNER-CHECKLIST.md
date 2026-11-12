@@ -14,10 +14,20 @@ dotnet user-secrets set "<Key>" "<value>" --project src/Kadans.Api
 - [x] API key → `Email:Resend:ApiKey` (done, dev)
 - [x] Verify a sending domain in Resend: `kadansplanning.com` (done). `Email:From` defaults to
       `Kadans <no-reply@kadansplanning.com>` in `appsettings.json`; production sets `EMAIL_FROM`.
-- [ ] To send real mail from dev: `Email:Provider` = `Resend` (dev defaults to `Log`, which prints the
-      email – including its link – to the API log)
-- [ ] `Email:LinkBaseUrl` = the public URL the emailed links should open (API URL until the client
-      handles deep links: `/auth/confirm-email`, `/auth/reset-password`, `/users/me/email/confirm`)
+- [x] `Email:LinkBaseUrl` = the public URL the emailed links should open (API URL until the client
+      handles deep links: `/auth/confirm-email`, `/auth/reset-password`, `/users/me/email/confirm`). Done:
+      `https://api.kadansplanning.com` in `appsettings.json`; production takes it from `KADANS_DOMAIN`
+      (`deploy/docker-compose.yml`) and refuses to start without it.
+- [x] A DMARC record, the one piece of the sending domain that was missing: it tells mail providers what to do with
+      a message that claims to come from `kadansplanning.com` and does not, and they trust a domain that has one
+      more. Cloudflare → DNS → a `TXT` record named `_dmarc`: `v=DMARC1; p=none;`. Done 2026-11-12, seen from
+      outside.
+- [ ] Tighten it to `v=DMARC1; p=quarantine;` (a forged message then goes to spam) once Kadans' emails have kept
+      arriving for a week, so from 2026-11-19. Before that, decide how support mail is answered: a reply sent as
+      `support@kadansplanning.com` through Gmail's own servers would fail the check and land in spam; one from your
+      own address, or sent through Resend, would not.
+- Not a task: to send real mail from dev, `Email:Provider` = `Resend` in the user secrets. Dev stays on `Log`, which
+  prints the email – including its link – to the API log.
 
 ## Google Sign-In
 
@@ -141,14 +151,16 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 - [x] Buy the domain: **`kadansplanning.com`**. The backend is **`https://api.kadansplanning.com`** (what
       the apps and emailed links use); the bare domain is the website.
 - [x] Cloudflare → DNS: `A` records for `@` and `www` → the server (148.113.254.227), **DNS only** (2026-10-31).
-- [ ] The website (DEPLOYMENT.md → The website): `KADANS_SITE_DOMAIN=kadansplanning.com` in `deploy/.env` on the
+- [x] The website (DEPLOYMENT.md → The website): `KADANS_SITE_DOMAIN=kadansplanning.com` in `deploy/.env` on the
       server, then `git pull && docker compose up -d`. Check: `https://kadansplanning.com` opens, and
-      `https://www.kadansplanning.com` goes to it.
-- [ ] A mailbox for **`support@kadansplanning.com`**: the site and the privacy policy give it. Resend only sends;
+      `https://www.kadansplanning.com` goes to it. Verified 2026-11-12 from outside, both.
+- [x] A mailbox for **`support@kadansplanning.com`**: the site and the privacy policy give it. Resend only sends;
       Cloudflare → Email → Email Routing (free) can forward that address to your own inbox. It adds `MX` records on
-      the bare domain, which do not touch Resend's.
-- [x] Resend → Domains → `kadansplanning.com` verified. Still to do: a production API key as
-      `RESEND_API_KEY` in `deploy/.env` (`EMAIL_FROM` is already filled in).
+      the bare domain, which do not touch Resend's. Done 2026-11-12: a routing rule forwards it to the owner's inbox.
+      Check: a message sent to it from another address arrives (none had been received that day).
+- [x] Resend → Domains → `kadansplanning.com` verified, and a production API key as `RESEND_API_KEY` in
+      `deploy/.env` (`EMAIL_FROM` is filled in). Seen 2026-11-12: the records Resend asks for are in the DNS
+      (`resend._domainkey`, `send`), and the deploy of that day ran, which compose refuses to do without the key.
 - [x] A server, with DNS `api` → its address.
 - [x] Cloudflare → DNS: the `api` record must be **DNS only** (grey cloud), not proxied – otherwise certbot
       cannot get the certificate (DEPLOYMENT.md → DNS on Cloudflare). Verified 2026-10-21: the name resolves
@@ -171,15 +183,16 @@ The code side is done; the step-by-step is in [DEPLOYMENT.md](DEPLOYMENT.md). Wh
 Where Google says what it has indexed of the website, and why not the rest (DEPLOYMENT.md → The website → Search
 engines, which also lists the entries that are meant).
 
-- [ ] Deploy the change of 2026-11-12 (the English pages were reported as duplicates of `/`, `/privacy`, …): the
+- [x] Deploy the change of 2026-11-12 (the English pages were reported as duplicates of `/`, `/privacy`, …): the
       command under DEPLOYMENT.md → The website, which makes nginx again. Check: `https://kadansplanning.com/en`
-      (no slash) goes to `/en/`.
-- [ ] Sitemaps → submit `https://kadansplanning.com/sitemap.xml` again.
-- [ ] URL inspection → each of the six English addresses (`https://kadansplanning.com/en/`, `/en/download`,
-      `/en/support`, `/en/delete-account`, `/en/privacy`, `/en/terms`) → **Request indexing**.
-- [ ] Pages → "Duplicate, Google chose different canonical than user" → **Validate fix**. Google takes from a few
-      days to a few weeks: the six pages move to Indexed, and the addresses without a language to "Page with
-      redirect".
+      (no slash) goes to `/en/`. Verified 2026-11-12 from outside: it does, `/` and `/privacy` answer 301, the pages
+      and the sitemap name the English page as `x-default`, and the API answers `X-Robots-Tag: noindex`.
+- [x] Sitemaps → submit `https://kadansplanning.com/sitemap.xml` again (2026-11-12).
+- [x] URL inspection → each of the six English addresses (`https://kadansplanning.com/en/`, `/en/download`,
+      `/en/support`, `/en/delete-account`, `/en/privacy`, `/en/terms`) → **Request indexing** (2026-11-12).
+- [x] Pages → "Duplicate, Google chose different canonical than user" → **Validate fix** (started 2026-11-12).
+      Google takes from a few days to a few weeks: the six pages move to Indexed, and the addresses without a
+      language to "Page with redirect". Look again around the end of November.
 - Leave "Page with redirect" and "Blocked by robots.txt" as they are: both are meant, and a validation there fails.
 
 ## Monitoring
@@ -263,6 +276,7 @@ Both:
       button that no longer goes missing. Not before the Windows build connects on the company PC (`Kadans
       --network-check`, ARCHITECTURE → "The desktop app: in the tray, once"). Then `git tag v1.1.1 && git push origin v1.1.1`, then a new Partner Center
       submission with that release's `kadans-microsoft-store-x64.msix`. Android takes it with its next upload.
+      Tagged and released 2026-11-12 (GitHub's release `v1.1.1`); what is left is the Partner Center submission.
 - [ ] Microsoft Store (Partner Center, an "MSIX or PWA app" named Kadans: identity `AndersonRuban.Kadans`, Store ID
       9NPHCHB96T03, already in `clients/app/desktopApp/msix/AppxManifest.xml`). A submission's Packages page takes
       `kadans-microsoft-store-x64.msix` from the GitHub Release (DEPLOYMENT → Releasing the desktop app); before the

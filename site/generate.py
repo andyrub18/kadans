@@ -23,6 +23,10 @@ SITE = Path(__file__).resolve().parent
 ROOT = SITE.parent
 DOMAIN = "https://kadansplanning.com"
 PAGES = ["", "download", "support", "delete-account", "privacy", "terms"]
+# The language of a visitor who asks for none of ours, as nginx decides it for an address without one (deploy/nginx).
+# Search engines are told so with the page itself (hreflang="x-default"), never with the address that redirects:
+# given that one, Google indexed it in place of the English page and called the English page a duplicate.
+DEFAULT_LANGUAGE = "en"
 
 # The files every page may load (the site's Content-Security-Policy allows its own and nothing else).
 ASSETS = {
@@ -46,11 +50,16 @@ def path(lang, page):
     return f"/{lang}/{page}" if page else f"/{lang}/"
 
 
+def alternates(page, tag):
+    """The page in every language, and the one for a visitor who asked for none of them: the same list in each
+    page's head and in the sitemap."""
+    versions = [(other, other) for other in LANGUAGES] + [("x-default", DEFAULT_LANGUAGE)]
+    return [tag.format(hreflang=hreflang, href=DOMAIN + path(lang, page)) for hreflang, lang in versions]
+
+
 def layout(lang, page, title, description, body, scripts=()):
     t = TEXTS[lang]
-    alternates = "\n".join(
-        f'<link rel="alternate" hreflang="{other}" href="{DOMAIN}{path(other, page)}">' for other in LANGUAGES
-    )
+    head_alternates = "\n".join(alternates(page, '<link rel="alternate" hreflang="{hreflang}" href="{href}">'))
     switcher = " ".join(
         f'<a href="{path(other, page)}" lang="{other}" hreflang="{other}"'
         + (' aria-current="true"' if other == lang else "")
@@ -77,8 +86,7 @@ def layout(lang, page, title, description, body, scripts=()):
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#6750A4">
 <link rel="canonical" href="{DOMAIN}{path(lang, page)}">
-{alternates}
-<link rel="alternate" hreflang="x-default" href="{DOMAIN}/{page}">
+{head_alternates}
 <link rel="icon" href="{asset("kadans-icon.svg")}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{asset("kadans-icon-512.png")}">
 <link rel="stylesheet" href="{asset("style.css")}">{script_tags}
@@ -139,10 +147,11 @@ def download(lang):
     t = TEXTS[lang]
 
     def desktop(platform, file, title, button, install):
+        # rel="nofollow": an installer is not a page, and GitHub, where /files/ leads, lets no crawler fetch it.
         return f"""<article class="card download" data-platform="{platform}">
 <p class="suggested-label">{t["dl_suggested"]}</p>
 <h3>{title}</h3>
-<p><a class="button primary" href="/files/{file}">{button}</a></p>
+<p><a class="button primary" href="/files/{file}" rel="nofollow">{button}</a></p>
 <p class="install">{install}</p>
 </article>"""
 
@@ -165,7 +174,7 @@ def download(lang):
 </div>
 <p class="note">{t["dl_updates"].format(releases=RELEASES)}</p>
 </section>"""
-    return layout(lang, "download", t["dl_title"], t["description"], body, scripts=["download.js"])
+    return layout(lang, "download", t["dl_title"], t["dl_description"], body, scripts=["download.js"])
 
 
 def support(lang):
@@ -182,7 +191,7 @@ def support(lang):
 {faq}
 </div>
 </section>"""
-    return layout(lang, "support", t["support_title"], t["description"], body)
+    return layout(lang, "support", t["support_title"], t["support_description"], body)
 
 
 def delete_account(lang):
@@ -200,14 +209,14 @@ def delete_account(lang):
 {steps}
 </ul>
 </section>"""
-    return layout(lang, "delete-account", t["del_title"], t["description"], body)
+    return layout(lang, "delete-account", t["del_title"], t["del_description"], body)
 
 
 def legal(lang, page):
     t = TEXTS[lang]
     text = (SITE / "legal" / f"{page}.{lang}.html").read_text(encoding="utf-8").strip()
-    title = t["privacy_title"] if page == "privacy" else t["terms_title"]
-    return layout(lang, page, title, t["description"], f'<article class="legal">\n{text}\n</article>')
+    return layout(lang, page, t[f"{page}_title"], t[f"{page}_description"],
+                  f'<article class="legal">\n{text}\n</article>')
 
 
 def not_found():
@@ -224,9 +233,7 @@ def not_found():
 def sitemap():
     urls = "\n".join(
         f"<url><loc>{DOMAIN}{path(lang, page)}</loc>"
-        + "".join(
-            f'<xhtml:link rel="alternate" hreflang="{other}" href="{DOMAIN}{path(other, page)}"/>' for other in LANGUAGES
-        )
+        + "".join(alternates(page, '<xhtml:link rel="alternate" hreflang="{hreflang}" href="{href}"/>'))
         + "</url>"
         for page in PAGES
         for lang in LANGUAGES

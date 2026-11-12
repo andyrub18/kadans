@@ -532,6 +532,18 @@ installing on real devices second, hosting last.
       step, before the tag. It showed the cause: Java hands the one Windows proxy to plain sockets as SOCKS, so the
       socket greeted the HTTP proxy in SOCKS ("Malformed reply from SOCKS server"); the desktop's sockets now leave the
       proxy to OkHttp (`DirectSockets`).
+- [x] The website's addresses for search engines (2026-11-12, from Google Search Console's first page report): Google
+      had indexed the addresses without a language (`/`, `/privacy`, …) in place of the six English pages, which it
+      reported as duplicates with another canonical than the one they declare. The pages named those addresses as
+      `x-default` and nginx answered them with a temporary redirect, which a search engine reads as "keep this
+      address". Now `x-default` is the English page (in the pages and the sitemap) and the redirect is permanent,
+      never kept by a browser since it depends on the visitor's language. Also: another spelling of a page (`/en`,
+      `….html`, a slash too many) goes to its one address instead of answering twice, `/404.html` asked by name is
+      not found, each page has its own description (all six shared the home page's), the installer buttons are
+      `rel="nofollow"` (GitHub forbids crawlers its downloads, reported as "Blocked by robots.txt"), and the API's
+      host answers `X-Robots-Tag: noindex`. Checked against the real nginx image with test certificates: the 18
+      pages, every redirect in each language, the headers on each answer (DEPLOYMENT → The website → Search engines).
+      The owner's part, after the deploy: OWNER-CHECKLIST → Google Search Console.
 - [x] The Windows tray menu, drawn by Kadans (2026-11-12, the owner's design review): Java's menu was Windows' old classic
       one ("the menu lines are weak"). A mock-up in light and dark was approved, then built as `tray/TrayMenu` in a window
       of its own (ARCHITECTURE → "The desktop app: in the tray, once"). For the next desktop version; to check on a real

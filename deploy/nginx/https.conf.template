@@ -10,6 +10,9 @@ server {
     include /etc/nginx/kadans/tls.conf;
 
     add_header Strict-Transport-Security "max-age=63072000" always;
+    # Nothing here belongs in a search engine: not the pages the emails and the website link to (confirming an
+    # address, deleting an account), not an error. The website is what gets found.
+    add_header X-Robots-Tag "noindex" always;
 
     client_max_body_size 1m;
 

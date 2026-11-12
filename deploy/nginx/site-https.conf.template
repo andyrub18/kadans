@@ -10,6 +10,15 @@ map $http_accept_language $kadans_site_lang {
     ~*^ht   ht;
 }
 
+# A page has one address, the one it declares to search engines (/en/, /en/download). This is that address when the
+# request spelled the page another way (/en, /en/index.html, /en/download.html, /en/download/), else empty. Read from
+# the address as it was asked, never from $uri: nginx itself goes through /en/index.html to serve /en/.
+map $request_uri $kadans_site_address {
+    default "";
+    "~^/(?<kadans_home>en|fr|ht)(/index(\.html)?)?(\?|$)"              /$kadans_home/;
+    "~^(?<kadans_clean>/(en|fr|ht)/[a-z-]+)(\.html|/)(\?|$)"           $kadans_clean;
+}
+
 # www goes to the bare name.
 server {
     listen 443 ssl;
@@ -49,6 +58,12 @@ server {
 
     gzip_types text/css application/javascript image/svg+xml application/json text/plain; # text/html always is
 
+    # Another spelling of a page's address goes to the page's own, for good: a search engine then knows one address
+    # a page, not two with the same words.
+    if ($kadans_site_address) {
+        return 301 $kadans_site_address;
+    }
+
     # Pages: /en/privacy is en/privacy.html. Short-lived, so a change shows within minutes.
     location / {
         try_files $uri $uri.html $uri/index.html =404;
@@ -60,13 +75,23 @@ server {
         expires 7d;
     }
 
-    # An address without a language: the visitor's. The page is a named capture: the language's map is a regex too,
-    # and would overwrite $1.
+    # The page nginx shows for an address it does not have is not a page of its own: asked for by name, it is not
+    # there either.
+    location = /404.html {
+        internal;
+    }
+
+    # An address without a language: the visitor's. Moved for good (301), so a search engine keeps the language's
+    # address, the one the page declares: with a temporary redirect Google indexed these in place of the English
+    # pages. No browser keeps the answer (expires): it depends on the language of who asks. The page is a named
+    # capture: the language's map is a regex too, and would overwrite $1.
     location = / {
-        return 302 /$kadans_site_lang/;
+        expires epoch;
+        return 301 /$kadans_site_lang/;
     }
     location ~ ^/(?<kadans_page>privacy|terms|download|support|delete-account)/?$ {
-        return 302 /$kadans_site_lang/$kadans_page;
+        expires epoch;
+        return 301 /$kadans_site_lang/$kadans_page;
     }
 
     # The desktop app's update check and the download buttons: the latest GitHub release, under file names that never

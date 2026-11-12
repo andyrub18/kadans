@@ -44,9 +44,14 @@ class DesktopNetworkTests {
     fun requests_go_through_the_proxy_java_picks() = runBlocking {
         val before = ProxySelector.getDefault()
         Proxy1().use { proxy ->
-            // What useSystemProxies hands Java on a company computer: this proxy for every address.
+            // What useSystemProxies hands Java on a Windows computer whose one proxy serves every protocol (the owner's
+            // company PC): that proxy as HTTP for web addresses, and as SOCKS for the raw sockets Java opens itself
+            // ("socket://"). A socket that asked would greet this HTTP proxy in SOCKS: "Malformed reply from SOCKS server".
             ProxySelector.setDefault(object : ProxySelector() {
-                override fun select(uri: URI) = listOf(Proxy(Proxy.Type.HTTP, InetSocketAddress(proxy.socket.inetAddress, proxy.socket.localPort)))
+                override fun select(uri: URI): List<Proxy> {
+                    val type = if (uri.scheme == "socket") Proxy.Type.SOCKS else Proxy.Type.HTTP
+                    return listOf(Proxy(type, InetSocketAddress(proxy.socket.inetAddress, proxy.socket.localPort)))
+                }
                 override fun connectFailed(uri: URI, sa: SocketAddress, ioe: IOException) = Unit
             })
             try {

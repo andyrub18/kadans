@@ -178,7 +178,8 @@ reminder's buttons ("Start focus" or "Done", "In 10 min"; on "starts now" only, 
 reload quietly whatever changed what they show (another device, a notification's button, a job, the app back in front):
 the server's `data.changed` and `sync/DataChanges`, ARCHITECTURE → "Screens stay in step"; a screen that loads once and
 never again is a bug. The desktop app closes to the tray (Linux: a freedesktop
-StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; elsewhere AWT's tray), runs once: a second start, a
+StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; Windows: AWT's icon with a menu Kadans draws, `tray/WindowsTray`;
+elsewhere AWT's tray), runs once: a second start, a
 `./gradlew :desktopApp:run` too, shows the running one's window and exits (`desktop/SingleInstance`; quit it from the tray
 first), and an installed build opens with the session (`startup/StartAtLogin`, `--background`; a Gradle run never does).
 On Linux it types accents with dead keys through Xlib's own input method when the session's (IBus) is not running

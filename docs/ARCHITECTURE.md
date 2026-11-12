@@ -613,6 +613,15 @@ the tray icon brings the window back ("Open Kadans") or quits. The menu follows 
   without any tray the close button quits, as before, so the app is never left running invisible.
 - **Elsewhere: AWT's tray**, which is the system's own on Windows and macOS. Notification balloons use that same icon
   (they used to add a second one). macOS: clicking the Dock icon shows the window again (untested: no Mac yet).
+- **Windows: Kadans' own menu** (`tray/WindowsTray`, `tray/TrayMenu`; the design approved on 2026-11-12). AWT's menu is
+  Windows' old classic one (small type, thin lines, never dark) and cannot be styled, so the right-click opens a menu
+  Kadans draws: rounded corners, a soft shadow, 40 dp rows with an icon each (the Kadans clock, "Open Kadans"; a
+  separator; a power icon, "Quit"), light or dark as the app, in its language. It is a window of its own (a dialog: no
+  taskbar button; no frame, a transparent background for the shadow, above the others), opened above the click and to
+  its left (below or to the right next to a taskbar at the top or the left), always whole on the screen
+  (`TrayMenuLayout.place`), and it closes when it loses focus, on Esc, or once a row is taken; the arrows pick a row.
+  The icon itself is AWT's, created by Kadans rather than Compose's `Tray` (which offers no right-click of its own), so
+  the balloons still find it, and a double-click still opens the window.
 - **One Kadans per user** (`desktop/SingleInstance`): a lock file the system releases however the process ends, and a
   Unix socket beside it, in a folder only the user can open (`$XDG_RUNTIME_DIR/kadans` on Linux). A second start, such
   as the launcher clicked while Kadans sits in the tray, connects, the first shows its window, and the second exits.

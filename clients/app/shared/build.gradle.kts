@@ -134,6 +134,8 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation(libs.zxing.core) // reads the QR code back
+            // Skia's native library for this computer, so a test can draw a composable offscreen (the tray menu)
+            implementation(compose.desktop.currentOs)
         }
     }
 }

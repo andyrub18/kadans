@@ -544,6 +544,10 @@ installing on real devices second, hosting last.
       host answers `X-Robots-Tag: noindex`. Checked against the real nginx image with test certificates: the 18
       pages, every redirect in each language, the headers on each answer (DEPLOYMENT → The website → Search engines).
       The owner's part, after the deploy: OWNER-CHECKLIST → Google Search Console.
+- [x] The Windows tray menu, drawn by Kadans (2026-11-12, the owner's design review): Java's menu was Windows' old classic
+      one ("the menu lines are weak"). A mock-up in light and dark was approved, then built as `tray/TrayMenu` in a window
+      of its own (ARCHITECTURE → "The desktop app: in the tray, once"). For the next desktop version; to check on a real
+      Windows PC before it ships: it opens beside the tray and closes on a click elsewhere.
 - [x] Google Play's store listing (2026-11-01): the texts in `store/play/` (en-US, fr-FR, and ht for when Play offers
       Kreyòl; fastlane's layout), checked against Play's limits in CI (`tools/store/play.py check`);
       `tools/demo/seed_demo.py` fills an empty demo account (todos with three later today, a focus cycle, four accounts

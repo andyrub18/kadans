@@ -23,6 +23,7 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
     public DbSet<PomodoroRun> PomodoroRuns => Set<PomodoroRun>();
     public DbSet<PomodoroRunPhase> PomodoroRunPhases => Set<PomodoroRunPhase>();
     public DbSet<ReminderChange> ReminderChanges => Set<ReminderChange>();
+    public DbSet<CalendarFeedLink> CalendarFeedLinks => Set<CalendarFeedLink>();
 
     /// <summary>Tells the account's apps a moment later that its reminders changed; handed over when the context is rented.</summary>
     internal ReminderSignals? Signals { get; set; }
@@ -109,8 +110,8 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
 
     /// <summary>
     /// The person making this save, when it changes what the apps' screens show: a todo, its rule, an occurrence (its
-    /// note too), a focus template. Not a session, which has its own event; never a job's stamps. Reads never save, so
-    /// the apps' reloads never signal again.
+    /// note too), a focus template, the calendar feed turned on, off or reset (Settings on their other devices). Not a
+    /// session, which has its own event; never a job's stamps. Reads never save, so the apps' reloads never signal again.
     /// </summary>
     private string? ChangesScreens() =>
         CurrentUserId is { } userId
@@ -345,6 +346,17 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
         {
             c.HasKey(x => x.UserId).HasName("pk_reminder_changes");
             c.Property(x => x.UserId).HasMaxLength(450);
+        });
+
+        // One row per account whose calendar feed is on. The feed's own address finds it by the nonce in the link.
+        builder.Entity<CalendarFeedLink>(l =>
+        {
+            l.HasKey(x => x.UserId).HasName("pk_calendar_feed_links");
+            l.Property(x => x.UserId).HasMaxLength(450);
+            l.Property(x => x.Nonce).IsRequired().HasMaxLength(CalendarFeedLink.NonceSize);
+            l.HasIndex(x => x.Nonce).IsUnique().HasDatabaseName("ix_calendar_feed_links_nonce");
+
+            l.HasQueryFilter(x => x.UserId == CurrentUserId);
         });
     }
 }

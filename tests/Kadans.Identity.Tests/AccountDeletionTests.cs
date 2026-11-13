@@ -3,6 +3,7 @@ using Kadans.Modules.Identity.Contracts;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Account;
 using Kadans.Modules.Identity.Features.Auth;
+using Kadans.Modules.Identity.Features.Users;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Errors;
@@ -162,6 +163,37 @@ public sealed class AccountDeletionTests : IAsyncDisposable
         // A sign-in token is not a restore token, and the reverse.
         var bogus = await InScopeAsync(p => p.GetRequiredService<AccountDeletions>().Restore(new RestoreAccountRequest(kept.AsT1.AccessToken!)));
         await Assert.That(bogus.IsT0).IsTrue();
+    }
+
+    [Test]
+    public async Task What_answers_without_a_sign_in_learns_that_an_account_is_closed()
+    {
+        // The calendar feed's link is read with no session to refuse: it asks the directory instead.
+        var alice = await UserAsync("alice");
+        Task<bool> Open(string userId) =>
+            InScopeAsync(p =>
+                new UserDirectory(p.GetRequiredService<UserManager<ApplicationUser>>(), p.GetRequiredService<IdentityModuleDbContext>()).IsOpenAsync(userId)
+            );
+
+        await Assert.That(await Open(alice.Id)).IsTrue();
+        await Assert.That(await Open("nobody")).IsFalse();
+
+        // Asked to be deleted: closed at once, days before the erasure.
+        await AskAsync(alice, Password);
+        await Assert.That(await Open(alice.Id)).IsFalse();
+
+        // Kept from the sign-in offer: open again.
+        var offer = (await LoginAsync("alice")).AsT1;
+        await InScopeAsync(p => p.GetRequiredService<AccountDeletions>().Restore(new RestoreAccountRequest(offer.RestoreToken!)));
+        await Assert.That(await Open(alice.Id)).IsTrue();
+
+        // Deactivated (by an admin, or the person): locked for good.
+        await InScopeAsync(async p =>
+        {
+            var users = p.GetRequiredService<UserManager<ApplicationUser>>();
+            return await users.SetLockoutEndDateAsync((await users.FindByIdAsync(alice.Id))!, DateTimeOffset.MaxValue);
+        });
+        await Assert.That(await Open(alice.Id)).IsFalse();
     }
 
     [Test]

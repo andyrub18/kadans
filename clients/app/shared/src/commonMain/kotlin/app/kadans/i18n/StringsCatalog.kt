@@ -443,6 +443,53 @@ data class NotificationStrings(
 )
 
 /**
+ * Settings → My todos in my calendar (ARCHITECTURE → "The calendar feed"): turning the feed on, its secret link, how to
+ * give it to a calendar app, and replacing it or turning it off. A feature group.
+ */
+data class CalendarFeedStrings(
+    /** The row in Settings: what the page is for. */
+    val section: String,
+    /** The page's title, short: the top bar holds one line, and a phone's cuts a longer one. */
+    val title: String,
+    val intro: String,
+    /** What a calendar gets: titles and times, nothing else. */
+    val whatItShows: String,
+    val turnOn: String,
+    /** The feed is part of the phones' subscription: said to an account without one (on the free desktop app). */
+    val needsSubscription: String,
+    /** With [needsSubscription], when a link was already given to calendars: they show nothing meanwhile. */
+    val paused: String,
+    val neverRead: String,
+    /** `%s`: the day and time a calendar last read the link ("Today · 14:02"). */
+    val lastReadFormat: String,
+    val linkLabel: String,
+    val copyLink: String,
+    val linkCopied: String,
+    val googleTitle: String,
+    /** On a computer: where to paste the link in Google Calendar. */
+    val googleOnComputer: String,
+    /** On a phone: Google Calendar's app cannot add a calendar from a link; it is done once on a computer. */
+    val googleOnPhone: String,
+    val openGoogle: String,
+    /** After [openGoogle]: the link is in the clipboard, and where to paste it. */
+    val googleOpened: String,
+    val othersTitle: String,
+    val othersSteps: String,
+    /** Each calendar reads the link when it decides to: hours for Google, minutes for most others. */
+    val delay: String,
+    /** The link is a secret: who can read what with it, and what to do if it got out. */
+    val secret: String,
+    val replace: String,
+    val replaceTitle: String,
+    val replaceText: String,
+    val turnOff: String,
+    val turnOffTitle: String,
+    val turnOffText: String,
+) {
+    fun lastRead(moment: String): String = lastReadFormat.replace("%s", moment)
+}
+
+/**
  * Reminders this phone rings itself (ARCHITECTURE → "Reminders ring on the phone"): asking for "Alarms & reminders",
  * the Settings section, the name the system lists reminders under, and a reminder's buttons. A feature group.
  */
@@ -566,6 +613,7 @@ data class StringsCatalog(
     val dates: DateStrings,
     val nav: NavStrings,
     val appearance: AppearanceStrings,
+    val calendarFeed: CalendarFeedStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,
@@ -840,6 +888,7 @@ data class StringsCatalog(
         "10049" -> errSameAccount
         "10050" -> errCategoryKind
         "10051" -> errAccountArchived
+        "10059" -> calendarFeed.needsSubscription
         else -> fallback ?: errGeneric
     }
 }

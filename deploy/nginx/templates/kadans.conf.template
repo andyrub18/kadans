@@ -24,7 +24,7 @@ gzip on;
 gzip_comp_level 5;
 gzip_min_length 512;
 gzip_vary on;
-gzip_types application/json application/problem+json text/plain; # text/html is always compressed
+gzip_types application/json application/problem+json text/plain text/calendar; # text/html is always compressed
 
 server {
     listen 80;
@@ -34,6 +34,14 @@ server {
     # Let's Encrypt's HTTP-01 challenge: certbot writes the answer, nginx serves it.
     location /.well-known/acme-challenge/ {
         root /var/www/acme;
+    }
+
+    # A calendar feed's link is its own credential (docs/ARCHITECTURE.md → "The calendar feed"). Asked for over plain
+    # http, it has just travelled in the clear, and a redirect would let a calendar given an http:// or webcal://
+    # address go on sending it that way at every read. Refused instead: such a subscription fails the first time, and
+    # Kadans only ever hands out https:// links.
+    location ~* ^/calendar/feed/ {
+        return 404;
     }
 
     location / {

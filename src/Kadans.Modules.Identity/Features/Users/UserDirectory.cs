@@ -1,12 +1,22 @@
 using Kadans.Modules.Identity.Domain;
+using Kadans.Modules.Identity.Persistence;
+using Kadans.Modules.Identity.Security;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Kadans.Modules.Identity.Features.Users;
 
-internal sealed class UserDirectory(UserManager<ApplicationUser> userManager) : IUserDirectory
+internal sealed class UserDirectory(UserManager<ApplicationUser> userManager, IdentityModuleDbContext dbContext) : IUserDirectory
 {
+    public async Task<bool> IsOpenAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userManager.FindByIdAsync(userId);
+        return user is not null
+            && !AccountLock.IsDeactivated(user)
+            && !await dbContext.AccountDeletions.AnyAsync(d => d.UserId == userId && d.ErasedAt == null, cancellationToken);
+    }
+
     public async Task<UserSummary?> FindAsync(string userId, CancellationToken cancellationToken = default)
     {
         var user = await userManager.FindByIdAsync(userId);

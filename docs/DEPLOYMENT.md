@@ -246,6 +246,10 @@ Pending migrations are applied as the new container starts (`Database:MigrateOnS
 image; the log names each one). Migrations only go forward: to undo a bad release, check out the previous
 commit, and if its schema is older, restore the last dump first.
 
+nginx reads its configuration when its container starts, and `up -d --build` leaves a running nginx alone. After an
+update that changed `deploy/nginx/` (2026-11-13: calendar feed links refused on port 80, calendar files compressed),
+recreate it: `docker compose up -d --force-recreate --no-deps nginx`. HTTPS is away for a few seconds.
+
 ## The website
 
 `https://kadansplanning.com` is plain files (`site/public`, made by `site/generate.py`: `site/README.md`), served by
@@ -308,8 +312,10 @@ the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per reque
   before the first, when there is no certificate at all, or while the website's cannot be obtained (it reads 0).
 - **Keep the `letsencrypt` volume**: the certificate and the Let's Encrypt account. Re-issuing the same name is
   rate-limited (5 a week).
-- **What nginx does**: TLS 1.2 and 1.3 (Mozilla's intermediate profile), HTTP/2, gzip for the apps' JSON, HSTS,
-  WebSockets for the hub, no version in the `Server` header, no access log (the metrics count requests). Its main
+- **What nginx does**: TLS 1.2 and 1.3 (Mozilla's intermediate profile), HTTP/2, gzip for the apps' JSON and for
+  calendar feeds, HSTS, WebSockets for the hub, no version in the `Server` header, no access log (the metrics count
+  requests). On port 80 everything is redirected to HTTPS except calendar feed links, which get a 404: a link asked
+  for over plain http has travelled in the clear, and a redirect would let a calendar go on asking that way. Its main
   configuration (`deploy/nginx/nginx.conf`) allows 16,384 connections per worker: each open app holds one, and nginx
   a second to the API. The image's default, 1,024, refused new connections past about 1,000 open apps. It puts the client's own address in `X-Forwarded-For`,
   replacing whatever the client sent: the rate limits are per client, and a client must not pick its own. It asks
@@ -323,8 +329,8 @@ the same work (TLS, HTTP/2, gzip, WebSockets) with half of Caddy's CPU per reque
 
 ## Subscriptions
 
-Off until the Play product is live (`BILLING_REQUIRED=false`): no paywall, and every phone gets its reminders. To
-switch them on, once OWNER-CHECKLIST → Subscriptions is done:
+Off until the Play product is live (`BILLING_REQUIRED=false`): no paywall, every phone gets its reminders, and every
+account may turn on its calendar feed. To switch them on, once OWNER-CHECKLIST → Subscriptions is done:
 
 ```bash
 cd deploy
@@ -337,7 +343,9 @@ nano .env   # BILLING_REQUIRED=true
 docker compose up -d
 ```
 
-With `BILLING_REQUIRED=true` the API refuses to start if the key or the notification settings are missing. The
+With `BILLING_REQUIRED=true` the API refuses to start if the key or the notification settings are missing. From
+then on an account without a subscription (and not a free account) cannot turn on its calendar feed, and one that had
+turned it on gives its calendars an empty calendar until it subscribes: its link is kept. The
 Pub/Sub push subscription points at `https://<domain>/billing/google/notifications`, with authentication on (that
 service account) and the same URL as audience.
 
@@ -446,7 +454,10 @@ started with `dotnet run` (Development) already sends there.
   Successful, fast requests are not logged; the metrics count them.
 - Rate limits, per client address (the real one: nginx replaces `X-Forwarded-For` with it; IPv6 counts per /64).
   Sign-up, forgot password, resend confirmation and email change: 5 per 15 minutes. Sign-in, 2FA codes and
-  password change: 20 a minute. Everything else: 300 a minute. Health checks are never limited. On top of
+  password change: 20 a minute. Everything else: 300 a minute. Health checks are never limited. Calendar feed
+  links are counted apart, 600 a minute per address (`RateLimiting__FeedPerMinute`: Google's and Apple's servers read
+  many people's feeds from the same addresses), and each link 60 times an hour wherever from
+  (`Tasks__CalendarFeedFetchesPerHour`). On top of
   that, one confirmation, reset or email-change mail per address every 2 minutes. Over a limit the API answers
   429 with `Retry-After` and logs `Rate limit reached by <client> on <request>`
   (`docker compose logs api | grep "Rate limit"`). To change a number, add it to the `api` service's
@@ -469,11 +480,18 @@ started with `dotnet run` (Development) already sends there.
 - OS updates: `sudo apt update && sudo apt upgrade`, and `unattended-upgrades` for security patches.
 - Certificates: certbot renews them (Proxy and certificates above); keep the `letsencrypt` volume.
 - Secrets live only in `deploy/.env` and `deploy/secrets/` on the server (both git-ignored). Changing
-  `JWT_KEY` signs everyone out and invalidates emailed links not yet opened; changing `POSTGRES_PASSWORD`
+  `JWT_KEY` signs everyone out, invalidates emailed links not yet opened and ends every calendar feed link (each
+  person turns theirs on again in Settings and gives the new link to their calendar); changing `POSTGRES_PASSWORD`
   in `.env` does not change the password already stored in the database volume.
 - Emailed links (confirm email, reset password, confirm a new email) carry tokens protected by ASP.NET
   Core Data Protection. Its key ring is in the database (`identity.data_protection_keys`), encrypted with
   a key derived from `JWT_KEY`: links survive updates, and a database dump alone cannot forge them.
+- Calendar feed links (ARCHITECTURE → "The calendar feed") are signed with another key derived from `JWT_KEY`; the
+  database keeps only what is signed, so a dump alone opens no feed. A link is never written to a log: a refused or
+  slow read shows as `/calendar/feed/…`. Someone whose link got out replaces it in Settings; there is nothing to do
+  on the server. How many are read: `kadans_calendar_feed_fetches_total` by outcome (`refused`: links that are
+  unknown, replaced, turned off, or of a closed account; `withheld`: an empty calendar, the account has no
+  subscription).
 
 ## Other hosts
 

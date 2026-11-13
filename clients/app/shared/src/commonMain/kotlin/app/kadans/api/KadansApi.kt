@@ -62,6 +62,7 @@ class KadansApi internal constructor(
     val notifications: NotificationsApi = NotificationsApi(this)
     val billing: BillingApi = BillingApi(this)
     val reminders: RemindersApi = RemindersApi(this)
+    val calendarFeed: CalendarFeedApi = CalendarFeedApi(this)
 
     private val _sessionEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 

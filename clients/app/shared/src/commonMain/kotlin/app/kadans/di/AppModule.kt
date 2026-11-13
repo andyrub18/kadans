@@ -41,6 +41,7 @@ import app.kadans.ui.billing.PaywallViewModel
 import app.kadans.ui.billing.SubscriptionSettingsViewModel
 import app.kadans.ui.home.HomeViewModel
 import app.kadans.ui.notifications.NotificationsViewModel
+import app.kadans.ui.settings.CalendarFeedViewModel
 import app.kadans.ui.settings.SettingsViewModel
 import app.kadans.ui.stats.StatsViewModel
 import app.kadans.ui.templates.TemplatesViewModel
@@ -136,6 +137,7 @@ val appModule = org.koin.dsl.module {
     // A new movement, or one to correct (its id).
     viewModel { params -> BudgetAddViewModel(get(), params.getOrNull<String>()) }
     viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
+    viewModelOf(::CalendarFeedViewModel)
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }
     viewModelOf(::CreateTodoViewModel)

@@ -850,6 +850,31 @@ installing on real devices second, hosting last.
       10.0.13, the release that fixes them, with Microsoft.OpenApi 2.12.2 (which AspNetCore.OpenApi 10.0.13 requires).
       The images' floating `10.0` tags bring the runtime's own copy at the next image build. Checked: the server's tests,
       `identity_flows.py` and `task_flows.py`, the OpenAPI document.
+- [x] 2026-11-13, asked by an internal tester ("integrate Kadans with my phone's calendar"): the calendar feed
+      (ARCHITECTURE → "The calendar feed"). Settings → "My todos in my calendar" turns on a private link that Google
+      Calendar, Apple Calendar, Outlook or any calendar app subscribes to; it then shows each todo at its time. One
+      feature for every platform, the desktop included; one way only. Decided with the owner: an event lasts the
+      todo's focus cycle or 30 minutes, the calendar gets the title and the time and nothing else, pending and done
+      times from 30 days back to 90 ahead. Security: the link is its own credential, signed with a key derived from
+      the server's secret (a database dump opens none), `https://` only (never `webcal://`, which calendar apps read
+      over plain http; nginx refuses feed links on port 80), cut out of every log line, replaced or turned off in
+      Settings, dead the moment the account is closed, with its own rate allowance per address and per link. Found
+      while testing: ASP.NET attaches the request's path to every log line written during a request, so the link
+      reached the logs through lines that never mention it; the scrubber now sits on the whole log pipeline. Checked:
+      the server's tests (380), `calendar_feed_flows.py`, `task_flows.py`, the app's tests and `RealApiSmokeTest`
+      against a local API, the page rendered in the three languages, light and dark, at a phone's and a computer's
+      width, the Android debug build, nginx's configuration parsed.
+      - [ ] By the owner, once deployed: subscribe from a real Google account (on a computer: Settings → "My todos in
+        my calendar" → "Copy the link and open Google Calendar"), check that the calendar shows on the phone and how
+        long a change takes; the same with Outlook or an iPhone if one is at hand.
+      - [x] Decided by the owner the same day: the feed is part of the phones' subscription, or the free desktop app
+        would be a way around the paywall (the todos on the phone, in its calendar). Without one: no turning on, no
+        new link (402), and the page says where to subscribe; a subscription that ends keeps the link and empties
+        the calendar, and its return fills it again. Nothing changes while `Billing:Required` is off. The terms and
+        the site's questions say so. Checked with `calendar_feed_flows.py` against an API started with
+        `Billing__Required=true` and Development's fake store.
+      - [ ] Later, if testers ask: the phone writing todos into its own calendar (instant, that phone only) and
+        showing the calendar's events beside the todos; Google's own API (two-way) is not planned.
 
 Nice-to-have hardening
 

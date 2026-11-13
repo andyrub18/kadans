@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kadans.Api.Tests;
 
@@ -14,7 +17,39 @@ public class RateLimitingTests
 {
     private const string ClientHeader = "X-Test-Client";
 
-    private static async Task<WebApplication> StartAsync(int emailPer15Minutes = 5, int credentialsPerMinute = 20, int requestsPerMinute = 300)
+    /// <summary>What the host logged, to check what a rejection's line holds.</summary>
+    private sealed class Logged : ILoggerProvider
+    {
+        public List<string> Lines { get; } = [];
+
+        // The limiter's own lines: ASP.NET's, which the host's log pipeline cleans (TelemetryTests), are not its doing.
+        public ILogger CreateLogger(string categoryName) => categoryName == "Kadans.RateLimiting" ? new Category(Lines) : NullLogger.Instance;
+
+        public void Dispose() { }
+    }
+
+    private sealed class Category(List<string> lines) : ILogger
+    {
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            lock (lines)
+                lines.Add(formatter(state, exception));
+        }
+    }
+
+    private static async Task<WebApplication> StartAsync(
+        int emailPer15Minutes = 5,
+        int credentialsPerMinute = 20,
+        int requestsPerMinute = 300,
+        int feedPerMinute = 600,
+        ILoggerProvider? logged = null
+    )
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -23,8 +58,11 @@ public class RateLimitingTests
             ["RateLimiting:EmailPer15Minutes"] = $"{emailPer15Minutes}",
             ["RateLimiting:CredentialsPerMinute"] = $"{credentialsPerMinute}",
             ["RateLimiting:RequestsPerMinute"] = $"{requestsPerMinute}",
+            ["RateLimiting:FeedPerMinute"] = $"{feedPerMinute}",
         });
         builder.Services.AddKadansRateLimiting(builder.Configuration);
+        if (logged is not null)
+            builder.Logging.AddProvider(logged);
 
         var app = builder.Build();
         // The test picks the client's address; in production the forwarded-headers middleware sets it from nginx.
@@ -39,6 +77,7 @@ public class RateLimitingTests
         app.MapPost("/sign-in", () => "ok").RequireRateLimiting(RateLimitPolicies.Credentials);
         app.MapGet("/anything", () => "ok");
         app.MapGet("/health/live", () => "ok");
+        app.MapGet(SecretLinks.CalendarFeed + "/{secret}/kadans.ics", () => "BEGIN:VCALENDAR");
         await app.StartAsync();
         return app;
     }
@@ -90,6 +129,61 @@ public class RateLimitingTests
         await Assert.That((await SendAsync(app, HttpMethod.Get, "/anything")).StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
         for (var i = 0; i < 30; i++)
             await Assert.That((await SendAsync(app, HttpMethod.Get, "/health/live")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task The_calendar_feed_has_its_own_allowance_apart_from_the_apis()
+    {
+        // A calendar provider reads everyone's feed from one address: those reads must not spend the allowance a
+        // person at that address has for the app, nor the other way round.
+        await using var app = await StartAsync(requestsPerMinute: 2, feedPerMinute: 3);
+        for (var i = 0; i < 2; i++)
+            await Assert.That((await SendAsync(app, HttpMethod.Get, "/anything")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/anything")).StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+
+        for (var i = 0; i < 3; i++)
+            await Assert.That((await SendAsync(app, HttpMethod.Get, $"/calendar/feed/link-{i}/kadans.ics")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/calendar/feed/link-4/kadans.ics")).StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+
+        // Another address has its own.
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/calendar/feed/link-0/kadans.ics", client: "198.51.100.20")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task Reading_feeds_does_not_spend_the_apis_allowance()
+    {
+        await using var app = await StartAsync(requestsPerMinute: 1, feedPerMinute: 5);
+        for (var i = 0; i < 5; i++)
+            await SendAsync(app, HttpMethod.Get, "/calendar/feed/a-link/kadans.ics");
+
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/anything")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task An_address_under_the_feeds_prefix_that_is_no_feed_is_counted_too()
+    {
+        // Invented or mistyped links cannot be tried without limit: the allowance covers the prefix, not the route.
+        await using var app = await StartAsync(feedPerMinute: 2);
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/calendar/feed/nothing-here")).StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/Calendar/Feed/x/y/z")).StatusCode).IsEqualTo(HttpStatusCode.NotFound);
+
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/calendar/feed/nothing-here")).StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+    }
+
+    [Test]
+    public async Task A_refused_feed_read_is_logged_without_its_link()
+    {
+        var logged = new Logged();
+        await using var app = await StartAsync(feedPerMinute: 1, logged: logged);
+        await SendAsync(app, HttpMethod.Get, "/calendar/feed/THE-SECRET/kadans.ics");
+
+        var refused = await SendAsync(app, HttpMethod.Get, "/calendar/feed/THE-SECRET/kadans.ics");
+
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        List<string> lines;
+        lock (logged.Lines)
+            lines = [.. logged.Lines];
+        await Assert.That(lines).IsEquivalentTo(["Rate limit reached by 203.0.113.7 on GET /calendar/feed/…"]);
     }
 
     [Test]

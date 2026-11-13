@@ -91,7 +91,8 @@ TEXTS = {
         "q4": "How do I delete my account?",
         "a4": 'See <a href="{delete}">Delete my account</a>.',
         "q5": "Is the computer app really free?",
-        "a5": "Yes. A subscription is only needed on phones.",
+        "a5": "Yes. A subscription is only needed on phones, and for the calendar link, which brings your tasks to your "
+              "phone's calendar.",
 
         "del_title": "Delete my account – Kadans",
         "del_description": "Delete your Kadans account in the app or without it. It closes at once and is erased "
@@ -208,7 +209,8 @@ TEXTS = {
         "q4": "Comment supprimer mon compte ?",
         "a4": 'Voir <a href="{delete}">Supprimer mon compte</a>.',
         "q5": "L'application pour ordinateur est-elle vraiment gratuite ?",
-        "a5": "Oui. L'abonnement ne concerne que les téléphones.",
+        "a5": "Oui. L'abonnement ne concerne que les téléphones, et le lien de calendrier, qui amène vos tâches dans "
+              "le calendrier de votre téléphone.",
 
         "del_title": "Supprimer mon compte – Kadans",
         "del_description": "Supprimez votre compte Kadans, avec ou sans l'application. Il est fermé aussitôt, puis "
@@ -320,7 +322,8 @@ TEXTS = {
         "q4": "Kijan pou m efase kont mwen?",
         "a4": 'Gade <a href="{delete}">Efase kont mwen</a>.',
         "q5": "Èske aplikasyon òdinatè a gratis toutbon?",
-        "a5": "Wi. Se sèlman sou telefòn ou bezwen yon abònman.",
+        "a5": "Wi. Se sèlman sou telefòn ou bezwen yon abònman, ak pou lyen kalandriye a, ki mete travay ou yo nan "
+              "kalandriye telefòn ou.",
 
         "del_title": "Efase kont mwen – Kadans",
         "del_description": "Efase kont Kadans ou nan aplikasyon an oswa san li. Li fèmen touswit, epi li efase sèt "

@@ -21,6 +21,12 @@ internal sealed class RateLimitingOptions
 
     /// <summary>Every other request (health checks excepted).</summary>
     public int RequestsPerMinute { get; set; } = 300;
+
+    /// <summary>
+    /// Reads of secret links (<see cref="SecretLinks"/>: the calendar feed), counted apart from the rest: a calendar
+    /// provider reads everyone's feed from the same few addresses.
+    /// </summary>
+    public int FeedPerMinute { get; set; } = 600;
 }
 
 /// <summary>
@@ -43,6 +49,15 @@ internal static class RateLimiting
                 // An uptime monitor polls these; they reveal nothing and cost one query.
                 http.Request.Path.StartsWithSegments("/health")
                     ? RateLimitPartition.GetNoLimiter("health")
+                    // Google's or Apple's servers read everyone's calendar feed: under the limit above, a few hundred
+                    // subscribers would share one address's allowance, and a person at that address would lose theirs
+                    // to them. Everything under a secret link's prefix has its own allowance per address, a mistyped
+                    // or invented link too; each real link has its own on top of it (CalendarFeedLimiter, in Tasks).
+                    : SecretLinks.Holds(http.Request.Path)
+                        ? RateLimitPartition.GetFixedWindowLimiter(
+                            FeedPartition + ClientOf(http),
+                            _ => new FixedWindowRateLimiterOptions { PermitLimit = limits.FeedPerMinute, Window = TimeSpan.FromMinutes(1) }
+                        )
                     : RateLimitPartition.GetFixedWindowLimiter(
                         ClientOf(http),
                         _ => new FixedWindowRateLimiterOptions { PermitLimit = limits.RequestsPerMinute, Window = TimeSpan.FromMinutes(1) }
@@ -53,6 +68,9 @@ internal static class RateLimiting
             options.AddPolicy(RateLimitPolicies.Credentials, http => Bucket(ClientOf(http), limits.CredentialsPerMinute, TimeSpan.FromMinutes(1)));
         });
     }
+
+    /// <summary>Before the client's address in a partition's name: the same address has two allowances, never one mixed.</summary>
+    private const string FeedPartition = "feed ";
 
     /// <summary>
     /// <paramref name="perWindow"/> requests at once at most, refilled one at a time over <paramref name="window"/>:
@@ -101,7 +119,8 @@ internal static class RateLimiting
         http.RequestServices
             .GetRequiredService<ILoggerFactory>()
             .CreateLogger("Kadans.RateLimiting")
-            .LogWarning("Rate limit reached by {Client} on {Method} {Path}", ClientOf(http), http.Request.Method, http.Request.Path);
+            // Never a secret link's path: the link is its own credential.
+            .LogWarning("Rate limit reached by {Client} on {Method} {Path}", ClientOf(http), http.Request.Method, SecretLinks.Loggable(http.Request.Path));
 
         var problem = new ApplicationError(ErrorTypes.TooManyRequests, "Too many attempts. Try again in a moment.").ToProblemDetails(http);
         await TypedResults.Problem(problem).ExecuteAsync(http);

@@ -108,6 +108,7 @@ public static class ErrorTexts
         ["10056"] = new("Cet achat n'a pas pu être vérifié.", "Nou pa t ka verifye acha sa a."),
         ["10057"] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
         ["10058"] = new("Le serveur est surchargé. Réessayez dans un moment.", "Sèvè a twò chaje kounye a. Tann yon ti moman epi eseye ankò."),
+        ["10059"] = new("Cela fait partie de l'abonnement du téléphone.", "Sa fè pati abònman telefòn nan."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
@@ -180,6 +181,10 @@ public static class ErrorTexts
         ["This account has no email address."] = new("Ce compte n'a pas d'adresse e-mail.", "Kont sa a pa gen adrès imèl."),
         ["This offer to keep the account has expired. Sign in again."] = new("Cette offre de garder le compte a expiré. Reconnectez-vous.", "Òf pou kenbe kont lan ekspire. Konekte ankò."),
         ["Subscriptions are not available yet."] = new("Les abonnements ne sont pas encore disponibles.", "Abònman yo poko disponib."),
+        ["The calendar link is part of the phone subscription."] = new(
+            "Le lien de calendrier fait partie de l'abonnement du téléphone.",
+            "Lyen kalandriye a fè pati abònman telefòn nan."
+        ),
         ["This purchase could not be verified."] = new("Cet achat n'a pas pu être vérifié.", "Nou pa t ka verifye acha sa a."),
         ["This subscription belongs to another Kadans account."] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
         ["No account has that username or confirmed email address."] = new("Aucun compte n'a ce nom d'utilisateur ou cette adresse e-mail confirmée.", "Pa gen okenn kont ki gen non itilizatè sa a oswa adrès imel konfime sa a."),

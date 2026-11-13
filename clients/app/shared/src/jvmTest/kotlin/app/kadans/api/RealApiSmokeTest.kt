@@ -61,6 +61,23 @@ class RealApiSmokeTest {
                 app.kadans.api.model.UpdateAccount(account.name, account.type, isArchived = true),
             )
 
+            // the calendar feed: on with a link, the same when asked again, another after a reset, off
+            api.calendarFeed.turnOff()
+            assertEquals(false, api.calendarFeed.get().enabled)
+            val feed = api.calendarFeed.turnOn()
+            val link = feed.url ?: error("the feed is on without a link")
+            assertTrue(feed.enabled && feed.createdAt != null && feed.lastFetchedAt == null, "just turned on: $feed")
+            assertTrue("/calendar/feed/" in link && link.endsWith("/kadans.ics"), "the link: $link")
+            assertEquals(link, api.calendarFeed.get().url)
+            // read once the way a calendar app does, with nothing but the link
+            val file = java.net.URI(link).toURL().readText()
+            assertTrue(file.startsWith("BEGIN:VCALENDAR"), "the feed is a calendar file")
+            assertTrue(api.calendarFeed.get().lastFetchedAt != null, "Settings says a calendar read it")
+            val replaced = api.calendarFeed.reset()
+            assertTrue(replaced.enabled && replaced.url != null && replaced.url != link && replaced.lastFetchedAt == null, "after a reset: $replaced")
+            api.calendarFeed.turnOff()
+            assertEquals(null, api.calendarFeed.get().url)
+
             api.auth.logout()
         }
     }

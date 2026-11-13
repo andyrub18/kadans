@@ -33,6 +33,7 @@ builder.Host.UseSerilog(
     (context, configuration) =>
         configuration
             .ReadFrom.Configuration(context.Configuration)
+            .HideSecretLinks()
             .WriteToLoki(Telemetry.Options(context.Configuration), context.HostingEnvironment.EnvironmentName)
 );
 

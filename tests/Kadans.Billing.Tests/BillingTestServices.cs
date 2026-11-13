@@ -105,4 +105,6 @@ internal sealed class FakeUserDirectory : IUserDirectory
             Users.FirstOrDefault(u => string.Equals(u.Username, usernameOrEmail, StringComparison.OrdinalIgnoreCase))
                 ?? Users.FirstOrDefault(u => u.EmailConfirmed && string.Equals(u.Email, usernameOrEmail, StringComparison.OrdinalIgnoreCase))
         );
+
+    public Task<bool> IsOpenAsync(string userId, CancellationToken cancellationToken = default) => Task.FromResult(Users.Any(u => u.Id == userId));
 }

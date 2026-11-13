@@ -61,7 +61,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Settings' pages. The main one holds the account (and Sign out), how the app reads (language, time format, time
  * zone) and what belongs to this device; each account matter opens its own page from a row.
  */
-enum class SettingsPage { Main, Profile, EmailAndPassword, TwoFactor, Devices, DeleteAccount }
+enum class SettingsPage { Main, Profile, EmailAndPassword, TwoFactor, Devices, Calendar, DeleteAccount }
 
 @Composable
 fun SettingsScreen(
@@ -114,6 +114,7 @@ fun SettingsScreen(
                         }
                         SettingsPage.TwoFactor -> TwoFactorSection(state, viewModel)
                         SettingsPage.Devices -> DevicesSection(state, viewModel)
+                        SettingsPage.Calendar -> CalendarFeedPage()
                         SettingsPage.DeleteAccount -> DeleteAccountSection(state, viewModel)
                     }
                 }
@@ -128,6 +129,7 @@ private fun SettingsPage.title(s: StringsCatalog): String = when (this) {
     SettingsPage.EmailAndPassword -> s.nav.emailAndPassword
     SettingsPage.TwoFactor -> s.mfaSection
     SettingsPage.Devices -> s.account.devicesSection
+    SettingsPage.Calendar -> s.calendarFeed.title
     SettingsPage.DeleteAccount -> s.deletion.section
 }
 
@@ -185,6 +187,7 @@ private fun MainPage(
         trailing = if (state.user?.twoFactorEnabled == true) s.mfaEnabledBadge else s.mfaDisabledBadge,
     )
     SettingsRow(s.account.devicesSection, onClick = { onOpen(SettingsPage.Devices) })
+    SettingsRow(s.calendarFeed.section, onClick = { onOpen(SettingsPage.Calendar) })
     SettingsRow(s.deletion.section, onClick = { onOpen(SettingsPage.DeleteAccount) }, danger = true)
 }
 

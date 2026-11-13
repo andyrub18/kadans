@@ -19,10 +19,41 @@ namespace Kadans.Modules.Tasks.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("tasks")
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Kadans.Modules.Tasks.Domain.CalendarFeedLink", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("LastFetchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_fetched_at");
+
+                    b.Property<byte[]>("Nonce")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("bytea")
+                        .HasColumnName("nonce");
+
+                    b.HasKey("UserId")
+                        .HasName("pk_calendar_feed_links");
+
+                    b.HasIndex("Nonce")
+                        .IsUnique()
+                        .HasDatabaseName("ix_calendar_feed_links_nonce");
+
+                    b.ToTable("calendar_feed_links", "tasks");
+                });
 
             modelBuilder.Entity("Kadans.Modules.Tasks.Domain.PomodoroRun", b =>
                 {

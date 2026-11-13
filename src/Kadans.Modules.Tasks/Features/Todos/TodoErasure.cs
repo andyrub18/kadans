@@ -34,6 +34,8 @@ internal sealed class TodoErasure(TasksDbContext dbContext, ICurrentUserService 
         await EraseTodosAsync(dbContext.Todos.IgnoreQueryFilters().Where(t => t.UserId == userId), cancellationToken);
         await dbContext.PomodoroRuns.IgnoreQueryFilters().Where(r => r.UserId == userId).ExecuteDeleteAsync(cancellationToken);
         await dbContext.PomodoroTemplates.IgnoreQueryFilters().Where(t => t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        // The calendar feed's link (it stopped answering when the account was closed).
+        await dbContext.CalendarFeedLinks.IgnoreQueryFilters().Where(l => l.UserId == userId).ExecuteDeleteAsync(cancellationToken);
     }
 
     private async Task EraseTodosAsync(IQueryable<Todo> todos, CancellationToken cancellationToken)

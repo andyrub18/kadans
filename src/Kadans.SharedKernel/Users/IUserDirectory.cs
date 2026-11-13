@@ -24,4 +24,11 @@ public interface IUserDirectory
     /// not theirs, so an unconfirmed one names nobody.
     /// </summary>
     Task<UserSummary?> FindByLoginAsync(string usernameOrEmail, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// False once nobody can sign in to the account: it does not exist, it was deactivated, or its owner asked to
+    /// delete it (closed at once, erased days later). What answers without a sign-in (the calendar feed's link) asks
+    /// this, since no session is there to be refused.
+    /// </summary>
+    Task<bool> IsOpenAsync(string userId, CancellationToken cancellationToken = default);
 }

@@ -21,6 +21,7 @@ internal sealed class TasksMetrics
     private readonly Counter<long> remindersSkipped;
     private readonly Histogram<double> reminderLateness;
     private readonly Histogram<double> pomodoroLateness;
+    private readonly Counter<long> calendarFeedFetches;
 
     public TasksMetrics(IMeterFactory meters)
     {
@@ -38,6 +39,11 @@ internal sealed class TasksMetrics
             "s",
             "From a Pomodoro deadline to the server acting on it, by kind (advance, time_up, finish)",
             advice: Lateness
+        );
+        calendarFeedFetches = meter.CreateCounter<long>(
+            "kadans.calendar_feed.fetches",
+            "{fetch}",
+            "Reads of a calendar feed's link, by outcome (served, unchanged, withheld, refused, limited)"
         );
     }
 
@@ -58,6 +64,12 @@ internal sealed class TasksMetrics
         if (count > 0)
             remindersSkipped.Add(count, new KeyValuePair<string, object?>("reason", "focus_running"));
     }
+
+    /// <param name="outcome">
+    /// served, unchanged (304), withheld (an empty calendar: no subscription), refused (no such link, or its account is
+    /// closed) or limited (429).
+    /// </param>
+    public void CalendarFeedFetch(string outcome) => calendarFeedFetches.Add(1, new KeyValuePair<string, object?>("outcome", outcome));
 
     public void PomodoroDeadline(string kind, TimeSpan lateness) =>
         pomodoroLateness.Record(Math.Max(0, lateness.TotalSeconds), new KeyValuePair<string, object?>("kind", kind));

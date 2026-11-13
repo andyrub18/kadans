@@ -14,12 +14,12 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `src/Kadans.Api` – host only: Serilog, OpenAPI/Scalar, JSON, authorization fallback, rate limiting and admission
   control (load shedding), metrics, module wiring.
 - `src/Kadans.Modules.Identity` – users, auth, tokens, profile (`identity` schema).
-- `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro, Quartz jobs (`tasks` schema).
+- `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro, Quartz jobs, the calendar feed (`tasks` schema).
 - `src/Kadans.Modules.Notifications` – notification log, SignalR hub `/hubs/kadans`, push (FCM) (`notifications` schema).
 - `src/Kadans.Modules.Budget` – accounts, categories, transactions/transfers, recurring money, monthly
   summary, base currency + rates (`budget` schema).
 - `src/Kadans.Modules.Billing` – subscriptions as the stores report them (Google Play now, Apple with the iPhone app),
-  phone access for push (`billing` schema). `Billing:Required` is off until the store product is live.
+  phone access for push and for the calendar feed (`billing` schema). `Billing:Required` is off until the store product is live.
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
   and the recurrence engine (`Recurrence/RecurrenceSchedule`, RRULE + IANA tz via Ical.Net).
 - `tests/Kadans.Api.Tests` (startup configuration guard), `tests/Kadans.Tasks.Tests`, `tests/Kadans.Budget.Tests`, `tests/Kadans.Billing.Tests`,
@@ -77,12 +77,15 @@ Google purchase refused without a key, Google's notification endpoint refusing w
 closed at once, kept through the sign-in offer);
 `python3 tools/smoke/session_flows.py` for sessions (a signed-out token is refused at once, its device and live
 connection go, a push token moves to the next account on the phone);
+`python3 tools/smoke/calendar_feed_flows.py <api log>` for the calendar feed (the file a calendar app reads with
+nothing but the link, 304 when unchanged, the link replaced or turned off, a closed account's, no link in the log; and,
+against an API started with `Billing__Required=true`, the subscription the feed is part of: none, ended, back);
 `python3 tools/smoke/pomodoro_flows.py` for the pomodoro timing model (pause/resume, stats, and the hands-free
 deadline: it races a client against the server and fails if the phase change is more than 1 s late; a manual run
 alongside must get one "time's up" within 1 s, an early "ran out" must change nothing, a session moved to end
 ~65 s later must finish there by itself, a hands-free cycle must wait for "Another cycle" or "Done", and a todo's
 next occurrence must end the session still running, its reminders ringing; ~3.5 min);
-the task, notification, reminder, session, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
+the task, notification, reminder, session, calendar feed, pomodoro and budget scripts log in as `smoke` / `Smoke123!` (register that user once;
 `admin` has MFA in dev and cannot run them) – pass `[username] [password]` to override;
 `python3 tools/admin/free_accounts.py add|remove|list` keeps the free accounts (an admin's task, DEPLOYMENT →
 Subscriptions → Free accounts); `python3 tools/demo/seed_demo.py <username> [--language fr]` fills an empty demo account
@@ -117,6 +120,10 @@ Anything a production host needs must be in `appsettings.json` or an environment
   One that checks a password or a code gets `RateLimitPolicies.Credentials`. Everything else is under the
   host's global per-client limit. Development's limits are generous (`appsettings.Development.json`), so
   the smoke scripts never hit them.
+- An address that is its own credential (the calendar feed's link: read without a sign-in, the secret in the path)
+  goes under a prefix in `SharedKernel/Http/SecretLinks`: the host then keeps it out of every log line
+  (`Telemetry.HideSecretLinks`) and counts it apart from the API's rate limit. Never log such a path yourself, never
+  hand the link out as anything but `https://` (ARCHITECTURE → "The calendar feed").
 - Every request holds one of the host's admission places while it runs (`AdmissionControl`: 32 at once, then a short
   queue, then 503 "server busy"). Something that stays open (streaming, long polling) belongs under `/hubs`, which
   holds no place; never make a request wait on a timer.

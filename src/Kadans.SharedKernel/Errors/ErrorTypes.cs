@@ -355,6 +355,14 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    /// <summary>Asked for something the phones' subscription pays for (the calendar feed), by an account without one.</summary>
+    public static readonly ErrorTypes SubscriptionRequired = new(
+        "10059",
+        "Subscription required",
+        StatusCodes.Status402PaymentRequired,
+        ""
+    );
+
     /// <summary>Locked for a while after too many wrong passwords or codes; not a deactivation.</summary>
     public static readonly ErrorTypes AccountLockedOut = new(
         "10054",

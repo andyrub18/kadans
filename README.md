@@ -44,7 +44,8 @@ Tests:
 ```bash
 dotnet test --solution Kadans.slnx            # TUnit unit tests (Tasks, Budget, Identity, Notifications, Billing, SharedKernel)
 python3 tools/smoke/identity_flows.py <log>   # end-to-end flows against a running API; see also
-                                              # task_flows, notification_flows, pomodoro_flows, budget_flows
+                                              # task_flows, notification_flows, pomodoro_flows, budget_flows,
+                                              # calendar_feed_flows
 ```
 
 ## Client

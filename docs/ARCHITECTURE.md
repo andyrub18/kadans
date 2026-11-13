@@ -255,6 +255,9 @@ month after a 14-day free trial, with the stores converting the price per countr
   (`IMobileAccess`, answered from memory and dropped on every change). The app's paywall could be patched out of
   an app package; the reminders are what a phone subscription buys. The desktop app and the live connection are
   unaffected.
+- **The calendar feed is part of it** (2026-11-13; "The calendar feed" below): it brings the todos to the phone's
+  calendar app, so without a subscription it cannot be turned on, from the free desktop app either, and a
+  subscription that ends empties the calendar while keeping its link.
 - **`Billing:Required`** switches all of this on, in configuration. Until the store product is live it is off:
   no paywall, every phone gets its reminders. Development has a fake store (`Billing:FakeStore:Enabled`,
   `POST /billing/fake/purchases`) for the flows without a store; the production guard refuses it.
@@ -341,6 +344,7 @@ each run logs what it removed. The day counts are configuration with code defaul
 | A deleted account | closed at once, erased with everything in it 7 days later (above) | `Identity:AccountDeletion:GraceDays` |
 | The record of an erased account (its id and dates) | 30 days | `Identity:Retention:ErasedAccountRecordDays` |
 | A free account (its id, the admin who added it, when) | until an admin removes it, or the account is erased | – |
+| The calendar feed's link (what the link is signed from, when it was made, when a calendar last read it) | until the person turns it off or replaces it, or the account is erased | – |
 | Nightly database dumps | 14 days (DEPLOYMENT → Backups) | the compose file |
 | Logs in Loki (no addresses, names or contents: below) | 30 days | `deploy/observability/loki.yml` |
 | Metrics in Prometheus (counts and durations, no personal data) | 30 days, at most 2 GB | the compose file |
@@ -365,6 +369,8 @@ nothing leaves it, and nothing of it is published to the internet.
   - `kadans_reminder_lateness_seconds`: from a reminder's notify time to its dispatch; `kadans_reminders_sent_total`,
     `kadans_reminders_stale_total` (skipped, too late);
   - `kadans_pomodoro_deadline_lateness_seconds{kind=advance|time_up|finish}`;
+  - `kadans_calendar_feed_fetches_total{outcome=served|unchanged|withheld|refused|limited}`: reads of calendar feed
+    links (`withheld`: an empty calendar, the account has no subscription);
   - push: `kadans_push_queue_length`, `kadans_push_dropped_total`, `kadans_push_delay_seconds` (queued to answered),
     `kadans_push_messages_total{result=sent|failed|dead}` per device, `kadans_push_withheld_total` (phones without a
     subscription);
@@ -571,6 +577,79 @@ screen got a refusal ("already completed") for what it showed as still to do. No
 Checked live by `RealRealtimeSmokeTest.hub_tells_the_screens_what_changed` (`KADANS_API_URL`): an occurrence completed
 and an account added reach the hub as `todos` and `budget`; by hand once, a recurring rule's booking with nothing else
 going on (the job at a one-minute interval: 18 s).
+
+### The calendar feed (2026-11-13)
+
+A tester asked to see their todos in their phone's calendar. Kadans publishes each account's todos as an iCalendar
+file behind a secret link, which Google Calendar, Apple Calendar, Outlook or any calendar app subscribes to: one
+feature for every platform, the desktop included, and nothing to build per calendar provider. It goes one way: nothing
+done in the calendar comes back. Chosen over Google's own API (Google only, its verification for calendar access,
+tokens to keep on the server, two-way conflicts); the phone writing into its own calendar (instant, but that phone
+only) can come later.
+
+- **What a calendar reads** (`Features/CalendarFeed`: `CalendarFeedReader`, `CalendarFeedEvents`). Titles and times,
+  nothing else: no description, no note, no alarm (Kadans rings its own reminders). Pending times and done ones (their
+  title starts with "✓ "), never cancelled ones, from 30 days back to 90 days ahead: the stored occurrences, then the
+  times the rules give, as the calendar screen previews them. At most 2,000 events, the ones to come kept first
+  (`Tasks:CalendarFeed*`). One event per time, never a rule: the file says exactly what the app shows, moved and
+  skipped times included, whatever a calendar app would make of an RRULE. A todo has a start and no end, so an event
+  lasts the todo's focus cycle, 30 minutes without one, 5 minutes to a day, and never runs into the todo's next time
+  (every ten minutes: events of ten minutes). An event's UID is its todo and the time the rule gave: a moved time is
+  the same event, moved. Times are in UTC.
+- **The link is the credential** (`SecretLinks` in SharedKernel, `CalendarFeedLinks`). A calendar app can send nothing
+  but an address, so `/calendar/feed/{secret}/kadans.ics` is read without a sign-in. The secret is 16 random bytes
+  (the nonce: all the database keeps, one row per account in `tasks.calendar_feed_links`) followed by their
+  HMAC-SHA256 under a key derived from `Jwt:Key` for this purpose alone (`ServerSecret`, HKDF). So a database dump
+  opens no feed, a link this server did not sign is refused before any database read, and Settings can show the link
+  again whenever asked. Changing `Jwt:Key` ends every link, as it ends every session. "Replace the link" draws a new
+  nonce and "Turn off" deletes the row: the old link stops at once. An account that is closed (its owner asked to
+  delete it, or it was deactivated: `IUserDirectory.IsOpenAsync`) stops answering at once too, and the row goes with
+  the account's erasure (`TodoErasure`). Every refusal is the same bare 404. The link survives a password change:
+  replacing it is how it is taken back.
+- **It reads as its owner.** Once the link is recognised, the endpoint makes its owner the request's user
+  (authentication type `CalendarFeedLink`, seen by nothing else), so the data is read through the same per-user query
+  filters as the app's own requests, not around them.
+- **https only.** Kadans hands out `https://` links and never `webcal://`: a calendar app given that one reads over
+  plain http, the secret in the clear at every read. nginx refuses `/calendar/feed/` on port 80 instead of redirecting
+  it, so such a subscription fails the first time rather than working while it leaks. That is why there is no "open in
+  my calendar app" button: the link is copied, and pasted where the calendar app takes an address.
+- **Never in a log.** The request log writes the path, the rate limiter's warning did, and ASP.NET attaches the
+  request's path to every line logged while a request runs (its scope's `RequestPath`), which Loki would keep a month.
+  `SecretLinkScrubber`, a Serilog enricher on the root logger (`Telemetry.HideSecretLinks`), cuts every text property
+  of every event after the prefix: `/calendar/feed/…`. `TelemetryTests` runs a server with ASP.NET's own logs turned
+  all the way up and finds the link in no line; the smoke script searches the API log for every link it was given.
+- **Its own allowances.** Google's or Apple's servers read everyone's feed from the same few addresses, so everything
+  under the prefix has its own per-address allowance, apart from the API's (`RateLimiting:FeedPerMinute`, 600; a
+  mistyped or invented link counts too). On top of it each link has its own, wherever it is read from
+  (`CalendarFeedLimiter`, 60 an hour, `Tasks:CalendarFeedFetchesPerHour`): asked only for a link that exists, so there
+  are never more counters than links.
+- **Cheap to ask again.** Calendar apps ask often and todos change rarely: the file's hash is its ETag, and
+  `If-None-Match` gets a 304. The same events always write the same bytes (a fixed order, `DTSTAMP` the last change and
+  never "now", a window that moves once a day). The file is written by hand (`CalendarFeedWriter`: CRLF, text escaped,
+  lines folded at 75 octets between characters) and read back with Ical.Net in the tests. It invites a calendar to
+  read again every 15 minutes (`REFRESH-INTERVAL`, `X-PUBLISHED-TTL`): Apple's and Outlook's listen, Google's reads
+  when it wants, up to about 12 hours later, and the app says so.
+- **Settings → My todos in my calendar** (`ui/settings/CalendarFeedPage`, over `GET` and `PUT /calendar-feed`,
+  `POST /calendar-feed/reset`, `DELETE /calendar-feed`). Off: what it does and what a calendar gets. On: the link with
+  "Copy", the last time a calendar read it (`last_fetched_at`, kept to the minute: "is it working?" has an answer),
+  where each calendar takes the link, how late a calendar may be, that the link is a secret, and "Replace the link"
+  and "Turn off", each asked twice. Google Calendar's phone app cannot add a calendar from a link: on a computer a
+  button copies the link and opens Google Calendar's "From URL" page, on a phone the page says to do it once on a
+  computer. Turned on, off or replaced on another device, the page follows (the link's row is saved through
+  `SaveChanges`, which says `todos`; "Screens stay in step").
+- **Part of the phones' subscription** (decided 2026-11-13). The feed puts the todos on a phone, in its calendar
+  app: free, it would be a way around the paywall through the free desktop app. So it asks what push asks
+  (`IMobileAccess`): an account without a subscription cannot turn it on or replace its link (402, error 10059),
+  `GET /calendar-feed` says `available: false`, and the page says where to subscribe (it is the desktop app that
+  shows this: a phone without a subscription is behind the paywall). A subscription that ends keeps the link and
+  empties the calendar: a refusal would leave a calendar app showing the todos it last read for good, and the link
+  would have to be given again later. When the subscription is back the same link fills again. Turning the feed
+  off never needs a subscription. While `Billing:Required` is off everyone has it, like the phone apps.
+
+Checked by `tools/smoke/calendar_feed_flows.py` (the file's content, 304, done, skipped and moved times, another
+account's feed, a closed account's, invented and changed links, reset, off, no link in the API log; and against an API
+started with `Billing__Required=true`, the subscription: none, ended, back) and by `RealApiSmokeTest` from the app's
+side. Not checked: a real Google, Apple or Outlook account subscribing to it.
 
 ### Client: Compose Multiplatform
 

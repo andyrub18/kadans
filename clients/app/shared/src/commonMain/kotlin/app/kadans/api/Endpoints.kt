@@ -451,3 +451,18 @@ internal suspend fun KadansApi.adopt(login: LoginResponse) {
         invalidateTokenCache()
     }
 }
+
+/** The calendar feed (ARCHITECTURE → "The calendar feed"): the todos, read by a calendar app through a secret link. */
+class CalendarFeedApi internal constructor(private val api: KadansApi) {
+    suspend fun get(): CalendarFeedResponse = api.http.get("calendar-feed").orThrow()
+
+    /** On, with the link it already has when it was on. */
+    suspend fun turnOn(): CalendarFeedResponse = api.http.put("calendar-feed").orThrow()
+
+    /** A new link: the old one stops at once. */
+    suspend fun reset(): CalendarFeedResponse = api.http.post("calendar-feed/reset").orThrow()
+
+    suspend fun turnOff() {
+        api.http.delete("calendar-feed").orThrowNoContent()
+    }
+}

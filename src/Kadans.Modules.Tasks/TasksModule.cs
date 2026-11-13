@@ -1,4 +1,5 @@
 using Kadans.Modules.Tasks.Features;
+using Kadans.Modules.Tasks.Features.CalendarFeed;
 using Kadans.Modules.Tasks.Features.Pomodoro;
 using Kadans.Modules.Tasks.Features.Todos;
 using Kadans.Modules.Tasks.Features.Todos.Occurrences;
@@ -7,6 +8,7 @@ using Kadans.Modules.Tasks.Persistence;
 using Kadans.SharedKernel.Modules;
 using Kadans.SharedKernel.Persistence;
 using Kadans.SharedKernel.Realtime;
+using Kadans.SharedKernel.Security;
 using Kadans.SharedKernel.Users;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -95,6 +97,13 @@ public sealed class TasksModule : IModule
         services.AddScoped<PomodoroAutoFinish>();
         services.AddSingleton<PomodoroDeadlineSignal>();
         services.AddHostedService<PomodoroDeadlineWatcher>();
+
+        // The calendar feed. Its links are signed with a key derived from the server's secret, read when first needed.
+        services.AddSingleton(provider => new CalendarFeedLinks(ServerSecret.DeriveKey(provider.GetRequiredService<IConfiguration>(), CalendarFeedLinks.KeyPurpose)));
+        services.AddSingleton<CalendarFeedLimiter>();
+        services.AddScoped<CalendarFeeds>();
+        services.AddScoped<CalendarFeedReader>();
+        services.AddScoped<CalendarFeedEndpoint>();
     }
 
     public Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken) =>
@@ -106,5 +115,6 @@ public sealed class TasksModule : IModule
         endpoints.MapOccurrenceRoutes();
         endpoints.MapPomodoroRoutes();
         endpoints.MapReminderRoutes();
+        endpoints.MapCalendarFeedRoutes();
     }
 }

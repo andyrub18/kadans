@@ -1,10 +1,12 @@
 using System.Diagnostics.Metrics;
 using System.Reflection;
+using Kadans.SharedKernel.Http;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using Quartz;
 using Serilog;
+using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.OpenTelemetry;
 
@@ -119,6 +121,45 @@ internal static class Telemetry
         : elapsedMilliseconds > 1000 && !context.Request.Path.StartsWithSegments("/hubs") ? LogEventLevel.Warning
         : context.Response.StatusCode >= 400 ? LogEventLevel.Information
         : LogEventLevel.Debug;
+
+    /// <summary>
+    /// Keeps secret links (<see cref="SecretLinks"/>: the calendar feed's) out of every log line, whoever wrote it. The
+    /// request log writes the path; ASP.NET attaches it to every line logged while a request runs (its logging scope's
+    /// <c>RequestPath</c>), and writes it itself when its own logs are turned up. The link lets whoever holds it read
+    /// an account's todos, and the logs are shipped to Loki and kept a month.
+    /// </summary>
+    public static LoggerConfiguration HideSecretLinks(this LoggerConfiguration logger) => logger.Enrich.With<SecretLinkScrubber>();
+}
+
+/// <summary>
+/// Cuts every text property of a log event after a secret link's prefix. A line's message is rendered from its
+/// properties, so the message is cut with them. Set on the root logger: it runs after whatever added the properties.
+/// </summary>
+internal sealed class SecretLinkScrubber : ILogEventEnricher
+{
+    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+    {
+        List<LogEventProperty>? hidden = null;
+        foreach (var (name, value) in logEvent.Properties)
+        {
+            // Texts, and the types a path or an address is logged as.
+            var text = value is ScalarValue scalar
+                ? scalar.Value switch
+                {
+                    string held => held,
+                    PathString or Uri => scalar.Value.ToString(),
+                    _ => null,
+                }
+                : null;
+            if (text is not null && SecretLinks.Hide(text) is { } cut)
+                (hidden ??= []).Add(new LogEventProperty(name, new ScalarValue(cut)));
+        }
+
+        if (hidden is null)
+            return;
+        foreach (var property in hidden)
+            logEvent.AddOrUpdateProperty(property);
+    }
 }
 
 /// <summary>How long every scheduled job's pass takes, and whether it failed: <c>kadans.job.duration</c> by <c>job.name</c>.</summary>

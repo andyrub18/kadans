@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_label">Tâches du jour</string>
+    <string name="widget_today_description">Les tâches du jour, chacune à son heure. Touchez-en une pour l\'ouvrir, ou son cercle quand elle est faite.</string>
+    <string name="widget_preview_today">Aujourd\'hui</string>
+    <string name="widget_preview_date">lun. 4 janv.</string>
+    <string name="widget_preview_first">Course du matin</string>
+    <string name="widget_preview_second">Appeler la banque</string>
+    <string name="widget_preview_third">Faire les courses</string>
+</resources>

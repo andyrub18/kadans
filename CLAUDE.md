@@ -181,7 +181,12 @@ out) and `ReminderScheduler` (Android: one exact alarm, its receivers and a refr
 ARCHITECTURE → "Reminders ring on the phone"). Each occurrence rings before its start and at it ("starts now"); a
 reminder's buttons ("Start focus" or "Done", "In 10 min"; on "starts now" only, never on the heads-up before it) are
 `reminders/ReminderActions`, reached through Android's
-`ReminderActionReceiver` and the Linux desktop's D-Bus notifications (`notifications/FreedesktopNotifications`). Screens
+`ReminderActionReceiver` and the Linux desktop's D-Bus notifications (`notifications/FreedesktopNotifications`). The Android
+home-screen widget (today's pending todos, each with a circle that marks it done after five seconds to undo, then
+tomorrow's) is `widget/TodayWidget` (what it holds, when it is fetched, what waits to be sent) and
+`widget/TodayWidgetProvider` (plain RemoteViews, its taps, its alarms and jobs; ARCHITECTURE → "The home-screen
+widget"); a receiver never waits there: Android hands an app its broadcasts one at a time; its own words come from `StringsCatalog`, what the system's widget picker shows from Android
+resources in the phone's language. Screens
 reload quietly whatever changed what they show (another device, a notification's button, a job, the app back in front):
 the server's `data.changed` and `sync/DataChanges`, ARCHITECTURE → "Screens stay in step"; a screen that loads once and
 never again is a bug. The desktop app closes to the tray (Linux: a freedesktop

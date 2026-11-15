@@ -71,6 +71,22 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
         return saved;
     }
 
+    /// <summary>
+    /// A person's change made with bulk statements, which never pass through SaveChanges (a todo deleted for good,
+    /// with its thousands of occurrences): the same reminders version and the same signals, said by hand. Without
+    /// it a phone kept the deleted todo's reminders, and the other devices' screens and the home-screen widget its
+    /// line, until their next refresh. A job has no current user and says nothing.
+    /// </summary>
+    public async Task ChangedByBulkStatementsAsync(CancellationToken cancellationToken = default)
+    {
+        if (CurrentUserId is not { } userId)
+            return;
+
+        await Database.ExecuteSqlRawAsync(BumpVersion, [userId, DateTimeOffset.UtcNow], cancellationToken);
+        Signals?.Changed(userId);
+        Live?.Changed(userId, LiveAreas.Todos);
+    }
+
     private async Task<int> SaveWithRemindersAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken)
     {
         var userId = ChangesReminders();

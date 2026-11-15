@@ -560,7 +560,9 @@ screen got a refusal ("already completed") for what it showed as still to do. No
   Notifications) sends `data.changed` with `{ "areas": [...] }` to the account's open apps, the changes gathered for a
   second (a todo and its occurrences, a movement and the limit alert it set off: one signal). Live only, nothing stored
   or pushed: an app that was not connected loads afresh when it comes back. Tasks says `todos` after a person's save
-  touching a todo, a rule, an occurrence (its note too) or a focus template (`TasksDbContext.ChangesScreens`); sessions
+  touching a todo, a rule, an occurrence (its note too) or a focus template (`TasksDbContext.ChangesScreens`), and
+  after a todo is deleted for good, whose bulk deletes pass no save (`ChangedByBulkStatementsAsync`, which moves the
+  reminders version too: until 2026-11-13 a deletion told no other device); sessions
   have their own `pomodoro.run.changed`, and the jobs' stamps say nothing. Budget says `budget` after any save, to each
   owner of a row it changed (`BudgetDbContext.Owners`): the recurring job's bookings and the limit alerts too.
   `reminders.changed` stays what phones fetch their reminder window on (with its silent push). No read saves anything,
@@ -650,6 +652,75 @@ Checked by `tools/smoke/calendar_feed_flows.py` (the file's content, 304, done, 
 account's feed, a closed account's, invented and changed links, reset, off, no link in the API log; and against an API
 started with `Billing__Required=true`, the subscription: none, ended, back) and by `RealApiSmokeTest` from the app's
 side. Not checked: a real Google, Apple or Outlook account subscribing to it.
+
+### The home-screen widget (2026-11-13)
+
+Second of the integrations ranked after a tester's feedback (the calendar feed was the first): the day's todos on the
+phone's home screen, without opening the app. Android now; the iPhone's (WidgetKit) comes with the iPhone app, and a
+computer's desktop has none.
+
+- **What it shows** (`widget/TodayWidgetContent`, pure, shared). "Today" and the date, then today's pending todos,
+  soonest first, each with a circle and its hour; one whose hour has passed and is still pending stays. With room
+  left, tomorrow's follow under "Tomorrow", without a circle, as long as one of them fits under the label; todos that
+  do not fit give their last line to "4 more"; with none left it says "Nothing left today". Today is the phone's day,
+  the hours follow the account's clock and the words the app's language, as on the app's screens. As many lines as the
+  widget's height holds (40 dp each, tall enough for the circle): it starts four cells by two and resizes both ways.
+- **Taps.** A todo's hour or title opens its screen (`kadans://todos/{id}`, the reminders' link), "+" the form for a
+  new one (`kadans://todos/new`), anywhere else Home (`kadans://home`: the day's list, whatever screen the app was left
+  on). Each needs a session; signed out, the app opens where it signs in.
+- **Done, with five seconds to undo** (the owner's choice, 2026-11-15, among three versions on a mock-up: none, at
+  once, with an undo). A tap on a line's circle ticks it, strikes the title through and shows "Undo"; the tick takes
+  it back too. Nothing is sent meanwhile: a completion cannot be undone on the server, and a tap on a home screen is
+  easy to make by accident, so the five seconds on the phone are the undo. Then the occurrence is marked done, as a
+  reminder's "Done" does (done or skipped elsewhere meanwhile counts; its reminders stay quiet on this phone; the
+  app's screens are told), and the line goes. Offline, the line goes all the same and the completion waits in the
+  phone's settings for a network; refused for good (the todo was deleted, the session ended) it is dropped and the
+  next fetch shows what is true. Only today's lines have a circle: tomorrow's have not come, as a reminder offers
+  "Done" only at its todo's start (`TodayWidget.markDone`, `undo`, `sendDue`).
+- **Not in it.** The running focus session: its notifications already say each phase, the session is one tap away,
+  and with the app closed the phone does not know a session's state reliably.
+- **Its data** (`widget/TodayWidget`, shared, beside `LocalReminders`). One `GET /occurrences` for the phone's today
+  and tomorrow, kept in the app's settings (`TodayWidgetStore`): shown offline, and in the first minutes of a new day.
+  One fetch at a time, and none while no widget is placed. A phone without a subscription shows the widget locked, by
+  the rule that puts the app behind its paywall (`SubscriptionGate.blocks`). Signed out, by any path, the store is
+  emptied and the widget says to sign in.
+- **What keeps it current.**
+  - With the app open: this device's own saves, the hub (`reminders.changed`, `data.changed`, back after a drop), a
+    notification's button, and the app back in front when what it holds is more than two minutes old. Leaving the
+    front redraws it without asking the server: the language, the clock or the appearance may have been changed.
+  - With the app closed: the server's silent "reminders changed" push (`KadansMessagingService`), the system (placed,
+    restarted, the app updated), a job every hour with a network (`TodayWidgetRefreshJob`), and a new day or a change
+    of the phone's clock or time zone (`TodayWidgetClockReceiver`: drawn at once from what is held, then fetched).
+  - The midnight alarm is exact where the phone allows it ("Alarms & reminders", which the reminders ask for), within
+    ten minutes otherwise: a plain alarm set a day ahead may ring hours late. It never wakes the phone.
+    `updatePeriodMillis` is 0: that timer does wake it.
+  - A tapped "Done" is sent by an alarm five seconds later (`TodayWidgetActionReceiver`, `TodayWidgetUpkeep.await`),
+    never by waiting in the receiver: Android hands an app its broadcasts one at a time, and an "Undo" held up behind
+    the wait would arrive too late. A send the network holds up gives way after three seconds, shorter than the five
+    a tap waits. What could not go is sent by a job as soon as there is a network, and by any later fetch.
+- **On Android** (`widget/TodayWidgetProvider`, `AndroidWidgetSurface`): plain RemoteViews, a header and one small
+  layout per kind of line, each line with its own immutable PendingIntents: to the app's activity for what opens, to
+  a receiver that is not exported for its circle and its "Undo". No library: Glance
+  would be a dependency outside the template's tested set, for a header and a few lines. Colours are resources, light
+  and `values-night`: the widget follows the system's theme like its neighbours on the home screen, not the app's
+  Appearance setting, and the launcher redraws it when the theme turns. The provider is exported, as a widget's must
+  be (the launcher is another app); it acts on the system's widget actions only and reads nothing from an intent but
+  the widget ids. The clock receiver and the job are not exported.
+- **Two languages meet here.** The widget's own words come from `StringsCatalog`, the app's language. What the
+  system's widget picker shows (the name, the description, the preview's sample day) are Android resources in the
+  phone's language (`values`, `values-fr`, `values-ht`), like the app's name.
+- **Settings → "Home-screen widget"** offers "Add to my home screen" where the home screen takes a widget when an app
+  asks (`requestPinAppWidget`: Android 8+, most launchers). Few people look in the launcher's own list.
+
+Checked on the emulator (Android 15, Pixel launcher) with a local API: placed from Settings' button; the picker's
+preview; the day's and tomorrow's todos, "4 more", "Nothing left today"; a todo, "+", the header and "more" each
+opening what they should, with the app open, in the background and not running; light and dark with the system; the
+app's language and clock after leaving it (French, 12 hours); a todo completed from outside the phone gone within
+seconds; offline; the app's process killed and the hourly job forced; signed out (nothing of the account left in the
+phone's settings, "+" opening the sign-in screen) and signed in again; the day turning over five seconds after
+midnight, the next alarm set; a circle tapped and left (struck through with "Undo", then done on the server), tapped
+and undone (still to do on the server), and tapped offline (gone from the widget, sent when the network came back).
+Not checked: Android below 12 (no emulator image here), a resize by hand, other launchers, and a real phone.
 
 ### Client: Compose Multiplatform
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the todos below belong to: "Tomorrow". -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_line"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="bottom"
+    android:maxLines="1"
+    android:minHeight="40dp"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingBottom="7dp"
+    android:textColor="@color/widget_primary"
+    android:textSize="12sp"
+    android:textStyle="bold" />

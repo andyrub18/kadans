@@ -24,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.context.GlobalContext
 import app.kadans.shared.R
+import app.kadans.widget.TodayWidget
 import app.kadans.ui.brand.KadansMark
 
 object KadansPushChannel {
@@ -67,8 +68,17 @@ class KadansMessagingService : FirebaseMessagingService() {
             LocalReminders.CHANGED_KIND -> {
                 // Even when the hub seems connected: Android freezes an app in the background, and the server may have
                 // dropped a connection the app still believes open. Within the time Firebase gives a message.
-                if (koin != null)
-                    runCatching { runBlocking { withTimeoutOrNull(SYNC_WITHIN) { koin.get<LocalReminders>().sync() } } }
+                // The home-screen widget shows the same todos: fetched again too, side by side with the window.
+                if (koin != null) {
+                    runCatching {
+                        runBlocking {
+                            withTimeoutOrNull(SYNC_WITHIN) {
+                                launch { runCatching { koin.get<TodayWidget>().refresh() } }
+                                koin.get<LocalReminders>().sync()
+                            }
+                        }
+                    }
+                }
                 return
             }
         }

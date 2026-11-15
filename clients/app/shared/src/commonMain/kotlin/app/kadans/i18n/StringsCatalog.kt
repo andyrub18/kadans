@@ -443,6 +443,34 @@ data class NotificationStrings(
 )
 
 /**
+ * The home-screen widget (ARCHITECTURE → "The home-screen widget"): what it says in place of the day's todos, and for
+ * those that do not fit. "Today" and "Tomorrow" are the dates' own words. A feature group.
+ */
+data class WidgetStrings(
+    /** No pending todo is left today (none planned, or all done). */
+    val nothingLeft: String,
+    /** `%d`: how many todos did not fit under the ones shown. One phrase: nothing agrees with the number. */
+    val moreFormat: String,
+    val signedOut: String,
+    /** The account has no subscription for phones: the widget is behind the paywall, as the app is. */
+    val locked: String,
+    /** Signed in, nothing fetched yet (the widget was placed while offline). */
+    val notLoaded: String,
+    /** A line whose circle was just tapped: takes the tap back while its five seconds last. */
+    val undo: String,
+    /** What a screen reader says for a line's circle. `%s`: the todo's title. */
+    val markDoneFormat: String,
+    /** Settings, on a phone whose home screen takes a widget when asked: the section, what the widget is, the button. */
+    val section: String,
+    val sectionHint: String,
+    val addToHome: String,
+) {
+    fun more(count: Int): String = moreFormat.replace("%d", count.toString())
+
+    fun markDone(title: String): String = markDoneFormat.replace("%s", title)
+}
+
+/**
  * Settings → My todos in my calendar (ARCHITECTURE → "The calendar feed"): turning the feed on, its secret link, how to
  * give it to a calendar app, and replacing it or turning it off. A feature group.
  */
@@ -614,6 +642,7 @@ data class StringsCatalog(
     val nav: NavStrings,
     val appearance: AppearanceStrings,
     val calendarFeed: CalendarFeedStrings,
+    val widget: WidgetStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

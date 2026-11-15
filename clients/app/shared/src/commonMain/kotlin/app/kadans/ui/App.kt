@@ -110,11 +110,16 @@ fun App(deepLink: String? = null) {
                 // start: the screens load then anyway.
                 val localReminders = koinInject<LocalReminders>()
                 val dataChanges = koinInject<DataChanges>()
+                // The home-screen widget too (Android): it may have been placed, or gone stale, while the app was away.
+                val todayWidget = koinInject<app.kadans.widget.TodayWidget>()
                 var startedBefore by remember { mutableStateOf(false) }
                 LifecycleEventEffect(Lifecycle.Event.ON_START) {
                     localReminders.refresh()
+                    todayWidget.refreshIfStale()
                     if (startedBefore) dataChanges.cameBack() else startedBefore = true
                 }
+                // Leaving the front: the widget is what the person sees next, in the language and clock just chosen.
+                LifecycleEventEffect(Lifecycle.Event.ON_STOP) { todayWidget.redrawSoon() }
 
                 when (hasSession) {
                     null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -138,7 +143,8 @@ fun App(deepLink: String? = null) {
 private fun KadansNav(startAtHome: Boolean, languageController: LanguageController, deepLinkRoute: Any? = null) {
     val backStack = remember {
         mutableStateListOf<Any>(if (startAtHome) HomeRoute else LoginRoute).also { stack ->
-            deepLinkRoute?.takeIf { opensWith(it, signedIn = startAtHome) }?.let { stack.add(it) }
+            // Home is already there: a link to it (the widget's header) adds nothing.
+            deepLinkRoute?.takeIf { it !is HomeRoute && opensWith(it, signedIn = startAtHome) }?.let { stack.add(it) }
         }
     }
 
@@ -194,7 +200,12 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
         IncomingLinks.links.collect { link ->
             val route = parseDeepLink(link) ?: return@collect
             if (!opensWith(route, signedIn = tokenStore.load() != null) || backStack.lastOrNull() == route) return@collect
-            if (route is BudgetRoute) selectTab(MainTab.Budget) else backStack.add(route)
+            when (route) {
+                is BudgetRoute -> selectTab(MainTab.Budget)
+                // The widget's header: Home, and what was open over it closes.
+                is HomeRoute -> selectTab(MainTab.Home)
+                else -> backStack.add(route)
+            }
         }
     }
 

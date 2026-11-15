@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 private const val EMAILED_LINKS_HOST = "api.kadansplanning.com"
 
 /**
- * Maps a link (a reminder's `kadans://`, the emailed password reset) to the route it opens.
+ * Maps a link (a reminder's or the widget's `kadans://`, the emailed password reset) to the route it opens.
  * Unknown or malformed links resolve to null — the app just opens normally.
  */
 fun parseDeepLink(link: String?): Any? {
@@ -22,6 +22,8 @@ fun parseDeepLink(link: String?): Any? {
     return when (url.host) {
         // A reminder's todo, or its focus session. Only an id: anything else in the path is not a link this app made.
         "todos" -> {
+            // The widget's "+": a new todo.
+            if (path == "new") return CreateTodoRoute
             val parts = path.split('/')
             val todoId = Uuid.parseOrNull(parts[0])?.toString() ?: return null
             when (parts.drop(1)) {
@@ -32,6 +34,8 @@ fun parseDeepLink(link: String?): Any? {
         }
         // A category limit's alert: the budget.
         "budget" -> if (path.isEmpty()) BudgetRoute else null
+        // The widget's header, and whatever on it is not a todo: the day's list.
+        "home" -> if (path.isEmpty()) HomeRoute else null
         else -> null
     }
 }
@@ -50,12 +54,18 @@ fun todoLink(todoId: String): String = "kadans://todos/$todoId"
 /** What a focus session started from a reminder opens: the session (it shows the one running). */
 fun focusLink(todoId: String): String = "kadans://todos/$todoId/focus"
 
+/** What the home-screen widget opens when tapped anywhere but on a todo or "+": Home, whatever screen the app was left on. */
+const val HOME_LINK = "kadans://home"
+
+/** What the home-screen widget's "+" opens: the form for a new todo. */
+const val NEW_TODO_LINK = "kadans://todos/new"
+
 /** What a category limit's alert opens: the budget. */
 const val BUDGET_LINK = "kadans://budget"
 
-/** Whether [route] may open now: a todo, its session or the budget needs a session, a password reset does not. */
+/** Whether [route] may open now: Home, a todo, a new one, its session or the budget needs a session, a password reset does not. */
 fun opensWith(route: Any, signedIn: Boolean): Boolean =
-    (route !is TodoDetailRoute && route !is PomodoroRoute && route !is BudgetRoute) || signedIn
+    (route !is HomeRoute && route !is TodoDetailRoute && route !is CreateTodoRoute && route !is PomodoroRoute && route !is BudgetRoute) || signedIn
 
 /**
  * Links that reach the app while it runs (Android: a reminder tapped with the app open). Kept until the navigation

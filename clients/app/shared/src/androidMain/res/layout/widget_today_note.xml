@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sentence in place of todos: "Nothing left today", "Sign in to Kadans to see your day". -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_line"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:ellipsize="end"
+    android:gravity="center_vertical"
+    android:maxLines="3"
+    android:minHeight="40dp"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:textColor="@color/widget_on_surface_variant"
+    android:textSize="14sp" />

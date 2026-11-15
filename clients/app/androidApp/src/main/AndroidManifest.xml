@@ -79,6 +79,38 @@
             android:name="app.kadans.reminders.ReminderSyncJob"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- The home-screen widget (docs/ARCHITECTURE.md → "The home-screen widget"). A widget provider must be
+             exported: the launcher, another app, talks to it. It acts on the system's widget actions only. -->
+        <receiver
+            android:name="app.kadans.widget.TodayWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_today_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/today_widget_info" />
+        </receiver>
+        <!-- A line's circle and its "Undo", and the alarm that sends a "Done" after its five seconds (the app's own
+             immutable PendingIntents). -->
+        <receiver
+            android:name="app.kadans.widget.TodayWidgetActionReceiver"
+            android:exported="false" />
+        <!-- Not exported: the widget's own midnight alarm, and the system saying the clock or the time zone changed. -->
+        <receiver
+            android:name="app.kadans.widget.TodayWidgetClockReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <service
+            android:name="app.kadans.widget.TodayWidgetRefreshJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 
 </manifest>

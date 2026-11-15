@@ -12,7 +12,8 @@ Registers two phones: "ringer" fetches its reminder window, "other" does not. A 
 later then shows: the window with its two reminders (before the start and "starts now") and their words, the check of
 a reminder by its time, the silent "reminders changed" signal to the ringer only, and the reminder's push skipping the ringer (it has it) but reaching the other phone. A second todo,
 made after the ringer's last sync, is pushed to the ringer too: its window no longer holds the account's latest
-version. A cancelled reminder is no longer due; stopping clears the window. Standard library only; takes ~2.5 min.
+version. A todo deleted for good is signalled as any other change. A cancelled reminder is no longer due; stopping
+clears the window. Standard library only; takes ~2.5 min.
 """
 import json, re, sys, time, urllib.parse, urllib.request, urllib.error, datetime as dt, uuid
 LOG = sys.argv[1]; BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"
@@ -133,6 +134,21 @@ before_note = dt.datetime.now().astimezone()
 s, _ = call("PUT", f"/occurrences/{occurrence}/remark", {"remark": "bring the folder"}, T)
 time.sleep(4)
 C("a note is saved, and no phone is told its reminders changed", s == 200 and not log_lines_since(before_note, "reminders.changed"), s)
+
+print("== a todo deleted for good")
+s, gone = call("POST", "/todos/one-time", {"title": f"Smoke gone {stamp}", "description": "", "notificationEnabled": True,
+                                           "dueDate": iso(utcnow() + dt.timedelta(hours=3)), "notifyBeforeInMinutes": 15}, T)
+time.sleep(4)
+s, window = call("POST", "/reminders/sync", {"installationId": ringer}, T)
+C("the ringer's window holds its reminders", s == 200 and any(r["todoId"] == gone["id"] for r in window["reminders"]), s)
+before_delete = dt.datetime.now().astimezone()
+s, _ = call("DELETE", f"/todos/{gone['id']}", token=T)
+time.sleep(4)
+signals = log_lines_since(before_delete, "reminders.changed")
+C("deleting it is signalled to the phones that ring (it passes no SaveChanges: said by hand)", s == 200 and len(signals) >= 1 and push_count(signals[-1]) >= 1,
+  signals[-1] if signals else "no log line")
+s, window = call("POST", "/reminders/sync", {"installationId": ringer}, T)
+C("and the next window no longer holds it", s == 200 and not any(r["todoId"] == gone["id"] for r in window["reminders"]), s)
 
 print("== cancelled, stopped, cleaned up")
 s, _ = call("PUT", f"/todos/{todo_id}/cancel", {"reason": "smoke"}, T)

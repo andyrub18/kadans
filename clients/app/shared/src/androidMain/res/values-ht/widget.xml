@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_label">Travay jodi a yo</string>
+    <string name="widget_today_description">Travay jodi a yo, chak nan lè li. Peze youn pou louvri l, oswa sèk li lè l fini.</string>
+    <string name="widget_preview_today">Jodi a</string>
+    <string name="widget_preview_date">len 4 janv</string>
+    <string name="widget_preview_first">Kouri maten an</string>
+    <string name="widget_preview_second">Rele bank lan</string>
+    <string name="widget_preview_third">Fè makèt</string>
+</resources>

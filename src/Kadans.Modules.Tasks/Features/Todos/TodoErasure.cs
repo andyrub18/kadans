@@ -25,6 +25,8 @@ internal sealed class TodoErasure(TasksDbContext dbContext, ICurrentUserService 
             return new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {id} not found");
 
         await EraseTodosAsync(dbContext.Todos.IgnoreQueryFilters().Where(t => t.Id == id && t.UserId == currentUser.UserId), cancellationToken);
+        // Bulk deletes pass no SaveChanges: the account's phones, screens and widget are told here.
+        await dbContext.ChangedByBulkStatementsAsync(cancellationToken);
         logger.LogInformation("Deleted todo {TodoId}", id);
         return new Success();
     }

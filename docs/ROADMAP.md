@@ -875,6 +875,34 @@ installing on real devices second, hosting last.
         `Billing__Required=true` and Development's fake store.
       - [ ] Later, if testers ask: the phone writing todos into its own calendar (instant, that phone only) and
         showing the calendar's events beside the todos; Google's own API (two-way) is not planned.
+- [x] 2026-11-13, the second integration from that feedback: the Android home-screen widget (ARCHITECTURE → "The
+      home-screen widget"). "Today" and the date, today's pending todos at their hours, tomorrow's under them when
+      there is room, "4 more" for those that do not fit; a todo opens its screen, "+" a new one, anywhere else Home,
+      and today's lines have a circle that marks them done after five seconds to undo.
+      In the app's language and the account's clock, light or dark with the system. It keeps what it last fetched
+      (offline, a new day) and is fetched again when a todo changes here or elsewhere, when the app comes back to the
+      front, every hour, and at midnight. Signed out it says to sign in; behind the paywall it is locked. Settings →
+      "Home-screen widget" → "Add to my home screen" has the launcher offer it. Plain RemoteViews, no new library.
+      Found on the emulator and fixed: one todo left today used a quarter of the widget (tomorrow's now follow); the
+      header opened whatever screen the app was left on (now Home); "12:22 AM" ran into the title (the hours' column
+      follows the clock); a plain alarm for midnight may ring hours late (exact now, or within ten minutes); after a
+      sign-in the widget waited for its next hour (Home's opening fetches it). And one on the server, older than the
+      widget: deleting a todo for good told no other device (its bulk deletes pass no save), so a phone kept its
+      reminders and the widget its line until their next refresh; it is signalled now (`reminder_flows.py` checks it).
+      Checked: the app's tests (the widget's content and data, the links), the desktop and Android builds, and on the
+      emulator (Android 15) with a local API everything listed in ARCHITECTURE; the server's tests (380),
+      `reminder_flows.py`, `task_flows.py`, `deletion_flows.py`, `calendar_feed_flows.py`. Not checked: Android
+      below 12, other launchers, a real phone.
+      - [x] "Done" on a line, decided by the owner 2026-11-15 on a mock-up of three versions (none, at once, with an
+        undo): a circle before each of today's todos; tapped, the line is struck through with "Undo" for five seconds,
+        and only then marked done (a completion cannot be undone on the server, so the wait on the phone is the undo).
+        Offline it is sent when the network is back. Lines are 40 dp for the circle, so a widget of four cells by two
+        holds one line less on some phones. Checked on the emulator: left alone (done on the server), undone (still
+        to do), offline.
+      - [x] The running focus session is left out for good, also decided 2026-11-15: the notifications already say
+        each phase and the session is one tap away. If testers ask to see the time left, an ongoing notification
+        with a countdown fits better than a line in the widget.
+      - [ ] Later: a scrolling list, and the iPhone's widget with the iPhone app.
 
 Nice-to-have hardening
 
@@ -890,6 +918,7 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
+| Tasks: deleting a todo | ~~`DELETE /todos/{id}` removes the todo and its occurrences with bulk statements, which pass no `SaveChanges`: the reminders version did not move and nothing was signalled, so a phone kept the deleted todo's reminders in its window (and rang them offline), and the other devices' screens kept it until they reloaded~~ fixed 2026-11-13: the deletion moves the version and signals `reminders.changed` and `data.changed` like any other change (`TasksDbContext.ChangedByBulkStatementsAsync`); found while testing the home-screen widget |
 | `clients/app`: budget's movement form | ~~The server's limits were not in the form: a repeat count over 5,000, an end more than ten years after the start, a repeating start more than a year ago, an amount with three decimals or above a trillion. Each was refused by the server, with its message, after the form was filled~~ fixed 2026-10-09: the fields keep within them (the count says "At most 5,000 times", the date pickers offer only days the server takes, the amount fields keep two decimals and twelve digits), and a weekly movement starts on its first chosen day, as todos do. Checked at each boundary against a local API |
 | `clients/app`: forms on narrow phones | ~~At 360 dp in French and Kreyòl, the date and time fields' "Choisir" / "Chwazi" button left the value too little room and it wrapped ("2026-10-1" over "0")~~ fixed 2026-10-10: a date or time field opens its picker when tapped anywhere (or with Enter or Space), and a calendar or a clock replaces the button (`PickerField`: the todo form, the budget form, moving an occurrence) |
 | `clients/app`: todo screen | ~~The rule showed as RRULE text and each occurrence as a UTC instant (`2026-10-12T10:30:00Z` for a 06:30 alarm in Port-au-Prince)~~ fixed 2026-10-09: the rule in words, the occurrences in the device's time |

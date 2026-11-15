@@ -17,6 +17,7 @@ import app.kadans.reminders.LocalReminders
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import app.kadans.ui.shell.UnreadNotifications
+import app.kadans.widget.TodayWidget
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -53,6 +54,7 @@ class HomeViewModel(
     private val localReminders: LocalReminders,
     private val dataChanges: DataChanges,
     private val unread: UnreadNotifications,
+    private val todayWidget: TodayWidget,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -88,6 +90,9 @@ class HomeViewModel(
             registered.join()
             profiled.join()
             if (_access.first { it != HomeAccess.Checking } == HomeAccess.Open) localReminders.refresh() else localReminders.forget()
+            // Home opens: someone just signed in, or passed or met the paywall. The home-screen widget finds out now,
+            // not at its next hour (it asks the server itself whether the account is locked).
+            todayWidget.refreshSoon()
         }
         viewModelScope.launch {
             realtime.events.collect { event ->

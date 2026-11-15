@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The todos that did not fit: "3 more", under the titles. A tap opens the app. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_line"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:maxLines="1"
+    android:minHeight="40dp"
+    android:paddingStart="106dp"
+    android:paddingEnd="14dp"
+    android:textColor="@color/widget_on_surface_variant"
+    android:textSize="13sp" />

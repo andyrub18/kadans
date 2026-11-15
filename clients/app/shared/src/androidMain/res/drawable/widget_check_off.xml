@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A line's circle, empty: tapping it marks the todo done (after five seconds to undo). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp" android:height="22dp"
+    android:viewportWidth="22" android:viewportHeight="22">
+    <path android:pathData="M11,2 A9,9 0 1,1 11,20 A9,9 0 1,1 11,2" android:strokeColor="@color/widget_on_surface_variant" android:strokeWidth="1.8" />
+</vector>

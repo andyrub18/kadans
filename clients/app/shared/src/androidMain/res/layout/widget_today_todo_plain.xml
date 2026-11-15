@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One of tomorrow's todos: no circle (it has not come yet), its hour and title where today's are. A tap opens it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_line"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="40dp"
+    android:orientation="horizontal"
+    android:paddingStart="46dp"
+    android:paddingEnd="14dp">
+
+    <TextView
+        android:id="@+id/widget_line_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFeatureSettings="tnum"
+        android:maxLines="1"
+        android:minWidth="60dp"
+        android:paddingEnd="12dp"
+        android:textColor="@color/widget_on_surface_variant"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/widget_line_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/widget_on_surface"
+        android:textSize="14sp" />
+</LinearLayout>

@@ -21,6 +21,10 @@ import app.kadans.reminders.ReminderScheduler
 import app.kadans.reminders.ReminderStore
 import app.kadans.reminders.ReminderActions
 import app.kadans.reminders.platformReminderScheduler
+import app.kadans.widget.TodayWidget
+import app.kadans.widget.TodayWidgetStore
+import app.kadans.widget.WidgetSurface
+import app.kadans.widget.platformWidgetSurface
 import app.kadans.realtime.KadansRealtime
 import app.kadans.sync.DataChanges
 import app.kadans.profile.ClockPreference
@@ -57,10 +61,14 @@ import org.koin.dsl.module
 
 val appModule = org.koin.dsl.module {
     single<Settings> { Settings() }
-    // Signed out by any path: the reminders this device rang itself stop with the session.
+    // Signed out by any path: the reminders this device rang itself stop with the session, and the home-screen
+    // widget holds nothing of the account any more.
     single<TokenStore> {
         val koin = getKoin()
-        ClearAwareTokenStore(SettingsTokenStore(get())) { koin.get<LocalReminders>().forget() }
+        ClearAwareTokenStore(SettingsTokenStore(get())) {
+            koin.get<LocalReminders>().forget()
+            koin.get<TodayWidget>().forget()
+        }
     }
     single {
         val settings = get<Settings>()
@@ -96,6 +104,19 @@ val appModule = org.koin.dsl.module {
         )
     }
     single { ReminderActions(get(), get(), get(), get()) }
+    // The home-screen widget (Android): today's pending todos, fetched when they may have changed.
+    single { TodayWidgetStore(get()) }
+    single<WidgetSurface> {
+        val settings = get<Settings>()
+        platformWidgetSurface(
+            catalog = { Language.fromTag(LanguageController.currentTag(settings)).catalog },
+            clock = { ClockPreference.current(settings) },
+        )
+    }
+    single {
+        val koin = getKoin()
+        TodayWidget(get(), get(), get(), get(), get<KadansRealtime>().events, get(), settled = { koin.get<LocalReminders>().settled(it) })
+    }
     // The desktop app's update check fills it (startUpdateChecks); phones are updated by their stores and leave it empty.
     single { app.kadans.updates.AppUpdates() }
     // A looping session's cycle done: its notice's "Another cycle" and "Done", in the app's language.

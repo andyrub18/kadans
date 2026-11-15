@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A line's circle, ticked: "Done" was tapped and waits its five seconds; tapping it again takes it back. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp" android:height="22dp"
+    android:viewportWidth="22" android:viewportHeight="22">
+    <path android:pathData="M11,1 A10,10 0 1,1 11,21 A10,10 0 1,1 11,1" android:fillColor="@color/widget_primary" />
+    <path android:pathData="M6.5,11.3 L9.7,14.4 L15.6,8" android:strokeColor="@color/widget_surface" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

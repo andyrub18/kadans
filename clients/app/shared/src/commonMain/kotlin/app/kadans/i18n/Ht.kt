@@ -308,6 +308,18 @@ val CreoleStrings = StringsCatalog(
         turnOffTitle = "Dezaktive?",
         turnOffText = "Lyen an sispann mache touswit epi kalandriye w yo p ap mete ajou ankò. Si w aktive l ankò pita, w ap jwenn yon nouvo lyen.",
     ),
+    widget = WidgetStrings(
+        nothingLeft = "Pa gen anyen ankò jodi a",
+        moreFormat = "%d lòt ankò",
+        signedOut = "Konekte nan Kadans pou wè jounen w",
+        locked = "Abòne nan Kadans pou wè jounen w isit la",
+        notLoaded = "Louvri Kadans pou chaje jounen w",
+        undo = "Anile",
+        markDoneFormat = "Make « %s » kòm fini",
+        section = "Widget ekran akèy la",
+        sectionHint = "Travay jodi a yo sou ekran akèy ou, san w pa louvri Kadans.",
+        addToHome = "Ajoute sou ekran akèy mwen",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s disponib",
         availableText = "Telechaje nouvo vèsyon an sou sit Kadans lan.",

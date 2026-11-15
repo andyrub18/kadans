@@ -42,6 +42,25 @@ class DeepLinkTests {
     }
 
     @Test
+    fun theWidgetsPlusOpensTheFormForANewTodoWithASessionOnly() {
+        assertEquals(CreateTodoRoute, parseDeepLink(NEW_TODO_LINK))
+        assertTrue(opensWith(CreateTodoRoute, signedIn = true))
+        assertFalse(opensWith(CreateTodoRoute, signedIn = false))
+        // "new" is the whole path: nothing rides along with it.
+        assertNull(parseDeepLink("kadans://todos/new/focus"))
+        assertNull(parseDeepLink("kadans://todos/newer"))
+    }
+
+    @Test
+    fun theWidgetsHeaderOpensHomeWithASessionOnly() {
+        assertEquals(HomeRoute, parseDeepLink(HOME_LINK))
+        assertTrue(opensWith(HomeRoute, signedIn = true))
+        // Signed out, the app opens as usual, on the sign-in screen: Home is never put over it.
+        assertFalse(opensWith(HomeRoute, signedIn = false))
+        assertNull(parseDeepLink("kadans://home/anything"))
+    }
+
+    @Test
     fun aLimitAlertOpensTheBudget() {
         assertEquals(BudgetRoute, parseDeepLink(BUDGET_LINK))
         assertEquals(null, parseDeepLink("kadans://budget/anything"))

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The home-screen widget (docs/ARCHITECTURE.md → "The home-screen widget"). Its colours are the app's Material 3
+         baseline ones, light here and dark in values-night: a widget follows the system's theme, like its neighbours
+         on the home screen, not the app's own Appearance setting. -->
+    <color name="widget_surface">#FFFBFE</color>
+    <color name="widget_on_surface">#1C1B1F</color>
+    <color name="widget_on_surface_variant">#49454F</color>
+    <color name="widget_primary">#6750A4</color>
+    <color name="widget_divider">#1F1C1B1F</color>
+
+    <dimen name="widget_radius">16dp</dimen>
+
+    <!-- The picker's preview repeats the widget's line three times: the same sizes and colours as widget_today_todo. -->
+    <style name="WidgetPreviewLine">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">14dp</item>
+    </style>
+
+    <style name="WidgetPreviewCheck">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:scaleType">center</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:src">@drawable/widget_check_off</item>
+    </style>
+
+    <style name="WidgetPreviewTime">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">60dp</item>
+        <item name="android:textColor">@color/widget_on_surface_variant</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="WidgetPreviewTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_on_surface</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <!-- What the system's widget picker shows, in the phone's language (the widget itself speaks the app's). -->
+    <string name="widget_today_label">Today\'s todos</string>
+    <string name="widget_today_description">Today\'s todos, each at its time. Tap one to open it, or its circle when it is done.</string>
+    <!-- The picker's preview: a day as the widget would show it. -->
+    <string name="widget_preview_today">Today</string>
+    <string name="widget_preview_date">Mon, Jan 4</string>
+    <string name="widget_preview_first">Morning run</string>
+    <string name="widget_preview_second">Call the bank</string>
+    <string name="widget_preview_third">Groceries</string>
+</resources>

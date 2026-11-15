@@ -308,6 +308,18 @@ val EnglishStrings = StringsCatalog(
         turnOffTitle = "Turn off?",
         turnOffText = "The link stops working at once and your calendars stop updating. Turning it on again later gives a new link.",
     ),
+    widget = WidgetStrings(
+        nothingLeft = "Nothing left today",
+        moreFormat = "%d more",
+        signedOut = "Sign in to Kadans to see your day",
+        locked = "Subscribe in Kadans to see your day here",
+        notLoaded = "Open Kadans to load your day",
+        undo = "Undo",
+        markDoneFormat = "Mark “%s” as done",
+        section = "Home-screen widget",
+        sectionHint = "Today's todos on your home screen, without opening Kadans.",
+        addToHome = "Add to my home screen",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s is available",
         availableText = "Download the new version from the Kadans site.",

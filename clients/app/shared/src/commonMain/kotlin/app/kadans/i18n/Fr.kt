@@ -308,6 +308,18 @@ val FrenchStrings = StringsCatalog(
         turnOffTitle = "Désactiver ?",
         turnOffText = "Le lien cesse de fonctionner aussitôt et vos calendriers ne se mettent plus à jour. Si vous réactivez plus tard, le lien sera nouveau.",
     ),
+    widget = WidgetStrings(
+        nothingLeft = "Plus rien aujourd'hui",
+        moreFormat = "%d de plus",
+        signedOut = "Connectez-vous à Kadans pour voir votre journée",
+        locked = "Abonnez-vous dans Kadans pour voir votre journée ici",
+        notLoaded = "Ouvrez Kadans pour charger votre journée",
+        undo = "Annuler",
+        markDoneFormat = "Marquer « %s » comme terminée",
+        section = "Widget de l'écran d'accueil",
+        sectionHint = "Les tâches du jour sur votre écran d'accueil, sans ouvrir Kadans.",
+        addToHome = "Ajouter à mon écran d'accueil",
+    ),
     updates = UpdateStrings(
         availableFormat = "Kadans %s est disponible",
         availableText = "Téléchargez la nouvelle version sur le site de Kadans.",

@@ -24,6 +24,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -133,6 +134,7 @@ class TodayWidgetTests {
         phone: Boolean = true,
         clock: () -> Instant = { morning },
         events: MutableSharedFlow<RealtimeEvent> = MutableSharedFlow(),
+        listening: Boolean = false,
     ) = TodayWidget(
         server.api,
         TodayWidgetStore(settings),
@@ -143,11 +145,15 @@ class TodayWidgetTests {
         settled = { settled += it },
         now = clock,
         zone = { haiti },
-        scope = scope,
+        // Most tests call the widget themselves and want nothing else to move: it listens to no signal (a scope
+        // already over). The app has one of these per process; a test that makes a second one on the same settings
+        // ("Android stopped the process") must not have the first still answering signals beside it.
+        scope = if (listening) scope else CoroutineScope(Job().apply { cancel() }),
     )
 
+    /** Waits for what a signal sets off on another thread; a read caught mid-write just asks again. */
     private suspend fun until(what: String, condition: () -> Boolean) = withContext(Dispatchers.Default) {
-        withTimeout(10_000) { while (!condition()) delay(10) }
+        withTimeout(10_000) { while (!runCatching(condition).getOrDefault(false)) delay(10) }
     }
 
     @Test
@@ -270,7 +276,7 @@ class TodayWidgetTests {
     fun a_todo_changed_on_this_phone_is_fetched_again_without_being_asked() = runTest {
         val server = Server()
         val screen = Screen()
-        val widget = widget(server, screen)
+        val widget = widget(server, screen, listening = true)
         widget.refresh()
 
         withContext(Dispatchers.Default) { delay(200) } // the widget's listeners are up
@@ -285,7 +291,7 @@ class TodayWidgetTests {
         val server = Server()
         val screen = Screen()
         val events = MutableSharedFlow<RealtimeEvent>(extraBufferCapacity = 4)
-        widget(server, screen, events = events).refresh()
+        widget(server, screen, events = events, listening = true).refresh()
         withContext(Dispatchers.Default) { delay(200) } // the widget's listeners are up
 
         server.todos = listOf("Dentist" to "2026-11-13T20:00:00Z")
@@ -300,7 +306,7 @@ class TodayWidgetTests {
         val server = Server()
         val screen = Screen()
         var now = morning
-        val widget = widget(server, screen, clock = { now })
+        val widget = widget(server, screen, clock = { now }, listening = true)
         widget.refresh()
         assertEquals(1, server.fetches())
 

@@ -898,6 +898,54 @@ session had been ended on the server (the form after the sign-in, both times); w
 form open; the link in the todo's description opening Chrome. Not checked: the selection menu by hand in another app
 (Android lists Kadans for it), other makers' share sheets, a real phone, the iPhone.
 
+### The phone's calendar (2026-11-16)
+
+Fifth of the integrations ranked after a tester's feedback, and the other half of the calendar question: the feed puts
+the todos in the person's calendar; this shows the calendar's events beside the todos, so that a day is planned in one
+place. Android now; the iPhone's (EventKit) comes with the iPhone app; a computer has no one calendar every program
+writes to.
+
+- **Read on the phone, shown, and no further.** The events are read from Android's calendar provider when a screen
+  shows them (`calendar/AndroidPhoneCalendar`), handed to that screen, and dropped with it. Nothing of them is kept in
+  the app's settings, sent to the server or written to a log: the server never learns that a calendar exists. The
+  privacy policy says so ("What stays on your phone").
+- **Off by default.** Settings → "My phone's calendar" (this device's own switch), and a one-time offer on the Calendar
+  tab, where someone looks for their meetings (`PhoneCalendarSection`, `PhoneCalendarOffer`). Turning it on asks
+  Android's own question (`READ_CALENDAR`), never at start. Refused twice, Android no longer asks: the same button then
+  opens Kadans' page in the system's settings, where the permission is. With the switch on and no permission, Settings
+  says what is missing and the screens show the todos alone.
+- **Which events** (`Instances`, so a repeating event counts each time): those of the calendars the person shows in
+  their calendar app (`VISIBLE`), without the events they declined and the cancelled ones. The person's own choice of
+  calendars is respected rather than asked a second time in Kadans.
+- **Kadans' own todos do not come back twice.** Someone who gave their calendar app the calendar feed has every todo
+  in the phone's calendar too. An event is left out when it starts at the minute a todo of the same days does and
+  bears its title, with or without the feed's "✓ " for done (`PhoneEvents.withoutKadans`). A whole-day event never is.
+- **Where they show** (`ui/calendar/DayItems`): on Home's "Next 7 days" and in the Calendar tab's day, in one list with
+  the todos: the events of the whole day first, then todos and events by their hour, the todo first at the same
+  minute. A day with only events is listed. An event that crosses midnight is on both days ("22:00 – …", "… – 06:00");
+  a whole day is the day the calendar says, whatever the phone's time zone. In the month, a day with events has a small
+  ring where a todo is a full dot.
+- **Never taken for a todo** (`PhoneEventCard`): outlined where a todo is filled, its calendar's colour down the side,
+  its hours and its calendar's name under the title. Read-only: a tap opens it in the phone's calendar app, and Kadans
+  changes nothing in it. A title is someone else's text (an invitation can come from anyone): plain text, cut, two
+  lines at most.
+- **Kept current** by the screens' own reloads: on opening, on coming back to the front (an event added in the
+  calendar app meanwhile is there), and when the switch or the permission changes (`PhoneCalendar.changes`). A calendar
+  that cannot be read never fails a screen of todos: it is shown without events.
+- **Google Play**: `READ_CALENDAR` is a runtime permission with no declaration form of its own, and events read on the
+  device and never sent are not "collected" in the Data safety form's sense. The owner's checklist says what to look at.
+
+Checked on the emulator (Android 15) against a local API, with a calendar filled for the test: the offer on the Calendar
+tab, Android's question, and the month showing the events at once after "Allow"; a meeting beside a todo, a whole-day
+event first, a meeting after the todo of the same hour, a repeating event on each of its days, a night shift on both
+its days; left out: a declined event, a cancelled one, one of a hidden calendar, and the copies of two todos as the
+calendar feed would make them; Home's next seven days, light and dark; the switch off and on; the permission taken
+away (todos alone, Settings saying what is missing), refused until Android no longer asks (the button opening the
+system's settings) and given back there; an event added while Kadans was in the background; no event title in the
+app's log or the server's. A tap starts the phone's calendar app on the event (seen in Android's log); the event's own
+screen was not seen, because the emulator's Google Calendar app dies at start on this image. Not checked: a real
+phone's calendars (Google, Samsung, a work account), other makers' calendar apps, the iPhone.
+
 ### Client: Compose Multiplatform
 
 Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/Linux) from one

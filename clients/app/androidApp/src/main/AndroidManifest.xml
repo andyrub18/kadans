@@ -10,6 +10,9 @@
     <!-- Do Not Disturb during focus (ARCHITECTURE): a mode of Kadans' own, on while a focus phase counts down. The
          person gives "Do Not Disturb access" in the system's settings; it does not let an app read notifications. -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- The phone's calendar beside the todos (ARCHITECTURE): read only, asked when the person turns it on in Settings
+         or on the Calendar tab, never at start. The events are shown and go no further: not kept, not sent. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
 
     <application
         android:allowBackup="true"

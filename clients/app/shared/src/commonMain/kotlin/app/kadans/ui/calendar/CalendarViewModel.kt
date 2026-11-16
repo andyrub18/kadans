@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.TodoOccurrenceResponse
+import app.kadans.calendar.PhoneCalendar
+import app.kadans.calendar.PhoneEvent
+import app.kadans.calendar.PhoneEvents
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import kotlin.coroutines.cancellation.CancellationException
@@ -26,6 +29,8 @@ data class CalendarUiState(
     val month: Int,
     val cells: List<MonthCell> = emptyList(),
     val byDay: Map<LocalDate, List<TodoOccurrenceResponse>> = emptyMap(),
+    /** The phone's own events on the days shown, where the person turned that on; never from the server. */
+    val eventsByDay: Map<LocalDate, List<PhoneEvent>> = emptyMap(),
     val selected: LocalDate? = null,
     val today: LocalDate,
     val isLoading: Boolean = true,
@@ -34,9 +39,16 @@ data class CalendarUiState(
 ) {
     val selectedOccurrences: List<TodoOccurrenceResponse>
         get() = selected?.let { byDay[it] }.orEmpty()
+
+    val selectedEvents: List<PhoneEvent>
+        get() = selected?.let { eventsByDay[it] }.orEmpty()
 }
 
-class CalendarViewModel(private val api: KadansApi, private val dataChanges: DataChanges) : ViewModel() {
+class CalendarViewModel(
+    private val api: KadansApi,
+    private val dataChanges: DataChanges,
+    private val phoneCalendar: PhoneCalendar,
+) : ViewModel() {
     private val timeZone = TimeZone.currentSystemDefault()
 
     private val _state: MutableStateFlow<CalendarUiState>
@@ -51,6 +63,8 @@ class CalendarViewModel(private val api: KadansApi, private val dataChanges: Dat
         load()
         // Changed elsewhere (another device, a notification's button), or back in front: shown as it is now.
         viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { fetch(quiet = true) } }
+        // The phone's calendar was turned on or off, or its permission given: the month is shown with or without it.
+        viewModelScope.launch { phoneCalendar.changes.collect { fetch(quiet = true) } }
     }
 
     fun previous() = move(previousMonth(_state.value.year, _state.value.month))
@@ -83,11 +97,14 @@ class CalendarViewModel(private val api: KadansApi, private val dataChanges: Dat
         try {
             val from = shown.cells.first().date.atStartOfDayIn(timeZone)
             val to = shown.cells.last().date.plus(1, DateTimeUnit.DAY).atStartOfDayIn(timeZone)
-            val byDay = api.todos.occurrencesBetween(from, to)
-                .groupBy { it.scheduledAt.toLocalDateTime(timeZone).date }
+            val occurrences = api.todos.occurrencesBetween(from, to)
+            val byDay = occurrences.groupBy { it.scheduledAt.toLocalDateTime(timeZone).date }
+            // The phone's own events for the same days, read on the phone (empty unless the person turned that on).
+            val events = phoneCalendar.events(from, to, occurrences)
+            val eventsByDay = PhoneEvents.byDay(events, shown.cells.first().date, shown.cells.last().date, timeZone)
             // Moved to another month meanwhile: that month's own load shows it.
             if (_state.value.year == shown.year && _state.value.month == shown.month)
-                _state.value = _state.value.copy(byDay = byDay, isLoading = false)
+                _state.value = _state.value.copy(byDay = byDay, eventsByDay = eventsByDay, isLoading = false)
         } catch (e: CancellationException) {
             throw e
         } catch (e: KadansApiException) {

@@ -177,6 +177,7 @@ private fun MainPage(
     // What belongs to this device, where it applies (each brings its own divider).
     RemindersSection()
     QuietSection()
+    PhoneCalendarSection()
     WidgetSection()
     StartAtLoginSection()
     SubscriptionSection()

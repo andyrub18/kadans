@@ -471,6 +471,30 @@ data class WidgetStrings(
 }
 
 /**
+ * The phone's calendar beside the todos (ARCHITECTURE → "The phone's calendar"), on a phone that has one Kadans can
+ * read: the Settings section, the permission, the Calendar tab's one-time offer, and an event's own words. A feature
+ * group.
+ */
+data class PhoneCalendarStrings(
+    val section: String,
+    val sectionHint: String,
+    /** The switch is on and Android's permission to read the calendar is not given. */
+    val needsPermission: String,
+    val allow: String,
+    /** The Calendar tab's offer, made once. */
+    val offerTitle: String,
+    val offerText: String,
+    val turnOn: String,
+    val notNow: String,
+    /** In place of an event's hours when it lasts the whole day. */
+    val allDay: String,
+    /** An event its author gave no title. */
+    val untitled: String,
+    /** What a screen reader says before an event's title: it is the calendar's, not a todo. */
+    val eventLabel: String,
+)
+
+/**
  * Share to Kadans (ARCHITECTURE → "Share to Kadans"): what the person reads back in the app they shared from, once the
  * todo made from their text is saved. A feature group.
  */
@@ -683,6 +707,7 @@ data class StringsCatalog(
     val widget: WidgetStrings,
     val quiet: QuietStrings,
     val share: ShareStrings,
+    val phoneCalendar: PhoneCalendarStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

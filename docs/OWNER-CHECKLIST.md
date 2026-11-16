@@ -305,6 +305,15 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
+- [ ] The phone's calendar (2026-11-16), with the next Android build on your phone: Calendar tab → "Show this phone's
+      calendar here?" → Turn on → Allow. Your meetings should show on Home and in the Calendar tab, outlined, with their
+      calendar's colour; a tap opens one in your calendar app. If your todos are in Google Calendar through the feed,
+      none should show twice. Tell me what a Samsung or a work calendar looks like: only a test calendar on the
+      emulator was checked.
+      Play Console, when you upload that build: the app now asks for the calendar permission. App content → Data
+      safety stays as it is (events are read on the phone and never sent: that is not "collected"); if the upload or a
+      review asks why the app reads the calendar, the answer is "to show the person's own events beside their tasks, on
+      the device only", and the privacy policy's "What stays on your phone" says it.
 - [ ] Share to Kadans (2026-11-16), with the next Android build on your phone: in Chrome, ⋮ → Share → Kadans ("New
       todo"); the form opens with the page's title and its link, and "Create" brings you back to Chrome. The same from
       a WhatsApp message (press it, Share). Select a text in any app and look for "Add to Kadans" in the menu that

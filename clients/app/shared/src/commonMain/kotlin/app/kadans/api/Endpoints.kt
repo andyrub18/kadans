@@ -154,6 +154,10 @@ class TodosApi internal constructor(private val api: KadansApi) {
     companion object {
         /** The longest note an occurrence keeps (`TodoOccurrence.MaxNoteLength` on the server). */
         const val NOTE_LENGTH = 4000
+
+        /** The longest title and description a todo keeps (the server's `Todo.MaxTitleLength`, `MaxDescriptionLength`). */
+        const val TITLE_LENGTH = 500
+        const val DESCRIPTION_LENGTH = 4000
     }
 
     suspend fun list(page: Int = 1, pageSize: Int = 20, status: TaskStatus? = null): List<TodoResponse> =

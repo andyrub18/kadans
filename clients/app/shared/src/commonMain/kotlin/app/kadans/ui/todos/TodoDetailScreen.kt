@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.kadans.ui.LinkedText
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
@@ -101,7 +102,8 @@ private fun Detail(
             }
             item { Text(content.todo.title, style = MaterialTheme.typography.headlineSmall) }
             if (content.todo.description.isNotBlank()) {
-                item { Text(content.todo.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                // A link in it (a page shared to Kadans) opens from here.
+                item { LinkedText(content.todo.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             content.todo.recurrenceRule?.let { rule ->
                 item {

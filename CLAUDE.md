@@ -192,7 +192,12 @@ focus phase counts down, whichever device started the session) is `quiet/FocusQu
 phone is set to, whose word holds) and `quiet/AndroidQuietMode` (a mode of Kadans' own in the system's settings, never
 the phone's main Do Not Disturb; one exact alarm; the notice with "Sound on"; ARCHITECTURE → "Do Not Disturb during
 focus"). Every session a request brings back goes through `KadansApi.seen`: a new call that returns a session must too.
-Whatever makes the phone quiet sets the alarm that ends it in the same step. Screens
+Whatever makes the phone quiet sets the alarm that ends it in the same step. Share to Kadans (Android: a text or a link
+from any app's share sheet, or a selection's "Add to Kadans") opens the new-todo form filled in and saves nothing by
+itself: `share/SharedText` (the text read as a title and a description, cleaned and cut: it is another app's, never
+trusted), `SharedTodoRoute` and `SharedTodoScreen` (alone on the screen, back to the other app when done, the session and
+the paywall first; ARCHITECTURE → "Share to Kadans"). A todo's title holds 500 characters and its description 4,000
+(`TodosApi.TITLE_LENGTH`, `DESCRIPTION_LENGTH`, the server's `Todo.Max…`): a form field for either stops there. Screens
 reload quietly whatever changed what they show (another device, a notification's button, a job, the app back in front):
 the server's `data.changed` and `sync/DataChanges`, ARCHITECTURE → "Screens stay in step"; a screen that loads once and
 never again is a bug. The desktop app closes to the tray (Linux: a freedesktop

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.unit.dp
 import androidx.activity.ComponentActivity
@@ -41,7 +42,12 @@ class MainActivity : ComponentActivity() {
             // Before Android 12 the window shows the still K while the app starts (splash_background): the app keeps it
             // as long as Android 12+ keeps the settled K, then fades the same way. Same size and place: no jump.
             SplashOver(show = Build.VERSION.SDK_INT < Build.VERSION_CODES.S, wind = false, markSize = 128.dp) {
-                App(deepLink = deepLink)
+                // Opened by another app's share, the form is all there is here: saved or left, this activity ends
+                // and the person is back in that app, with a word saying the todo is saved.
+                App(deepLink = deepLink, leave = { message ->
+                    message?.let { Toast.makeText(applicationContext, it, Toast.LENGTH_SHORT).show() }
+                    finish()
+                })
             }
         }
     }

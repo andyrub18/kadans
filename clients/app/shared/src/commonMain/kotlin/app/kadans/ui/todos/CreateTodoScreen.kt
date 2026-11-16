@@ -1,8 +1,10 @@
 package app.kadans.ui.todos
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -20,13 +22,44 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import app.kadans.api.TodosApi
+import app.kadans.billing.SubscriptionGate
 import app.kadans.i18n.LocalStrings
+import app.kadans.share.SharedText
+import app.kadans.share.TodoDraft
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
+
+/**
+ * The form for a new todo, filled in from a text another app shared (ARCHITECTURE → "Share to Kadans"): [draft]'s title
+ * and description, the person's to change; nothing is saved before "Create". A share reaches the app past Home, which
+ * is where a phone without a subscription meets its paywall: asked here first, and [onPaywall] leads to it.
+ */
+@Composable
+fun SharedTodoScreen(
+    draft: TodoDraft,
+    onCreated: (String) -> Unit,
+    onBack: () -> Unit,
+    onPaywall: () -> Unit,
+    gate: SubscriptionGate = koinInject(),
+) {
+    var open by remember { mutableStateOf(if (gate.appliesHere) null else true) }
+    LaunchedEffect(Unit) { if (open == null) open = !gate.needsPaywall() }
+    when (open) {
+        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        false -> LaunchedEffect(Unit) { onPaywall() }
+        true -> CreateTodoScreen(onCreated = onCreated, onBack = onBack, viewModel = koinViewModel { parametersOf(draft) })
+    }
+}
 
 @Composable
 fun CreateTodoScreen(
@@ -57,14 +90,14 @@ fun CreateTodoScreen(
 
             OutlinedTextField(
                 value = state.title,
-                onValueChange = { v -> viewModel.update { it.copy(title = v) } },
+                onValueChange = { v -> viewModel.update { it.copy(title = SharedText.within(v, TodosApi.TITLE_LENGTH)) } },
                 label = { Text(s.titleLabel) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.description,
-                onValueChange = { v -> viewModel.update { it.copy(description = v) } },
+                onValueChange = { v -> viewModel.update { it.copy(description = SharedText.within(v, TodosApi.DESCRIPTION_LENGTH)) } },
                 label = { Text(s.descriptionOptional) },
                 modifier = Modifier.fillMaxWidth(),
             )

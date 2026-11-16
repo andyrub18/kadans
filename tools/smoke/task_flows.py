@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end check of the Tasks module (occurrence materialization, overrides, rule changes,
-previews, reminder leads, recurrence limits, the next autumn DST change in Port-au-Prince) against
+previews, reminder leads, the lengths a title and a description hold, recurrence limits, the next autumn DST change in
+Port-au-Prince) against
 a running API in Development.
 
     python3 tools/smoke/task_flows.py [base-url] [username] [password]   # default user: smoke
@@ -171,6 +172,18 @@ s, r = call("PUT", f"/todos/{lead['id']}", {"title": "smoke: lead", "description
 C("a huge lead on update is a 400 in the caller's language (was a 500)",
   s == 400 and r["errors"][0]["code"] == "10052" and r["errors"][0]["message"].startswith("Un rappel"), f"{s} {r}")
 call("PUT", f"/todos/{lead['id']}/cancel", {"reason": "cleanup"}, token=T)
+
+# --- a title holds 500 characters and a description 4,000 (a text shared from another app can be long) ---
+long_todo = {"title": "smoke: " + "t" * 493, "description": "d" * 4000, "notificationEnabled": False, "dueDate": iso(start + dt.timedelta(days=3))}
+s, at_limit = call("POST", "/todos/one-time", long_todo, token=T)
+C("a title of 500 characters and a description of 4,000 are accepted", s == 200 and len(at_limit["title"]) == 500 and len(at_limit["description"]) == 4000, f"{s}")
+s, r = call("POST", "/todos/one-time", long_todo | {"title": long_todo["title"] + "t", "description": long_todo["description"] + "d"}, token=T, lang="fr")
+C("one character more is a 400 in the caller's language (was a 500)",
+  s == 400 and [e["code"] for e in r["errors"]] == ["10060", "10060"]
+  and [e["message"] for e in r["errors"]] == ["Un titre peut avoir 500 caractères au plus.", "Une description peut avoir 4 000 caractères au plus."], f"{s} {r}")
+s, r = call("PUT", f"/todos/{at_limit['id']}", {"title": "smoke: long", "description": "d" * 4001, "notificationEnabled": False}, token=T)
+C("and on an edit too", s == 400 and [e["message"] for e in r["errors"]] == ["A description can have at most 4,000 characters."], f"{s} {r}")
+call("PUT", f"/todos/{at_limit['id']}/cancel", {"reason": "cleanup"}, token=T)
 
 # --- recurrence limits: 5,000 repeats, 10 years, every 5 minutes at most; a calendar asks a year at most ---
 HAITI = "America/Port-au-Prince"

@@ -305,6 +305,10 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
+- [ ] Share to Kadans (2026-11-16), with the next Android build on your phone: in Chrome, ⋮ → Share → Kadans ("New
+      todo"); the form opens with the page's title and its link, and "Create" brings you back to Chrome. The same from
+      a WhatsApp message (press it, Share). Select a text in any app and look for "Add to Kadans" in the menu that
+      appears (sometimes under ⋮). Then open the todo: the link in its description opens the page.
 - [ ] Do Not Disturb during focus (2026-11-15), with the next Android build on your phone: Settings → "Do Not Disturb
       during focus" → the switch, then Android's own screens ("Do Not Disturb access"; "Alarms & reminders" if it is
       off). Start a session on the computer while the phone has been lying still for a few minutes: it should go

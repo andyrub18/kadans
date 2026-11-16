@@ -335,6 +335,7 @@ val CreoleStrings = StringsCatalog(
         noticeUntilFormat = "Jiska %s",
         soundOn = "Remèt son an",
     ),
+    share = ShareStrings(saved = "Anrejistre nan Kadans"),
     updates = UpdateStrings(
         availableFormat = "Kadans %s disponib",
         availableText = "Telechaje nouvo vèsyon an sou sit Kadans lan.",

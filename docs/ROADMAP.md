@@ -932,6 +932,23 @@ installing on real devices second, hosting last.
         Do Not Disturb settings. If Play Console asks about the new permission at upload, say what it asks.
       - [ ] Later, if testers ask: a choice of what rings through in Kadans itself (today: Android's own settings for
         the mode), and the same quiet on the desktop where a system offers it.
+- [x] 2026-11-16, the fourth integration from that feedback: Share to Kadans (ARCHITECTURE → "Share to Kadans"), on
+      Android. A text or a link shared from any app (the share sheet: "New todo" under Kadans' name), or selected in
+      one ("Add to Kadans" in the selection's menu), opens the form for a new todo filled in: the page's title or the
+      text's first line as the title, the whole text as the description. Nothing is saved before "Create"; saved or
+      cancelled, the person is back in the app they shared from. It needs a session (the form comes after the
+      sign-in) and the subscription (the paywall otherwise). A link in a todo's description now opens in the browser,
+      on every platform.
+      Two older bugs found on the way and fixed (the table below): a title or a description longer than its column
+      was a 500, and turning the phone lost any open form.
+      Checked: the server's tests (384), `task_flows.py` (with the limits), the app's tests (443: the shared text, the
+      links, the form), the desktop and Android builds, and on the emulator (Android 15) with a local API everything
+      listed in ARCHITECTURE. Not checked: the selection menu by hand in another app, other makers' share sheets, a
+      real phone.
+      - [ ] By the owner, with the next Android build: share a page from Chrome and a message from WhatsApp to
+        Kadans; select a text in any app and look for "Add to Kadans".
+      - [ ] Later: the iPhone's share extension with the iPhone app; a picture or a file shared to a todo, once todos
+        hold attachments.
 
 Nice-to-have hardening
 
@@ -947,6 +964,8 @@ Nice-to-have hardening
 
 | Where | Problem |
 |-------|---------|
+| Tasks: a todo's title and description | ~~Nothing checked their length: a title over 500 characters or a description over 4,000 reached the database, which refused it, and the request came back as a 500 "Database error" ("Failed to create todo")~~ fixed 2026-11-16: refused with a sentence (400, code 10060, three languages) on create and on edit, and the forms stop at those lengths; found while building Share to Kadans, where a long text is ordinary; `task_flows.py` checks it |
+| `clients/app` on Android: turning the phone | ~~Android restarted the activity for a new orientation, a new window size or the system's dark mode coming on, and the navigation started again at Home: a form half filled in was lost by turning the phone~~ fixed 2026-11-16: the activity keeps running through those changes (`android:configChanges`; the screen is all Compose and redraws itself); checked on the emulator, a form's text kept through a turn and through dark mode. Still restarted, and back at Home: a change of the system's language or font size, and Android stopping the app in the background; the stack would have to be saved for those |
 | Tasks: deleting a todo | ~~`DELETE /todos/{id}` removes the todo and its occurrences with bulk statements, which pass no `SaveChanges`: the reminders version did not move and nothing was signalled, so a phone kept the deleted todo's reminders in its window (and rang them offline), and the other devices' screens kept it until they reloaded~~ fixed 2026-11-13: the deletion moves the version and signals `reminders.changed` and `data.changed` like any other change (`TasksDbContext.ChangedByBulkStatementsAsync`); found while testing the home-screen widget |
 | `clients/app`: budget's movement form | ~~The server's limits were not in the form: a repeat count over 5,000, an end more than ten years after the start, a repeating start more than a year ago, an amount with three decimals or above a trillion. Each was refused by the server, with its message, after the form was filled~~ fixed 2026-10-09: the fields keep within them (the count says "At most 5,000 times", the date pickers offer only days the server takes, the amount fields keep two decimals and twelve digits), and a weekly movement starts on its first chosen day, as todos do. Checked at each boundary against a local API |
 | `clients/app`: forms on narrow phones | ~~At 360 dp in French and Kreyòl, the date and time fields' "Choisir" / "Chwazi" button left the value too little room and it wrapped ("2026-10-1" over "0")~~ fixed 2026-10-10: a date or time field opens its picker when tapped anywhere (or with Enter or Space), and a calendar or a clock replaces the button (`PickerField`: the todo form, the budget form, moving an occurrence) |

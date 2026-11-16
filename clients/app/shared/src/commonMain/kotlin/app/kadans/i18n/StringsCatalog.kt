@@ -471,6 +471,12 @@ data class WidgetStrings(
 }
 
 /**
+ * Share to Kadans (ARCHITECTURE → "Share to Kadans"): what the person reads back in the app they shared from, once the
+ * todo made from their text is saved. A feature group.
+ */
+data class ShareStrings(val saved: String)
+
+/**
  * Do Not Disturb during focus (ARCHITECTURE → "Do Not Disturb during focus"), on a phone that can: the Settings
  * section, what Android still has to allow, the session screen's one-time offer, the name of Kadans' mode in Android's
  * own settings, and the notice shown while the phone is quiet. A feature group.
@@ -676,6 +682,7 @@ data class StringsCatalog(
     val calendarFeed: CalendarFeedStrings,
     val widget: WidgetStrings,
     val quiet: QuietStrings,
+    val share: ShareStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

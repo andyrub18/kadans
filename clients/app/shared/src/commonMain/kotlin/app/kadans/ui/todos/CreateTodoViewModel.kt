@@ -1,5 +1,6 @@
 package app.kadans.ui.todos
 
+import app.kadans.share.TodoDraft
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
@@ -168,8 +169,9 @@ data class CreateTodoUiState(
     val canSubmit: Boolean get() = title.isNotBlank() && ruleValid && !isLoading
 }
 
-class CreateTodoViewModel(private val api: KadansApi) : ViewModel() {
-    private val _state = MutableStateFlow(CreateTodoUiState())
+/** [draft]: a title and a description to start from (a text another app shared); the person changes them as any other. */
+class CreateTodoViewModel(private val api: KadansApi, draft: TodoDraft? = null) : ViewModel() {
+    private val _state = MutableStateFlow(CreateTodoUiState(title = draft?.title.orEmpty(), description = draft?.description.orEmpty()))
     val state: StateFlow<CreateTodoUiState> = _state.asStateFlow()
 
     private val _created = MutableSharedFlow<String>(extraBufferCapacity = 1)

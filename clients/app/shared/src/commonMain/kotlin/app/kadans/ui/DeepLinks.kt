@@ -1,6 +1,11 @@
 package app.kadans.ui
 
+import app.kadans.api.TodosApi
+import app.kadans.share.SharedText
+import app.kadans.share.TodoDraft
 import io.ktor.http.Url
+import io.ktor.http.formUrlEncode
+import io.ktor.http.parametersOf
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -22,8 +27,8 @@ fun parseDeepLink(link: String?): Any? {
     return when (url.host) {
         // A reminder's todo, or its focus session. Only an id: anything else in the path is not a link this app made.
         "todos" -> {
-            // The widget's "+": a new todo.
-            if (path == "new") return CreateTodoRoute
+            // The widget's "+": a new todo. With a title or a description: another app's share, the form filled in.
+            if (path == "new") return sharedTodo(url) ?: CreateTodoRoute
             val parts = path.split('/')
             val todoId = Uuid.parseOrNull(parts[0])?.toString() ?: return null
             when (parts.drop(1)) {
@@ -40,6 +45,17 @@ fun parseDeepLink(link: String?): Any? {
         "settings" -> if (path.isEmpty()) SettingsRoute else null
         else -> null
     }
+}
+
+/**
+ * The form filled in from a share ([sharedTodoLink]). Whatever the link carries is cut to what a todo holds: the app
+ * makes these links itself, but an activity that takes links takes them from anyone.
+ */
+private fun sharedTodo(url: Url): SharedTodoRoute? {
+    val title = url.parameters["title"].orEmpty()
+    val description = url.parameters["description"].orEmpty()
+    if (title.isBlank() && description.isBlank()) return null
+    return SharedTodoRoute(SharedText.within(title, TodosApi.TITLE_LENGTH), SharedText.within(description, TodosApi.DESCRIPTION_LENGTH))
 }
 
 /** The emailed password reset, from its own host. A reset token never comes through `kadans://`, which any app can claim. */
@@ -62,6 +78,10 @@ const val HOME_LINK = "kadans://home"
 /** What the home-screen widget's "+" opens: the form for a new todo. */
 const val NEW_TODO_LINK = "kadans://todos/new"
 
+/** What a text shared by another app opens ("Share to Kadans"): the form for a new todo, filled in with [draft]. */
+fun sharedTodoLink(draft: TodoDraft): String =
+    NEW_TODO_LINK + "?" + parametersOf("title" to listOf(draft.title), "description" to listOf(draft.description)).formUrlEncode()
+
 /** What Android's Do Not Disturb settings open for Kadans' mode ("Do Not Disturb during focus"): Settings, where its switch is. */
 const val SETTINGS_LINK = "kadans://settings"
 
@@ -70,8 +90,8 @@ const val BUDGET_LINK = "kadans://budget"
 
 /** Whether [route] may open now: Home, a todo, a new one, its session, the budget or Settings needs a session, a password reset does not. */
 fun opensWith(route: Any, signedIn: Boolean): Boolean =
-    (route !is HomeRoute && route !is TodoDetailRoute && route !is CreateTodoRoute && route !is PomodoroRoute && route !is BudgetRoute &&
-        route !is SettingsRoute) || signedIn
+    (route !is HomeRoute && route !is TodoDetailRoute && route !is CreateTodoRoute && route !is SharedTodoRoute && route !is PomodoroRoute &&
+        route !is BudgetRoute && route !is SettingsRoute) || signedIn
 
 /**
  * Links that reach the app while it runs (Android: a reminder tapped with the app open). Kept until the navigation

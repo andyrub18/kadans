@@ -24,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.kadans.api.TodosApi
+import app.kadans.share.SharedText
 import app.kadans.i18n.LocalStrings
 import kotlin.time.Clock
 import org.koin.compose.viewmodel.koinViewModel
@@ -63,14 +65,14 @@ fun EditTodoScreen(
 
             OutlinedTextField(
                 value = state.title,
-                onValueChange = { v -> viewModel.update { it.copy(title = v) } },
+                onValueChange = { v -> viewModel.update { it.copy(title = SharedText.within(v, TodosApi.TITLE_LENGTH)) } },
                 label = { Text(s.titleLabel) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.description,
-                onValueChange = { v -> viewModel.update { it.copy(description = v) } },
+                onValueChange = { v -> viewModel.update { it.copy(description = SharedText.within(v, TodosApi.DESCRIPTION_LENGTH)) } },
                 label = { Text(s.descriptionOptional) },
                 modifier = Modifier.fillMaxWidth(),
             )

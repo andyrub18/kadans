@@ -14,6 +14,16 @@ internal sealed class CreateOneTimeTodoRulesValidator : AbstractValidator<Create
             .WithMessage("Title is required.")
             .WithErrorCode(ErrorTypes.TitleRequired.Value);
 
+        RuleFor(request => request.Title)
+            .MaximumLength(Todo.MaxTitleLength)
+            .WithMessage("A title can have at most 500 characters.")
+            .WithErrorCode(ErrorTypes.TextTooLong.Value);
+
+        RuleFor(request => request.Description)
+            .MaximumLength(Todo.MaxDescriptionLength)
+            .WithMessage("A description can have at most 4,000 characters.")
+            .WithErrorCode(ErrorTypes.TextTooLong.Value);
+
         RuleFor(request => request.DueDate)
             .Must(dueDate => dueDate > DateTimeOffset.UtcNow)
             .WithMessage("Due date must be in the future.")
@@ -35,6 +45,16 @@ internal sealed class CreateRecurringTodoRulesValidator : AbstractValidator<Crea
             .WithMessage("Title is required.")
             .WithErrorCode(ErrorTypes.TitleRequired.Value);
 
+        RuleFor(request => request.Title)
+            .MaximumLength(Todo.MaxTitleLength)
+            .WithMessage("A title can have at most 500 characters.")
+            .WithErrorCode(ErrorTypes.TextTooLong.Value);
+
+        RuleFor(request => request.Description)
+            .MaximumLength(Todo.MaxDescriptionLength)
+            .WithMessage("A description can have at most 4,000 characters.")
+            .WithErrorCode(ErrorTypes.TextTooLong.Value);
+
         RuleFor(request => request.RecurrenceRule)
             .SetValidator(new CreateRecurrenceRulesValidator());
 
@@ -54,6 +74,16 @@ internal sealed class UpdateTodoRulesValidator : AbstractValidator<UpdateTodo>
             .NotEmpty()
             .WithMessage("Title is required.")
             .WithErrorCode(ErrorTypes.TitleRequired.Value);
+
+        RuleFor(request => request.Title)
+            .MaximumLength(Todo.MaxTitleLength)
+            .WithMessage("A title can have at most 500 characters.")
+            .WithErrorCode(ErrorTypes.TextTooLong.Value);
+
+        RuleFor(request => request.Description)
+            .MaximumLength(Todo.MaxDescriptionLength)
+            .WithMessage("A description can have at most 4,000 characters.")
+            .WithErrorCode(ErrorTypes.TextTooLong.Value);
 
         RuleFor(request => request.NotifyBeforeInMinutes)
             .LessThanOrEqualTo(Todo.MaxNotifyBeforeMinutes)

@@ -16,6 +16,10 @@ import app.kadans.config.ServerAddress
 import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.push.DeviceRegistrar
+import app.kadans.quiet.FocusQuiet
+import app.kadans.quiet.FocusQuietStore
+import app.kadans.quiet.QuietMode
+import app.kadans.quiet.platformQuietMode
 import app.kadans.reminders.LocalReminders
 import app.kadans.reminders.ReminderScheduler
 import app.kadans.reminders.ReminderStore
@@ -68,6 +72,8 @@ val appModule = org.koin.dsl.module {
         ClearAwareTokenStore(SettingsTokenStore(get())) {
             koin.get<LocalReminders>().forget()
             koin.get<TodayWidget>().forget()
+            // A phone gone quiet for a focus phase has its sound back.
+            koin.get<FocusQuiet>().forget()
         }
     }
     single {
@@ -77,11 +83,31 @@ val appModule = org.koin.dsl.module {
             engine = platformHttpEngine(),
             baseUrlProvider = { ServerAddress.current(settings) },
             languageProvider = { LanguageController.currentTag(settings) },
-        )
+        ).also { api ->
+            // Every session a request brings back settles "Do Not Disturb during focus" before its caller goes on.
+            val koin = getKoin()
+            api.runSeen = { run -> koin.get<FocusQuiet>().see(run) }
+        }
     }
     single { KadansRealtime(get()) }
     single { SystemAlerts(get(), get()) }
-    single { DeviceRegistrar(get(), get()) }
+    single {
+        val koin = getKoin()
+        DeviceRegistrar(get(), get(), quiet = { koin.get<FocusQuiet>().reportable })
+    }
+    // Do Not Disturb during focus (Android): the phone quiet while a focus phase counts down.
+    single { FocusQuietStore(get()) }
+    single<QuietMode> {
+        val settings = get<Settings>()
+        platformQuietMode(
+            catalog = { Language.fromTag(LanguageController.currentTag(settings)).catalog },
+            clock = { ClockPreference.current(settings) },
+        )
+    }
+    single {
+        val koin = getKoin()
+        FocusQuiet(get(), get(), get(), get<KadansRealtime>().events, report = { koin.get<DeviceRegistrar>().register() })
+    }
     single { ReminderStore(get()) }
     single<ReminderScheduler> {
         val settings = get<Settings>()

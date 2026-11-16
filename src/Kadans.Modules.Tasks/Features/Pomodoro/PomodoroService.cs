@@ -258,6 +258,32 @@ internal sealed class PomodoroService(
         return run.ToResponse(await SessionOccurrence.NextStartAsync(context.TodoOccurrences, run));
     }
 
+    /// <summary>
+    /// The account's sessions that are running or paused, newest first: what a phone reads to know when a focus phase
+    /// counts down (Do Not Disturb during focus). One per todo at most, so a handful; never more than
+    /// <see cref="MaxActiveRuns"/>.
+    /// </summary>
+    public async Task<OneOf<ApplicationError, List<PomodoroRunResponse>>> GetActiveRuns()
+    {
+        if (string.IsNullOrWhiteSpace(currentUser.UserId))
+            return new ApplicationError(ErrorTypes.Unauthorized, "User is not authenticated.");
+
+        var runs = await context
+            .PomodoroRuns.Include(r => r.Phases)
+            .Where(r => r.Status == PomodoroRunStatus.Active || r.Status == PomodoroRunStatus.Paused)
+            .OrderByDescending(r => r.StartedAt)
+            .Take(MaxActiveRuns)
+            .AsSplitQuery()
+            .ToListAsync();
+
+        var responses = new List<PomodoroRunResponse>(runs.Count);
+        foreach (var run in runs)
+            responses.Add(run.ToResponse(await SessionOccurrence.NextStartAsync(context.TodoOccurrences, run)));
+        return responses;
+    }
+
+    internal const int MaxActiveRuns = 20;
+
     public async Task<OneOf<ApplicationError, List<PomodoroRunResponse>>> GetRunHistory(Guid todoId, int page = 1, int pageSize = 20)
     {
         if (Paging.Check(page, pageSize) is { } pagingError)
@@ -364,7 +390,13 @@ internal sealed class PomodoroService(
                 return current.ToResponse();
         }
 
-        var result = await MutateAsync(runId, (run, now) => run.Advance(request.ExpectedPhaseIndex, now, onItsOwn: request.OnlyIfEnded));
+        // A phase that ran out by itself is no news to a phone that goes quiet during focus: it holds the cycle's
+        // timetable. "Next phase", pressed by the person, is.
+        var result = await MutateAsync(
+            runId,
+            (run, now) => run.Advance(request.ExpectedPhaseIndex, now, onItsOwn: request.OnlyIfEnded),
+            tellQuietPhones: !request.OnlyIfEnded
+        );
         // Hands-free phase changes notify every device, no matter who won the advance — this
         // request or the deadline watcher; the row version guarantees it is exactly one of them.
         // Manual runs stay silent: the user did it.
@@ -407,7 +439,8 @@ internal sealed class PomodoroService(
 
     private async Task<OneOf<ApplicationError, PomodoroRunResponse>> MutateAsync(
         Guid runId,
-        Func<PomodoroRun, DateTimeOffset, OneOf<ApplicationError, OneOf.Types.Success>> mutate
+        Func<PomodoroRun, DateTimeOffset, OneOf<ApplicationError, OneOf.Types.Success>> mutate,
+        bool tellQuietPhones = true
     )
     {
         var run = await context
@@ -438,7 +471,7 @@ internal sealed class PomodoroService(
         }
 
         deadlines.Pulse(); // resume/advance moved the deadline; pause/finish/cancel removed it
-        return await PublishAsync(run);
+        return await PublishAsync(run, tellQuietPhones);
     }
 
     /// <summary>
@@ -452,13 +485,19 @@ internal sealed class PomodoroService(
             context.Entry(phase).State = EntityState.Added;
     }
 
-    /// <summary>Every device of the user sees the same run state; the API is the source of truth.</summary>
-    private async Task<PomodoroRunResponse> PublishAsync(PomodoroRun run)
+    /// <summary>
+    /// Every device of the user sees the same run state; the API is the source of truth. Open apps hear it on the hub;
+    /// a phone that turns Do Not Disturb on during focus is pushed the news (<paramref name="tellQuietPhones"/>), at
+    /// once when a focus phase now counts down (ARCHITECTURE → "Do Not Disturb during focus").
+    /// </summary>
+    private async Task<PomodoroRunResponse> PublishAsync(PomodoroRun run, bool tellQuietPhones = true)
     {
         var response = run.ToResponse(run.IsRunning ? await SessionOccurrence.NextStartAsync(context.TodoOccurrences, run) : null);
         try
         {
             await realtime.PublishToUserAsync(run.UserId, "pomodoro.run.changed", response);
+            if (tellQuietPhones)
+                await dispatcher.FocusChangedAsync(run.UserId, run.FocusCountsDownUntil(DateTimeOffset.UtcNow));
         }
         catch (Exception ex)
         {

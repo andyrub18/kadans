@@ -17,6 +17,7 @@ import app.kadans.reminders.LocalReminders
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import app.kadans.ui.shell.UnreadNotifications
+import app.kadans.quiet.FocusQuiet
 import app.kadans.widget.TodayWidget
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
@@ -55,6 +56,7 @@ class HomeViewModel(
     private val dataChanges: DataChanges,
     private val unread: UnreadNotifications,
     private val todayWidget: TodayWidget,
+    private val focusQuiet: FocusQuiet,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -89,7 +91,10 @@ class HomeViewModel(
         viewModelScope.launch {
             registered.join()
             profiled.join()
-            if (_access.first { it != HomeAccess.Checking } == HomeAccess.Open) localReminders.refresh() else localReminders.forget()
+            val open = _access.first { it != HomeAccess.Checking } == HomeAccess.Open
+            if (open) localReminders.refresh() else localReminders.forget()
+            // Do Not Disturb during focus follows the account's sessions past the paywall only, as reminders ring.
+            focusQuiet.paywall(closed = !open)
             // Home opens: someone just signed in, or passed or met the paywall. The home-screen widget finds out now,
             // not at its next hour (it asks the server itself whether the account is locked).
             todayWidget.refreshSoon()

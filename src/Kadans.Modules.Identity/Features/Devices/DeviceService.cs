@@ -48,6 +48,8 @@ internal sealed class DeviceService(IdentityModuleDbContext dbContext, ICurrentU
         device.PushToken = pushToken;
         device.SessionId = Guid.TryParse(currentUser.SessionId, out var sessionId) ? sessionId : null;
         device.AppVersion = request.AppVersion;
+        if (request.QuietDuringFocus is { } quiet)
+            device.QuietDuringFocus = quiet;
         device.LastSeenAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync();
@@ -76,7 +78,7 @@ internal sealed class DeviceService(IdentityModuleDbContext dbContext, ICurrentU
     }
 
     private static DeviceResponse ToResponse(Device d) =>
-        new(d.InstallationId, d.Platform, d.Name, d.PushToken is not null, d.AppVersion, d.RegisteredAt, d.LastSeenAt);
+        new(d.InstallationId, d.Platform, d.Name, d.PushToken is not null, d.AppVersion, d.RegisteredAt, d.LastSeenAt, d.QuietDuringFocus);
 
     private static ApplicationError Unauthorized() => new(ErrorTypes.Unauthorized, "Unable to resolve current user.");
 }

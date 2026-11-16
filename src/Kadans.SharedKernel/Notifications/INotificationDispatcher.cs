@@ -48,4 +48,16 @@ public interface INotificationDispatcher
     /// Nothing is stored.
     /// </summary>
     Task SignalAsync(string userId, string kind, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A focus session of the account changed (started, paused, resumed, moved on by the person, ended): a push to its
+    /// phones that turn Do Not Disturb on during a focus phase (ARCHITECTURE → "Do Not Disturb during focus"), which then
+    /// read the running sessions. Open apps hear the change on the hub already; nothing is stored and nothing is shown
+    /// by the push itself.
+    /// </summary>
+    /// <param name="quietUntil">
+    /// The end of the focus phase now counting down: the push is urgent, so a phone lying still goes quiet at once, and
+    /// of no use after that moment. Null when none counts down (a break, a pause, the session over): an ordinary one.
+    /// </param>
+    Task FocusChangedAsync(string userId, DateTimeOffset? quietUntil, CancellationToken cancellationToken = default);
 }

@@ -3,12 +3,14 @@ namespace Kadans.SharedKernel.Users;
 /// <param name="RemindersSyncedAt">When the device last fetched its reminder window to ring itself; null if it does not.</param>
 /// <param name="RemindersThrough">How far that window reaches.</param>
 /// <param name="RemindersVersion">The account's reminders version that window holds.</param>
+/// <param name="QuietDuringFocus">The phone turns Do Not Disturb on during a focus phase, and is told when a session changes.</param>
 public sealed record PushTarget(
     string Platform,
     string Token,
     DateTimeOffset? RemindersSyncedAt = null,
     DateTimeOffset? RemindersThrough = null,
-    long RemindersVersion = 0
+    long RemindersVersion = 0,
+    bool QuietDuringFocus = false
 );
 
 /// <summary>Push tokens of a user's registered devices (implemented by Identity, consumed by Notifications).</summary>

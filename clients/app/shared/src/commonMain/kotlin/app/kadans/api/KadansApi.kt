@@ -2,6 +2,7 @@ package app.kadans.api
 
 import app.kadans.api.model.ApiProblem
 import app.kadans.api.model.ClockFormat
+import app.kadans.api.model.PomodoroRunResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
@@ -89,6 +90,25 @@ class KadansApi internal constructor(
 
     internal fun remindersChanged() {
         _remindersChanged.tryEmit(Unit)
+    }
+
+    /**
+     * Called with every focus session a request of this device brought back (started, paused, resumed, moved on,
+     * finished), before the caller has it: "Do Not Disturb during focus" settles the phone on it at once
+     * (`FocusQuiet.see`), also when the caller is a notification's button with seconds to live. Set once, where the app
+     * is wired; it never fails the request.
+     */
+    internal var runSeen: suspend (PomodoroRunResponse) -> Unit = {}
+
+    internal suspend fun seen(run: PomodoroRunResponse): PomodoroRunResponse {
+        try {
+            runSeen(run)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // The session is what the caller asked for; the phone's quiet is settled again at the next news.
+        }
+        return run
     }
 
     internal suspend fun endSession() {

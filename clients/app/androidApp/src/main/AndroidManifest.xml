@@ -7,6 +7,9 @@
          since Android 14), set again after a reboot, and a twice-daily refresh that survives one. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Do Not Disturb during focus (ARCHITECTURE): a mode of Kadans' own, on while a focus phase counts down. The
+         person gives "Do Not Disturb access" in the system's settings; it does not let an app read notifications. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application
         android:allowBackup="true"
@@ -34,6 +37,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="api.kadansplanning.com" android:path="/auth/reset-password" />
             </intent-filter>
+            <!-- Android's Do Not Disturb settings open the app that owns a mode from the mode's own page: Kadans opens
+                 on its Settings, where the switch for "Do Not Disturb during focus" is. One mode, never more. -->
+            <intent-filter>
+                <action android:name="android.app.action.AUTOMATIC_ZEN_RULE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.zen.automatic.ruleType"
+                android:value="@string/quiet_rule_type" />
+            <meta-data
+                android:name="android.service.zen.automatic.ruleInstanceLimit"
+                android:value="1" />
         </activity>
 
         <service
@@ -79,6 +93,26 @@
             android:name="app.kadans.reminders.ReminderSyncJob"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- Do Not Disturb during focus (docs/ARCHITECTURE.md → "Do Not Disturb during focus"). Not exported: only the
+             system (its alarm, a restart, an app update, a permission granted, what the person did to Kadans' mode in
+             the system's settings) and this app (the notice's "Sound on", an immutable PendingIntent) reach them. -->
+        <receiver
+            android:name="app.kadans.quiet.QuietAlarmReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="app.kadans.quiet.QuietActionReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="app.kadans.quiet.QuietSystemReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+                <action android:name="android.app.action.AUTOMATIC_ZEN_RULE_STATUS_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- The home-screen widget (docs/ARCHITECTURE.md → "The home-screen widget"). A widget provider must be
              exported: the launcher, another app, talks to it. It acts on the system's widget actions only. -->

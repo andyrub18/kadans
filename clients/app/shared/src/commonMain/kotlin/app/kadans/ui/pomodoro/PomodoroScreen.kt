@@ -174,6 +174,8 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     }
                     TextButton(onClick = onBack) { Text(s.back) }
                 }
+                // Once, on a phone that can: silence it while a focus phase counts down?
+                app.kadans.ui.settings.QuietOffer(Modifier.padding(top = 24.dp))
             }
         }
     }

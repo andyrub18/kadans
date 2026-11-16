@@ -256,22 +256,29 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
         loop: Boolean = false,
         finishAt: Instant? = null,
         occurrenceId: String? = null,
-    ): PomodoroRunResponse =
+    ): PomodoroRunResponse = api.seen(
         api.http.post("todos/$todoId/pomodoro/start") {
             parameter("autoAdvance", autoAdvance)
             parameter("loop", loop)
             finishAt?.let { parameter("finishAt", it.toString()) }
             occurrenceId?.let { parameter("occurrenceId", it) }
         }.orThrow()
+    )
 
     suspend fun changeFinishAt(runId: String, finishAt: Instant): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/finish-at") { setBody(ChangePomodoroFinishAt(finishAt)) }.orThrow()
+        api.seen(api.http.put("pomodoro/runs/$runId/finish-at") { setBody(ChangePomodoroFinishAt(finishAt)) }.orThrow())
 
     suspend fun finish(runId: String): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/finish").orThrow()
+        api.seen(api.http.put("pomodoro/runs/$runId/finish").orThrow())
 
     suspend fun activeRun(todoId: String): PomodoroRunResponse =
-        api.http.get("todos/$todoId/pomodoro/active-run").orThrow()
+        api.seen(api.http.get("todos/$todoId/pomodoro/active-run").orThrow())
+
+    /**
+     * The account's sessions that are running or paused (one per todo at most): what "Do Not Disturb during focus"
+     * reads (`FocusQuiet.refresh`).
+     */
+    suspend fun activeRuns(): List<PomodoroRunResponse> = api.http.get("pomodoro/active-runs").orThrow()
 
     suspend fun runs(todoId: String, page: Int = 1, pageSize: Int = 20): List<PomodoroRunResponse> =
         api.http.get("todos/$todoId/pomodoro/runs") {
@@ -280,18 +287,19 @@ class PomodoroApi internal constructor(private val api: KadansApi) {
         }.orThrow()
 
     suspend fun pause(runId: String): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/pause").orThrow()
+        api.seen(api.http.put("pomodoro/runs/$runId/pause").orThrow())
 
     suspend fun resume(runId: String): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/resume").orThrow()
+        api.seen(api.http.put("pomodoro/runs/$runId/resume").orThrow())
 
     /** [onlyIfEnded]: the phase ran out on this device's clock; false is "Next phase", which skips at once. */
     suspend fun advance(runId: String, expectedPhaseIndex: Int? = null, onlyIfEnded: Boolean = false): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/advance") { setBody(AdvancePomodoroRun(expectedPhaseIndex, onlyIfEnded)) }
-            .orThrow()
+        api.seen(
+            api.http.put("pomodoro/runs/$runId/advance") { setBody(AdvancePomodoroRun(expectedPhaseIndex, onlyIfEnded)) }.orThrow()
+        )
 
     suspend fun cancel(runId: String): PomodoroRunResponse =
-        api.http.put("pomodoro/runs/$runId/cancel").orThrow()
+        api.seen(api.http.put("pomodoro/runs/$runId/cancel").orThrow())
 
     suspend fun stats(from: Instant? = null, to: Instant? = null): PomodoroStatsResponse =
         api.http.get("pomodoro/stats") {

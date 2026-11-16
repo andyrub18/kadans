@@ -5,7 +5,8 @@ namespace Kadans.Modules.Notifications.Push;
 
 /// <summary>One message for one device.</summary>
 /// <param name="Silent">A signal for the app, shown to no one (<see cref="PushRequest.Silent"/>).</param>
-internal sealed record PushEnvelope(PushTarget Target, NotificationMessage Message, bool Silent = false);
+/// <param name="Focus">A focus session changed, for a phone that goes quiet during focus (<see cref="PushRequest.Focus"/>).</param>
+internal sealed record PushEnvelope(PushTarget Target, NotificationMessage Message, bool Silent = false, FocusSignal? Focus = null);
 
 internal interface IPushSender
 {

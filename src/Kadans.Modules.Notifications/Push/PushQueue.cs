@@ -7,10 +7,33 @@ namespace Kadans.Modules.Notifications.Push;
 
 /// <param name="Silent">A signal for the apps (<see cref="INotificationDispatcher.SignalAsync"/>), not a notification: only
 /// phones that ring their own reminders understand it.</param>
-internal sealed record PushRequest(string UserId, NotificationMessage Message, bool Silent = false)
+/// <param name="Focus">A focus session changed (<see cref="INotificationDispatcher.FocusChangedAsync"/>): only for the
+/// phones that turn Do Not Disturb on during a focus phase.</param>
+internal sealed record PushRequest(string UserId, NotificationMessage Message, bool Silent = false, FocusSignal? Focus = null)
 {
     /// <summary>When it was queued (<see cref="Stopwatch"/> ticks): how long a push waits is a measured number.</summary>
     public long QueuedAt { get; init; } = Stopwatch.GetTimestamp();
+}
+
+/// <summary>
+/// The account's focus sessions changed, for a phone that turns Do Not Disturb on during a focus phase (ARCHITECTURE →
+/// "Do Not Disturb during focus"). It reads the running sessions and settles by itself; the push only wakes it.
+/// </summary>
+/// <param name="QuietUntil">
+/// The end of the focus phase now counting down: sent at high priority (a phone lying still on battery gets an ordinary
+/// push minutes late, and the phase is short), which Firebase keeps for messages that show something: the phone shows
+/// its "quiet until" notice. Null: no focus phase counts down, the phone gets its sound back, and its own alarm does
+/// that at the phase's planned end anyway: normal priority.
+/// </param>
+internal sealed record FocusSignal(DateTimeOffset? QuietUntil)
+{
+    public const string Kind = "focus.changed";
+
+    /// <summary>
+    /// How long a signal without a focus phase is worth delivering: a phase lasts four hours at most
+    /// (<c>PomodoroTemplate.MaxPhaseMinutes</c>), and past its planned end the phone has its sound back by itself.
+    /// </summary>
+    public static readonly TimeSpan SoundBackUsefulFor = TimeSpan.FromHours(4);
 }
 
 /// <summary>
@@ -106,7 +129,8 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
     /// <summary>
     /// Send to the users' devices and retire the tokens the provider reports dead. Never throws. Phones only for an
     /// account with a subscription (<see cref="IMobileAccess"/>): reminders on a phone are what it pays for. A reminder
-    /// skips the devices that ring it themselves (<see cref="Covers"/>); a silent signal goes only to those.
+    /// skips the devices that ring it themselves (<see cref="Covers"/>); a silent signal goes only to those; a focus
+    /// session's change (<see cref="FocusSignal"/>) only to the phones that go quiet during focus.
     /// </summary>
     internal static async Task DeliverAsync(
         IReadOnlyList<PushRequest> batch,
@@ -132,7 +156,11 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
                     targets = [.. targets.Where(t => !IsPhone(t))];
                     metrics.Withheld(phones);
                 }
-                if (request.Silent)
+                if (request.Focus is not null)
+                {
+                    targets = [.. targets.Where(t => t.QuietDuringFocus && IsPhone(t))];
+                }
+                else if (request.Silent)
                 {
                     targets = [.. targets.Where(t => t.RemindersSyncedAt is not null)];
                 }
@@ -145,7 +173,7 @@ internal sealed class PushWorker(PushQueue queue, IServiceScopeFactory scopes, I
                         metrics.SkippedOnDevice(onDevice);
                     }
                 }
-                envelopes.AddRange(targets.Select(t => new PushEnvelope(t, request.Message, request.Silent)));
+                envelopes.AddRange(targets.Select(t => new PushEnvelope(t, request.Message, request.Silent, request.Focus)));
             }
 
             foreach (var call in envelopes.Chunk(IPushSender.MaxPerCall))

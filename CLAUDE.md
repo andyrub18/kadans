@@ -68,7 +68,8 @@ Running the API by hand for a smoke test: start it in the background, and stop i
 `alice<timestamp>` user per run; it opens the emailed links the way a browser does);
 `python3 tools/smoke/task_flows.py` does the same for todos/occurrences (horizon, overrides, previews);
 `python3 tools/smoke/notification_flows.py <api log>` for reminders (the one before the start and "starts now", none
-while a focus session runs), push (logged) and the notification centre;
+while a focus session runs), push (logged), the notification centre, and a session's changes pushed to a phone that
+goes quiet during focus, and to no other;
 `python3 tools/smoke/reminder_flows.py <api log>` for the reminders phones ring themselves (their window, the push
 skipping a phone that has the reminder and reaching one whose window is stale);
 `python3 tools/smoke/billing_flows.py` for subscriptions in Development (the status the app reads, the fake store, a
@@ -186,7 +187,12 @@ home-screen widget (today's pending todos, each with a circle that marks it done
 tomorrow's) is `widget/TodayWidget` (what it holds, when it is fetched, what waits to be sent) and
 `widget/TodayWidgetProvider` (plain RemoteViews, its taps, its alarms and jobs; ARCHITECTURE → "The home-screen
 widget"); a receiver never waits there: Android hands an app its broadcasts one at a time; its own words come from `StringsCatalog`, what the system's widget picker shows from Android
-resources in the phone's language. Screens
+resources in the phone's language. Do Not Disturb during focus (Android 10+, off by default: the phone quiet while a
+focus phase counts down, whichever device started the session) is `quiet/FocusQuiet` (the sessions' timetable, what the
+phone is set to, whose word holds) and `quiet/AndroidQuietMode` (a mode of Kadans' own in the system's settings, never
+the phone's main Do Not Disturb; one exact alarm; the notice with "Sound on"; ARCHITECTURE → "Do Not Disturb during
+focus"). Every session a request brings back goes through `KadansApi.seen`: a new call that returns a session must too.
+Whatever makes the phone quiet sets the alarm that ends it in the same step. Screens
 reload quietly whatever changed what they show (another device, a notification's button, a job, the app back in front):
 the server's `data.changed` and `sync/DataChanges`, ARCHITECTURE → "Screens stay in step"; a screen that loads once and
 never again is a bug. The desktop app closes to the tray (Linux: a freedesktop

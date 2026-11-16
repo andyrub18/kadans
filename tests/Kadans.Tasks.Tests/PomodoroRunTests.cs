@@ -201,4 +201,32 @@ public class PomodoroRunTests
         // The user kept focusing past the timer; the break starts when they actually advanced.
         await Assert.That(run.Phases[0].CompletedAt).IsEqualTo(T0.AddMinutes(30));
     }
+
+    [Test]
+    public async Task A_focus_phase_counts_down_until_its_end_and_nothing_else_does()
+    {
+        // What a phone that turns Do Not Disturb on during focus is quiet for.
+        var run = Start();
+        await Assert.That(run.FocusCountsDownUntil(T0.AddMinutes(10))).IsEqualTo(T0.AddMinutes(25));
+
+        // The timer at 0:00, waiting for the person: nothing counts down.
+        await Assert.That(run.FocusCountsDownUntil(T0.AddMinutes(25))).IsNull();
+
+        // Paused: no.
+        var paused = Start();
+        paused.Pause(T0.AddMinutes(10));
+        await Assert.That(paused.FocusCountsDownUntil(T0.AddMinutes(11))).IsNull();
+        paused.Resume(T0.AddMinutes(20));
+        await Assert.That(paused.FocusCountsDownUntil(T0.AddMinutes(21))).IsEqualTo(T0.AddMinutes(35));
+
+        // A break: no. The focus phase after it: yes.
+        run.Advance(0, T0.AddMinutes(25));
+        await Assert.That(run.FocusCountsDownUntil(T0.AddMinutes(26))).IsNull();
+        run.Advance(1, T0.AddMinutes(30));
+        await Assert.That(run.FocusCountsDownUntil(T0.AddMinutes(31))).IsEqualTo(T0.AddMinutes(55));
+
+        // Over: no.
+        run.Finish(T0.AddMinutes(40));
+        await Assert.That(run.FocusCountsDownUntil(T0.AddMinutes(41))).IsNull();
+    }
 }

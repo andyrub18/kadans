@@ -903,6 +903,35 @@ installing on real devices second, hosting last.
         each phase and the session is one tap away. If testers ask to see the time left, an ongoing notification
         with a countdown fits better than a line in the widget.
       - [ ] Later: a scrolling list, and the iPhone's widget with the iPhone app.
+- [x] 2026-11-15, the third integration from that feedback: Do Not Disturb during focus (ARCHITECTURE → "Do Not Disturb
+      during focus"), on Android 10 and later, off by default. With its switch on (Settings, or the session screen's
+      one-time offer), the phone is quiet while a focus phase counts down and has its sound back for breaks, pauses,
+      a timer at 0:00 and the session's end, two seconds before each phase ends. The owner's choices on a written
+      proposal: sound back during breaks; sessions started on the computer quiet the phone too; alarms, starred
+      contacts, repeat callers and reminders ring through (calendar events and music were added while building: a
+      meeting's alert is worth a focus phase, and people focus with music); the offer on the session screen; Android
+      7 to 9 left out. A mode of Kadans' own in the system's settings ("Kadans focus"), never the phone's main Do Not
+      Disturb; a silent notice with "Sound on", which holds for the rest of the session, as does turning the mode off
+      in the system's settings. The phone follows the session's timetable with one exact alarm, app closed or offline.
+      On the server: a device says it goes quiet (`Device.QuietDuringFocus`, an Identity migration), every change a
+      person makes to a session is pushed to such phones ("focus.changed": urgent while a focus phase counts down,
+      ordinary otherwise), and `GET /pomodoro/active-runs` lists the account's running sessions. The privacy policy
+      names the device's setting.
+      Found on the emulator and fixed: Android announces that the mode went off even when Kadans turned it off, and
+      taking that for the person's doing left the sound on for the rest of every session; Android 15's own "is my
+      mode on" keeps saying yes after the person switched it off, so the phone's ringing state is asked instead; and a
+      phone whose clock is half a second behind the server's saw a phase just started as about to start, which made
+      it quiet five seconds late (Android rings no alarm nearer than that).
+      Checked: the server's tests (383), `notification_flows.py` (with its new part), `pomodoro_flows.py`,
+      `reminder_flows.py` and `session_flows.py`, the app's tests (427; the timetable and the service, 35 of them, also
+      five times over and on a single core), the desktop and Android builds, and on the emulator (Android 15) with a
+      local API and real pushes everything listed in ARCHITECTURE. Not checked: Android 10 to 14 (no emulator image here), Samsung's, Xiaomi's
+      and Tecno's own settings screens, a phone asleep on battery for a long time (Doze), and a real phone.
+      - [ ] By the owner, with the next Android build: turn the switch on, start a session on the computer with the
+        phone lying still for a while, and see how long it takes to go quiet; look at "Kadans focus" in the phone's
+        Do Not Disturb settings. If Play Console asks about the new permission at upload, say what it asks.
+      - [ ] Later, if testers ask: a choice of what rings through in Kadans itself (today: Android's own settings for
+        the mode), and the same quiet on the desktop where a system offers it.
 
 Nice-to-have hardening
 

@@ -121,6 +121,9 @@ internal sealed class PomodoroAutoFinish(
         try
         {
             await realtime.PublishToUserAsync(run.UserId, "pomodoro.run.changed", run.ToResponse(), cancellationToken);
+            // A phone gone quiet for this session gets its sound back (its own alarm does so at the phase's planned
+            // end at the latest): the session's end may have moved since the phone last read it.
+            await dispatcher.FocusChangedAsync(run.UserId, null, cancellationToken);
         }
         catch (Exception ex)
         {

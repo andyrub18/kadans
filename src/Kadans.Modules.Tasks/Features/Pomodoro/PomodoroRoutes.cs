@@ -215,6 +215,23 @@ internal static class PomodoroRoutes
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 
             group.MapGet(
+                    "/pomodoro/active-runs",
+                    async Task<Results<Ok<List<PomodoroRunResponse>>, ProblemHttpResult>> (PomodoroService service, HttpContext context) =>
+                    {
+                        var result = await service.GetActiveRuns();
+                        return result.Match<Results<Ok<List<PomodoroRunResponse>>, ProblemHttpResult>>(
+                            error => TypedResults.Problem(error.ToProblemDetails(context)),
+                            runs => TypedResults.Ok(runs)
+                        );
+                    }
+                )
+                .WithTags("Pomodoro")
+                .WithName("PomodoroActiveRuns")
+                .WithSummary("The account's running sessions")
+                .WithDescription("Every active or paused Pomodoro run of the account, newest first (one per todo at most). A phone that turns Do Not Disturb on during focus reads when a focus phase counts down from it.")
+                .Produces<List<PomodoroRunResponse>>(StatusCodes.Status200OK);
+
+            group.MapGet(
                     "/todos/{id:guid}/pomodoro/active-run",
                     async Task<Results<Ok<PomodoroRunResponse>, ProblemHttpResult>> (
                         Guid id,

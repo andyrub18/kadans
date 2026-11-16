@@ -112,10 +112,14 @@ fun App(deepLink: String? = null) {
                 val dataChanges = koinInject<DataChanges>()
                 // The home-screen widget too (Android): it may have been placed, or gone stale, while the app was away.
                 val todayWidget = koinInject<app.kadans.widget.TodayWidget>()
+                // Do Not Disturb during focus (Android): the person may be back from the system's settings with the
+                // access given, and a session may have changed while the app was away.
+                val focusQuiet = koinInject<app.kadans.quiet.FocusQuiet>()
                 var startedBefore by remember { mutableStateOf(false) }
                 LifecycleEventEffect(Lifecycle.Event.ON_START) {
                     localReminders.refresh()
                     todayWidget.refreshIfStale()
+                    focusQuiet.cameBack()
                     if (startedBefore) dataChanges.cameBack() else startedBefore = true
                 }
                 // Leaving the front: the widget is what the person sees next, in the language and clock just chosen.

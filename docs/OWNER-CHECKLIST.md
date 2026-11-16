@@ -305,6 +305,14 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
+- [ ] Do Not Disturb during focus (2026-11-15), with the next Android build on your phone: Settings → "Do Not Disturb
+      during focus" → the switch, then Android's own screens ("Do Not Disturb access"; "Alarms & reminders" if it is
+      off). Start a session on the computer while the phone has been lying still for a few minutes: it should go
+      quiet within seconds and say "Quiet during focus" in its notifications; at the phase's end the sound comes
+      back by itself. "Kadans focus" in the phone's Do Not Disturb settings is where what rings through is changed.
+      On a Samsung or a Tecno, tell me what those settings look like: only the emulator's stock Android was checked.
+      If Play Console asks about the new permission (Do Not Disturb access) at upload, tell me what it asks: no
+      declaration was found to be required.
 - [ ] Deep links: on Android the emailed password reset is a verified App Link (DEPLOYMENT → Building the apps → App
       Links). To finish: update the server, upload version code 2, install it from Play, then tap the link in a reset
       email: Kadans' own screen opens. Universal Links wait for the iPhone app.

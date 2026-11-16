@@ -11,19 +11,24 @@ import kotlin.uuid.Uuid
 /**
  * Upserts this install in the user's device list (`PUT /users/me/devices/{installationId}`),
  * carrying the push token where the platform has one — that's what the backend's FCM sender
- * targets. Best-effort: registration failing must never affect the session.
+ * targets — and whether the phone goes quiet during a focus phase ([quiet], `FocusQuiet.reportable`: a session changed
+ * on another device is then pushed to it). Best-effort: registration failing must never affect the session.
  */
-class DeviceRegistrar(private val api: KadansApi, private val settings: Settings) {
-    suspend fun register() {
+class DeviceRegistrar(
+    private val api: KadansApi,
+    private val settings: Settings,
+    private val quiet: () -> Boolean? = { null },
+) {
+    /** True once the server has it. */
+    suspend fun register(): Boolean =
         runCatching {
             val installationId = settings.getStringOrNull(KEY)
                 ?: Uuid.random().toString().also { settings.putString(KEY, it) }
             api.account.registerDevice(
                 installationId,
-                RegisterDeviceRequest(devicePlatform(), deviceName(), currentPushToken()),
+                RegisterDeviceRequest(devicePlatform(), deviceName(), currentPushToken(), quietDuringFocus = quiet()),
             )
-        }
-    }
+        }.isSuccess
 
     /** This install's id in the device list, once it has registered (null before the first sign-in). */
     fun installationId(): String? = settings.getStringOrNull(KEY)

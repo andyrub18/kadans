@@ -197,6 +197,10 @@ namespace Kadans.Modules.Identity.Persistence.Migrations
                         .HasColumnType("character varying(4096)")
                         .HasColumnName("push_token");
 
+                    b.Property<bool>("QuietDuringFocus")
+                        .HasColumnType("boolean")
+                        .HasColumnName("quiet_during_focus");
+
                     b.Property<DateTimeOffset>("RegisteredAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("registered_at");

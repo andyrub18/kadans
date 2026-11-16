@@ -116,6 +116,14 @@ internal sealed class PomodoroRun
         Status == PomodoroRunStatus.Active && !AutoAdvance && PhaseEndsAt is { } end && end <= now
         && (TimeUpPhaseIndex is null || TimeUpPhaseIndex < CurrentPhaseIndex);
 
+    /// <summary>
+    /// The end of the focus phase counting down at <paramref name="now"/>; null in a break, while paused, with the timer
+    /// at 0:00 (a manual run waiting for the person) and once the session is over. A phone that turns Do Not Disturb on
+    /// during focus is quiet until then (ARCHITECTURE → "Do Not Disturb during focus").
+    /// </summary>
+    public DateTimeOffset? FocusCountsDownUntil(DateTimeOffset now) =>
+        Status == PomodoroRunStatus.Active && PhaseEndsAt is { } end && end > now && CurrentPhase.Type == PomodoroPhaseType.Focus ? end : null;
+
     /// <summary>The current phase's "time's up" went out. Not a change the person sees: <see cref="UpdatedAt"/> stays.</summary>
     public void TimeUpSent() => TimeUpPhaseIndex = CurrentPhaseIndex;
     public PomodoroRunPhase CurrentPhase => Phases.OrderBy(p => p.Order).ElementAt(CurrentPhaseIndex);

@@ -722,6 +722,133 @@ midnight, the next alarm set; a circle tapped and left (struck through with "Und
 and undone (still to do on the server), and tapped offline (gone from the widget, sent when the network came back).
 Not checked: Android below 12 (no emulator image here), a resize by hand, other launchers, and a real phone.
 
+### Do Not Disturb during focus (2026-11-15)
+
+Third of the integrations ranked after a tester's feedback: the phone goes quiet while a focus phase counts down.
+Android 10 and later. The iPhone cannot (Apple lets no app switch a Focus on), a computer has no one switch an app may
+use, and before Android 10 the only way is to flip the phone's main Do Not Disturb and put it back afterwards, which is
+not risked. The owner chose the defaults on a written proposal (2026-11-15).
+
+- **When the phone is quiet.** While a focus phase of one of the account's sessions counts down, whichever device
+  started it. Not in a break (that is when one looks at the phone; what was silenced waits in the shade), not while
+  paused, not with the timer at 0:00 waiting for the person (a manual session, or a hands-free cycle that ended and asks
+  "Another cycle?"), not once the session is over. The sound comes back two seconds before the phase ends
+  (`QuietPlan.SOUND_BACK`), so what Kadans says at that end ("time's up", the break that begins) is heard.
+- **Off by default, one switch.** Settings → "Do Not Disturb during focus", this device's own setting like its
+  language (it survives a sign-out; the access Android gave does too). The session screen offers it once, on a phone
+  that can and has it off (`QuietOffer`); either answer ends the offer.
+- **What Android has to allow**, asked one at a time by opening its own screen when the switch is turned on
+  (`QuietSection`): "Do Not Disturb access" (the special access for an app to have a mode; it does not let an app read
+  notifications) and "Alarms & reminders" (the exact alarm that brings the sound back; without it the sound could come
+  back ten minutes late, so Kadans does not take it away). While one is missing the switch stays on and Settings says
+  which. Nothing new for Google Play to review was found: `ACCESS_NOTIFICATION_POLICY` is a normal permission.
+- **Kadans' own mode, never the phone's** (`quiet/AndroidQuietMode`): an `AutomaticZenRule` named "Kadans focus", listed
+  in the system's Do Not Disturb settings (under Modes on recent Android), switched with `setAutomaticZenRuleState`.
+  Turning it off leaves the person's own Do Not Disturb and every other mode as they were; Android combines the modes
+  that are on and the strictest wins. From Android 15 an app can no longer switch the phone's main Do Not Disturb at
+  all (`setInterruptionFilter` only toggles a rule the system makes for the app), so a rule of one's own is the only
+  shape that is the same on every version. Its row in the system's settings opens Kadans' Settings (`kadans://settings`:
+  the main activity is the mode's configuration activity, one mode at most; the system starts it by name with the
+  mode's id as an extra, and with `ACTION_AUTOMATIC_ZEN_RULE` only from its list of kinds of mode, so `linkOf` takes
+  both).
+- **What gets through** is set once, when the mode is created, and is the person's to change in the system's settings
+  from then on (the mode is never updated): alarms; music and videos (people focus with music); calls from starred
+  contacts, and anyone who calls twice within fifteen minutes; reminders, which Kadans' own are
+  (`Notification.CATEGORY_REMINDER`), so a "starts now" for another todo is not swallowed by a focus phase; calendar
+  events. Everything else is silent, does not pop up and does not light the screen; it is listed in the shade.
+- **A silent notice while quiet** (channel `kadans.quiet`, low importance): "Quiet during focus", "Until 10:25" in the
+  account's clock, a tap opening the session, and "Sound on". It removes itself a minute after the phase's end,
+  whatever happens to the app.
+- **The person's word holds for the session.** "Sound on", or turning Kadans' mode off in the system's own settings
+  (quick settings, Modes), brings the sound back and keeps it for the rest of the sessions running then; the next
+  session is quiet again. Android itself only keeps such an "off" until the phase is over. From Android 15 the system
+  announces that the mode went off (`ACTION_AUTOMATIC_ZEN_RULE_STATUS_CHANGED`), whoever turned it off, Kadans
+  included, so the announcement decides nothing; taking it for the person's doing cost the rest of every session its
+  quiet (found on the emulator). What decides is the phone itself: whenever it settles while Kadans holds it quiet, it
+  looks whether the phone rings for everything although the mode should be on (`QuietMode.turnedOffByPerson`; not
+  `getAutomaticZenRuleState`, which keeps answering "on" for a mode the person switched off). The announcement makes
+  the phone settle at once (`FocusQuiet.modeWentOff`); before Android 15 there is none, and the person's "off" is seen
+  at the next alarm, that phase's end at the latest, the notice staying until then. The person removing or disabling
+  the mode there is the switch, off (`modeRemoved`); Android taking it away with its access is not: the switch stays
+  and Settings says what is missing.
+- **How the phone follows a session** (`quiet/FocusQuiet`, shared, beside `LocalReminders` and `TodayWidget`). A session
+  runs on the server, so the phone keeps its timetable (`QuietPlan`, pure): the current focus phase and, hands-free, the
+  phases after it up to the end of the cycle, each beginning as the one before ends, nothing past the session's end. A
+  manual session is known for its current phase only. It learns of a session:
+  - from its own requests: every session a request brings back passes through one place (`KadansApi.seen`) and
+    settles the phone before the caller goes on, without a second request (a reminder's "Start focus" has seconds to
+    live; a network that drops right after "Pause" still gives the sound back);
+  - from the hub while the app is open (`pomodoro.run.changed`; a hub back after a drop reads the sessions again);
+  - from a push when the session changed on another device (below);
+  - by reading `GET /pomodoro/active-runs` (the account's running and paused sessions) when the app comes to the
+    front, after a restart of the phone, an app update, and when Home opens.
+  News older than what is held is not believed (the session's `updatedAt`), and a session that ended never runs again
+  whatever arrives late. A session the server no longer lists is over, unless the phone heard of it after asking.
+  The phase the server says is counting down has begun, whatever the phone's clock makes of its start, and a phase that
+  begins within five seconds has begun too (`QuietPlan.BEGINS_WITHIN`): a phone half a second behind the server saw a
+  phase just started as about to start, and Android rings no alarm nearer than five seconds, so it went quiet five
+  seconds late (found on the emulator). The ends are the phone's clock against the server's times, as the session
+  screen's countdown is: a phone whose clock is wrong by a minute gets its sound back a minute off.
+- **One exact alarm** for the next change (`QuietMode.wakeAt` → `QuietAlarmReceiver` → `FocusQuiet.tick`), so the
+  timetable is followed with the app closed, the phone asleep or offline. The sound coming back waits for nothing.
+  Going quiet for a phase that begins by the timetable first asks the server, two seconds at most: the session may have
+  been paused or ended elsewhere and the news not have arrived. A receiver never waits longer: Android hands an app its
+  broadcasts one at a time.
+- **A session changed on another device** is the main case for someone at a desk: started on the computer, the phone in
+  the pocket goes quiet. Until now a session's changes only went over the hub, which a closed app does not hear. The
+  phone tells the server it goes quiet (`Device.QuietDuringFocus`, with its registration; told again until it went
+  through, and when the switch or Android's access changes), and the server pushes it "focus.changed" on every change a
+  person makes to a session (start, pause, resume, "Next phase", finish, end, the end time moved) and when a session
+  ends by itself (`INotificationDispatcher.FocusChangedAsync`, `FocusSignal`). The push carries nothing: the phone
+  reads the sessions. A phase that ran out by itself is not pushed: the phone holds the timetable.
+  - It is **urgent while a focus phase counts down** (Firebase's high priority, living until that phase ends): an
+    ordinary push to a phone lying still on battery is held for minutes, and that is exactly a phone on a desk.
+    Firebase keeps high priority for messages that show something, and lowers it for an app whose urgent messages show
+    nothing: the phone shows its "quiet until" notice. So it only goes to phones that said they go quiet.
+  - Otherwise (a break, a pause, the session over) it is an ordinary push, worth delivering for four hours (the
+    longest phase): the phone's own alarm gives the sound back at the phase's planned end at the latest.
+  - The latest replaces one still waiting for a phone that is offline. Phones only, and only with the subscription, as
+    every push to a phone (`IMobileAccess`).
+- **It must never leave the phone stuck quiet.**
+  - Whenever Kadans makes the phone quiet it sets, in the same step, the alarm for that phase's planned end. Whatever
+    news is missed afterwards, the sound is back then: early in the worst case (the session was paused and resumed
+    elsewhere, so its phase really ends later), never late.
+  - A restart of the phone keeps no alarm, and may not keep the mode on: the mode and the alarm are set again from what
+    is held, then the sessions are read (`FocusQuiet.restore`; the same after an app update and when "Alarms &
+    reminders" is granted). A phone that slept through the end gets its sound back when it wakes.
+  - Signed out by any path (the token store's clearing), the switch turned off, Android's access gone, the paywall
+    closing: the sound is back at once and nothing of the account stays (`forget`, `turnOff`, `paywall`).
+  - The one hole that cannot be closed: Android force-stopping the app during a focus phase (the person, in the system's
+    settings; an aggressive battery saver on some brands) cancels its alarms, and Android offers no "quiet until 10:25"
+    that ends by itself. The phone then stays quiet until Kadans is opened again or the person turns Do Not Disturb off
+    (the quick settings show it on). The same phones lose their reminders the same way.
+- **Not a subscription feature of its own.** It lives in the phone's app, which the subscription already pays for:
+  behind the paywall nothing is followed, and the server pushes a phone without access nothing.
+
+Checked on the emulator (Android 15, stock settings) against a local API sending real pushes through Firebase:
+- **Turning it on**: the switch opening Android's "Do Not Disturb access" page for Kadans; from the session screen's
+  offer on a clean install, that page and then "Alarms & reminders" one after the other, and the phone quiet for the
+  phase under way on coming back; the server told each time.
+- **A session started on the computer** (through the API): the phone quiet 0.1 s later with the app in front (the
+  hub), 0.4 to 0.7 s later with the app in the background (the push), 2.2 s with its process not running. Paused,
+  resumed, moved on and finished there: each reached the phone within 0.4 to 0.7 s, the pushes urgent or ordinary as
+  designed.
+- **A whole hands-free cycle** with the app closed: the sound back 2 s before each focus phase's end (the server's
+  "Break" then rang), quiet again 1 s into the next focus phase (the server asked first), and nothing more once the
+  cycle waited for "Another cycle?". The same offline with the app's process killed, by the timetable alone.
+- **The person's word**: "Sound on" in the notice, and Do Not Disturb turned off from the quick settings, each gave
+  the sound back, removed the notice and held for the rest of the session; the next session was quiet again.
+- **Never stuck**: a restart of the phone in the middle of a phase (Android kept the mode on; Kadans set its alarm and
+  notice again and the sound came back on time); signing out while quiet; the switch turned off (the mode gone from
+  Android's list); the mode deleted in Android's settings (Kadans' switch off, the server told).
+- Android's list of schedules showing "Kadans focus" and opening Kadans' Settings from it; the notice and the mode's
+  name in French with the 12-hour clock ("Jusqu'à 6:04 PM").
+
+Not checked: Android 10 to 14 (no emulator image here; there the person's "off" in the system's settings is only seen
+at the phase's end), Samsung's, Xiaomi's and Tecno's own Do Not Disturb screens, a phone asleep on battery for a long
+time (whether Firebase's urgent push wakes it at once is the documented behaviour, not one seen here), a force-stopped
+app, and a real phone.
+
 ### Client: Compose Multiplatform
 
 Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/Linux) from one

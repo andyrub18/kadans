@@ -69,6 +69,9 @@ internal sealed class FcmPushSender : IPushSender
     /// already rang (ARCHITECTURE → "Reminders ring on the phone"); to any other it stays a notification the system
     /// shows, in the reminders channel. A silent signal is data only, at normal priority: nothing is shown. A message the
     /// app builds itself (<see cref="NotificationMessage.ShownByApp"/>) is data too, to an app that rings reminders.
+    /// A focus session's change (<see cref="FocusSignal"/>) is data as well: at high priority, and only until the phase
+    /// ends, while a focus phase counts down (the phone goes quiet and says so); at normal priority otherwise. The
+    /// latest replaces one still waiting for a phone that is offline: the phone reads the sessions as they are then.
     /// </summary>
     internal static Message Build(PushEnvelope envelope, DateTimeOffset now)
     {
@@ -81,6 +84,21 @@ internal sealed class FcmPushSender : IPushSender
         // clients register installation ids instead.
 #pragma warning disable CS0618
         var token = envelope.Target.Token;
+        if (envelope.Focus is { } focus)
+        {
+            var quiet = focus.QuietUntil is { } until && until > now;
+            return new Message
+            {
+                Token = token,
+                Data = data,
+                Android = new AndroidConfig
+                {
+                    Priority = quiet ? Priority.High : Priority.Normal,
+                    TimeToLive = quiet ? focus.QuietUntil!.Value - now : FocusSignal.SoundBackUsefulFor,
+                    CollapseKey = message.Kind,
+                },
+            };
+        }
         if (envelope.Silent)
             return new Message
             {

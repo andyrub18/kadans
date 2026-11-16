@@ -68,6 +68,15 @@ internal sealed class NotificationDispatcher(
 
         pushQueue.Enqueue(new PushRequest(userId, new NotificationMessage(kind, string.Empty, string.Empty), Silent: true));
     }
+
+    public Task FocusChangedAsync(string userId, DateTimeOffset? quietUntil, CancellationToken cancellationToken = default)
+    {
+        // Push only: the hub carries the session itself ("pomodoro.run.changed") to the apps that are open.
+        pushQueue.Enqueue(
+            new PushRequest(userId, new NotificationMessage(FocusSignal.Kind, string.Empty, string.Empty), Silent: true, Focus: new FocusSignal(quietUntil))
+        );
+        return Task.CompletedTask;
+    }
 }
 
 internal static class NotificationMappings

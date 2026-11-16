@@ -297,6 +297,57 @@ public class PushWorkerTests
     }
 
     [Test]
+    public async Task A_focus_sessions_change_reaches_only_the_phones_that_go_quiet_during_focus()
+    {
+        var sent = new List<string>();
+        var sender = new FakeSender(targets =>
+        {
+            sent.AddRange(targets.Select(t => t.Token));
+            return [];
+        });
+        var devices = new FakeDevices(
+            new PushTarget("Android", "quiet", QuietDuringFocus: true),
+            new PushTarget("Android", "rings-only", Now, Now.AddDays(7)),
+            new PushTarget("Linux", "desktop", QuietDuringFocus: true)
+        );
+        var change = new PushRequest("user-1", new NotificationMessage(FocusSignal.Kind, "", ""), Silent: true, Focus: new FocusSignal(Now.AddMinutes(25)));
+
+        await Deliver(change, devices, Phones.Allowed, sender);
+        await Assert.That(sent).IsEquivalentTo(["quiet"]);
+
+        // Phones are what the subscription pays for: without one, nothing.
+        sent.Clear();
+        await Deliver(change, devices, Phones.NotSubscribed, sender);
+        await Assert.That(sent).IsEmpty();
+    }
+
+    [Test]
+    public async Task Firebase_gets_a_focus_phase_at_once_and_its_end_at_leisure()
+    {
+        var phone = new PushTarget("Android", "t", QuietDuringFocus: true);
+        var message = new NotificationMessage(FocusSignal.Kind, "", "");
+
+        // A focus phase counts down: at once, a phone lying still included, and of no use after the phase.
+        var began = FcmPushSender.Build(new PushEnvelope(phone, message, Silent: true, Focus: new FocusSignal(Now.AddMinutes(25))), Now);
+        await Assert.That(began.Notification).IsNull(); // the phone shows its own "quiet until" notice
+        await Assert.That(began.Data["kind"]).IsEqualTo("focus.changed");
+        await Assert.That(began.Android.Priority).IsEqualTo(FirebaseAdmin.Messaging.Priority.High);
+        await Assert.That(began.Android.TimeToLive).IsEqualTo(TimeSpan.FromMinutes(25));
+        await Assert.That(began.Android.CollapseKey).IsEqualTo("focus.changed");
+
+        // None does (a break, a pause, the session over): ordinary, and the latest replaces one still waiting.
+        var ended = FcmPushSender.Build(new PushEnvelope(phone, message, Silent: true, Focus: new FocusSignal(null)), Now);
+        await Assert.That(ended.Notification).IsNull();
+        await Assert.That(ended.Android.Priority).IsEqualTo(FirebaseAdmin.Messaging.Priority.Normal);
+        await Assert.That(ended.Android.TimeToLive).IsEqualTo(TimeSpan.FromHours(4));
+        await Assert.That(ended.Android.CollapseKey).IsEqualTo("focus.changed");
+
+        // A phase that ended while the request waited in the queue: no longer urgent.
+        var late = FcmPushSender.Build(new PushEnvelope(phone, message, Silent: true, Focus: new FocusSignal(Now.AddSeconds(-1))), Now);
+        await Assert.That(late.Android.Priority).IsEqualTo(FirebaseAdmin.Messaging.Priority.Normal);
+    }
+
+    [Test]
     public async Task Firebase_gets_a_reminder_its_lifetime_and_a_shape_the_app_can_handle()
     {
         var reminder = ReminderAt(Now.AddMinutes(-1), 0).Message; // starts 14 minutes from now

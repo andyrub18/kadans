@@ -9,6 +9,7 @@ import app.kadans.pomodoro.CycleActions
 import app.kadans.pomodoro.CycleNotice
 import app.kadans.pomodoro.PomodoroCycleNotices
 import app.kadans.push.DeviceRegistrar
+import app.kadans.quiet.FocusQuiet
 import app.kadans.reminders.AndroidReminderScheduler
 import app.kadans.reminders.LocalReminders
 import app.kadans.reminders.ReminderScheduler
@@ -46,7 +47,8 @@ object KadansPushChannel {
  * Foreground FCM messages don't reach the system tray by themselves — this shows them.
  * (Backgrounded, the system displays notification-type messages on its own.) Reminders go through [LocalReminders]:
  * one this phone already rang is not shown twice, and "reminders changed" fetches the window again. A focus session's
- * cycle done comes as data, foreground or not, and is shown with its buttons ([PomodoroCycleNotices]).
+ * cycle done comes as data, foreground or not, and is shown with its buttons ([PomodoroCycleNotices]). A session changed
+ * on another device, for a phone that goes quiet during focus, shows nothing of its own ([FocusQuiet]).
  */
 class KadansMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
@@ -78,6 +80,15 @@ class KadansMessagingService : FirebaseMessagingService() {
                             }
                         }
                     }
+                }
+                return
+            }
+            FocusQuiet.CHANGED_KIND -> {
+                // A focus session changed on another device (ARCHITECTURE → "Do Not Disturb during focus"): the
+                // sessions are read and the phone goes quiet, or gets its sound back, within the time Firebase gives a
+                // message. Quiet, it shows its notice: what Firebase delivers at once is meant to show something.
+                if (koin != null) {
+                    runCatching { runBlocking { withTimeoutOrNull(SYNC_WITHIN) { koin.get<FocusQuiet>().refresh(show = true) } } }
                 }
                 return
             }

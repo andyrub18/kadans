@@ -142,6 +142,8 @@ data class RegisterDeviceRequest(
     val name: String,
     val pushToken: String? = null,
     val appVersion: String? = null,
+    /** This phone goes quiet during a focus phase ("Do Not Disturb during focus"); null where there is no such thing. */
+    val quietDuringFocus: Boolean? = null,
 )
 
 @Serializable

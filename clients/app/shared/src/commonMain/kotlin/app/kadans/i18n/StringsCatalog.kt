@@ -471,6 +471,38 @@ data class WidgetStrings(
 }
 
 /**
+ * Do Not Disturb during focus (ARCHITECTURE → "Do Not Disturb during focus"), on a phone that can: the Settings
+ * section, what Android still has to allow, the session screen's one-time offer, the name of Kadans' mode in Android's
+ * own settings, and the notice shown while the phone is quiet. A feature group.
+ */
+data class QuietStrings(
+    /** The Settings section, and the name Android lists the notice under. */
+    val section: String,
+    val sectionHint: String,
+    /** The switch is on and Android's "Do Not Disturb access" is not given yet. */
+    val needsDoNotDisturb: String,
+    /** The switch is on and Android's "Alarms & reminders" is off: the sound could come back late. */
+    val needsExactAlarms: String,
+    /** The session screen's offer, made once. */
+    val offerTitle: String,
+    val offerText: String,
+    val turnOn: String,
+    val notNow: String,
+    /** Kadans' mode, as Android's Do Not Disturb settings list it. */
+    val modeName: String,
+    /** When that mode turns on by itself, under its name (Android 15 and later). */
+    val modeTrigger: String,
+    /** The silent notice while the phone is quiet. */
+    val noticeTitle: String,
+    /** `%s`: the time the focus phase ends, in the account's clock. */
+    val noticeUntilFormat: String,
+    /** The notice's button: the sound is back for the rest of the session. */
+    val soundOn: String,
+) {
+    fun noticeUntil(time: String): String = noticeUntilFormat.replace("%s", time)
+}
+
+/**
  * Settings → My todos in my calendar (ARCHITECTURE → "The calendar feed"): turning the feed on, its secret link, how to
  * give it to a calendar app, and replacing it or turning it off. A feature group.
  */
@@ -643,6 +675,7 @@ data class StringsCatalog(
     val appearance: AppearanceStrings,
     val calendarFeed: CalendarFeedStrings,
     val widget: WidgetStrings,
+    val quiet: QuietStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

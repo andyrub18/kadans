@@ -36,6 +36,8 @@ fun parseDeepLink(link: String?): Any? {
         "budget" -> if (path.isEmpty()) BudgetRoute else null
         // The widget's header, and whatever on it is not a todo: the day's list.
         "home" -> if (path.isEmpty()) HomeRoute else null
+        // Android's Do Not Disturb settings, on Kadans' mode: Settings, where its switch is.
+        "settings" -> if (path.isEmpty()) SettingsRoute else null
         else -> null
     }
 }
@@ -60,12 +62,16 @@ const val HOME_LINK = "kadans://home"
 /** What the home-screen widget's "+" opens: the form for a new todo. */
 const val NEW_TODO_LINK = "kadans://todos/new"
 
+/** What Android's Do Not Disturb settings open for Kadans' mode ("Do Not Disturb during focus"): Settings, where its switch is. */
+const val SETTINGS_LINK = "kadans://settings"
+
 /** What a category limit's alert opens: the budget. */
 const val BUDGET_LINK = "kadans://budget"
 
-/** Whether [route] may open now: Home, a todo, a new one, its session or the budget needs a session, a password reset does not. */
+/** Whether [route] may open now: Home, a todo, a new one, its session, the budget or Settings needs a session, a password reset does not. */
 fun opensWith(route: Any, signedIn: Boolean): Boolean =
-    (route !is HomeRoute && route !is TodoDetailRoute && route !is CreateTodoRoute && route !is PomodoroRoute && route !is BudgetRoute) || signedIn
+    (route !is HomeRoute && route !is TodoDetailRoute && route !is CreateTodoRoute && route !is PomodoroRoute && route !is BudgetRoute &&
+        route !is SettingsRoute) || signedIn
 
 /**
  * Links that reach the app while it runs (Android: a reminder tapped with the app open). Kept until the navigation

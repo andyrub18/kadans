@@ -99,11 +99,16 @@ public sealed record MfaCodeRequest(string Code);
 
 public sealed record RecoveryCodesResponse(IReadOnlyList<string> Codes);
 
+/// <param name="QuietDuringFocus">
+/// This phone turns Do Not Disturb on during a focus phase, and wants to hear of a session changed on another device.
+/// Null (an app from before, the desktop) leaves what the device said last.
+/// </param>
 public sealed record RegisterDeviceRequest(
     DevicePlatform Platform,
     string Name,
     string? PushToken = null,
-    string? AppVersion = null
+    string? AppVersion = null,
+    bool? QuietDuringFocus = null
 );
 
 public sealed record DeviceResponse(
@@ -113,7 +118,8 @@ public sealed record DeviceResponse(
     bool HasPushToken,
     string? AppVersion,
     DateTimeOffset RegisteredAt,
-    DateTimeOffset LastSeenAt
+    DateTimeOffset LastSeenAt,
+    bool QuietDuringFocus = false
 );
 
 public sealed record CreateUserRequest(

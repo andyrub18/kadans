@@ -38,6 +38,13 @@ internal sealed class Device
 
     /// <summary>The account's reminders version that window holds (Tasks counts one per change a person makes).</summary>
     public long RemindersVersion { get; set; }
+
+    /// <summary>
+    /// This phone turns Do Not Disturb on while a focus phase counts down (ARCHITECTURE → "Do Not Disturb during focus"):
+    /// a session changed on another device is pushed to it, at once when a focus phase begins. The app says so when it
+    /// registers; false for a device that never did (the desktop, an older app, the switch off).
+    /// </summary>
+    public bool QuietDuringFocus { get; set; }
     public DateTimeOffset RegisteredAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;
 }

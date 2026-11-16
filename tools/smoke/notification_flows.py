@@ -8,7 +8,8 @@ Registers a device for the user, creates a one-time todo due in ~75 s with a 1-m
 waits for the reminder job, then checks the reminder's timing and wording, GET /notifications,
 the push log line and mark-read. Two more todos are due at the same time: one rings again at its
 start ("starts now"), the other has a focus session running by then, which is for its occurrence
-(GET /occurrences/{id}) and silences its "starts now". Standard library only; takes ~1.5 min.
+(GET /occurrences/{id}) and silences its "starts now". Last, Do Not Disturb during focus: a phone that says it goes quiet
+is pushed the session's changes ("focus.changed"), and only such a phone. Standard library only; takes ~1.5 min.
 """
 import json, sys, time, urllib.parse, urllib.request, urllib.error, datetime as dt, uuid, re
 LOG = sys.argv[1]; BASE = sys.argv[2] if len(sys.argv) > 2 else "http://localhost:5199"
@@ -138,6 +139,37 @@ if start_one:
     C("its moment is the start (the phone's identity for it)", start_one["data"]["notifyAt"].startswith(iso(due)[:19]), start_one["data"]["notifyAt"])
 focus_bodies = [n["body"] for n in items if n["kind"] == "occurrence.due" and n["data"]["todoId"] == focusing["id"]] if s == 200 else []
 C("the focus todo: the reminder before its start only (its session had begun)", len(focus_bodies) == 1 and "1 min" in focus_bodies[0], focus_bodies)
+print("== Do Not Disturb during focus: a phone that goes quiet hears of a session changed on another device")
+s, active = call("GET", "/pomodoro/active-runs", token=T)
+C("the account's running sessions list the one under way", s == 200 and run["id"] in [r["id"] for r in active], s)
+quiet_phone = str(uuid.uuid4())
+quiet_device = {"platform": "Android", "name": "smoke quiet phone", "pushToken": "fcm-smoke-quiet-token"}
+s, d = call("PUT", f"/users/me/devices/{quiet_phone}", quiet_device | {"quietDuringFocus": True}, token=T)
+C("a phone says it goes quiet during focus", s == 200 and d.get("quietDuringFocus") is True, d)
+s, d = call("PUT", f"/users/me/devices/{quiet_phone}", quiet_device, token=T)
+C("registered again without a word about it (an older app), it still does", s == 200 and d.get("quietDuringFocus") is True, d)
+# Push:Provider=Log names each push's kind; with Fcm the log only counts what Google answered, so the kind is not checked.
+def focus_pushes(): return len(re.findall(r"PUSH \(not sent\) to \d+ device\(s\) \[[A-Za-z,]+\] focus\.changed", open(LOG).read()))
+def pushed_to(count):
+    for _ in range(50):
+        if focus_pushes() >= count: break
+        time.sleep(0.1)
+    time.sleep(0.5) # and no more than that
+    return focus_pushes() == count
+kinds_logged = "PUSH (not sent)" in open(LOG).read()
+if not kinds_logged: print("  (Push:Provider is not Log: which push went where is not checked)")
+sent = focus_pushes()
+s, _ = call("PUT", f"/pomodoro/runs/{run['id']}/pause", token=T)
+C("pausing the session elsewhere is pushed to it", s == 200 and (not kinds_logged or pushed_to(sent + 1)), focus_pushes() - sent)
+s, _ = call("PUT", f"/pomodoro/runs/{run['id']}/resume", token=T)
+C("and so is resuming it", s == 200 and (not kinds_logged or pushed_to(sent + 2)), focus_pushes() - sent)
+s, same = call("PUT", f"/pomodoro/runs/{run['id']}/advance", {"onlyIfEnded": True}, token=T)
+C("an app's \"this phase ran out\", too early, changes nothing and pushes nothing", s == 200 and same["currentPhaseIndex"] == 0 and (not kinds_logged or pushed_to(sent + 2)), focus_pushes() - sent)
+s, d = call("PUT", f"/users/me/devices/{quiet_phone}", quiet_device | {"quietDuringFocus": False}, token=T)
+s2, _ = call("PUT", f"/pomodoro/runs/{run['id']}/pause", token=T)
+C("with the switch off on the phone, nothing more is pushed to it", s == 200 and d.get("quietDuringFocus") is False and s2 == 200 and (not kinds_logged or pushed_to(sent + 2)), focus_pushes() - sent)
+call("DELETE", f"/users/me/devices/{quiet_phone}", token=T)
+
 s, _ = call("PUT", f"/pomodoro/runs/{run['id']}/cancel", token=T)
 C("the session ends", s == 200, s)
 

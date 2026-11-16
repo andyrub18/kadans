@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Do Not Disturb during focus: what Android's own settings call the kind of mode Kadans provides (the list of
+         modes an app offers). In the phone's language, like the widget picker's texts; the mode itself is named in the
+         app's language (StringsCatalog). -->
+    <string name="quiet_rule_type">Kadans focus</string>
+</resources>

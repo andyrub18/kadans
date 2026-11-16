@@ -17,6 +17,8 @@ import app.kadans.reminders.LocalReminders
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import app.kadans.ui.shell.UnreadNotifications
+import app.kadans.calendar.PhoneCalendar
+import app.kadans.calendar.PhoneEvent
 import app.kadans.quiet.FocusQuiet
 import app.kadans.widget.TodayWidget
 import kotlin.coroutines.cancellation.CancellationException
@@ -34,9 +36,11 @@ import kotlinx.coroutines.launch
 sealed interface HomeUiState {
     data object Loading : HomeUiState
 
+    /** [events]: the phone's own calendar over the same days, where the person turned that on; never from the server. */
     data class Content(
         val todos: List<TodoResponse>,
         val upcoming: List<TodoOccurrenceResponse>,
+        val events: List<PhoneEvent> = emptyList(),
     ) : HomeUiState
 
     data class Error(val message: String?, val code: String? = null) : HomeUiState
@@ -57,6 +61,7 @@ class HomeViewModel(
     private val unread: UnreadNotifications,
     private val todayWidget: TodayWidget,
     private val focusQuiet: FocusQuiet,
+    private val phoneCalendar: PhoneCalendar,
 ) : ViewModel() {
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
@@ -113,6 +118,8 @@ class HomeViewModel(
         }
         // Done, moved or added elsewhere (another device, a notification's button), or back in front: shown as it is now.
         viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { load(quiet = true) } }
+        // The phone's calendar was turned on or off, or its permission given: the days are shown with or without it.
+        viewModelScope.launch { phoneCalendar.changes.collect { load(quiet = true) } }
     }
 
     fun refresh() {
@@ -132,7 +139,9 @@ class HomeViewModel(
             val todos = api.todos.list(pageSize = 50)
             val upcoming = api.todos.occurrencesBetween(now, now + 7.days)
                 .filter { !it.isPreview }
-            _state.value = HomeUiState.Content(todos, upcoming)
+            // The phone's own events for the same week, read on the phone (empty unless the person turned that on).
+            val events = phoneCalendar.events(now, now + 7.days, upcoming)
+            _state.value = HomeUiState.Content(todos, upcoming, events)
             // The badge is a nicety: never let it turn a loaded Home into an error.
             runCatching { api.notifications.unreadCount() }.onSuccess(unread::set)
         } catch (e: CancellationException) {

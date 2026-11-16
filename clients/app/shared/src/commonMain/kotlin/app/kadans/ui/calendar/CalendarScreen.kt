@@ -29,6 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.border
+import app.kadans.calendar.PhoneCalendar
+import app.kadans.ui.settings.PhoneCalendarOffer
+import org.koin.compose.koinInject
 import app.kadans.api.model.OccurrenceStatus
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.i18n.LocalStrings
@@ -48,6 +52,7 @@ fun CalendarScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
+    val phoneCalendar = koinInject<PhoneCalendar>()
     LaunchedEffect(Unit) { viewModel.refresh() }
 
     // Width-capped so desktop windows don't blow the day cells up; the day detail below shares
@@ -85,6 +90,7 @@ fun CalendarScreen(
                     DayCell(
                         cell = cell,
                         occurrences = state.byDay[cell.date].orEmpty(),
+                        hasEvents = !state.eventsByDay[cell.date].isNullOrEmpty(),
                         isToday = cell.date == state.today,
                         isSelected = cell.date == state.selected,
                         onClick = { viewModel.select(cell.date) },
@@ -103,18 +109,34 @@ fun CalendarScreen(
             )
         }
 
+        // Once, on a phone that has a calendar Kadans can read: show its events here?
+        PhoneCalendarOffer(Modifier.padding(top = 8.dp), phoneCalendar)
+
         state.selected?.let { selected ->
             Text(
                 LocalDates.current.long(selected, Dates.today()),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
             )
-            if (state.selectedOccurrences.isEmpty()) {
+            // The day's todos, with the phone's own events among them where the person turned that on.
+            val items = dayItems(selected, state.selectedOccurrences, state.selectedEvents, TimeZone.currentSystemDefault())
+            if (items.isEmpty()) {
                 Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium)
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f, fill = false)) {
-                items(state.selectedOccurrences, key = { it.id ?: (it.todoId + it.scheduledAt.toString()) }) { occurrence ->
-                    DayOccurrenceCard(occurrence, onClick = { onOpenTodo(occurrence.todoId) })
+                items(
+                    items,
+                    key = {
+                        when (it) {
+                            is DayItem.Todo -> it.occurrence.id ?: (it.occurrence.todoId + it.occurrence.scheduledAt.toString())
+                            is DayItem.Event -> "event ${it.event.id} ${it.event.start}"
+                        }
+                    },
+                ) { item ->
+                    when (item) {
+                        is DayItem.Todo -> DayOccurrenceCard(item.occurrence, onClick = { onOpenTodo(item.occurrence.todoId) })
+                        is DayItem.Event -> PhoneEventCard(item.event, selected, onClick = { phoneCalendar.open(item.event) })
+                    }
                 }
             }
         }
@@ -126,6 +148,7 @@ fun CalendarScreen(
 private fun DayCell(
     cell: MonthCell,
     occurrences: List<TodoOccurrenceResponse>,
+    hasEvents: Boolean,
     isToday: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -160,6 +183,8 @@ private fun DayCell(
             if (pending) Dot(MaterialTheme.colorScheme.primary)
             if (preview) Dot(MaterialTheme.colorScheme.outline)
             if (done) Dot(MaterialTheme.colorScheme.tertiary)
+            // Something in the phone's own calendar that day: a ring, where a todo is a full dot.
+            if (hasEvents) Box(Modifier.size(5.dp).border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
         }
     }
 }

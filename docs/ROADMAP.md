@@ -949,6 +949,22 @@ installing on real devices second, hosting last.
         Kadans; select a text in any app and look for "Add to Kadans".
       - [ ] Later: the iPhone's share extension with the iPhone app; a picture or a file shared to a todo, once todos
         hold attachments.
+- [x] 2026-11-16, the fifth integration from that feedback: the phone's calendar beside the todos (ARCHITECTURE → "The
+      phone's calendar"), on Android, off by default. With its switch on (Settings, or the Calendar tab's one-time
+      offer) and Android's permission, Home's next seven days and the Calendar tab show the events of the phone's own
+      calendar among the todos: read-only, outlined where a todo is filled, a tap opening them in the phone's calendar
+      app. The calendars the person shows in their calendar app, without declined and cancelled events, and without the
+      todos that the calendar feed put there. The events are read on the phone and go no further: nothing is kept,
+      sent to the server or logged; the privacy policy says so.
+      Checked: the app's tests (455; the rules for what shows and where, 12 of them), the desktop and Android builds,
+      and on the emulator (Android 15) with a test calendar everything listed in ARCHITECTURE. Not checked: a real
+      phone's calendars, other makers' calendar apps, the event's own screen after a tap (the emulator's Google
+      Calendar app does not run).
+      - [ ] By the owner, with the next Android build: turn it on from the Calendar tab on your phone; check your real
+        meetings show on Home, that a tap opens one in your calendar app, and, if your todos are in Google Calendar
+        through the feed, that none shows twice.
+      - [ ] Later, if testers ask: a warning when a focus session would run into a meeting; the iPhone's calendar with
+        the iPhone app.
 
 Nice-to-have hardening
 

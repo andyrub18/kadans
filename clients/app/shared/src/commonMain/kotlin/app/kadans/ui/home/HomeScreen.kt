@@ -26,6 +26,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import app.kadans.calendar.PhoneCalendar
+import app.kadans.ui.calendar.DayItem
+import app.kadans.ui.calendar.PhoneEventCard
+import app.kadans.ui.calendar.daysWithItems
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.plus
+import org.koin.compose.koinInject
 import app.kadans.api.model.TodoOccurrenceResponse
 import app.kadans.api.model.TodoResponse
 import app.kadans.i18n.LocalStrings
@@ -93,7 +100,9 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
     val zone = TimeZone.currentSystemDefault()
     val today = Dates.today(zone)
     // Under each day, "Today", "Tomorrow", then its name: the times on the device's clock, as the person lives them.
-    val days = content.upcoming.groupBy { it.scheduledAt.toLocalDateTime(zone).date }
+    // The phone's own events are among the todos where the person turned that on (a day may have only events).
+    val days = daysWithItems(content.upcoming, content.events, zone, today, today.plus(7, DateTimeUnit.DAY))
+    val phoneCalendar = koinInject<PhoneCalendar>()
     ReadableList(modifier.fillMaxSize(), bottom = FabClearance) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -101,10 +110,10 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item { Text(s.next7Days, style = MaterialTheme.typography.titleMedium) }
-            if (content.upcoming.isEmpty()) {
+            if (days.isEmpty()) {
                 item { Text(s.nothingScheduled, style = MaterialTheme.typography.bodyMedium) }
             }
-            days.forEach { (day, occurrences) ->
+            days.forEach { (day, items) ->
                 item(key = "day $day") {
                     Text(
                         d.day(day, today),
@@ -113,8 +122,20 @@ private fun HomeContent(content: HomeUiState.Content, onOpenTodo: (String) -> Un
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                items(occurrences, key = { it.id ?: it.todoId + it.scheduledAt.toString() }) { occurrence ->
-                    OccurrenceCard(occurrence, d.time(occurrence.scheduledAt, zone), onClick = { onOpenTodo(occurrence.todoId) })
+                items(
+                    items,
+                    key = {
+                        when (it) {
+                            is DayItem.Todo -> it.occurrence.id ?: (it.occurrence.todoId + it.occurrence.scheduledAt.toString())
+                            is DayItem.Event -> "event $day ${it.event.id} ${it.event.start}"
+                        }
+                    },
+                ) { item ->
+                    when (item) {
+                        is DayItem.Todo ->
+                            OccurrenceCard(item.occurrence, d.time(item.occurrence.scheduledAt, zone), onClick = { onOpenTodo(item.occurrence.todoId) })
+                        is DayItem.Event -> PhoneEventCard(item.event, day, onClick = { phoneCalendar.open(item.event) })
+                    }
                 }
             }
 

@@ -197,7 +197,11 @@ from any app's share sheet, or a selection's "Add to Kadans") opens the new-todo
 itself: `share/SharedText` (the text read as a title and a description, cleaned and cut: it is another app's, never
 trusted), `SharedTodoRoute` and `SharedTodoScreen` (alone on the screen, back to the other app when done, the session and
 the paywall first; ARCHITECTURE → "Share to Kadans"). A todo's title holds 500 characters and its description 4,000
-(`TodosApi.TITLE_LENGTH`, `DESCRIPTION_LENGTH`, the server's `Todo.Max…`): a form field for either stops there. Screens
+(`TodosApi.TITLE_LENGTH`, `DESCRIPTION_LENGTH`, the server's `Todo.Max…`): a form field for either stops there. The
+phone's calendar beside the todos (Android, off by default) is `calendar/PhoneCalendar` (the switch, the permission,
+what is shown) and `calendar/AndroidPhoneCalendar` (the system's calendar provider, read-only); `ui/calendar/DayItems`
+puts events and todos in one day's list (ARCHITECTURE → "The phone's calendar"). Its events are read when a screen shows
+them and go no further: never store one, never send one to the server, never log one. Screens
 reload quietly whatever changed what they show (another device, a notification's button, a job, the app back in front):
 the server's `data.changed` and `sync/DataChanges`, ARCHITECTURE → "Screens stay in step"; a screen that loads once and
 never again is a bug. The desktop app closes to the tray (Linux: a freedesktop

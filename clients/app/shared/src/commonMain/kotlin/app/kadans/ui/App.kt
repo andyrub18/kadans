@@ -45,7 +45,9 @@ import app.kadans.ui.settings.SettingsScreen
 import app.kadans.ui.shell.AddAction
 import app.kadans.ui.shell.MainShell
 import app.kadans.ui.shell.MainTab
+import app.kadans.share.TodoDraft
 import app.kadans.ui.todos.CreateTodoScreen
+import app.kadans.ui.todos.SharedTodoScreen
 import app.kadans.ui.todos.EditTodoScreen
 import app.kadans.ui.todos.TodoDetailScreen
 import app.kadans.ui.pomodoro.PomodoroScreen
@@ -68,6 +70,12 @@ data object HomeRoute
 /** A phone whose account has no subscription (once they are required): subscribe, restore, or sign out. */
 data object PaywallRoute
 data object CreateTodoRoute
+
+/**
+ * The form for a new todo, filled in from a text another app shared (ARCHITECTURE → "Share to Kadans"). Opened by that
+ * share it is alone on the screen: saved or left, the person is back in the app they shared from.
+ */
+data class SharedTodoRoute(val title: String, val description: String)
 data object CalendarRoute
 /** The focus stats and the Pomodoro cycles (FocusScreen). */
 data object FocusRoute
@@ -91,8 +99,13 @@ data class PomodoroRoute(
     val startsOne: Boolean = true,
 )
 
+/**
+ * [deepLink]: what the app was opened for (a reminder's todo, the widget's "+", a text another app shared).
+ * [leave]: closes this window of the app and hands the person back to where they came from, with a word to show them
+ * there if there is one (Android: the activity another app's share opened; nowhere else is there such a thing).
+ */
 @Composable
-fun App(deepLink: String? = null) {
+fun App(deepLink: String? = null, leave: ((message: String?) -> Unit)? = null) {
     KadansTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             // Edge to edge on Android: the background goes under the system bars, the content stays clear of them and
@@ -134,6 +147,7 @@ fun App(deepLink: String? = null) {
                             startAtHome = hasSession == true,
                             languageController = languageController,
                             deepLinkRoute = parseDeepLink(deepLink),
+                            leave = leave,
                         )
                         app.kadans.updates.UpdateRequiredDialog()
                     }
@@ -144,17 +158,40 @@ fun App(deepLink: String? = null) {
 }
 
 @Composable
-private fun KadansNav(startAtHome: Boolean, languageController: LanguageController, deepLinkRoute: Any? = null) {
+private fun KadansNav(
+    startAtHome: Boolean,
+    languageController: LanguageController,
+    deepLinkRoute: Any? = null,
+    leave: ((message: String?) -> Unit)? = null,
+) {
+    // A text another app shared ("Share to Kadans"): its form is alone on the screen where the platform can hand the
+    // person back afterwards, so that saving or leaving it returns to the app they shared from, not to Kadans' Home.
+    val shared = (deepLinkRoute as? SharedTodoRoute)?.takeIf { leave != null }
     val backStack = remember {
-        mutableStateListOf<Any>(if (startAtHome) HomeRoute else LoginRoute).also { stack ->
-            // Home is already there: a link to it (the widget's header) adds nothing.
-            deepLinkRoute?.takeIf { it !is HomeRoute && opensWith(it, signedIn = startAtHome) }?.let { stack.add(it) }
+        mutableStateListOf<Any>().also { stack ->
+            when {
+                !startAtHome -> stack.add(LoginRoute)
+                shared != null -> stack.add(shared)
+                else -> {
+                    stack.add(HomeRoute)
+                    // Home is already there: a link to it (the widget's header) adds nothing.
+                    deepLinkRoute?.takeIf { it !is HomeRoute && opensWith(it, signedIn = true) }?.let { stack.add(it) }
+                }
+            }
         }
     }
+    // Shared to a phone that is signed out: the form comes once the person has signed in, with what they shared.
+    var sharedBeforeSignIn by remember { mutableStateOf(shared.takeIf { !startAtHome }) }
 
     fun resetTo(route: Any) {
         backStack.clear()
         backStack.add(route)
+    }
+
+    /** Where a sign-in leads: Home, or the form for what was shared to this phone while it was signed out. */
+    fun signedIn() {
+        resetTo(sharedBeforeSignIn ?: HomeRoute)
+        sharedBeforeSignIn = null
     }
 
     // The four destinations: Home stays at the bottom of the stack, any other one sits alone on it, so Back from a
@@ -195,6 +232,8 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
         api.sessionEnded.collect {
             realtime.stop()
             sessionEnded = true
+            // Shared to a phone whose session turned out to be over: the form comes back after the sign-in.
+            (backStack.singleOrNull() as? SharedTodoRoute)?.let { sharedBeforeSignIn = it }
             resetTo(LoginRoute)
         }
     }
@@ -232,7 +271,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         languageController = languageController,
                         onLoggedIn = {
                             sessionEnded = false
-                            resetTo(HomeRoute)
+                            signedIn()
                         },
                         onMfaRequired = { mfaToken -> backStack.add(MfaRoute(mfaToken)) },
                         onRegister = { backStack.add(RegisterRoute) },
@@ -252,7 +291,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onKept = {
                             closedUntil = null
                             sessionEnded = false
-                            resetTo(HomeRoute)
+                            signedIn()
                         },
                         onLeave = { resetTo(LoginRoute) },
                     )
@@ -274,7 +313,7 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                         onDeletionScheduled = ::offerToKeep,
                         onVerified = {
                             sessionEnded = false
-                            resetTo(HomeRoute)
+                            signedIn()
                         },
                         onBack = { backStack.removeLastOrNull() },
                     )
@@ -353,6 +392,24 @@ private fun KadansNav(startAtHome: Boolean, languageController: LanguageControll
                     CreateTodoScreen(
                         onCreated = { todoId -> backStack.removeLastOrNull(); backStack.add(TodoDetailRoute(todoId)) },
                         onBack = { backStack.removeLastOrNull() },
+                    )
+                }
+                is SharedTodoRoute -> NavEntry(key) {
+                    // Alone on the screen, another app's share opened it: saved or left, the person is back there
+                    // (the system's Back does the same by itself). Anywhere else it is the form as usual.
+                    val alone = leave != null && backStack.size == 1
+                    val saved = LocalStrings.current.share.saved
+                    SharedTodoScreen(
+                        draft = TodoDraft(key.title, key.description),
+                        onCreated = { todoId ->
+                            if (alone) leave?.invoke(saved)
+                            else {
+                                backStack.removeLastOrNull()
+                                backStack.add(TodoDetailRoute(todoId))
+                            }
+                        },
+                        onBack = { if (alone) leave?.invoke(null) else backStack.removeLastOrNull() },
+                        onPaywall = { resetTo(HomeRoute) },
                     )
                 }
                 is TodoDetailRoute -> NavEntry(key) {

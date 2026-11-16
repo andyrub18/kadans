@@ -335,6 +335,7 @@ val EnglishStrings = StringsCatalog(
         noticeUntilFormat = "Until %s",
         soundOn = "Sound on",
     ),
+    share = ShareStrings(saved = "Saved in Kadans"),
     updates = UpdateStrings(
         availableFormat = "Kadans %s is available",
         availableText = "Download the new version from the Kadans site.",

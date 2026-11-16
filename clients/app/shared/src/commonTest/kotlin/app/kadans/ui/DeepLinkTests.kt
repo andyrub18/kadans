@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.share.TodoDraft
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -23,6 +24,30 @@ class DeepLinkTests {
         assertNull(parseDeepLink("kadans://todos/not-an-id"))
         assertNull(parseDeepLink("kadans://todos/$id/../../users/me"))
         assertNull(parseDeepLink("kadans://todos/"))
+    }
+
+    @Test
+    fun aTextSharedByAnotherAppOpensTheFormFilledIn() {
+        val draft = TodoDraft("Réunion & budget: 50% + café ?", "Ligne 1\nhttps://example.com/a?b=1&c=2#top")
+        assertEquals(SharedTodoRoute(draft.title, draft.description), parseDeepLink(sharedTodoLink(draft)))
+        // A title alone, a description alone.
+        assertEquals(SharedTodoRoute("Pay the school", ""), parseDeepLink(sharedTodoLink(TodoDraft("Pay the school", ""))))
+        assertEquals(SharedTodoRoute("", "notes"), parseDeepLink(sharedTodoLink(TodoDraft("", "notes"))))
+        // Nothing in it: the plain form, as the widget's "+".
+        assertEquals(CreateTodoRoute, parseDeepLink(NEW_TODO_LINK))
+        assertEquals(CreateTodoRoute, parseDeepLink("$NEW_TODO_LINK?title=&description=%20"))
+    }
+
+    @Test
+    fun aSharedTodoLinkFromAnywhereIsCutToWhatATodoHolds() {
+        // The app makes these links itself, but the activity that takes them takes them from any app.
+        val route = parseDeepLink("kadans://todos/new?title=${"t".repeat(900)}&description=${"d".repeat(9000)}") as SharedTodoRoute
+        assertEquals(500, route.title.length)
+        assertEquals(4000, route.description.length)
+        // It needs a session like any todo, and opens nothing else.
+        assertFalse(opensWith(route, signedIn = false))
+        assertTrue(opensWith(route, signedIn = true))
+        assertNull(parseDeepLink("kadans://todos/new/extra?title=x"))
     }
 
     @Test

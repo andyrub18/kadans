@@ -187,7 +187,8 @@ val appModule = org.koin.dsl.module {
     viewModelOf(::CalendarFeedViewModel)
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }
-    viewModelOf(::CreateTodoViewModel)
+    // A new todo, from nothing or from a text another app shared (its draft).
+    viewModel { params -> CreateTodoViewModel(get(), params.getOrNull<app.kadans.share.TodoDraft>()) }
     factory { (todoId: String) -> TodoDetailViewModel(get(), todoId, get()) }
     factory { (todoId: String) -> EditTodoViewModel(get(), todoId) }
     factory { (todoId: String, loop: Boolean, handsFree: Boolean, finishAtMillis: Long?, startsOne: Boolean) ->

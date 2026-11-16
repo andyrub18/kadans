@@ -363,6 +363,14 @@ public sealed class ErrorTypes(string code, string title, int httpStatusCode, st
         ""
     );
 
+    /// <summary>A text longer than its field holds (a todo's title or description).</summary>
+    public static readonly ErrorTypes TextTooLong = new(
+        "10060",
+        "Text too long",
+        StatusCodes.Status400BadRequest,
+        ""
+    );
+
     /// <summary>Locked for a while after too many wrong passwords or codes; not a deactivation.</summary>
     public static readonly ErrorTypes AccountLockedOut = new(
         "10054",

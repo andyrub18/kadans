@@ -20,9 +20,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Kadans">
+        <!-- configChanges: the screen is all Compose, which redraws itself for a new size, orientation or dark mode.
+             Without this Android restarts the activity for each of them, and what was open (a form half filled in) was
+             lost for Home: turning the phone was enough. -->
         <activity
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
             android:theme="@style/Theme.Kadans.Starting"
             android:name=".MainActivity">
             <intent-filter>
@@ -36,6 +40,20 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="api.kadansplanning.com" android:path="/auth/reset-password" />
+            </intent-filter>
+            <!-- Share to Kadans (docs/ARCHITECTURE.md → "Share to Kadans"): a text or a link shared from any app, or
+                 selected in one, opens the form for a new todo filled in with it. Text only; nothing is saved before
+                 the person presses "Create". The labels are what the share sheet and the selection menu show, in the
+                 phone's language. -->
+            <intent-filter android:label="@string/share_new_todo">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter android:label="@string/share_add_to_kadans">
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
             <!-- Android's Do Not Disturb settings open the app that owns a mode from the mode's own page: Kadans opens
                  on its Settings, where the switch for "Do Not Disturb during focus" is. One mode, never more. -->

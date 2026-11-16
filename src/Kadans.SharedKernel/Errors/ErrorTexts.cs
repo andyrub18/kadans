@@ -109,12 +109,15 @@ public static class ErrorTexts
         ["10057"] = new("Cet abonnement appartient à un autre compte Kadans.", "Abònman sa a se pou yon lòt kont Kadans."),
         ["10058"] = new("Le serveur est surchargé. Réessayez dans un moment.", "Sèvè a twò chaje kounye a. Tann yon ti moman epi eseye ankò."),
         ["10059"] = new("Cela fait partie de l'abonnement du téléphone.", "Sa fè pati abònman telefòn nan."),
+        ["10060"] = new("Ce texte est trop long.", "Tèks sa a twò long."),
     };
 
     public static readonly IReadOnlyDictionary<string, Text> Sentences = new Dictionary<string, Text>(StringComparer.Ordinal)
     {
         // --- todos and recurrence ---
         ["Title is required."] = new("Le titre est obligatoire.", "Tit la obligatwa."),
+        ["A title can have at most 500 characters."] = new("Un titre peut avoir 500 caractères au plus.", "Yon tit ka gen 500 karaktè pou pi plis."),
+        ["A description can have at most 4,000 characters."] = new("Une description peut avoir 4 000 caractères au plus.", "Yon deskripsyon ka gen 4 000 karaktè pou pi plis."),
         ["Due date must be in the future."] = new("L'échéance doit être dans le futur.", "Dat limit la dwe nan lavni."),
         ["Due date cannot be in the past."] = new("L'échéance ne peut pas être dans le passé.", "Dat limit la pa ka nan tan pase."),
         ["The new date must be in the future."] = new("La nouvelle date doit être dans le futur.", "Nouvo dat la dwe nan lavni."),

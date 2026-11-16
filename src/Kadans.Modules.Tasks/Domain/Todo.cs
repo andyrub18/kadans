@@ -18,6 +18,13 @@ internal sealed class Todo
     /// </summary>
     public const uint MaxNotifyBeforeMinutes = 30 * 24 * 60;
 
+    /// <summary>
+    /// The longest title and description, which are also the columns' sizes: a longer one is refused with a sentence
+    /// (it used to reach the database and come back as a 500). The apps' forms stop at the same lengths.
+    /// </summary>
+    public const int MaxTitleLength = 500;
+    public const int MaxDescriptionLength = 4000;
+
     public Guid Id { get; init; } = Guid.CreateVersion7();
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

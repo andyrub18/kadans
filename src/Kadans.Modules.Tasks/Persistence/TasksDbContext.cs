@@ -177,8 +177,8 @@ internal sealed class TasksDbContext(DbContextOptions<TasksDbContext> options) :
 
         builder.Entity<Todo>(t =>
         {
-            t.Property(p => p.Description).IsRequired().HasMaxLength(4000);
-            t.Property(p => p.Title).IsRequired().HasMaxLength(500);
+            t.Property(p => p.Description).IsRequired().HasMaxLength(Todo.MaxDescriptionLength);
+            t.Property(p => p.Title).IsRequired().HasMaxLength(Todo.MaxTitleLength);
             t.Property(p => p.Status).HasConversion<string>();
 
             // Users live in the Identity module: reference by id only, no FK/navigation.

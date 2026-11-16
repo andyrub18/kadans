@@ -21,6 +21,29 @@ public class TodoRulesValidatorTests
     }
 
     [Test]
+    public async Task A_title_and_a_description_are_refused_past_what_their_columns_hold()
+    {
+        // A text shared from another app can be long: refused with a sentence, where it used to reach the database
+        // and come back as a 500.
+        var title = new string('t', Todo.MaxTitleLength);
+        var description = new string('d', Todo.MaxDescriptionLength);
+        var rule = new CreateRecurrenceRule(Frequency.Daily, Tomorrow);
+
+        await Assert.That((await new CreateOneTimeTodoRulesValidator().ValidateAsync(new CreateOneTimeTodo(title, description, true, Tomorrow))).IsValid).IsTrue();
+        await Assert.That((await new CreateRecurringTodoRulesValidator().ValidateAsync(new CreateRecurringTodo(title, description, true, rule))).IsValid).IsTrue();
+        await Assert.That((await new UpdateTodoRulesValidator().ValidateAsync(new UpdateTodo(title, description, true))).IsValid).IsTrue();
+
+        var oneTime = await new CreateOneTimeTodoRulesValidator().ValidateAsync(new CreateOneTimeTodo(title + "t", description + "d", true, Tomorrow));
+        var recurring = await new CreateRecurringTodoRulesValidator().ValidateAsync(new CreateRecurringTodo(title + "t", description, true, rule));
+        var update = await new UpdateTodoRulesValidator().ValidateAsync(new UpdateTodo(title, description + "d", true));
+
+        await Assert.That(oneTime.Errors.Select(e => e.ErrorMessage)).IsEquivalentTo(
+            ["A title can have at most 500 characters.", "A description can have at most 4,000 characters."]);
+        await Assert.That(recurring.Errors.Select(e => e.ErrorCode)).IsEquivalentTo([ErrorTypes.TextTooLong.Value]);
+        await Assert.That(update.Errors.Select(e => e.ErrorMessage)).IsEquivalentTo(["A description can have at most 4,000 characters."]);
+    }
+
+    [Test]
     public async Task A_recurring_todo_has_the_same_lead_limit()
     {
         var rule = new CreateRecurrenceRule(Frequency.Daily, Tomorrow);

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Share to Kadans: what the system's share sheet shows under Kadans' icon, and the entry in the menu of a text
+         selection. In the phone's language, like the widget picker's texts. -->
+    <string name="share_new_todo">New todo</string>
+    <string name="share_add_to_kadans">Add to Kadans</string>
+</resources>

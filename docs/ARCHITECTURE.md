@@ -849,6 +849,55 @@ at the phase's end), Samsung's, Xiaomi's and Tecno's own Do Not Disturb screens,
 time (whether Firebase's urgent push wakes it at once is the documented behaviour, not one seen here), a force-stopped
 app, and a real phone.
 
+### Share to Kadans (2026-11-16)
+
+Fourth of the integrations ranked after a tester's feedback: a text or a link from any app becomes a todo. Android now;
+the iPhone's share extension comes with the iPhone app, and a computer has no share sheet.
+
+- **Two ways in**, both on the app's main activity (the manifest's two intent filters, text only):
+  - the **share sheet** (`ACTION_SEND`, `text/plain`): Kadans is listed with "New todo" under its name;
+  - the **menu of a text selection** (`ACTION_PROCESS_TEXT`): "Add to Kadans", for a text in an app that has no share
+    button (a PDF, an email).
+  The two labels are Android resources in the phone's language (`values`, `values-fr`, `values-ht`), like the widget
+  picker's. A share of anything but text (a picture, a file) is not offered Kadans.
+- **It opens the form for a new todo, filled in. Nothing is saved before "Create"**: the person still says when, and
+  whether to be reminded. A todo made without them, at a guessed date, would be noise in the list.
+- **From a text to a title and a description** (`share/SharedText`, pure, shared):
+  - the title is the share's subject when it has one (a browser sends the page's title); else the text's first line;
+    when that line is nothing but a link, the site's name ("example.com"), which reads better at the top of a todo
+    than an address. Longer than 120 characters, it is cut at a word, with "…";
+  - the description is the whole text (the link, the message), unless the title already says all of it;
+  - both are cut to what a todo holds (below), and cleared of what is not text: control characters, and the invisible
+    marks that can make a text read as another (zero-width spaces, direction overrides).
+- **Back where the person was.** Opened by a share, the form is alone on the screen (`SharedTodoRoute`, no Home under
+  it): "Create" saves, says "Saved in Kadans" and closes that activity, "Cancel" and the system's Back close it too, and
+  the person is back in the app they shared from (`App(leave = …)`, Android's `finish()`). Android opens it in a task of
+  its own, so a Kadans already open is left as it was.
+- **A share is not a way around anything.** It needs a session: signed out, or with a session that turns out to be
+  over, the sign-in comes first and the form after it, with what was shared. It reaches the app past Home, which is
+  where a phone without a subscription meets its paywall, so the form asks first (`SharedTodoScreen`,
+  `SubscriptionGate`) and leads there.
+- **What is shared is not trusted.** The activity is exported (it is the launcher's) and now takes text from any app:
+  at most 20,000 characters are read, the text is cleaned and cut, nothing in it is opened or run, and it is never
+  logged. The route travels as a link the app makes itself (`kadans://todos/new?title=…&description=…`,
+  `sharedTodoLink`); the same link from another app does no more than a share does, and is cut the same.
+- **A link in a todo's description opens** (`ui/LinkedText`): `http://` and `https://` addresses only, underlined, in
+  the system's browser, on every platform. The address shown is the address opened; the sentence's own punctuation
+  around it is left out. Without it a page shared to Kadans could be read but not opened.
+- **A todo's title holds 500 characters and its description 4,000** (`Todo.MaxTitleLength`, `MaxDescriptionLength`,
+  the columns' sizes). The server now refuses a longer one with a sentence (400, code 10060); it used to reach the
+  database and come back as a 500 ("Database error"), which typing rarely met and sharing a long message would. The
+  forms, new and edit, stop at the same lengths.
+
+Checked on the emulator (Android 15) against a local API: Chrome's share sheet listing Kadans with "New todo", the form
+filled in with the page's title and its address, "Create" landing back in Chrome with the todo on the server, and the
+system's Back and "Cancel" landing there too; a selection's text (through its intent), its title cut at a word and the
+whole of it in the description; a message of several lines; shared to a phone that is signed out, and to one whose
+session had been ended on the server (the form after the sign-in, both times); with subscriptions required and none
+(the paywall); with Kadans already open (its own window untouched); the phone turned and switched to dark mode with the
+form open; the link in the todo's description opening Chrome. Not checked: the selection menu by hand in another app
+(Android lists Kadans for it), other makers' share sheets, a real phone, the iPhone.
+
 ### Client: Compose Multiplatform
 
 Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/Linux) from one

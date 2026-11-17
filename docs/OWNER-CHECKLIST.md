@@ -305,6 +305,13 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
+- [ ] The session sealed on the device (2026-11-17), with the next builds, each installed over the one you use and
+      never after a sign-out: the phone (from Play's test track), the computer (the `.deb`), Windows (the `.msi` or
+      the Store's). Each should open signed in, without asking anything: the session the old version kept in the
+      clear is sealed at that first start. On Linux, "Passwords and Keys" (Seahorse) then shows an item named
+      "Kadans" in the Login keyring: leave it there, it is the key that opens your session (deleting it only signs
+      you out). On the phone, Settings → System → Backup no longer lists Kadans' data: a new phone starts at the
+      sign-in screen, by design. Nothing to change in Play Console's Data safety form.
 - [ ] Statements in, data out (2026-11-16), with the next builds: on your computer or your phone, Budget → "Import a
       statement" with a file downloaded from a bank's site (CSV, OFX, QFX or CAMT.053; a PDF is answered with what to
       ask the bank for instead, and a Haitian bank's statement is usually one: an account abroad, or any export you can

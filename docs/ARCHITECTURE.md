@@ -1081,6 +1081,91 @@ pulled back and opened. Not checked: a real bank's export (the samples are writt
 included, which was not run on the emulator: its path is OFX's, and tested as such), the desktop app's import screens
 on Windows and macOS, a statement of thousands of lines on a slow phone, the iPhone.
 
+### The session, sealed on the device (2026-11-17)
+
+Signing in leaves two tokens on the device: a short-lived one that each request carries and a long-lived one that
+gets the next pair (it is replaced at each use, and the server forgets the old one). Whoever holds the second is
+signed in. Until 1.1.1 the app kept both in its plain settings: on Android a file only the app reads, but which
+Android copied into the phone's backup, to Google's cloud and to the next phone; on a computer a file in the person's
+profile (Linux) or a registry value (Windows) that anything able to read the profile reads: a backup of the home
+folder, the disk in another machine.
+
+Now the settings hold what the device made of the two tokens, never the tokens. What is sealed opens on that device,
+for that person, and nowhere else.
+
+- **One store, a sealer per platform.** `auth/SealedTokenStore` is the app's `TokenStore`: it formats the pair, hands
+  it to `auth/Sealer` and keeps the result (`kadans.session.sealed`, Base64 behind a layout number) in the settings.
+  It reads once a run and keeps the pair in memory: the reminders, the widget and the quiet mode look at the session
+  all the time, and none of those looks asks the device's protection again. A sealer never throws; it answers what the
+  store may do: sealed, nothing to seal with here (`None`), or protection that is there and did not answer
+  (`Refused`); opened, will never open (`Lost`), or could not be asked now (`Refused`).
+- **An update signs nobody out.** A session an earlier version left in the clear is sealed the first time it is read,
+  and the clear copy removed in the same step.
+- **Android: the Keystore** (`KeystoreSealer`). An AES-256-GCM key made on the phone, in the Keystore (the phone's
+  secure hardware where it has one), which uses it for the app and never hands it over: it can be neither read nor
+  copied, so a sealed session copied to another phone opens nothing. The key asks for no unlock of its own, because
+  the alarm that rings a reminder, the widget and a push read the session with the screen off; the phone's storage is
+  encrypted until the first unlock anyway, and Kadans does not run before it. A key that stopped working (a system
+  update can do that) is replaced at the next sign-in. A phone whose Keystore makes no key at all keeps the session in
+  the app's private settings as before: an app that signs out at every start serves nobody, and that file is out of
+  other apps' reach and, now, of the backup's.
+- **Android: nothing in the backup.** `android:allowBackup="false"` and `res/xml/data_extraction_rules.xml` (Android
+  12 and later, cloud and phone-to-phone alike) keep everything of Kadans out. Not only the session: the id this
+  installation registered for push was copied too, and two phones with one id take each other's notifications. What
+  a phone keeps is that phone's; the account is on the server, and signing in on the new phone brings all of it.
+- **Windows: its own data protection** (`WindowsSealer`: DPAPI, `CryptProtectData`, called through Java's bridge to
+  native code like `LinuxInputMethod`). Windows encrypts with a key it derives from the person's sign-in: it opens
+  for that person on that computer, not for another account, not from a copy of the registry. No window, no
+  question. Kadans mixes a purpose of its own into the sealing, so that what another program sealed for the same
+  person does not open as a session.
+- **Linux: the keyring** (`KeyringSealer`, `SecretService`: the freedesktop Secret Service over D-Bus, which GNOME
+  Keyring, KWallet and KeePassXC implement). The keyring keeps one random key, named "Kadans", encrypted with the
+  person's login password like everything it holds; Kadans seals the session with that key (AES-256-GCM) and keeps
+  the result in its settings, the way browsers keep their own secrets on Linux. The key is read once a run, so a new
+  pair of tokens every few minutes asks the keyring nothing. On the bus the key travels sealed for that one
+  conversation (Diffie-Hellman, then AES: `dh-ietf1024-sha256-aes128-cbc-pkcs7`, what libsecret speaks); a keyring
+  that does not know that exchange gets it as it is, as the desktop's own tools do.
+  - *No keyring* (no session bus, nobody behind `org.freedesktop.secrets`): the session stays in the settings file,
+    which only the person's account reads, as it did.
+  - *A locked keyring* asks the person for its password itself, in the desktop's own window; Kadans never sees what is
+    typed. Closed without an answer, or unanswered for two minutes: nothing is written in the clear, the sealed
+    session stays where it is, and the sign-in screen says that the device's secure storage did not open, with
+    "Retry" (`SealedTokenStore.waiting`, `retry`). Kadans does not ask twice by itself in one run. Signing in instead
+    works, for as long as the app runs.
+  - The key stays in the keyring after a sign-out and after Kadans is removed. It opens nothing by then: the sealed
+    session goes with the sign-out.
+- **A session that no longer opens is a sign-out** (`onLost`): what the device kept for that account (the reminders
+  to ring, the widget's list, the quiet mode) is forgotten as it is when the person signs out, and so it is when
+  someone signs in over a session that never opened.
+- **Not yet: the Mac and the iPhone** (`NoSealer` there: the session in the settings, as before). Neither is released,
+  and each needs a Mac to build and to try; the Keychain is part of releasing either.
+
+What this protects, and what it does not. A copy of the app's settings no longer signs in: a phone's backup, a
+computer's backup, a disk read elsewhere, another account on the computer. A program that runs as the person, on
+their unlocked device, can still ask the keyring or Windows for what Kadans asks: no desktop app is protected from
+that, and the server's side answers it (the long-lived token is replaced at each use, "Sign out everywhere" ends
+every session at once). The rest of what the settings hold (the reminders to ring, the widget's list, the language)
+is the device's own copy of what the server has, not a way in, and is not sealed.
+
+Never write a token, or anything else that signs in, into `Settings` in the clear; a new secret the app must keep
+goes through `Sealer`.
+
+Checked: the store's rules with a stand-in sealer (sealed and found again, the clear copy removed, a value changed or
+from elsewhere dropped as a sign-out, nothing in the clear when the protection refuses, the wait and "Retry"); the
+keyring's part against a stand-in keyring on a private bus (the key made once, the exchange, a keyring opened by the
+person, left locked, never answered, absent) and against GNOME Keyring 46 itself, run privately so that nobody's own
+keyring is touched (the exchange, the key kept and handed back, a locked keyring refusing); the app's own wiring on
+Linux against that private keyring and a local API (the first start after the update, the next start, a locked
+keyring and "Retry", the keyring open again, a sign-out); on the emulator (Android 15): the settings after a sign-in
+(no token in them), the session back after the app was stopped, a 1.1.1 session sealed at the first start, one
+character of the sealed value changed (signed out, the value gone), a reminder fetched and its alarm set by the
+background job with the app killed, Android refusing to back the app up, as a cloud backup and as a transfer to a new
+phone; the sign-in screen's note drawn in the three languages at a phone's and a computer's width. Windows' part
+runs on a real Windows in the release workflow (`WindowsSealerTests`: sealed and opened, a value changed, something
+another program sealed), not on this side. Not checked: Windows by hand, KWallet and KeePassXC, a real keyring's
+password window answered by a person (the stand-in plays that part), a phone whose Keystore fails, the Mac, the
+iPhone.
+
 ### Client: Compose Multiplatform
 
 Already started (`clients/app`). Covers Android, iOS and desktop (Windows/macOS/Linux) from one

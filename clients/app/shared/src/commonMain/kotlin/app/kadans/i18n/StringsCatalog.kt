@@ -73,6 +73,8 @@ data class AccountStrings(
     val removeDevice: String,
     /** On the sign-in screen after the server ended this device's session. */
     val sessionEndedNotice: String,
+    /** On the sign-in screen when a session is kept on the device and its protection did not open it; "Retry" follows. */
+    val sessionWaitingNotice: String,
 ) {
     fun emailChangeSent(address: String): String = emailChangeSentFormat.replace("%s", address)
 }

@@ -29,6 +29,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import app.kadans.ui.auth.ForgotPasswordScreen
 import app.kadans.ui.auth.LoginScreen
 import app.kadans.ui.auth.MfaScreen
@@ -55,6 +56,7 @@ import app.kadans.ui.pomodoro.PomodoroScreen
 import app.kadans.ui.auth.KeepAccountScreen
 import app.kadans.ui.billing.PaywallScreen
 import org.koin.compose.koinInject
+import kotlinx.coroutines.launch
 import kotlinx.datetime.toLocalDateTime
 
 // Navigation 3: routes are plain keys; the back stack is state we own.
@@ -240,6 +242,11 @@ private fun KadansNav(
             resetTo(LoginRoute)
         }
     }
+    // A session is kept on this device and its protection did not open it (a keyring left locked): the sign-in screen
+    // says so, and "Retry" asks again (ARCHITECTURE → "The session, sealed on the device").
+    val sealedSession = koinInject<app.kadans.auth.SealedTokenStore>()
+    val sessionWaiting by sealedSession.waiting.collectAsState()
+    val scope = rememberCoroutineScope()
     // A link that reaches the running app (a reminder tapped while it is open) opens on top of where the person is.
     val tokenStore = koinInject<TokenStore>()
     LaunchedEffect(Unit) {
@@ -282,6 +289,16 @@ private fun KadansNav(
                         onRegister = { backStack.add(RegisterRoute) },
                         onForgotPassword = { backStack.add(ForgotPasswordRoute) },
                         sessionEnded = sessionEnded,
+                        sessionWaiting = sessionWaiting,
+                        onRetrySession = {
+                            scope.launch {
+                                if (sealedSession.retry() != null) {
+                                    api.invalidateTokenCache()
+                                    sessionEnded = false
+                                    signedIn()
+                                }
+                            }
+                        },
                         onDeletionScheduled = ::offerToKeep,
                         notice = closedUntil?.let {
                             val d = LocalStrings.current.deletion

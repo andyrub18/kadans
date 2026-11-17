@@ -23,6 +23,7 @@ val FrenchStrings = StringsCatalog(
         lastSeen = "Vu pour la dernière fois",
         removeDevice = "Retirer",
         sessionEndedNotice = "Votre session a pris fin. Reconnectez-vous pour continuer.",
+        sessionWaitingNotice = "Vous êtes toujours connecté sur cet appareil, mais Kadans n'a pas pu lire votre connexion : le stockage sécurisé de l'appareil ne s'est pas ouvert (sous Linux, le trousseau est resté verrouillé). Réessayez, ou connectez-vous ci-dessous.",
     ),
     timeZone = TimeZoneStrings(
         section = "Fuseau horaire",

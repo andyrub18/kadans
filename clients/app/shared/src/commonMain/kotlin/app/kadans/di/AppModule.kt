@@ -7,8 +7,10 @@ import app.kadans.api.platformHttpEngine
 import app.kadans.api.ClearAwareTokenStore
 import app.kadans.api.TokenStore
 import app.kadans.auth.GoogleSignIn
-import app.kadans.auth.SettingsTokenStore
+import app.kadans.auth.SealedTokenStore
+import app.kadans.auth.Sealer
 import app.kadans.auth.platformGoogleSignIn
+import app.kadans.auth.platformSealer
 import app.kadans.billing.StoreBilling
 import app.kadans.billing.SubscriptionGate
 import app.kadans.billing.platformStoreBilling
@@ -65,16 +67,18 @@ import org.koin.dsl.module
 
 val appModule = org.koin.dsl.module {
     single<Settings> { Settings() }
+    // The session is sealed by the device (ARCHITECTURE → "The session, sealed on the device"); one that no longer
+    // opens is a sign-out like any other.
+    single<Sealer> { platformSealer() }
+    single {
+        val koin = getKoin()
+        SealedTokenStore(get(), get(), onLost = { forgetAccount(koin) })
+    }
     // Signed out by any path: the reminders this device rang itself stop with the session, and the home-screen
     // widget holds nothing of the account any more.
     single<TokenStore> {
         val koin = getKoin()
-        ClearAwareTokenStore(SettingsTokenStore(get())) {
-            koin.get<LocalReminders>().forget()
-            koin.get<TodayWidget>().forget()
-            // A phone gone quiet for a focus phase has its sound back.
-            koin.get<FocusQuiet>().forget()
-        }
+        ClearAwareTokenStore(get<SealedTokenStore>()) { forgetAccount(koin) }
     }
     single {
         val settings = get<Settings>()
@@ -214,6 +218,14 @@ val appModule = org.koin.dsl.module {
     factory { (todoId: String, loop: Boolean, handsFree: Boolean, finishAtMillis: Long?, startsOne: Boolean) ->
         PomodoroViewModel(get(), get(), todoId, loop, handsFree, finishAtMillis?.let(kotlin.time.Instant::fromEpochMilliseconds), startsOne)
     }
+}
+
+/** What this device kept for the account that was signed in. */
+private suspend fun forgetAccount(koin: org.koin.core.Koin) {
+    koin.get<LocalReminders>().forget()
+    koin.get<TodayWidget>().forget()
+    // A phone gone quiet for a focus phase has its sound back.
+    koin.get<FocusQuiet>().forget()
 }
 
 private var started = false

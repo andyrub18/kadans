@@ -185,7 +185,12 @@ iOS needs a Mac (open `iosApp/iosApp.xcodeproj`): no Linux machine compiles it, 
 A view model's test sets `Dispatchers.Main` with `TestMain.set` in `@BeforeTest` and gives it back with
 `TestMain.reset` in `@AfterTest` (commonTest), never `Dispatchers.setMain` and `resetMain` themselves: a mock server's
 late answer otherwise fails a test that passed, now and then (`TestMainUseTest` checks it). Release bundles for Google Play are signed with the owner's
-upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subscriptions in the app go through
+upload key, configured outside the repo (DEPLOYMENT → Building the apps). The session is kept sealed by the device
+(`auth/SealedTokenStore` over `auth/Sealer`: Android's Keystore, Windows' data protection, the Linux desktop's keyring;
+ARCHITECTURE → "The session, sealed on the device"): never write a token, or anything else that signs in, into
+`Settings` in the clear, and nothing of the app goes into a phone's backup (`data_extraction_rules.xml`); the keyring's
+tests run against GNOME Keyring itself on a private bus where `gnome-keyring-daemon` is installed (`RealKeyringTests`;
+CI installs it), Windows' on the release workflow's Windows job. Subscriptions in the app go through
 `billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
 acknowledges a purchase. Reminders ring from the device through `reminders/LocalReminders` (the window the server hands
 out) and `ReminderScheduler` (Android: one exact alarm, its receivers and a refresh job; desktop: a timer in the app;

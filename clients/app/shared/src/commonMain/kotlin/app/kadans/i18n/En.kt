@@ -23,6 +23,7 @@ val EnglishStrings = StringsCatalog(
         lastSeen = "Last seen",
         removeDevice = "Remove",
         sessionEndedNotice = "You were signed out. Sign in again to continue.",
+        sessionWaitingNotice = "You are still signed in on this device, but Kadans could not read your sign-in: the device's secure storage did not open (on Linux, the keyring stayed locked). Try again, or sign in below.",
     ),
     timeZone = TimeZoneStrings(
         section = "Time zone",

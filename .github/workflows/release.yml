@@ -89,6 +89,11 @@ jobs:
           distribution: temurin
           java-version: 25
       - uses: gradle/actions/setup-gradle@v4
+      # No other job runs on Windows: what only Windows can check is checked here (the session sealed by its data
+      # protection, ARCHITECTURE → "The session, sealed on the device").
+      - name: What only Windows can test
+        working-directory: clients/app
+        run: ./gradlew :shared:jvmTest --tests "app.kadans.auth.WindowsSealerTests"
       - name: Build
         working-directory: clients/app
         # The app folder (createDistributable) is the .msi's content and the .msix's.

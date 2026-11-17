@@ -96,7 +96,7 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] API client (Ktor): typed DTOs for every contract, bearer + refresh-token rotation on 401,
       ProblemDetails → typed `KadansApiException`; MockEngine tests + env-gated live smoke (`KADANS_API_URL`)
 - [x] Auth flow: login → MFA code → register, session persisted via `SettingsTokenStore`
-      (multiplatform-settings; move to Keychain/Keystore before release), Koin DI; first Home
+      (multiplatform-settings; sealed by the device since 2026-11-17, `SealedTokenStore`: Phase 8), Koin DI; first Home
       screen (next-7-days occurrences + todo list, refresh/sign-out)
 - [x] Navigation 3 (stable, multiplatform: androidx `navigation3-runtime` 1.1.1 + JetBrains
       `navigation3-ui`): owned back stack + `NavDisplay`, replacing navigation-compose 2.x
@@ -264,9 +264,27 @@ installing on real devices second, hosting last.
       unit ("Toutes les 2 semaines"; whole phrases in a `RepeatStrings` group, which also frees 13 slots of the flat
       catalog), an end exactly ten years after the start is no longer offered (the server refused it), and the
       "Ends" chips wrap on narrow phones instead of squeezing the last one.
-- [ ] Secure token storage: `SettingsTokenStore` keeps tokens in plain preferences → Keystore/Keychain
-- [ ] Android release build: signing config + release keystore; align versions (Android `0.1.0` vs desktop
-      `packageVersion 1.0.0`)
+- [x] Secure token storage, 2026-11-17 (ARCHITECTURE → "The session, sealed on the device"): the app's settings no
+      longer hold the sign-in tokens but what the device made of them, which opens on that device, for that person,
+      and nowhere else. Android seals with a key in its Keystore, Windows with its own data protection, a Linux
+      desktop with a key its keyring keeps (GNOME Keyring, KWallet, KeePassXC). A session an earlier version left in
+      the clear is sealed at the first start: the update signs nobody out. Nothing of Kadans goes into a phone's
+      backup any more, to the cloud or to a new phone: it carried the session and the id the phone registered for
+      push. A Linux keyring left locked: the sign-in screen says so and offers "Retry"; nothing is written in the
+      clear meanwhile. `SettingsTokenStore` is gone (`SealedTokenStore`, `Sealer`).
+      Checked: the app's tests (538: the store's rules, the keyring against a stand-in and against GNOME Keyring
+      itself run privately), the app's own wiring on Linux against a private keyring and a local API, and on the
+      emulator (Android 15) the sign-in, a restart, a 1.1.1 session carried over, a sealed value tampered with, the
+      background job with the app killed, and Android refusing both kinds of backup. Windows' part is tested on a
+      real Windows by the release workflow. Not checked: Windows by hand, KWallet, KeePassXC, a phone whose Keystore
+      fails.
+      - [ ] By the owner, with the next builds: install them over the ones you use (the phone from Play's test
+        track, the computer's .deb, Windows' .msi or the Store's): each should open signed in, without asking. On
+        Linux, Passwords and Keys then shows "Kadans" in the Login keyring.
+      - [ ] With the Mac build and the iPhone app (each needs a Mac): their Keychain. Until then the session stays in
+        the settings there, and neither is released.
+- [x] Android release build: bundles for Google Play are signed with the owner's upload key, configured outside the
+      repo, and every app reports `kadans.version` (DEPLOYMENT → Building the apps; done with the store work, 1.0.0).
 - [ ] iOS: builds only on a Mac, push deferred – V1 is realistically Android + desktop
 - [x] The desktop app stays in the tray on Linux, 2026-10-09 (found testing on Pop!_OS 24.04: closing the window quit
       Kadans, so nothing rang until it was opened again). COSMIC shows only the freedesktop tray (StatusNotifierItem

@@ -8,6 +8,7 @@ import app.kadans.api.model.PomodoroRunStatus
 import app.kadans.i18n.StringsCatalog
 import app.kadans.realtime.RealtimeEvent
 import com.russhwolf.settings.Settings
+import app.kadans.sync.listen
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
@@ -221,13 +222,11 @@ class FocusQuiet(
         scope.launch { for (request in requests) attempt { refresh() } }
         // The app is open: a session changed anywhere arrives on the hub as it is, and a hub that comes back after a
         // drop may have lost one.
-        scope.launch {
-            realtimeEvents.collect { event ->
-                when (event) {
-                    is RealtimeEvent.PomodoroRunChanged -> attempt { see(event.run) }
-                    is RealtimeEvent.Reconnected -> refreshSoon()
-                    else -> Unit
-                }
+        scope.listen(realtimeEvents) { event ->
+            when (event) {
+                is RealtimeEvent.PomodoroRunChanged -> attempt { see(event.run) }
+                is RealtimeEvent.Reconnected -> refreshSoon()
+                else -> Unit
             }
         }
     }

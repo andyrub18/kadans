@@ -2,6 +2,7 @@
 
 package app.kadans.notifications
 
+import app.kadans.startPrivateBus
 import app.kadans.api.KadansApi
 import app.kadans.api.model.UpcomingReminder
 import app.kadans.desktop.DesktopWindow
@@ -86,8 +87,7 @@ class FreedesktopNotificationsTests {
 
     @BeforeTest
     fun startBus() {
-        daemon = EmbeddedDBusDaemon("$address,listen=true")
-        daemon.startInBackgroundAndWait(10_000)
+        daemon = startPrivateBus(address)
     }
 
     @AfterTest

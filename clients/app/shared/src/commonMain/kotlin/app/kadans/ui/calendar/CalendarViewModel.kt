@@ -9,6 +9,7 @@ import app.kadans.calendar.PhoneCalendar
 import app.kadans.calendar.PhoneEvent
 import app.kadans.calendar.PhoneEvents
 import app.kadans.sync.DataArea
+import app.kadans.sync.listen
 import app.kadans.sync.DataChanges
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
@@ -62,9 +63,9 @@ class CalendarViewModel(
         state = _state.asStateFlow()
         load()
         // Changed elsewhere (another device, a notification's button), or back in front: shown as it is now.
-        viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { fetch(quiet = true) } }
+        dataChanges.reloadOn(viewModelScope, DataArea.Todos) { fetch(quiet = true) }
         // The phone's calendar was turned on or off, or its permission given: the month is shown with or without it.
-        viewModelScope.launch { phoneCalendar.changes.collect { fetch(quiet = true) } }
+        viewModelScope.listen(phoneCalendar.changes) { fetch(quiet = true) }
     }
 
     fun previous() = move(previousMonth(_state.value.year, _state.value.month))

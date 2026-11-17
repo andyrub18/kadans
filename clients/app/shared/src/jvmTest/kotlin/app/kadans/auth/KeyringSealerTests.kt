@@ -2,6 +2,7 @@
 
 package app.kadans.auth
 
+import app.kadans.startPrivateBus
 import app.kadans.tray.Reply2
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
@@ -192,8 +193,7 @@ class KeyringSealerTests {
 
     @BeforeTest
     fun startBus() {
-        daemon = EmbeddedDBusDaemon("$address,listen=true")
-        daemon.startInBackgroundAndWait(10_000)
+        daemon = startPrivateBus(address)
     }
 
     @AfterTest

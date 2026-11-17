@@ -575,6 +575,13 @@ screen got a refusal ("already completed") for what it showed as still to do. No
   drop (everything: what changed meanwhile was not heard), the app back in front (everything, `ON_START` but the
   first: on Android the hub sleeps in the background), and this device's notification buttons (at once, even with the
   hub away). Home, a todo, the calendar and the stats reload on `todos`, the budget on `budget`.
+- **Listening from the moment it is made** (`sync/Listening.kt`, 2026-11-17). Whatever hears a signal (a screen's view
+  model, the reminders, the widget, the quiet mode, the system alerts) subscribes before its constructor returns:
+  `scope.listen(signals) { }`, and for a screen `dataChanges.reloadOn(scope, area) { }`, which also folds the signals
+  that arrive while a reload runs into one more. A shared flow keeps nothing for a listener that is not there yet,
+  and `scope.launch { signals.collect { } }` subscribes when that coroutine first runs: on a background dispatcher a
+  moment later, through `merge` or `conflate` several turns later, and what is sent in between is lost without a
+  trace. Nothing in the app is written that way any more (`ListenFromTheStartTest` reads the code and fails on it).
 - **Quietly**: no spinner; a failed reload (offline) keeps what is shown; a todo deleted elsewhere closes its screen;
   a reload that ends after the person moved to another month is dropped (the calendar, the budget).
 - **Acting on a stale screen**: "Complete" or "Skip" on an occurrence already so shows it so, without an error; any

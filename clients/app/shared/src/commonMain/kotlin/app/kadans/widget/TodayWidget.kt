@@ -10,6 +10,7 @@ import app.kadans.realtime.RealtimeEvent
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import com.russhwolf.settings.Settings
+import app.kadans.sync.listen
 import kotlin.concurrent.Volatile
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
@@ -23,7 +24,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -169,12 +169,11 @@ class TodayWidget(
         scope.launch { for (request in requests) attempt { refresh() } }
         // The todos changed: on this device (its own saves do not wait for the hub), on another one, by a notification's
         // button here, or the hub is back after a drop that may have lost the signal.
-        scope.launch {
-            val heard = realtimeEvents.filter { it is RealtimeEvent.RemindersChanged || it is RealtimeEvent.Reconnected }.map { }
-            merge(heard, api.remindersChanged, dataChanges.of(DataArea.Todos)).collect { refreshSoon() }
-        }
+        // Heard from the moment this is made (`listen`): a button pressed as the app opens is not missed.
+        val hub = realtimeEvents.filter { it is RealtimeEvent.RemindersChanged || it is RealtimeEvent.Reconnected }
+        for (signals in listOf(hub, api.remindersChanged) + dataChanges.sources(DataArea.Todos)) scope.listen(signals) { refreshSoon() }
         // The account's language, time zone or clock changed here: the same todos read differently.
-        scope.launch { api.profileChanged.collect { draw() } }
+        scope.listen(api.profileChanged) { draw() }
     }
 
     /** Something changed: fetched again, soon. */

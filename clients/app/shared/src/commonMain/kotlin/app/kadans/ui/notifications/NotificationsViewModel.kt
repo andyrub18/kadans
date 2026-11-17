@@ -6,6 +6,7 @@ import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.api.model.NotificationResponse
 import app.kadans.realtime.RealtimeEvent
+import app.kadans.sync.listen
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,14 +42,12 @@ class NotificationsViewModel(
 
     init {
         // A notification arriving while the list is open belongs at its top.
-        viewModelScope.launch {
-            events.collect { event ->
-                val current = _state.value
-                if (event is RealtimeEvent.NotificationReceived && current is NotificationsUiState.Content &&
-                    current.items.none { it.id == event.notification.id }
-                ) {
-                    _state.value = current.copy(items = listOf(event.notification) + current.items)
-                }
+        viewModelScope.listen(events) { event ->
+            val current = _state.value
+            if (event is RealtimeEvent.NotificationReceived && current is NotificationsUiState.Content &&
+                current.items.none { it.id == event.notification.id }
+            ) {
+                _state.value = current.copy(items = listOf(event.notification) + current.items)
             }
         }
     }

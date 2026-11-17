@@ -2,6 +2,7 @@
 
 package app.kadans.tray
 
+import app.kadans.startPrivateBus
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.util.concurrent.LinkedBlockingQueue
@@ -60,8 +61,7 @@ class StatusNotifierTrayTests {
 
     @BeforeTest
     fun startBus() {
-        daemon = EmbeddedDBusDaemon("$address,listen=true")
-        daemon.startInBackgroundAndWait(10_000)
+        daemon = startPrivateBus(address)
     }
 
     @AfterTest

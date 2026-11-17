@@ -462,6 +462,25 @@ class LocalRemindersTests {
     }
 
     @Test
+    fun what_is_signalled_the_moment_the_reminders_are_made_is_heard() = test {
+        // With nothing before it, time after time: a listener that subscribes a moment late hears none of these.
+        val ways: List<suspend Phone.() -> Unit> = listOf(
+            { events.emit(RealtimeEvent.RemindersChanged) }, // changed elsewhere, on the hub
+            { api.remindersChanged() }, // a todo saved on this phone
+            { api.profileChanged() }, // its language or time zone changed here
+        )
+        repeat(60) { round ->
+            val phone = Phone()
+            try {
+                ways[round % ways.size](phone)
+                eventually("heard at once, round $round") { phone.fetches() == 1 }
+            } finally {
+                phone.scope.cancel()
+            }
+        }
+    }
+
+    @Test
     fun a_change_made_here_fetches_the_window_without_waiting_for_the_hub() = test {
         reminders.sync()
         val before = fetches()
@@ -671,9 +690,9 @@ class LocalRemindersTests {
         reminders.sync()
         val changes = DataChanges(emptyFlow())
         val actions = ReminderActions(api, reminders, app.kadans.ui.pomodoro.PomodoroPreference(settings), changes)
-        val heard = Channel<Set<DataArea>>(Channel.UNLIMITED)
-        val listening = scope.launch { changes.changes.collect { heard.send(it) } }
-        delay(100) // listening
+        // The test's ear, as each screen has one.
+        val heard = Channel<DataArea>(Channel.UNLIMITED)
+        for (area in DataArea.entries) changes.reloadOn(scope, area) { heard.send(area) }
 
         server.reachable = false
         assertEquals(ReminderActions.Result.Failed, actions.done(early))
@@ -681,9 +700,8 @@ class LocalRemindersTests {
         assertEquals(ReminderActions.Result.Done, actions.done(early))
 
         // Only the one that worked: the todo's screen shows it done, not pending.
-        assertEquals(setOf(DataArea.Todos), withTimeout(5_000) { heard.receive() })
+        assertEquals(DataArea.Todos, withTimeout(5_000) { heard.receive() })
         delay(100)
         assertTrue(heard.tryReceive().isFailure)
-        listening.cancel()
     }
 }

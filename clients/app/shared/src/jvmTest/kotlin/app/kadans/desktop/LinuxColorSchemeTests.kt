@@ -2,6 +2,7 @@
 
 package app.kadans.desktop
 
+import app.kadans.startPrivateBus
 import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -57,8 +58,7 @@ class LinuxColorSchemeTests {
 
     @BeforeTest
     fun startBus() {
-        daemon = EmbeddedDBusDaemon("$address,listen=true")
-        daemon.startInBackgroundAndWait(10_000)
+        daemon = startPrivateBus(address)
     }
 
     @AfterTest

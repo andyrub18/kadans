@@ -15,6 +15,7 @@ import app.kadans.realtime.RealtimeEvent
 import app.kadans.realtime.SystemAlerts
 import app.kadans.reminders.LocalReminders
 import app.kadans.sync.DataArea
+import app.kadans.sync.listen
 import app.kadans.sync.DataChanges
 import app.kadans.ui.shell.UnreadNotifications
 import app.kadans.calendar.PhoneCalendar
@@ -104,22 +105,20 @@ class HomeViewModel(
             // not at its next hour (it asks the server itself whether the account is locked).
             todayWidget.refreshSoon()
         }
-        viewModelScope.launch {
-            realtime.events.collect { event ->
-                if (event is RealtimeEvent.NotificationReceived) {
-                    // A reminder, where this device shows reminders itself, is a system notification (SystemAlerts):
-                    // here it only updates the bell.
-                    val reminder = LocalReminders.reminderOf(event.notification)
-                    if (reminder == null || !localReminders.showsReminders()) _liveNotifications.emit(event.notification)
-                    unread.arrived() // the bell at once; quietRefresh below replaces it with the server's count
-                    quietRefresh()
-                }
+        viewModelScope.listen(realtime.events) { event ->
+            if (event is RealtimeEvent.NotificationReceived) {
+                // A reminder, where this device shows reminders itself, is a system notification (SystemAlerts):
+                // here it only updates the bell.
+                val reminder = LocalReminders.reminderOf(event.notification)
+                if (reminder == null || !localReminders.showsReminders()) _liveNotifications.emit(event.notification)
+                unread.arrived() // the bell at once; quietRefresh below replaces it with the server's count
+                quietRefresh()
             }
         }
         // Done, moved or added elsewhere (another device, a notification's button), or back in front: shown as it is now.
-        viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { load(quiet = true) } }
+        dataChanges.reloadOn(viewModelScope, DataArea.Todos) { load(quiet = true) }
         // The phone's calendar was turned on or off, or its permission given: the days are shown with or without it.
-        viewModelScope.launch { phoneCalendar.changes.collect { load(quiet = true) } }
+        viewModelScope.listen(phoneCalendar.changes) { load(quiet = true) }
     }
 
     fun refresh() {

@@ -14,10 +14,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 /** A looping session's cycle done (ARCHITECTURE → Pomodoro): the notice that asks for another, and its two buttons. */
@@ -71,8 +69,8 @@ class CycleNoticesTests {
     fun done_finishes_the_session_marks_its_occurrence_done_and_tells_the_screens() = runTest {
         val calls = mutableListOf<String>()
         val changes = DataChanges(emptyFlow())
-        val told = async { changes.of(DataArea.Todos).first() }
-        runCurrent() // listening before the button is pressed
+        val told = CompletableDeferred<Unit>()
+        changes.reloadOn(backgroundScope, DataArea.Todos) { told.complete(Unit) } // a screen, listening before the button is pressed
 
         val done = actions(
             mapOf(

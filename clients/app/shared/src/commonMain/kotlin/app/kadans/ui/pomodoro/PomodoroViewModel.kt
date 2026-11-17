@@ -12,6 +12,7 @@ import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroRunStatus
 import app.kadans.realtime.KadansRealtime
 import app.kadans.realtime.RealtimeEvent
+import app.kadans.sync.listen
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -69,12 +70,10 @@ class PomodoroViewModel(
         // Hands-free advances happen server-side; the hub pushes each new phase to us live.
         // Adopt only pushes about the run on screen, and never a state older than what we show —
         // a late event for a previous run must not overwrite the session we just started.
-        viewModelScope.launch {
-            realtime.events.collect { event ->
-                if (event !is RealtimeEvent.PomodoroRunChanged) return@collect
-                val current = (_state.value as? PomodoroUiState.Session)?.run
-                if (shouldAdoptPush(current, event.run, todoId)) adopt(event.run)
-            }
+        viewModelScope.listen(realtime.events) { event ->
+            if (event !is RealtimeEvent.PomodoroRunChanged) return@listen
+            val current = (_state.value as? PomodoroUiState.Session)?.run
+            if (shouldAdoptPush(current, event.run, todoId)) adopt(event.run)
         }
     }
 

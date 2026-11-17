@@ -53,11 +53,9 @@ class StatsViewModel(private val api: KadansApi, private val dataChanges: DataCh
 
     init {
         // A session finished or an occurrence done elsewhere, or back in front: the figures as they are now.
-        viewModelScope.launch {
-            dataChanges.of(DataArea.Todos).collect {
-                val shown = _state.value
-                if (shown is StatsUiState.Content) fetch(shown.range, quiet = true)
-            }
+        dataChanges.reloadOn(viewModelScope, DataArea.Todos) {
+            val shown = _state.value
+            if (shown is StatsUiState.Content) fetch(shown.range, quiet = true)
         }
     }
 

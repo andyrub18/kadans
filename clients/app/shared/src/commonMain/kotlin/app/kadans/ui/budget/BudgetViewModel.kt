@@ -66,7 +66,7 @@ class BudgetViewModel(private val api: KadansApi, private val dataChanges: DataC
         state = _state.asStateFlow()
         refresh()
         // Recorded or changed elsewhere (another device, a recurring rule), or back in front: shown as it is now.
-        viewModelScope.launch { dataChanges.of(DataArea.Budget).collect { load(quiet = true) } }
+        dataChanges.reloadOn(viewModelScope, DataArea.Budget) { load(quiet = true) }
     }
 
     fun previousMonth() = move(-1)

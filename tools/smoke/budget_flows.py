@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """End-to-end check of the Budget module (accounts, HTG/USD, transfers with exchange,
 category limits with their periods, conversion and alerts, monthly summary, editing a movement, recurring rules and
-transfers) against a running API in Development.
+transfers, a bank statement's lines imported once however often they are sent, and "export my data") against a running
+API in Development.
 
     python3 tools/smoke/budget_flows.py [base-url] [username] [password]
 
@@ -316,8 +317,156 @@ C("remove the limit", s == 200)
 s, r = call("PUT", f"/budget/categories/{fuel['id']}/budget", {"amount": 10, "currency": "Usd", "period": "Year"}, T)
 C("then set one in dollars, for the year", s == 200 and r["currency"] == "Usd" and r["period"] == "Year", f"{s} {r}")
 
+# --- a bank statement's lines: the app reads the file, only the lines the person kept come here ---
+s, stmt = call("POST", "/budget/accounts/", {"name": "smoke: Statement", "currency": "Htg", "type": "Bank"}, T)
+s, other = call("POST", "/budget/accounts/", {"name": "smoke: Other bank", "currency": "Htg", "type": "Bank"}, T)
+run = str(int(time.time()))
+def key(n): return f"l1-smoke{run}x{n}"
+def line(n, kind, amount, note, days_ago=5, category=None):
+    return {"kind": kind, "amount": amount, "occurredAt": iso(now - dt.timedelta(days=days_ago)), "importKey": key(n), "note": note, "categoryId": category}
+market = "smoke MARCHE EN FER " + run
+statement = [line(1, "Expense", 1250, market), line(2, "Income", 85000, "smoke SALAIRE " + run), line(3, "Expense", 980.5, market, days_ago=2)]
+def import_lines(account, movements): return call("POST", "/budget/transactions/import/", {"accountId": account["id"], "movements": movements}, T)
+def balance_of(account):
+    return next(a["balance"] for a in call("GET", "/budget/accounts/?includeArchived=true", token=T)[1] if a["id"] == account["id"])
+
+s, r = import_lines(stmt, statement)
+C("a statement's lines are booked on the account", s == 200 and r == {"imported": 3, "skipped": 0}, f"{s} {r}")
+C("and its balance counts them", balance_of(stmt) == 85000 - 1250 - 980.5, f"{balance_of(stmt)}")
+s, booked = call("GET", f"/budget/transactions/?accountId={stmt['id']}", token=T)
+C("each as a movement of its kind, on its day, with the bank's text",
+  s == 200 and sorted((m["kind"], m["amount"], m["note"]) for m in booked) == sorted((m["kind"], m["amount"], m["note"]) for m in statement), f"{booked}")
+s, r = import_lines(stmt, statement)
+C("the same statement again adds nothing", s == 200 and r == {"imported": 0, "skipped": 3}, f"{s} {r}")
+s, r = import_lines(stmt, [statement[2], line(4, "Expense", 300, "smoke TAXI " + run, days_ago=1)])
+C("the next statement, which overlaps it, adds only what is new", s == 200 and r == {"imported": 1, "skipped": 1}, f"{s} {r}")
+s, r = import_lines(stmt, [line(5, "Expense", 50, "smoke twice " + run), line(5, "Expense", 50, "smoke twice " + run)])
+C("a line sent twice in one request is booked once", s == 200 and r == {"imported": 1, "skipped": 1}, f"{s} {r}")
+C("the balance after all that", balance_of(stmt) == 85000 - 1250 - 980.5 - 300 - 50, f"{balance_of(stmt)}")
+
+def known(account): return call("GET", f"/budget/transactions/import/known?accountId={account['id']}", token=T)
+s, r = known(stmt)
+C("before importing, the app learns which lines the account has", s == 200 and sorted(r["importKeys"]) == sorted(key(n) for n in (1, 2, 3, 4, 5)), f"{s} {r}")
+s, r = known(other)
+C("another account has none of them", s == 200 and r["importKeys"] == [], f"{s} {r}")
+s, r = import_lines(other, [statement[0]])
+C("and can book the same line itself (a key belongs to its account)", s == 200 and r == {"imported": 1, "skipped": 0}, f"{s} {r}")
+
+# the person files the market under Food once; the next statement's market lines come with that category
+first_market = next(m for m in booked if m["note"] == market)
+s, r = call("PUT", f"/budget/transactions/{first_market['id']}", {"amount": first_market["amount"], "occurredAt": first_market["occurredAt"], "categoryId": food["id"], "note": market}, T)
+C("an imported movement is corrected like any other", s == 200 and r["categoryId"] == food["id"], f"{s} {r}")
+s, r = known(stmt)
+mine = [c for c in r["categories"] if run in c["note"]] if s == 200 else None
+C("a text filed once comes back with its category, for its kind",
+  mine == [{"kind": "Expense", "note": market, "categoryId": food["id"]}], f"{s} {mine}")
+s, r = import_lines(stmt, [line(6, "Expense", 410, market, days_ago=1, category=food["id"])])
+C("and is booked with it", s == 200 and r == {"imported": 1, "skipped": 0}, f"{s} {r}")
+
+s, r = import_lines(stmt, [line(7, "Transfer", 10, "smoke")])
+C("a statement's line is never a transfer (400)", s == 400, f"{s} {r}")
+s, r = import_lines(stmt, [])
+C("an empty import is refused (400)", s == 400, f"{s}")
+s, r = import_lines(stmt, [line(1000 + n, "Expense", 1, "smoke many") for n in range(501)])
+C("more than 500 lines at once are refused (400)", s == 400, f"{s}")
+s, r = import_lines(stmt, [dict(line(8, "Expense", 10, "smoke"), importKey="not a key!")])
+C("a line without a proper key is refused (400)", s == 400, f"{s}")
+s, r = import_lines(stmt, [line(9, "Expense", 10, "smoke good " + run), line(10, "Expense", 0, "smoke bad " + run)])
+C("one line that cannot be booked stops them all (10048)", s == 400 and code(r) == "10048", f"{s} {code(r)}")
+s, r = known(stmt)
+C("…none of them is in the account", s == 200 and key(9) not in r["importKeys"] and key(10) not in r["importKeys"], f"{s}")
+s, r = import_lines(stmt, [line(11, "Expense", 10, "smoke", category=salary["id"])])
+C("a category of the other kind is refused (10050)", s == 400 and code(r) == "10050", f"{s} {code(r)}")
+s, r = import_lines(stmt, [line(12, "Expense", 10, "smoke", category="00000000-0000-0000-0000-00000000dead")])
+C("an unknown category is refused (404)", s == 404, f"{s}")
+s, r = import_lines({"id": "00000000-0000-0000-0000-00000000dead"}, [line(13, "Expense", 10, "smoke")])
+C("an unknown account is refused (404)", s == 404, f"{s}")
+s, r = known({"id": "00000000-0000-0000-0000-00000000dead"})
+C("nothing is known of an account that is not the person's (404)", s == 404, f"{s}")
+s, r = call("GET", f"/budget/transactions/import/known?accountId={stmt['id']}")
+C("nor without a sign-in (401)", s == 401, f"{s}")
+s, r = call("POST", "/budget/transactions/import/", {"accountId": stmt["id"], "movements": [line(14, "Expense", 10, "smoke")]})
+C("nothing is imported without a sign-in (401)", s == 401, f"{s}")
+
+# --- export my data: one zip, a spreadsheet's files and a calendar's ---
+import io, zipfile, csv
+def raw(path, token=None):
+    req = urllib.request.Request(BASE + path)
+    if token: req.add_header("Authorization", "Bearer " + token)
+    try:
+        with urllib.request.urlopen(req) as r: return r.status, dict(r.headers), r.read()
+    except urllib.error.HTTPError as e: return e.code, dict(e.headers), e.read()
+s, r = call("POST", "/budget/transactions/", {"accountId": stmt["id"], "kind": "Expense", "amount": 1, "occurredAt": iso(now), "note": "=HYPERLINK(\"http://example.invalid\") " + run}, T)
+# a todo with a time done and a note on it, and a focus cycle: the export carries what the person wrote, wherever
+start = (now + dt.timedelta(days=1)).replace(hour=9, minute=0, second=0)
+s, todo = call("POST", "/todos/recurring", {"title": "smoke export " + run, "description": "to carry off", "notificationEnabled": False,
+                                             "recurrenceRule": {"frequency": "Daily", "startDate": iso(start), "timeZone": "UTC", "count": 3}}, T)
+times = call("GET", f"/todos/{todo['id']}/occurrences?page=1&pageSize=10", token=T)[1] if s == 200 else []
+if times:
+    call("PUT", f"/occurrences/{times[0]['id']}/remark", {"remark": "smoke note " + run}, token=T)
+    call("PUT", f"/occurrences/{times[0]['id']}/complete", token=T)
+s, cycle = call("POST", "/pomodoro/templates", {"name": "smoke cycle " + run, "phases": [{"type": "Focus", "durationMinutes": 25}, {"type": "Break", "durationMinutes": 5}]}, T)
+started = time.time()
+s, headers, body = raw("/users/me/export", T)
+took = time.time() - started
+C("export answers with a zip", s == 200 and headers.get("Content-Type") == "application/zip" and body[:2] == b"PK", f"{s} {headers.get('Content-Type')}")
+C("named for the day it was made", f"kadans-export-{now:%Y-%m-%d}.zip" in headers.get("Content-Disposition", ""), headers.get("Content-Disposition", ""))
+C("in a few seconds at most", took < 10, f"{took:.1f} s")
+archive = zipfile.ZipFile(io.BytesIO(body)) if s == 200 else None
+names = sorted(archive.namelist()) if archive else []
+C("with the account, the budget, the todos and the focus time in it", names == [
+    "account.csv", "budget/accounts.csv", "budget/categories.csv", "budget/currencies.csv", "budget/movements.csv", "budget/recurring.csv",
+    "focus/cycles.csv", "focus/sessions.csv", "todos/history.csv", "todos/todos.csv", "todos/todos.ics"], f"{names}")
+if archive:
+    def table(name):
+        text = archive.read(name).decode("utf-8")
+        return text[:1] == "\ufeff", list(csv.reader(io.StringIO(text.lstrip("\ufeff"))))
+    marked, rows = table("budget/movements.csv")
+    C("movements.csv opens in Excel with its accents (UTF-8 mark) and a header", marked and rows[0][:5] == ["Date", "Account", "Currency", "Kind", "Amount"], f"{rows[0]}")
+    column = {name: index for index, name in enumerate(rows[0])}
+    mine = [row for row in rows[1:] if row[column["Account"]] == "smoke: Statement" and run in row[column["Note"]]]
+    C("every movement of the account is there", len(mine) == 7, f"{len(mine)}")
+    taxi = next((row for row in mine if "TAXI" in row[column["Note"]]), None)
+    C("a line as a person reads it: its day, its account, its amount with two decimals",
+      taxi is not None and taxi[column["Amount"]] == "300.00" and taxi[column["Currency"]] == "HTG" and taxi[column["Kind"]] == "Expense" and len(taxi[column["Date"]]) == 10, f"{taxi}")
+    C("the ones a statement brought say so", taxi is not None and taxi[column["Imported"]] == "yes" and sum(1 for row in mine if row[column["Imported"]] == "yes") == 6)
+    filed = next((row for row in mine if row[column["Category"]]), None)
+    C("a category by its name, not its id", filed is not None and filed[column["Category"]] == "smoke: Manje", f"{filed}")
+    formula = next((row for row in mine if "HYPERLINK" in row[column["Note"]]), None)
+    C("a note that looks like a formula cannot run in a spreadsheet", formula is not None and formula[column["Note"]].startswith("'="), f"{formula}")
+    marked, rows = table("budget/accounts.csv")
+    account_row = next((row for row in rows[1:] if row[0] == "smoke: Statement"), None)
+    C("accounts.csv has each account with its balance", account_row is not None and float(account_row[rows[0].index("Balance")]) == balance_of(stmt), f"{account_row}")
+    marked, rows = table("budget/categories.csv")
+    fuel_row = next((row for row in rows[1:] if row[0] == fuel["name"] and row[rows[0].index("Limit")]), None)
+    C("categories.csv has each category with its limit", fuel_row is not None and fuel_row[rows[0].index("Limit"):] == ["10.00", "USD", "Year"], f"{fuel_row}")
+    marked, rows = table("budget/recurring.csv")
+    C("recurring.csv has the recurring movements, as their rule and in words", len(rows) > 1 and "Repeats (RRULE)" in rows[0] and any("FREQ=" in row[rows[0].index("Repeats (RRULE)")] and row[1].startswith("smoke: ") for row in rows[1:]), f"{rows[:2]}")
+    marked, rows = table("budget/currencies.csv")
+    C("currencies.csv starts with the currency the person counts in", len(rows) > 1 and rows[1][0] == rows[1][2] and rows[1][1] == "1", f"{rows[:3]}")
+    marked, rows = table("account.csv")
+    C("account.csv names the account, and holds no secret", len(rows) == 2 and rows[1][0] == USER and rows[0] == ["Username", "Email", "Name", "Time zone", "Language", "Clock"], f"{rows[0]}")
+    marked, rows = table("todos/history.csv")
+    noted = next((row for row in rows[1:] if row[0] == "smoke export " + run), None)
+    C("history.csv has a time done, with the person's note", noted is not None and noted[rows[0].index("Status")] == "Completed" and noted[rows[0].index("Note")] == "smoke note " + run and noted[rows[0].index("Done at")], f"{noted}")
+    marked, rows = table("focus/cycles.csv")
+    C("cycles.csv has the person's focus cycles", any(row == ["smoke cycle " + run, "Focus 25, Break 5"] for row in rows[1:]), f"{rows[-1] if rows else None}")
+    marked, rows = table("focus/sessions.csv")
+    C("sessions.csv has a header", marked and rows[0] == ["Todo", "Started", "Ended", "Status", "Focus minutes"], f"{rows[0] if rows else None}")
+    ics = archive.read("todos/todos.ics").decode("utf-8")
+    C("todos.ics is a calendar file", ics.startswith("BEGIN:VCALENDAR") and ics.rstrip().endswith("END:VCALENDAR"))
+    marked, rows = table("todos/todos.csv")
+    C("todos.csv has a header", marked and len(rows) >= 1 and "Title" in rows[0], f"{rows[0] if rows else None}")
+s, headers, body = raw("/users/me/export")
+C("no export without a sign-in (401)", s == 401, f"{s}")
+if todo and todo.get("id"): call("DELETE", f"/todos/{todo['id']}", token=T)
+if cycle and cycle.get("id"): call("DELETE", f"/pomodoro/templates/{cycle['id']}", token=T)
+
 # --- cleanup: archive smoke accounts (transactions stay; archived accounts refuse new money) ---
-for account in (cash, bank, usd, eur_acc, payroll, wallet, dollars_acc, euros_acc):
+s, r = call("PUT", f"/budget/accounts/{other['id']}", {"name": other["name"], "type": other["type"], "isArchived": True}, T)
+s, r = import_lines(other, [line(15, "Expense", 10, "smoke")])
+C("an archived account takes no statement (10051)", s == 400 and code(r) == "10051", f"{s} {code(r)}")
+for account in (cash, bank, usd, eur_acc, payroll, wallet, dollars_acc, euros_acc, stmt):
     call("PUT", f"/budget/accounts/{account['id']}", {"name": account["name"], "type": account["type"], "isArchived": True}, T)
 s, r = call("POST", "/budget/transactions/", {"accountId": cash["id"], "kind": "Income", "amount": 1, "occurredAt": iso(now)}, T)
 C("archived account refuses new money (10051)", s == 400 and code(r) == "10051")

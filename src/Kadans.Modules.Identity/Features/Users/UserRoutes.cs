@@ -21,6 +21,23 @@ internal static class UserRoutes
                 .WithName("UsersMe")
                 .WithSummary("Current user profile");
 
+            me.MapGet("/export", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (DataExport export, HttpContext context, CancellationToken cancellationToken) =>
+                {
+                    var built = await export.Build(DateTimeOffset.UtcNow, cancellationToken);
+                    return built.Match<Results<FileContentHttpResult, ProblemHttpResult>>(
+                        error => TypedResults.Problem(error.ToProblemDetails(context)),
+                        archive => TypedResults.File(archive.Content, "application/zip", archive.FileName)
+                    );
+                })
+                .WithName("UsersExport")
+                .WithSummary("Export my data")
+                .WithDescription("One zip with what the person put in Kadans: the budget's movements and accounts as CSV, the todos as a calendar file and as CSV. For every account, with or without a subscription.")
+                .Produces(StatusCodes.Status200OK, contentType: "application/zip")
+                .ProducesProblem(StatusCodes.Status401Unauthorized)
+                .ProducesProblem(StatusCodes.Status429TooManyRequests)
+                // A whole account in one answer: heavy to build, and nobody needs it many times in a row.
+                .RequireRateLimiting(RateLimitPolicies.Export);
+
             me.MapPut(string.Empty, async Task<Results<Ok<UserResponse>, ProblemHttpResult>> (UpdateSelfUserRequest request, UserManagement service, HttpContext context) =>
                     (await service.UpdateCurrentUser(request)).ToHttp(context))
                 .WithName("UsersUpdateSelf")

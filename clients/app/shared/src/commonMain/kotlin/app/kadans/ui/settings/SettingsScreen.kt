@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.ClockFormat
 import app.kadans.api.model.UserResponse
+import app.kadans.files.FilePorts
 import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
 import app.kadans.i18n.LocalStrings
@@ -61,7 +62,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * Settings' pages. The main one holds the account (and Sign out), how the app reads (language, time format, time
  * zone) and what belongs to this device; each account matter opens its own page from a row.
  */
-enum class SettingsPage { Main, Profile, EmailAndPassword, TwoFactor, Devices, Calendar, DeleteAccount }
+enum class SettingsPage { Main, Profile, EmailAndPassword, TwoFactor, Devices, Calendar, MyData, DeleteAccount }
 
 @Composable
 fun SettingsScreen(
@@ -115,7 +116,8 @@ fun SettingsScreen(
                         SettingsPage.TwoFactor -> TwoFactorSection(state, viewModel)
                         SettingsPage.Devices -> DevicesSection(state, viewModel)
                         SettingsPage.Calendar -> CalendarFeedPage()
-                        SettingsPage.DeleteAccount -> DeleteAccountSection(state, viewModel)
+                        SettingsPage.MyData -> DataExportPage()
+                        SettingsPage.DeleteAccount -> DeleteAccountSection(state, viewModel, onOpen)
                     }
                 }
             }
@@ -130,6 +132,7 @@ private fun SettingsPage.title(s: StringsCatalog): String = when (this) {
     SettingsPage.TwoFactor -> s.mfaSection
     SettingsPage.Devices -> s.account.devicesSection
     SettingsPage.Calendar -> s.calendarFeed.title
+    SettingsPage.MyData -> s.dataExport.section
     SettingsPage.DeleteAccount -> s.deletion.section
 }
 
@@ -191,6 +194,8 @@ private fun MainPage(
     )
     SettingsRow(s.account.devicesSection, onClick = { onOpen(SettingsPage.Devices) })
     SettingsRow(s.calendarFeed.section, onClick = { onOpen(SettingsPage.Calendar) })
+    // A copy of the person's data goes out through the system's "Save" dialog: where the device has none, no row.
+    if (koinInject<FilePorts>().available) SettingsRow(s.dataExport.section, onClick = { onOpen(SettingsPage.MyData) })
     SettingsRow(s.deletion.section, onClick = { onOpen(SettingsPage.DeleteAccount) }, danger = true)
 }
 
@@ -474,13 +479,17 @@ private fun DevicesSection(state: SettingsUiState, viewModel: SettingsViewModel)
 }
 
 @Composable
-private fun DeleteAccountSection(state: SettingsUiState, viewModel: SettingsViewModel) {
+private fun DeleteAccountSection(state: SettingsUiState, viewModel: SettingsViewModel, onOpen: (SettingsPage) -> Unit) {
     val s = LocalStrings.current
     val d = s.deletion
     var confirming by androidx.compose.runtime.remember { mutableStateOf(false) }
 
     Text(d.explanation, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Text(d.subscriptionNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // What is erased can be kept first: the way to "My data", where the device can save a file.
+    if (koinInject<FilePorts>().available) {
+        TextButton(onClick = { onOpen(SettingsPage.MyData) }) { Text(s.dataExport.beforeDeleting) }
+    }
     if (state.user?.hasPassword == true) {
         OutlinedTextField(
             value = state.deletePassword,

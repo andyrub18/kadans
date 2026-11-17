@@ -103,6 +103,7 @@ public sealed class TasksModule : IModule
         services.AddSingleton<CalendarFeedLimiter>();
         services.AddScoped<CalendarFeeds>();
         services.AddScoped<CalendarFeedReader>();
+        services.AddScoped<IUserDataExporter, Kadans.Modules.Tasks.Features.Export.TasksUserDataExporter>();
         services.AddScoped<CalendarFeedEndpoint>();
     }
 

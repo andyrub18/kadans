@@ -46,6 +46,7 @@ public class RateLimitingTests
     private static async Task<WebApplication> StartAsync(
         int emailPer15Minutes = 5,
         int credentialsPerMinute = 20,
+        int exportPer15Minutes = 10,
         int requestsPerMinute = 300,
         int feedPerMinute = 600,
         ILoggerProvider? logged = null
@@ -57,6 +58,7 @@ public class RateLimitingTests
         {
             ["RateLimiting:EmailPer15Minutes"] = $"{emailPer15Minutes}",
             ["RateLimiting:CredentialsPerMinute"] = $"{credentialsPerMinute}",
+            ["RateLimiting:ExportPer15Minutes"] = $"{exportPer15Minutes}",
             ["RateLimiting:RequestsPerMinute"] = $"{requestsPerMinute}",
             ["RateLimiting:FeedPerMinute"] = $"{feedPerMinute}",
         });
@@ -75,6 +77,7 @@ public class RateLimitingTests
         app.UseRateLimiter();
         app.MapPost("/mail", () => "sent").RequireRateLimiting(RateLimitPolicies.Email);
         app.MapPost("/sign-in", () => "ok").RequireRateLimiting(RateLimitPolicies.Credentials);
+        app.MapGet("/export", () => "zip").RequireRateLimiting(RateLimitPolicies.Export);
         app.MapGet("/anything", () => "ok");
         app.MapGet("/health/live", () => "ok");
         app.MapGet(SecretLinks.CalendarFeed + "/{secret}/kadans.ics", () => "BEGIN:VCALENDAR");
@@ -117,6 +120,22 @@ public class RateLimitingTests
         await Assert.That((await SendAsync(app, HttpMethod.Post, "/sign-in")).StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
         // Another client is not affected by the first one's attempts.
         await Assert.That((await SendAsync(app, HttpMethod.Post, "/sign-in", client: "198.51.100.20")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+    }
+
+    [Test]
+    public async Task A_whole_account_is_exported_a_few_times_in_a_quarter_hour_per_client_and_no_more()
+    {
+        // Heavy to build: far under what the global limit would let one client ask for.
+        await using var app = await StartAsync(exportPer15Minutes: 3, requestsPerMinute: 300);
+        for (var i = 0; i < 3; i++)
+            await Assert.That((await SendAsync(app, HttpMethod.Get, "/export")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+
+        var refused = await SendAsync(app, HttpMethod.Get, "/export");
+        await Assert.That(refused.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(refused.Headers.RetryAfter?.Delta).IsNotNull();
+        // The rest of the app goes on for that client, and another client exports.
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/anything")).StatusCode).IsEqualTo(HttpStatusCode.OK);
+        await Assert.That((await SendAsync(app, HttpMethod.Get, "/export", client: "198.51.100.20")).StatusCode).IsEqualTo(HttpStatusCode.OK);
     }
 
     [Test]

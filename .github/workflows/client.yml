@@ -21,7 +21,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # The shared code is first compiled against common Kotlin alone: the iPhone target needs a Mac and is not built
+      # here, and what exists on the JVM and Android only (a regex option, a java.* call) passes every other step.
       # google-services.json is per-owner and gitignored; the build skips the plugin without it.
-      - name: Tests, desktop and Android builds
+      - name: Common Kotlin, tests, desktop and Android builds
         working-directory: clients/app
-        run: ./gradlew :shared:jvmTest :desktopApp:build :androidApp:assembleDebug
+        run: ./gradlew :shared:compileCommonMainKotlinMetadata :shared:jvmTest :desktopApp:build :androidApp:assembleDebug

@@ -95,6 +95,38 @@ public sealed record TransactionResponse(
     DateTimeOffset CreatedAt
 );
 
+// ---- a bank statement's lines (ARCHITECTURE → "Statements in, data out") ----
+
+/// <summary>
+/// One line of a statement that the person kept: income or an expense (never a transfer), with the key that names the
+/// line (<see cref="Domain.Transaction.ImportKey"/>). The statement itself is read by the app and never comes here.
+/// </summary>
+public sealed record ImportedMovement(
+    TransactionKind Kind,
+    decimal Amount,
+    DateTimeOffset OccurredAt,
+    string ImportKey,
+    string Note = "",
+    Guid? CategoryId = null
+);
+
+/// <summary>Up to 500 lines for one account, booked together or not at all; a longer statement comes in several requests.</summary>
+public sealed record ImportTransactions(Guid AccountId, List<ImportedMovement> Movements);
+
+/// <param name="Skipped">Lines the account already had (the same statement imported before, or an overlapping one).</param>
+public sealed record ImportTransactionsResponse(int Imported, int Skipped);
+
+/// <summary>The category the person gave their latest movement of this kind and text.</summary>
+public sealed record SuggestedCategory(TransactionKind Kind, string Note, Guid CategoryId);
+
+/// <summary>
+/// What the app needs to sort a statement's lines on the device, before anything of the statement is sent: the keys
+/// the account already has, and the person's own movements' texts with their categories.
+/// </summary>
+/// <param name="ImportKeys">The keys of the account's imported movements, newest first.</param>
+/// <param name="Categories">For a kind and a text, the category of the person's latest movement that reads so.</param>
+public sealed record ImportKnownResponse(List<string> ImportKeys, List<SuggestedCategory> Categories);
+
 // ---- recurring ----
 
 /// <summary>

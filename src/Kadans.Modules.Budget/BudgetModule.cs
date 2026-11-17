@@ -47,8 +47,10 @@ public sealed class BudgetModule : IModule
 
         services.AddScoped<AccountService>();
         services.AddScoped<IUserDataEraser, BudgetUserDataEraser>();
+        services.AddScoped<IUserDataExporter, BudgetUserDataExporter>();
         services.AddScoped<CategoryService>();
         services.AddScoped<TransactionService>();
+        services.AddScoped<TransactionImportService>();
         services.AddScoped<CategoryLimitAlerts>();
         services.AddScoped<RecurringTransactionService>();
         services.AddScoped<BudgetSettingsService>();
@@ -62,6 +64,7 @@ public sealed class BudgetModule : IModule
         endpoints.MapBudgetAccountRoutes();
         endpoints.MapBudgetCategoryRoutes();
         endpoints.MapBudgetTransactionRoutes();
+        endpoints.MapBudgetImportRoutes();
         endpoints.MapBudgetRecurringRoutes();
         endpoints.MapBudgetSettingsRoutes();
     }

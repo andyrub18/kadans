@@ -19,6 +19,9 @@ internal sealed class RateLimitingOptions
     /// <summary><see cref="RateLimitPolicies.Credentials"/>: sign-in, 2FA codes, password change.</summary>
     public int CredentialsPerMinute { get; set; } = 20;
 
+    /// <summary><see cref="RateLimitPolicies.Export"/>: "export my data", a whole account in one answer.</summary>
+    public int ExportPer15Minutes { get; set; } = 10;
+
     /// <summary>Every other request (health checks excepted).</summary>
     public int RequestsPerMinute { get; set; } = 300;
 
@@ -66,6 +69,7 @@ internal static class RateLimiting
 
             options.AddPolicy(RateLimitPolicies.Email, http => Bucket(ClientOf(http), limits.EmailPer15Minutes, TimeSpan.FromMinutes(15)));
             options.AddPolicy(RateLimitPolicies.Credentials, http => Bucket(ClientOf(http), limits.CredentialsPerMinute, TimeSpan.FromMinutes(1)));
+            options.AddPolicy(RateLimitPolicies.Export, http => Bucket(ClientOf(http), limits.ExportPer15Minutes, TimeSpan.FromMinutes(15)));
         });
     }
 

@@ -84,6 +84,8 @@ kotlin {
             implementation(libs.googleid)
             // Subscriptions: Google Play Billing (it also declares the BILLING permission Play Console looks for)
             implementation(libs.play.billing)
+            // The system's pickers for one file in and one file out (statement import, export): ActivityResult contracts
+            implementation(libs.androidx.activity.compose)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

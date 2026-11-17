@@ -12,4 +12,10 @@ public static class RateLimitPolicies
 
     /// <summary>Endpoints that check a password or a code, where guessing is the risk.</summary>
     public const string Credentials = "credentials";
+
+    /// <summary>
+    /// Endpoints that hand over everything a person holds in one answer ("export my data"): heavy to build, and
+    /// nobody needs it many times in a row.
+    /// </summary>
+    public const string Export = "export";
 }

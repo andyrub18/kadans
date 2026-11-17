@@ -32,14 +32,21 @@ internal sealed class CalendarFeedReader(TasksDbContext dbContext, IOptions<Task
     /// <summary>The calendar with nothing in it: what an account without the phones' subscription gives its calendars.</summary>
     public string Empty() => CalendarFeedWriter.Write([], CalendarName, options.Value.CalendarFeedRefreshMinutes);
 
-    public async Task<string> Read(DateTimeOffset now, CancellationToken cancellationToken)
+    public Task<string> Read(DateTimeOffset now, CancellationToken cancellationToken) =>
+        Read(now, options.Value.CalendarFeedPastDays, options.Value.CalendarFeedAheadDays, options.Value.CalendarFeedMaxEvents, cancellationToken);
+
+    /// <summary>
+    /// The same file over another window: "Export my data" takes every past time and a year ahead
+    /// (<c>TasksUserDataExporter</c>), where a calendar that reads the feed every few hours takes a few months.
+    /// </summary>
+    public async Task<string> Read(DateTimeOffset now, int pastDays, int aheadDays, int maxEvents, CancellationToken cancellationToken)
     {
         var settings = options.Value;
         // Whole days: the window moves once a day, not at every read, so an unchanged account reads the same file.
         var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
-        var from = today.AddDays(-Math.Max(0, settings.CalendarFeedPastDays));
-        var to = today.AddDays(Math.Max(1, settings.CalendarFeedAheadDays) + 1);
-        var max = Math.Max(1, settings.CalendarFeedMaxEvents);
+        var from = today.AddDays(-Math.Max(0, pastDays));
+        var to = today.AddDays(Math.Max(1, aheadDays) + 1);
+        var max = Math.Max(1, maxEvents);
 
         // Done times of any todo, finished or not; pending ones of a todo still going (a cancelled todo keeps its
         // missed times pending, and they are no longer anyone's plan).

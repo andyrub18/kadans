@@ -20,6 +20,24 @@ public class TransactionRulesTests
         new() { UserId = "u1", Name = "Salary", Kind = CategoryKind.Income };
 
     [Test]
+    public async Task A_statements_line_carries_the_key_that_names_it_and_a_key_is_never_text_to_interpret()
+    {
+        var imported = Transaction.Create("u1", Htg(), TransactionKind.Expense, 120m, T0, null, "POS 4521 MARKET", null, null, importKey: "v1-3f9a2c");
+        await Assert.That(imported.AsT1.ImportKey).IsEqualTo("v1-3f9a2c");
+        // A movement entered by hand has none: it is never mistaken for a statement's line.
+        await Assert.That(Transaction.Create("u1", Htg(), TransactionKind.Expense, 120m, T0, null, "", null, null).AsT1.ImportKey).IsNull();
+
+        await Assert.That(Transaction.IsImportKey("v1-3f9a2c_0:2026.11")).IsTrue();
+        await Assert.That(Transaction.IsImportKey(new string('a', Transaction.MaxImportKeyLength))).IsTrue();
+        await Assert.That(Transaction.IsImportKey(new string('a', Transaction.MaxImportKeyLength + 1))).IsFalse();
+        await Assert.That(Transaction.IsImportKey("")).IsFalse();
+        await Assert.That(Transaction.IsImportKey(null)).IsFalse();
+        await Assert.That(Transaction.IsImportKey("key with spaces")).IsFalse();
+        await Assert.That(Transaction.IsImportKey("clé")).IsFalse();
+        await Assert.That(Transaction.IsImportKey("a';--")).IsFalse();
+    }
+
+    [Test]
     public async Task Expense_with_matching_category_carries_the_account_currency()
     {
         var account = Htg();

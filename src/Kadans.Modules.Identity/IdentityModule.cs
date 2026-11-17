@@ -138,6 +138,8 @@ public sealed class IdentityModule : IModule
         services.AddScoped<IDeviceReminders, DeviceReminders>();
         services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddScoped<UserManagement>();
+        services.AddScoped<Features.Account.DataExport>();
+        services.AddScoped<IUserDataExporter, Features.Account.AccountUserDataExporter>();
 
         services.Configure<IdentityRetentionOptions>(configuration.GetSection(IdentityRetentionOptions.SectionName));
         services.Configure<AccountDeletionOptions>(configuration.GetSection(AccountDeletionOptions.SectionName));

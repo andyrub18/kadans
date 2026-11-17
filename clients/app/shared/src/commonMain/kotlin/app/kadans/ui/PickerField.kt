@@ -28,8 +28,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 
-/** What a picker field opens, which its icon shows. */
-enum class PickerKind { Date, Time }
+/** What a picker field opens, which its icon shows: a calendar, a clock, or a list of choices. */
+enum class PickerKind { Date, Time, List }
 
 /**
  * A field whose value comes from a picker, opened by tapping it anywhere, or with Enter or Space from the keyboard. It
@@ -71,7 +71,12 @@ internal fun PickerField(
         trailingIcon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 extra?.invoke()
-                Icon(if (kind == PickerKind.Date) CalendarIcon else ClockIcon, contentDescription = null, Modifier.padding(end = 12.dp))
+                val icon = when (kind) {
+                    PickerKind.Date -> CalendarIcon
+                    PickerKind.Time -> ClockIcon
+                    PickerKind.List -> ListIcon
+                }
+                Icon(icon, contentDescription = null, Modifier.padding(end = 12.dp))
             }
         },
         isError = isError,
@@ -114,6 +119,13 @@ private val ClockIcon: ImageVector = icon("clock") {
     moveTo(12f, 7f)
     lineTo(12f, 12f)
     lineTo(15.5f, 14f)
+}
+
+/** A chevron pointing down: the field opens a list. */
+private val ListIcon: ImageVector = icon("list") {
+    moveTo(6f, 9f)
+    lineTo(12f, 15f)
+    lineTo(18f, 9f)
 }
 
 private fun icon(name: String, outline: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit): ImageVector =

@@ -501,6 +501,153 @@ data class PhoneCalendarStrings(
 data class ShareStrings(val saved: String)
 
 /**
+ * A bank statement brought into the budget (ARCHITECTURE → "Statements in, data out"): the account and the file, what
+ * each column of a CSV file is, the lines to check, the result. A sentence with a number has its own phrase for one
+ * and for several. A feature group.
+ */
+data class StatementImportStrings(
+    /** The button over the month's movements, and the screen's title. */
+    val title: String,
+    val intro: String,
+    /** The statement is read on the device: only the lines kept reach the account. */
+    val stays: String,
+    val intoAccount: String,
+    /** No account to book on yet. */
+    val noAccount: String,
+    val chooseFile: String,
+    /** The title of the computer's "Open" dialog. */
+    val fileDialogTitle: String,
+    /** What a picked file is, when it is not one Kadans reads, and what to do about it. */
+    val tooLarge: String,
+    val pdf: String,
+    val spreadsheet: String,
+    val unreadable: String,
+    val noLines: String,
+    /** A CSV file's columns: Kadans guessed, the person corrects. */
+    val columnsTitle: String,
+    val columnsHint: String,
+    val dateColumn: String,
+    val datesWritten: String,
+    val dayMonthYear: String,
+    val monthDayYear: String,
+    val yearMonthDay: String,
+    /** The dates say no order themselves (every day before the 13th). */
+    val orderUnsure: String,
+    val textColumn: String,
+    /** In place of a column: there is none for this. */
+    val noColumn: String,
+    val amountsIn: String,
+    val oneColumn: String,
+    val twoColumns: String,
+    val amountColumn: String,
+    val moneyOutColumn: String,
+    val moneyInColumn: String,
+    /** A card's statement counts purchases above zero. */
+    val positiveIsExpense: String,
+    val positiveIsExpenseHint: String,
+    /** A column of a file without a header. `%d`: its rank. */
+    val columnFormat: String,
+    val previewTitle: String,
+    /** The columns chosen give no line with a date and an amount. */
+    val nothingRead: String,
+    val oneLineRead: String,
+    /** `%d`: how many lines, two or more. */
+    val linesReadFormat: String,
+    val oneLineNotRead: String,
+    val linesNotReadFormat: String,
+    /** The file holds more lines than are read at once: the first ones were read, the rest left out. */
+    val tooManyLines: String,
+    /** The file holds the statements of several accounts (camt): the first account's lines were read. */
+    val otherAccounts: String,
+    val continueWord: String,
+    val reviewTitle: String,
+    /** `%s`: the account's name and currency. */
+    val intoFormat: String,
+    val checking: String,
+    /** Beside a line the account already has. */
+    val alreadyThere: String,
+    val oneAlready: String,
+    val alreadyFormat: String,
+    /** Nothing new in the file. */
+    val allAlready: String,
+    /** `%1`: the statement's currency, `%2`: the account's. */
+    val currencyDiffersFormat: String,
+    val selectAll: String,
+    val selectNone: String,
+    /** In a line's category dialog: the other lines of the same text. */
+    val oneSameToo: String,
+    val sameTooFormat: String,
+    /** The button when no line is kept: there is nothing to send. */
+    val importNone: String,
+    val importOne: String,
+    val importFormat: String,
+    /** `%1`: lines sent so far, `%2`: lines to send. */
+    val importingFormat: String,
+    val doneTitle: String,
+    /** `%s`: the account's name. */
+    val oneImportedFormat: String,
+    /** `%d`: how many, `%s`: the account's name. */
+    val importedFormat: String,
+    val noneImported: String,
+    val oneSkipped: String,
+    val skippedFormat: String,
+    val done: String,
+) {
+    fun column(rank: Int): String = columnFormat.replace("%d", "$rank")
+
+    fun linesRead(count: Int): String = if (count == 1) oneLineRead else linesReadFormat.replace("%d", "$count")
+
+    fun linesNotRead(count: Int): String = if (count == 1) oneLineNotRead else linesNotReadFormat.replace("%d", "$count")
+
+    fun into(account: String): String = intoFormat.replace("%s", account)
+
+    fun already(count: Int): String = if (count == 1) oneAlready else alreadyFormat.replace("%d", "$count")
+
+    fun currencyDiffers(statement: String, account: String): String = currencyDiffersFormat.replace("%1", statement).replace("%2", account)
+
+    fun sameToo(count: Int): String = if (count == 1) oneSameToo else sameTooFormat.replace("%d", "$count")
+
+    fun import(count: Int): String = when (count) {
+        0 -> importNone
+        1 -> importOne
+        else -> importFormat.replace("%d", "$count")
+    }
+
+    fun importing(sent: Int, total: Int): String = importingFormat.replace("%1", "$sent").replace("%2", "$total")
+
+    fun imported(count: Int, account: String): String = when (count) {
+        0 -> noneImported
+        1 -> oneImportedFormat.replace("%s", account)
+        else -> importedFormat.replace("%d", "$count").replace("%s", account)
+    }
+
+    fun skipped(count: Int): String = if (count == 1) oneSkipped else skippedFormat.replace("%d", "$count")
+}
+
+/**
+ * "My data" in Settings (ARCHITECTURE → "Statements in, data out"): a copy of what the person put in Kadans, saved
+ * where they choose. A feature group.
+ */
+data class DataExportStrings(
+    /** The row in Settings, and the page's title. */
+    val section: String,
+    val intro: String,
+    /** What the file holds, and what opens it. */
+    val contents: String,
+    val save: String,
+    val preparing: String,
+    val saved: String,
+    /** The place chosen could not take the file. */
+    val failed: String,
+    /** The title of the computer's "Save" dialog. */
+    val fileDialogTitle: String,
+    /** Where a bank statement comes in, for whoever looks for it here. */
+    val importHint: String,
+    /** On the page that deletes the account: the way to this one. */
+    val beforeDeleting: String,
+)
+
+/**
  * Do Not Disturb during focus (ARCHITECTURE → "Do Not Disturb during focus"), on a phone that can: the Settings
  * section, what Android still has to allow, the session screen's one-time offer, the name of Kadans' mode in Android's
  * own settings, and the notice shown while the phone is quiet. A feature group.
@@ -708,6 +855,8 @@ data class StringsCatalog(
     val quiet: QuietStrings,
     val share: ShareStrings,
     val phoneCalendar: PhoneCalendarStrings,
+    val statementImport: StatementImportStrings,
+    val dataExport: DataExportStrings,
     val continueWithGoogle: String,
     val googleWaiting: String,
     val googleReturnToApp: String,

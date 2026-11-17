@@ -109,6 +109,39 @@ data class BudgetTransactionResponse(
     val createdAt: Instant,
 )
 
+/**
+ * One line of a bank statement the person kept (ARCHITECTURE → "Statements in, data out"): income or an expense, with
+ * the key that names the line (`statement/ImportKeys`), so an account books it once however often it is sent.
+ */
+@Serializable
+data class ImportedMovement(
+    val kind: BudgetTransactionKind,
+    val amount: Double,
+    val occurredAt: Instant,
+    val importKey: String,
+    val note: String = "",
+    val categoryId: String? = null,
+)
+
+/** Up to [app.kadans.api.BudgetApi.IMPORT_AT_ONCE] lines for one account, booked together or not at all. */
+@Serializable
+data class ImportTransactions(val accountId: String, val movements: List<ImportedMovement>)
+
+/** [skipped]: lines the account already had. */
+@Serializable
+data class ImportTransactionsResponse(val imported: Int = 0, val skipped: Int = 0)
+
+/** The category the person gave their latest movement of this kind and text. */
+@Serializable
+data class SuggestedCategory(val kind: BudgetTransactionKind, val note: String, val categoryId: String)
+
+/**
+ * What the app sorts a statement's lines with, on the device, before anything of the statement is sent: the keys the
+ * account already has, and the person's own movements' texts with their categories.
+ */
+@Serializable
+data class ImportKnownResponse(val importKeys: List<String> = emptyList(), val categories: List<SuggestedCategory> = emptyList())
+
 /** A budget rule's dates, with a todo rule's day parts: the form is the todo's rule builder (`ui/RepeatSection`). */
 @Serializable
 data class BudgetRecurrence(

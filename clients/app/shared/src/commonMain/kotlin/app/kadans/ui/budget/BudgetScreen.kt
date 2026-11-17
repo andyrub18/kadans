@@ -66,6 +66,8 @@ import app.kadans.ui.LocalDarkTheme
 import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import app.kadans.files.FilePorts
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,8 +76,11 @@ import app.kadans.ui.shell.KadansIcons
 @Composable
 fun BudgetScreen(
     onEditTransaction: (String) -> Unit,
+    onImport: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: BudgetViewModel = koinViewModel(),
+    // A statement comes in through the system's file picker: where the device has none, it is not offered.
+    canImport: Boolean = koinInject<FilePorts>().available,
 ) {
     val state by viewModel.state.collectAsState()
     val s = LocalStrings.current
@@ -240,7 +245,12 @@ fun BudgetScreen(
 
                     // ---- the month's movements: one opens to correct it ----
                     item { HorizontalDivider() }
-                    item { Text(s.movements.listTitle, style = MaterialTheme.typography.titleMedium) }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(s.movements.listTitle, style = MaterialTheme.typography.titleMedium)
+                            if (canImport) TextButton(onClick = onImport) { Text(s.statementImport.title) }
+                        }
+                    }
                     if (state.recent.isEmpty()) {
                         item { Text(s.noTransactionsYet, style = MaterialTheme.typography.bodyMedium) }
                     }

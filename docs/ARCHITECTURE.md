@@ -51,7 +51,8 @@ Kadans.Modules.Tasks/
    `IUserDirectory` and `IDevicePushTargets` (implemented by Identity), `INotificationDispatcher`
    and `IRealtimePublisher` (implemented by Notifications), `ISessionEndListener` (called by Identity
    when sessions end; Notifications closes their live connections), `IUserDataEraser` (each module erases a
-   user's data when Identity erases the account), and `IMobileAccess` (implemented by Billing; Notifications asks
+   user's data when Identity erases the account), `IUserDataExporter` (each module hands over what it holds for a
+   person, as files, when Identity builds "export my data"), and `IMobileAccess` (implemented by Billing; Notifications asks
    it before pushing to a phone). Tasks and Budget only consume the rest.
 4. **Everything is `internal`** except `Contracts` and the `IModule` implementation.
 5. **Per-user isolation via EF global query filters** on `UserId == CurrentUserId`. Contexts are pooled (building one
@@ -151,9 +152,10 @@ needs a second instance, the things to externalize are exactly that list: a pers
 a Redis backplane for SignalR, a real queue for push, and shared rate-limit counters.
 
 Rate limiting is the host's (ASP.NET Core's limiter, per client address: IPv4, or the IPv6 /64). There
-is a global limit, plus two named policies modules put on endpoints (`RateLimitPolicies`). **Email** covers
+is a global limit, plus three named policies modules put on endpoints (`RateLimitPolicies`). **Email** covers
 endpoints that mail an address the caller chooses; **Credentials** covers those that check a password or a
-code. Both are token buckets, so a rejection says when to retry. The numbers are configuration
+code; **Export** covers "export my data", a whole account in one answer, heavy to build (10 per 15 minutes). All
+are token buckets, so a rejection says when to retry. The numbers are configuration
 (`RateLimiting`), generous in Development for the smoke scripts. Behind them, `EmailThrottle` sends one
 confirmation, reset or email-change mail per address every 2 minutes, so many senders cannot bury one
 inbox either. Token refresh is only under the global limit: a refresh token has nothing to guess. Details: [DEPLOYMENT.md](DEPLOYMENT.md).
@@ -345,6 +347,8 @@ each run logs what it removed. The day counts are configuration with code defaul
 | The record of an erased account (its id and dates) | 30 days | `Identity:Retention:ErasedAccountRecordDays` |
 | A free account (its id, the admin who added it, when) | until an admin removes it, or the account is erased | – |
 | The calendar feed's link (what the link is signed from, when it was made, when a calendar last read it) | until the person turns it off or replaces it, or the account is erased | – |
+| A bank statement's file | never received: read on the person's device, only the lines kept come, as movements ("Statements in, data out") | – |
+| An export of a person's data | built in memory for the one request, nothing of it kept | – |
 | Nightly database dumps | 14 days (DEPLOYMENT → Backups) | the compose file |
 | Logs in Loki (no addresses, names or contents: below) | 30 days | `deploy/observability/loki.yml` |
 | Metrics in Prometheus (counts and durations, no personal data) | 30 days, at most 2 GB | the compose file |
@@ -945,6 +949,137 @@ system's settings) and given back there; an event added while Kadans was in the 
 app's log or the server's. A tap starts the phone's calendar app on the event (seen in Android's log); the event's own
 screen was not seen, because the emulator's Google Calendar app dies at start on this image. Not checked: a real
 phone's calendars (Google, Samsung, a work account), other makers' calendar apps, the iPhone.
+
+### Statements in, data out (2026-11-16)
+
+Sixth and last of the integrations ranked after a tester's feedback, in two halves that belong together: what a bank
+knows comes into the budget without being typed again, and what the person put in Kadans goes out as files they keep.
+Desktop and Android; the iPhone's document picker comes with the iPhone app (the entries are not shown where the
+device has no file dialog: `FilePorts.available`).
+
+**A statement in** (Budget → "Import a statement", over the month's movements): CSV, OFX, QFX or camt.053. A PDF
+is answered, not read: it holds a picture of the lines, not the lines, and each bank's would need a reader of its own.
+
+- **Read on the device, never sent.** A statement holds more than its lines: an account number, a balance, other
+  people's names. The app reads the file (`statement/`: pure code, tested with files as banks make them) and sends
+  only the lines the person kept, as movements, when they press "Import". Until then nothing of the statement leaves
+  the device, not a text, an amount or a key: to sort the lines, the app asks the server what it already holds and
+  compares on the device (below). The server has no upload endpoint and never sees the file; the privacy policy says
+  so ("What stays on your phone").
+- **Files** come through the system's own dialog (`files/FilePorts`): Android's document picker, the computer's
+  "Open" (AWT's `FileDialog`, shown from a background thread). One file, handed over by the person: no storage
+  permission anywhere. Any type can be picked, since banks name a statement's type every which way; what a file is is
+  told from what is in it (`Statements.kind`). A PDF and an Excel workbook are recognised and answered with what to do
+  instead; 5 MB at most (never read past it), and 10,000 lines (a longer file is read that far, and the screen says
+  the rest was left out).
+- **CSV** has no standard: every bank invents its columns, so the file is guessed and the person confirms
+  (`CsvFile`). The sign between cells is the one of `, ; tab |` that cuts the first lines into the same number of
+  cells; the text is UTF-8, UTF-16 or the old Windows encoding (where a French bank's "é" is one byte). The table is
+  the rows of the width whose rows most often hold both a date and an amount: the lines about the account before it
+  and the total after it are counted as left out, never invented into movements, even over a statement of two lines.
+  Its first row is a header when it holds neither a date nor an amount. Each column is then guessed
+  (`CsvFile.guess`): its name proposes (English, French, Spanish, Kreyòl; the surest names first, a movement's own
+  date before its value date, a description before a reference) and what it holds confirms (a "Date valeur" column
+  holds dates, so it is never the amount, whatever "valeur" says). Where no name helps, the cells decide alone: the
+  date is where most cells read as dates; two columns of amounts that share the rows between them are money out and
+  money in; else the amount is the column that most looks like money (decimals, a sign), the first of them, a balance
+  coming after; the text is where the letters are. The person corrects the guess on one screen with the first lines
+  read that way under it: the date and how its numbers are ordered, the text, and the amount as one signed column or
+  as money out and money in. A card's statement counts purchases above zero: one switch turns the signs. Dates that
+  do not say their own order (every day before the 13th) are settled by the calendar when they can be (a statement
+  holds what happened, so the order that puts a line in the future is wrong), else read day first, or month first for
+  an account in English with a 12-hour clock, and the screen says to check.
+- **OFX and QFX** (`Ofx`): both forms, the old one that closes no tag and the XML one. No columns to ask about. The
+  file's own currency is read: one that differs from the account's is said on the review screen, not refused.
+- **camt.053** (`Camt`), the ISO 20022 statement a bank's "CAMT" export follows (its relatives camt.052 and camt.054
+  read the same way): each entry's amount with its currency, whether it is a credit or a debit, the day it was
+  booked, the bank's reference, and in words who was paid (or who paid) and what the payment said. Only what is
+  booked (an entry pending or yet to come is left out); an entry that gathers several transactions is one line, with
+  the entry's own amount; a file with several accounts' statements gives the first account's lines and says so. It is
+  read by its tags, as OFX is, a namespace's prefix allowed for: no XML machinery runs on a file from outside, so
+  nothing in it is expanded, included or fetched, whatever it declares. Other XML, and a web page saved under a
+  statement's name, are refused rather than read as a table.
+- **Amounts** are read as banks write them (`StatementText.cents`: a currency around them, spaces or signs between
+  thousands, a comma or a point, a minus in front or behind, brackets, CR and DR) into hundredths, never through a
+  floating number, and booked in the account's currency. In a standard's file (OFX, camt) an amount is read as the
+  standard writes it (`decimalCents`: no sign between thousands, so "1.250" is one and a quarter, where a bank's own
+  CSV would mean 1,250). A line dated a day is booked that day at noon where the
+  person is, as a movement recorded by hand is.
+- **A line is booked once.** Each line carries a key that names it (`ImportKeys`, the server's
+  `Transaction.ImportKey`, unique per account by a partial index): made from the bank's own id for the line when the
+  file has one that can be trusted (OFX's `FITID`, a camt entry's reference), else from the line's day, amount and
+  text and its rank among the lines of the file that read exactly the same (two coffees at one price on one day are
+  two lines, and both are booked). A bank's id is not believed when it is short (a rank in the statement, starting
+  again in the next one), a word that says there is none ("NOTPROVIDED"), or shared by two lines of the file: such an
+  id would make another line look already booked, and that line would be lost, where a key made from what the line
+  holds is never wrong about another line. No two lines of a file get the same key. Before the review the app
+  asks for the keys the account already has (`GET /budget/transactions/import/known`, the newest 50,000) and looks its
+  lines up in them: those lines are shown set aside, "Already in this account", and cannot be ticked. The import
+  itself skips a key the account has (`POST /budget/transactions/import`), so the same statement twice, the next one
+  that overlaps it, or a double tap adds nothing twice whatever the app believed.
+- **The review** (`StatementImportScreen`, `StatementImportViewModel`): every line with its day, text and amount, a
+  tick, and a category. A line that reads like one of the person's earlier movements comes with that movement's
+  category: the same answer brings the person's own texts with their categories (same kind, same text, the latest
+  5,000), matched on the device and checked against the categories the app has; choosing a
+  category for a line gives it to the lines that read the same, unless the person says otherwise. Lines go 500 a
+  request, each request booked whole or not at all (one line that cannot be booked stops its request); a request that
+  fails stops there, what was booked is set aside, and trying again sends only the rest. Back goes one step at a time
+  (`ui/BackSteps`), and does nothing while lines are being sent.
+- **On the server** (`TransactionImportService`): income and expenses only, on an account that is not archived, with
+  categories of the right kind; the limits of the categories touched are checked as for any expense, and the person's
+  other devices hear `data.changed` like any other change to the budget. Nothing of a line is logged.
+- **A line's text is somebody else's**: the bank's, and behind it a shop's or a sender's. It becomes a note as plain
+  text, without control characters, cut to a note's length (`Statements.note`), and is shown as plain text.
+
+Known limits, said rather than hidden: a transfer between two of the person's own accounts is in each statement as an
+expense on one side and income on the other, and is imported so (untick it, or record the transfer instead); a line
+whose text the bank rewrites between two exports (pending, then posted) has another key and shows as new, as does a
+CSV file read a second time with another column for its text; so does a movement the person deleted after an import,
+at the next statement that holds it; categories are suggested for a text
+that is exactly the same, and many banks put a date or a number in theirs.
+
+**Data out** (Settings → "My data", and from "Delete my account")
+
+- **One zip** (`GET /users/me/export`, Identity's `DataExport`): every module hands over what it holds for the person
+  through `IUserDataExporter` (SharedKernel), the counterpart of `IUserDataEraser`: what can be erased can be taken
+  away first. `account.csv`; `budget/movements.csv`, `accounts.csv` (with balances), `categories.csv` (with limits),
+  `recurring.csv`, `currencies.csv`; `todos/todos.ics` (every time done so far and a year ahead, as the calendar feed
+  writes them: any calendar app opens it), `todos/todos.csv`, `todos/history.csv` (times done, cancelled or moved,
+  with the person's notes and reasons); `focus/sessions.csv`, `focus/cycles.csv`. Never a password's hash, a token,
+  a device or the calendar link: the service's workings are not what the person put in.
+- **Files a person can read**: names instead of ids, days and times in the account's time zone, amounts with a point
+  and two decimals, English headers in every language (for whatever reads the file next). CSV as a spreadsheet opens
+  it (`SharedKernel/Text/Csv`: RFC 4180, UTF-8 with its mark so that Excel shows the accents).
+- **A cell never runs.** A text that begins with `=`, `+`, `-` or `@` would be taken for a formula by a spreadsheet,
+  and a note can be a line imported from a bank: `Csv.Cell` puts an apostrophe in front, which a spreadsheet shows as
+  text. A plain negative number is left alone.
+- **Free for every account**, with or without the phones' subscription: the data is the person's. Asked from the app
+  as the signed-in person, limited to 10 a quarter hour per client (`RateLimitPolicies.Export`: a whole account in
+  one answer is heavy), built in memory for the one request and not kept; the log says who exported, how many files
+  and how many bytes, nothing else. The largest files are capped at their newest (20,000 calendar times, 50,000 lines
+  of history, 20,000 sessions).
+- **Saved where the person says** (`DataExportViewModel`): the copy is fetched first and the system's "Save" dialog
+  asked second, so a place is never left holding an empty file; the file is named by the app with the day
+  (`kadans-export-2026-11-16.zip`), never by what a server answers. On a phone behind the paywall the app shows
+  nothing but the paywall: the free desktop app exports.
+
+Checked: the reader with files as banks make them (a French bank's with two columns of money and lines around the
+table in the old Windows encoding, an American one with one signed amount and quoted commas, a file without a header, a
+card's, a value date beside the date, Kreyòl headers, two money columns without a header, two movements under six
+lines about the account, dates of both orders, OFX in both forms, camt.053 in two versions with a pending entry, a
+batch and two accounts, a file longer than what is read), the keys (a bank's id repeated, or too short to be one), the view model against
+a mock server (the three steps, nothing of the statement in any request before "Import", 1,200 lines in three
+requests with the second failing once, a failed check), the desktop's file reading and saving,
+and both of its dialogs shown and closed on Linux; `budget_flows.py` against a local API (a statement imported, again,
+overlapped, on two accounts, its refusals; the export's eleven files, a formula defused); and on the emulator (Android
+15) the whole way: Android's picker, a French statement read with its accents and both columns, a category given to a
+line and its twin, six lines booked and the account's balance equal to the statement's closing balance, the same file
+again with every line set aside, a follow-up statement that overlaps the first (its new line arriving with the
+category its twin was given), Back step by step, a PDF answered, an OFX file in dollars into a gourde account, a
+card's statement with its switch, in English and in French; then "My data", Android's "Save" dialog, and the zip
+pulled back and opened. Not checked: a real bank's export (the samples are written after their formats, camt.053
+included, which was not run on the emulator: its path is OFX's, and tested as such), the desktop app's import screens
+on Windows and macOS, a statement of thousands of lines on a slow phone, the iPhone.
 
 ### Client: Compose Multiplatform
 

@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import androidx.lifecycle.ViewModelStore
 import app.kadans.api.KadansApi
 import app.kadans.realtime.KadansRealtime
@@ -22,9 +23,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -34,10 +33,10 @@ import kotlinx.coroutines.withTimeout
  */
 class PomodoroDonePromptTests {
     @BeforeTest
-    fun before() = Dispatchers.setMain(Dispatchers.Unconfined)
+    fun before() = TestMain.set(Dispatchers.Unconfined)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 

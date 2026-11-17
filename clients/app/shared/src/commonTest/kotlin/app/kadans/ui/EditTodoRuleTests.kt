@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import app.kadans.api.KadansApi
 import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.api.model.Frequency
@@ -31,12 +32,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -201,10 +199,10 @@ class EditTodoRuleTests {
     private val dispatcher = StandardTestDispatcher()
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private val todoJson = """{"id":"t1","title":"Work alarm","description":"","status":"Scheduled","notificationEnabled":true,""" +
         """"notifyBeforeInMinutes":15,"recurrenceRule":{"rrule":"FREQ=WEEKLY;COUNT=20;BYDAY=MO,TU,WE,TH,FR",""" +

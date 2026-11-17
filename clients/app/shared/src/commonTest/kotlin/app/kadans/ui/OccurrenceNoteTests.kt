@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import app.kadans.api.KadansApi
 import app.kadans.ui.todos.NoteFailure
 import app.kadans.ui.todos.TodoDetailUiState
@@ -17,11 +18,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.flow.emptyFlow
 
 /** A note on one occurrence, "how it went": what it sends, and a failure that keeps the text for another try. */
@@ -30,10 +28,10 @@ class OccurrenceNoteTests {
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private val todoJson =
         """{"id":"t1","title":"Gym","description":"","status":"Scheduled","notificationEnabled":false,""" +

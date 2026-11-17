@@ -23,6 +23,7 @@ val CreoleStrings = StringsCatalog(
         lastSeen = "Dènye fwa nou wè l",
         removeDevice = "Retire",
         sessionEndedNotice = "Ou te dekonekte. Konekte ankò pou w kontinye.",
+        sessionWaitingNotice = "Ou toujou konekte sou aparèy sa a, men Kadans pa t ka li koneksyon ou: depo sekirize aparèy la pa louvri (sou Linux, twouso kle a rete fèmen). Eseye ankò, oswa konekte anba a.",
     ),
     timeZone = TimeZoneStrings(
         section = "Zòn lè",

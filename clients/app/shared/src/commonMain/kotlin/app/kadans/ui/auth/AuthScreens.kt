@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,6 +70,10 @@ fun LoginScreen(
     onDeletionScheduled: (eraseAfter: kotlin.time.Instant, restoreToken: String) -> Unit = { _, _ -> },
     /** A word above the form: the account was just closed for erasure. */
     notice: String? = null,
+    /** A session is kept on this device and its protection did not open it (a keyring left locked): say so. */
+    sessionWaiting: Boolean = false,
+    /** "Retry" under that word: ask the device's protection again. */
+    onRetrySession: () -> Unit = {},
     viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -88,6 +93,9 @@ fun LoginScreen(
     AuthScaffold(title = s.signInTitle) {
         if (notice != null) {
             Text(notice, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+        } else if (sessionWaiting) {
+            Text(s.account.sessionWaitingNotice, style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = onRetrySession) { Text(s.retry) }
         } else if (sessionEnded) {
             Text(s.account.sessionEndedNotice, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }

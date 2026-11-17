@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nothing of Kadans goes into the phone's backup, to Google's cloud or to a new phone by cable (Android 12 and
+     later read this file; android:allowBackup="false" says the same to the versions before). What the app keeps on a
+     phone is that phone's: the sealed session (its key never leaves the phone, so a copy would open nowhere), the id
+     this installation registered for push (two phones with one id would take each other's notifications), the
+     reminders and the widget's list. The account itself is on the server: signing in on the new phone brings it all.
+     docs/ARCHITECTURE.md → "The session, sealed on the device". -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>

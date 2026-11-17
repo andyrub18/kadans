@@ -21,9 +21,17 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # The Linux desktop seals the session with a key the keyring keeps (ARCHITECTURE → "The session, sealed on the
+      # device"): RealKeyringTests talks to GNOME Keyring itself, on a private bus, and KADANS_REQUIRE_KEYRING makes
+      # its absence a failure here instead of a skipped test.
+      - name: GNOME Keyring, for the session's tests
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gnome-keyring dbus
+
       # The shared code is first compiled against common Kotlin alone: the iPhone target needs a Mac and is not built
       # here, and what exists on the JVM and Android only (a regex option, a java.* call) passes every other step.
       # google-services.json is per-owner and gitignored; the build skips the plugin without it.
       - name: Common Kotlin, tests, desktop and Android builds
         working-directory: clients/app
+        env:
+          KADANS_REQUIRE_KEYRING: "1"
         run: ./gradlew :shared:compileCommonMainKotlinMetadata :shared:jvmTest :desktopApp:build :androidApp:assembleDebug

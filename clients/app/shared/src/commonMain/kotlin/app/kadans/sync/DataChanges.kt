@@ -1,13 +1,14 @@
 package app.kadans.sync
 
 import app.kadans.realtime.RealtimeEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.launch
 
 /** What a screen shows, by the name the server's "data.changed" gives it. */
 enum class DataArea(val wire: String) { Todos("todos"), Budget("budget") }
@@ -26,8 +27,24 @@ enum class DataArea(val wire: String) { Todos("todos"), Budget("budget") }
 class DataChanges(realtimeEvents: Flow<RealtimeEvent>) {
     private val here = MutableSharedFlow<Set<DataArea>>(extraBufferCapacity = 8)
 
-    /** Each signal: the areas that may have changed. */
-    val changes: Flow<Set<DataArea>> = merge(here, realtimeEvents.mapNotNull(::areasOf))
+    private val heard: Flow<Set<DataArea>> = realtimeEvents.mapNotNull(::areasOf)
+
+    /**
+     * [reload] at each signal concerning [area], heard from this call on (`listen`): a screen's view model calls it as
+     * it is made, so nothing said right after is missed. Signals arriving while [reload] runs make one more run after
+     * it, not one each.
+     */
+    fun reloadOn(scope: CoroutineScope, area: DataArea, reload: suspend () -> Unit) {
+        val asked = Channel<Unit>(Channel.CONFLATED)
+        for (signals in sources(area)) scope.listen(signals) { asked.trySend(Unit) }
+        scope.launch { for (ask in asked) reload() }
+    }
+
+    /**
+     * The signals concerning [area], one flow per origin (this device, the hub), for what collapses them itself (the
+     * widget). One flow per origin because a merged one could not be heard from the first moment (`listen`).
+     */
+    internal fun sources(area: DataArea): List<Flow<Unit>> = listOf(here, heard).map { origin -> origin.filter { area in it }.map { } }
 
     /** This device changed [areas] outside the screens. */
     fun changed(vararg areas: DataArea) {
@@ -38,9 +55,6 @@ class DataChanges(realtimeEvents: Flow<RealtimeEvent>) {
     fun cameBack() {
         here.tryEmit(DataArea.entries.toSet())
     }
-
-    /** The signals concerning [area]. While a reload runs, those arriving meanwhile make one more, not one each. */
-    fun of(area: DataArea): Flow<Unit> = changes.filter { area in it }.map { }.conflate()
 
     internal companion object {
         fun areasOf(event: RealtimeEvent): Set<DataArea>? = when (event) {

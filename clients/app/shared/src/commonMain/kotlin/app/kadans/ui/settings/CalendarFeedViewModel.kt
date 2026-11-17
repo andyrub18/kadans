@@ -31,7 +31,7 @@ class CalendarFeedViewModel(private val api: KadansApi, private val dataChanges:
         load()
         // Turned on, off or replaced on another device (the server then says the todos' area changed), or the app
         // back in front, when a calendar may have read the link meanwhile: shown as it is now.
-        viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { load(quiet = true) } }
+        dataChanges.reloadOn(viewModelScope, DataArea.Todos) { load(quiet = true) }
     }
 
     /** [quiet]: keeps what is shown while asking, and through a failure (the next signal asks again). */

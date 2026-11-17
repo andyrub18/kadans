@@ -9,16 +9,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
-import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 
 /** What tells a screen to load again, and what does not. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DataChangesTests {
     @Test
     fun the_servers_data_changed_names_its_areas() {
@@ -41,16 +41,59 @@ class DataChangesTests {
     fun each_screen_hears_its_own_area_and_coming_back() = runTest {
         val hub = MutableSharedFlow<RealtimeEvent>()
         val changes = DataChanges(hub)
-        val budget = async { changes.of(DataArea.Budget).take(2).toList() }
-        val todos = async { changes.of(DataArea.Todos).first() }
-        runCurrent()
+        var budget = 0
+        var todos = 0
+        changes.reloadOn(backgroundScope, DataArea.Budget) { budget++ }
+        changes.reloadOn(backgroundScope, DataArea.Todos) { todos++ }
 
         changes.changed(DataArea.Todos)
+        runCurrent()
         hub.emit(RealtimeEvent.DataChanged(setOf("budget")))
+        runCurrent()
         changes.cameBack()
+        runCurrent()
 
-        assertEquals(2, budget.await().size) // the hub's word, then back in front; not the todo change
-        todos.await()
+        assertEquals(2, budget) // the hub's word, then back in front; not the todo change
+        assertEquals(2, todos) // its own change, then back in front; not the budget's
+    }
+
+    @Test
+    fun a_screen_told_the_moment_it_is_made_reloads() = runTest {
+        // On a dispatcher that starts nothing by itself, and with nothing run in between: heard all the same.
+        val hub = MutableSharedFlow<RealtimeEvent>(extraBufferCapacity = 1)
+        val changes = DataChanges(hub)
+        var todos = 0
+        var budget = 0
+        changes.reloadOn(backgroundScope, DataArea.Todos) { todos++ }
+        changes.reloadOn(backgroundScope, DataArea.Budget) { budget++ }
+
+        changes.changed(DataArea.Todos) // a button here
+        hub.emit(RealtimeEvent.DataChanged(setOf("budget"))) // the hub
+        runCurrent()
+
+        assertEquals(1, todos)
+        assertEquals(1, budget)
+    }
+
+    @Test
+    fun signals_arriving_while_a_reload_runs_make_one_more_not_one_each() = runTest {
+        val changes = DataChanges(emptyFlow())
+        val slow = CompletableDeferred<Unit>()
+        var reloads = 0
+        changes.reloadOn(backgroundScope, DataArea.Todos) {
+            reloads++
+            if (reloads == 1) slow.await()
+        }
+
+        changes.changed(DataArea.Todos)
+        runCurrent() // the first reload began, and waits for its server
+        repeat(5) { changes.changed(DataArea.Todos) }
+        runCurrent()
+        assertEquals(1, reloads)
+
+        slow.complete(Unit)
+        runCurrent()
+        assertEquals(2, reloads)
     }
 
     @Test

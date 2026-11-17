@@ -227,7 +227,11 @@ puts events and todos in one day's list (ARCHITECTURE → "The phone's calendar"
 them and go no further: never store one, never send one to the server, never log one. Screens
 reload quietly whatever changed what they show (another device, a notification's button, a job, the app back in front):
 the server's `data.changed` and `sync/DataChanges`, ARCHITECTURE → "Screens stay in step"; a screen that loads once and
-never again is a bug. The desktop app closes to the tray (Linux: a freedesktop
+never again is a bug. Whatever listens to a signal does it from the moment it is made: `scope.listen(signals) { }`
+(`sync/Listening.kt`), and a screen's view model `dataChanges.reloadOn(viewModelScope, area) { }`; never
+`scope.launch { signals.collect { } }`, which subscribes a moment later and loses what was sent meanwhile
+(`ListenFromTheStartTest` fails on it). A test never sleeps to let a listener come up, and a test that needs a
+private D-Bus bus starts it with `startPrivateBus` (jvmTest), never dbus-java's daemon directly. The desktop app closes to the tray (Linux: a freedesktop
 StatusNotifierItem over D-Bus, `tray/StatusNotifierTray`; Windows: AWT's icon with a menu Kadans draws, `tray/WindowsTray`;
 elsewhere AWT's tray), runs once: a second start, a
 `./gradlew :desktopApp:run` too, shows the running one's window and exits (`desktop/SingleInstance`; quit it from the tray

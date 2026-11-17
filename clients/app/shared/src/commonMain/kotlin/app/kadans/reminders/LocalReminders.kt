@@ -11,6 +11,7 @@ import app.kadans.i18n.ReminderStrings
 import app.kadans.push.DeviceRegistrar
 import app.kadans.realtime.RealtimeEvent
 import app.kadans.ui.Dates
+import app.kadans.sync.listen
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -27,7 +28,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -79,12 +79,10 @@ class LocalReminders(
         scope.launch { for (request in requests) attempt { sync() } }
         // The account's reminders changed (here or elsewhere), the hub is back after a drop that may have lost that
         // signal, this device changed a todo (its own saves don't wait for the hub), or this device changed the
-        // account's language or time zone, which the reminders' words follow. From the start, so a change made as the
-        // app opens is not missed.
-        scope.launch {
-            val signals = realtimeEvents.filter { it is RealtimeEvent.RemindersChanged || it is RealtimeEvent.Reconnected }
-            merge(signals, api.profileChanged, api.remindersChanged).collect { syncSoon() }
-        }
+        // account's language or time zone, which the reminders' words follow. Heard from the moment this is made
+        // (`listen`), so a change made as the app opens is not missed.
+        val hub = realtimeEvents.filter { it is RealtimeEvent.RemindersChanged || it is RealtimeEvent.Reconnected }
+        for (signals in listOf(hub, api.profileChanged, api.remindersChanged)) scope.listen(signals) { syncSoon() }
     }
 
     /** Something changed: the window is fetched again, soon. */

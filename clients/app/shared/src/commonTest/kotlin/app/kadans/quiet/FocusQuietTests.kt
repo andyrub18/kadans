@@ -590,8 +590,7 @@ class FocusQuietTests {
 
         withContext(Dispatchers.Default) {
             withTimeout(5.seconds) {
-                while (events.subscriptionCount.value == 0) delay(10)
-                // Started on the computer.
+                // Started on the computer. Sent at once: the service hears from the moment it is made.
                 events.emit(RealtimeEvent.PomodoroRunChanged(session()))
                 while (phone.quiet == null) delay(10)
                 // The hub came back after a drop: the sessions are read again; this one ended meanwhile.

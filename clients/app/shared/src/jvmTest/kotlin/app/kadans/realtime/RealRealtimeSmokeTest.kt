@@ -13,6 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -52,14 +53,13 @@ class RealRealtimeSmokeTest {
                     )
                 api.pomodoro.attachTemplate(todo.id, template.id)
 
-                val pushed = async {
+                val pushed = async(start = CoroutineStart.UNDISPATCHED) {
                     withTimeout(10_000) {
                         realtime.events.first {
                             it is RealtimeEvent.PomodoroRunChanged && it.run.todoId == todo.id
                         } as RealtimeEvent.PomodoroRunChanged
                     }
                 }
-                delay(300) // let the collector subscribe before triggering
                 val run = api.pomodoro.start(todo.id, autoAdvance = true)
                 api.pomodoro.pause(run.id)
 
@@ -70,13 +70,12 @@ class RealRealtimeSmokeTest {
 
                 // Advancing a hands-free run must also push a localized notification
                 // (that is what becomes the OS notification on desktop).
-                val notified = async {
+                val notified = async(start = CoroutineStart.UNDISPATCHED) {
                     withTimeout(10_000) {
                         realtime.events.first { it is RealtimeEvent.NotificationReceived }
                             as RealtimeEvent.NotificationReceived
                     }
                 }
-                delay(300)
                 api.pomodoro.resume(run.id)
                 api.pomodoro.advance(run.id, expectedPhaseIndex = 0)
                 val notification = notified.await()
@@ -116,13 +115,11 @@ class RealRealtimeSmokeTest {
                 val occurrenceId = api.todos.occurrences(todo.id).firstNotNullOf { it.id }
                 delay(2_000) // the creation's own signal goes by first
 
-                val todos = async { withTimeout(10_000) { realtime.events.first { it is RealtimeEvent.DataChanged && "todos" in it.areas } } }
-                delay(300)
+                val todos = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(10_000) { realtime.events.first { it is RealtimeEvent.DataChanged && "todos" in it.areas } } }
                 api.todos.completeOccurrence(occurrenceId)
                 println("realtime: completing an occurrence sent ${todos.await()}")
 
-                val budget = async { withTimeout(10_000) { realtime.events.first { it is RealtimeEvent.DataChanged && "budget" in it.areas } } }
-                delay(300)
+                val budget = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(10_000) { realtime.events.first { it is RealtimeEvent.DataChanged && "budget" in it.areas } } }
                 val account = api.budget.createAccount(CreateAccount("data.changed smoke", Currency.Usd))
                 println("realtime: adding a budget account sent ${budget.await()}")
 
@@ -171,7 +168,7 @@ class RealRealtimeSmokeTest {
                 )
                 api.pomodoro.attachTemplate(todo.id, template.id)
 
-                val advanced = async {
+                val advanced = async(start = CoroutineStart.UNDISPATCHED) {
                     withTimeout(120_000) {
                         realtime.events.first {
                             it is RealtimeEvent.PomodoroRunChanged &&
@@ -180,7 +177,6 @@ class RealRealtimeSmokeTest {
                         } as RealtimeEvent.PomodoroRunChanged
                     }
                 }
-                delay(300)
                 val run = api.pomodoro.start(todo.id, autoAdvance = true, loop = true)
                 println("hands-free: run started, waiting for the job to advance phase 0…")
 

@@ -8,6 +8,7 @@ import app.kadans.billing.StoreBilling
 import app.kadans.billing.StoreProduct
 import app.kadans.billing.SubscriptionGate
 import app.kadans.realtime.RealtimeEvent
+import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.engine.mock.MockEngine
@@ -134,6 +135,7 @@ class TodayWidgetTests {
         phone: Boolean = true,
         clock: () -> Instant = { morning },
         events: MutableSharedFlow<RealtimeEvent> = MutableSharedFlow(),
+        changes: DataChanges = DataChanges(events),
         listening: Boolean = false,
     ) = TodayWidget(
         server.api,
@@ -141,7 +143,7 @@ class TodayWidgetTests {
         screen,
         SubscriptionGate(server.api, Store(), isPhone = { phone }),
         events,
-        DataChanges(events),
+        changes,
         settled = { settled += it },
         now = clock,
         zone = { haiti },
@@ -279,10 +281,30 @@ class TodayWidgetTests {
         val widget = widget(server, screen, listening = true)
         widget.refresh()
 
-        withContext(Dispatchers.Default) { delay(200) } // the widget's listeners are up
         server.api.todos.completeOccurrence("o0") // the run is marked done in the app
 
         until("fetched again") { screen.shown.last() == (listOf("Call the bank") to null) }
+        scope.cancel()
+    }
+
+    @Test
+    fun what_is_signalled_the_moment_the_widget_is_made_is_heard() = runTest {
+        // With nothing before it, time after time: a listener that subscribes a moment late hears none of these.
+        val server = Server()
+        repeat(30) { round ->
+            val screen = Screen()
+            val events = MutableSharedFlow<RealtimeEvent>(extraBufferCapacity = 4)
+            val changes = DataChanges(events)
+            widget(server, screen, events = events, changes = changes, listening = true)
+
+            when (round % 3) {
+                0 -> events.emit(RealtimeEvent.RemindersChanged) // changed elsewhere, on the hub
+                1 -> changes.changed(DataArea.Todos) // a notification's button on this phone
+                else -> server.api.remindersChanged() // a todo saved in the app
+            }
+
+            until("heard at once, round $round") { screen.shown.isNotEmpty() }
+        }
         scope.cancel()
     }
 
@@ -292,7 +314,6 @@ class TodayWidgetTests {
         val screen = Screen()
         val events = MutableSharedFlow<RealtimeEvent>(extraBufferCapacity = 4)
         widget(server, screen, events = events, listening = true).refresh()
-        withContext(Dispatchers.Default) { delay(200) } // the widget's listeners are up
 
         server.todos = listOf("Dentist" to "2026-11-13T20:00:00Z")
         events.emit(RealtimeEvent.RemindersChanged)

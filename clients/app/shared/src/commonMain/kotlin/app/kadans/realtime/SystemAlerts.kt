@@ -4,12 +4,12 @@ import app.kadans.notifications.showCycleNotice
 import app.kadans.notifications.showSystemNotification
 import app.kadans.pomodoro.CycleNotice
 import app.kadans.reminders.LocalReminders
+import app.kadans.sync.listen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 
 /**
  * Turns every pushed notification (phase changes, reminders — already localized server-side)
@@ -22,18 +22,17 @@ class SystemAlerts(private val realtime: KadansRealtime, private val localRemind
 
     fun start() {
         if (collector?.isActive == true) return
-        collector = scope.launch {
-            realtime.events.collect { event ->
-                if (event is RealtimeEvent.NotificationReceived) {
-                    // A reminder, where this device shows reminders itself: once, whether its timer or the hub is first.
-                    val notification = event.notification
-                    val reminder = LocalReminders.reminderOf(notification)
-                    val cycle = CycleNotice.of(notification.kind, notification.data, notification.title, notification.body)
-                    when {
-                        reminder != null && localReminders.showsReminders() -> localReminders.pushed(reminder)
-                        cycle != null -> showCycleNotice(cycle) // with "Another cycle" and "Done" where it can
-                        else -> showSystemNotification(notification.title, notification.body)
-                    }
+        // Heard from this call on (`listen`): a notification that arrives as the session starts is shown.
+        collector = scope.listen(realtime.events) { event ->
+            if (event is RealtimeEvent.NotificationReceived) {
+                // A reminder, where this device shows reminders itself: once, whether its timer or the hub is first.
+                val notification = event.notification
+                val reminder = LocalReminders.reminderOf(notification)
+                val cycle = CycleNotice.of(notification.kind, notification.data, notification.title, notification.body)
+                when {
+                    reminder != null && localReminders.showsReminders() -> localReminders.pushed(reminder)
+                    cycle != null -> showCycleNotice(cycle) // with "Another cycle" and "Done" where it can
+                    else -> showSystemNotification(notification.title, notification.body)
                 }
             }
         }

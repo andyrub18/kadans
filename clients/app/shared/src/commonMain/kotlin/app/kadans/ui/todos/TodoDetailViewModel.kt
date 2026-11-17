@@ -99,7 +99,7 @@ class TodoDetailViewModel(
 
     init {
         // Changed elsewhere (another device, a notification's button), or back in front: shown as it is now.
-        viewModelScope.launch { dataChanges.of(DataArea.Todos).collect { load(quiet = true) } }
+        dataChanges.reloadOn(viewModelScope, DataArea.Todos) { load(quiet = true) }
     }
 
     fun deleteTodo() {

@@ -454,7 +454,8 @@ started with `dotnet run` (Development) already sends there.
   Successful, fast requests are not logged; the metrics count them.
 - Rate limits, per client address (the real one: nginx replaces `X-Forwarded-For` with it; IPv6 counts per /64).
   Sign-up, forgot password, resend confirmation and email change: 5 per 15 minutes. Sign-in, 2FA codes and
-  password change: 20 a minute. Everything else: 300 a minute. Health checks are never limited. Calendar feed
+  password change: 20 a minute. "Export my data": 10 per 15 minutes (`RateLimiting__ExportPer15Minutes`).
+  Everything else: 300 a minute. Health checks are never limited. Calendar feed
   links are counted apart, 600 a minute per address (`RateLimiting__FeedPerMinute`: Google's and Apple's servers read
   many people's feeds from the same addresses), and each link 60 times an hour wherever from
   (`Tasks__CalendarFeedFetchesPerHour`). On top of

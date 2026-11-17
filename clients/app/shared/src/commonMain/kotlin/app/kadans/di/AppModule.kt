@@ -147,6 +147,8 @@ val appModule = org.koin.dsl.module {
     single { app.kadans.calendar.PhoneCalendarStore(get()) }
     single<app.kadans.calendar.PhoneCalendarSource> { app.kadans.calendar.platformPhoneCalendar() }
     single { app.kadans.calendar.PhoneCalendar(get(), get()) }
+    // One file in (a bank statement), one file out (a copy of the person's data), each through the system's own dialog.
+    single<app.kadans.files.FilePorts> { app.kadans.files.platformFilePorts() }
     // The desktop app's update check fills it (startUpdateChecks); phones are updated by their stores and leave it empty.
     single { app.kadans.updates.AppUpdates() }
     // A looping session's cycle done: its notice's "Another cycle" and "Done", in the app's language.
@@ -189,6 +191,20 @@ val appModule = org.koin.dsl.module {
     viewModel { params -> BudgetAddViewModel(get(), params.getOrNull<String>()) }
     viewModel { SettingsViewModel(get(), get(), get(), get(), get()) }
     viewModelOf(::CalendarFeedViewModel)
+    viewModel { app.kadans.ui.settings.DataExportViewModel(get(), get()) }
+    // A bank statement brought into the budget. Dates whose numbers say no order are read the American way for an
+    // account in English with a 12-hour clock, day first for everyone else; the person sees them and corrects.
+    viewModel {
+        val settings = get<Settings>()
+        app.kadans.ui.budget.StatementImportViewModel(
+            get(), get(),
+            fallbackOrder = {
+                val american = LanguageController.currentTag(settings).startsWith("en") &&
+                    ClockPreference.current(settings) == app.kadans.api.model.ClockFormat.TwelveHour
+                if (american) app.kadans.statement.StatementText.DateOrder.MonthDayYear else app.kadans.statement.StatementText.DateOrder.DayMonthYear
+            },
+        )
+    }
     factory { (mfaToken: String) -> MfaViewModel(get(), mfaToken) }
     factory { (restoreToken: String) -> KeepAccountViewModel(get(), restoreToken) }
     // A new todo, from nothing or from a text another app shared (its draft).

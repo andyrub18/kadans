@@ -124,6 +124,15 @@ internal sealed class BudgetDbContext(DbContextOptions<BudgetDbContext> options)
                 .HasDatabaseName("ix_transactions_user_occurred_desc")
                 .IsDescending(false, true);
             t.HasIndex(p => p.TransferAccountId);
+            // A statement's line is booked once per account, whatever is imported twice or at the same moment. The index
+            // only holds imported rows, so the account's own index is named here: by convention EF would take the new
+            // one for it and drop it, leaving an account's deletion to scan the table.
+            t.HasIndex(p => p.AccountId);
+            t.Property(p => p.ImportKey).HasMaxLength(Transaction.MaxImportKeyLength);
+            t.HasIndex(p => new { p.AccountId, p.ImportKey })
+                .IsUnique()
+                .HasFilter("import_key IS NOT NULL")
+                .HasDatabaseName("ux_transactions_account_import_key");
 
             t.HasQueryFilter(USER_FILTER, x => x.UserId == CurrentUserId);
         });

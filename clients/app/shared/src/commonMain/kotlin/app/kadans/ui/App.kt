@@ -36,6 +36,7 @@ import app.kadans.ui.auth.RegisterScreen
 import app.kadans.ui.auth.ResetPasswordScreen
 import app.kadans.ui.budget.BudgetAddScreen
 import app.kadans.ui.budget.BudgetScreen
+import app.kadans.ui.budget.StatementImportScreen
 import app.kadans.ui.calendar.CalendarScreen
 import app.kadans.ui.home.HomeScreen
 import app.kadans.ui.notifications.NotificationsScreen
@@ -87,6 +88,8 @@ data object BudgetRoute
 data object BudgetAddRoute
 /** A movement of the budget opened to correct it. */
 data class BudgetEditRoute(val transactionId: String)
+/** A bank statement brought into the budget (ARCHITECTURE → "Statements in, data out"). */
+data object BudgetImportRoute
 data class TodoDetailRoute(val todoId: String)
 data class EditTodoRoute(val todoId: String)
 /** [finishAtMillis]: when a new session should end by itself (epoch ms); null leaves the default, 12 hours. */
@@ -252,9 +255,11 @@ private fun KadansNav(
         }
     }
 
+    // A screen with steps of its own (a statement's import) goes one step back before Back leaves it.
+    val backSteps = remember { BackSteps() }
     NavDisplay(
         backStack = backStack,
-        onBack = { backStack.removeLastOrNull() },
+        onBack = { if (!backSteps.handled()) backStack.removeLastOrNull() },
         // Scope ViewModels to their nav entry: a screen gets a fresh ViewModel on every visit and the
         // old one is cleared when the entry is popped. Without this decorator every ViewModel lived in
         // the window/activity store and outlived its screen — a busy flag left set after a successful
@@ -359,7 +364,19 @@ private fun KadansNav(
                 is BudgetRoute -> NavEntry(key) {
                     val s = LocalStrings.current
                     Destination(MainTab.Budget, s.budget, AddAction(s.nav.newMovement) { backStack.add(BudgetAddRoute) }) { modifier ->
-                        BudgetScreen(onEditTransaction = { id -> backStack.add(BudgetEditRoute(id)) }, modifier = modifier)
+                        BudgetScreen(
+                            onEditTransaction = { id -> backStack.add(BudgetEditRoute(id)) },
+                            onImport = { backStack.add(BudgetImportRoute) },
+                            modifier = modifier,
+                        )
+                    }
+                }
+                is BudgetImportRoute -> NavEntry(key) {
+                    CompositionLocalProvider(LocalBackSteps provides backSteps) {
+                        StatementImportScreen(
+                            onDone = { backStack.removeLastOrNull() },
+                            onBack = { backStack.removeLastOrNull() },
+                        )
                     }
                 }
                 is BudgetAddRoute -> NavEntry(key) {

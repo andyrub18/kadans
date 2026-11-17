@@ -379,6 +379,11 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                         .HasColumnType("character varying(8)")
                         .HasColumnName("currency");
 
+                    b.Property<string>("ImportKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("import_key");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -426,6 +431,11 @@ namespace Kadans.Modules.Budget.Persistence.Migrations
                     b.HasIndex("CategoryId");
 
                     b.HasIndex("TransferAccountId");
+
+                    b.HasIndex("AccountId", "ImportKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_transactions_account_import_key")
+                        .HasFilter("import_key IS NOT NULL");
 
                     b.HasIndex("UserId", "OccurredAt")
                         .IsDescending(false, true)

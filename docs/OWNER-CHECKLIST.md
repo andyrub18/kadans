@@ -305,6 +305,16 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
+- [ ] Statements in, data out (2026-11-16), with the next builds: on your computer or your phone, Budget → "Import a
+      statement" with a file downloaded from a bank's site (CSV, OFX, QFX or CAMT.053; a PDF is answered with what to
+      ask the bank for instead, and a Haitian bank's statement is usually one: an account abroad, or any export you can
+      get as CSV, is the test). Check the columns screen read the dates and the amounts right, import, then import the same
+      file again: every line should be "Already in this account". Then Settings → "My data" → "Save a copy of my
+      data", and open the zip: `budget/movements.csv` in Excel (accents, amounts), `todos/todos.ics` in a calendar.
+      Play Console → App content → Data safety: nothing new for the file (it is read on the phone and never sent).
+      The lines kept are budget movements like those typed by hand; look that the form declares the budget
+      ("Financial info" → "Other financial info": collected, not shared, for the app's own working) and tick it if it
+      does not. The export is the "copy of your data" the privacy policy now points to.
 - [ ] The phone's calendar (2026-11-16), with the next Android build on your phone: Calendar tab → "Show this phone's
       calendar here?" → Turn on → Allow. Your meetings should show on Home and in the Calendar tab, outlined, with their
       calendar's colour; a tap opens one in your calendar app. If your todos are in Google Calendar through the feed,

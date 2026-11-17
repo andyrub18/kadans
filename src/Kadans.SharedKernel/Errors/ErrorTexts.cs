@@ -116,6 +116,11 @@ public static class ErrorTexts
     {
         // --- todos and recurrence ---
         ["Title is required."] = new("Le titre est obligatoire.", "Tit la obligatwa."),
+        ["There is nothing to import."] = new("Il n'y a rien à importer.", "Pa gen anyen pou enpòte."),
+        ["At most 500 lines can be imported at once."] = new("On peut importer 500 lignes au plus à la fois.", "Ou ka enpòte 500 liy pou pi plis yon sèl kou."),
+        ["A statement's line is missing what names it."] = new("Il manque à une ligne du relevé ce qui la désigne.", "Gen yon liy nan relve a ki manke sa ki idantifye l."),
+        ["A statement's lines are income or expenses, not transfers."] = new("Les lignes d'un relevé sont des revenus ou des dépenses, pas des transferts.", "Liy yon relve se revni oswa depans, se pa transfè."),
+        ["This statement is being imported from somewhere else. Try again in a moment."] = new("Ce relevé est en cours d'import ailleurs. Réessayez dans un moment.", "Y ap enpòte relve sa a yon lòt kote. Eseye ankò talè."),
         ["A title can have at most 500 characters."] = new("Un titre peut avoir 500 caractères au plus.", "Yon tit ka gen 500 karaktè pou pi plis."),
         ["A description can have at most 4,000 characters."] = new("Une description peut avoir 4 000 caractères au plus.", "Yon deskripsyon ka gen 4 000 karaktè pou pi plis."),
         ["Due date must be in the future."] = new("L'échéance doit être dans le futur.", "Dat limit la dwe nan lavni."),

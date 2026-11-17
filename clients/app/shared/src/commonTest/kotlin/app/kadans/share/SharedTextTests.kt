@@ -30,7 +30,7 @@ class SharedTextTests {
             TodoDraft("example.com", "https://www.example.com/articles/balance-sheet"),
             SharedText.draft(null, "https://www.example.com/articles/balance-sheet"),
         )
-        assertEquals("unibank.ht", SharedText.draft("", "HTTPS://unibank.ht/")?.title)
+        assertEquals("example.ht", SharedText.draft("", "HTTPS://example.ht/")?.title)
     }
 
     @Test

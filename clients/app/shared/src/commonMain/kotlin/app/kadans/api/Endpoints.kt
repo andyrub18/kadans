@@ -1,12 +1,14 @@
 package app.kadans.api
 
 import app.kadans.api.model.*
+import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.http.isSuccess
 import kotlin.time.Instant
 import kotlinx.serialization.Serializable
 
@@ -95,6 +97,16 @@ class AccountApi internal constructor(private val api: KadansApi) {
             .orThrow<Success>()
         api.tokenStore.save(null)
         api.invalidateTokenCache()
+    }
+
+    /**
+     * "Export my data": one zip with what the person put in Kadans (the budget as CSV, the todos as a calendar file and
+     * as CSV). Its bytes, for the person to save where they choose; nothing of it is kept here.
+     */
+    suspend fun export(): ByteArray {
+        val response = api.http.get("users/me/export")
+        if (!response.status.isSuccess()) response.orThrow<Success>()
+        return response.body()
     }
 
     /** Sends a confirmation link to [newEmail]; the address changes once that link is opened. */
@@ -316,6 +328,9 @@ class BudgetApi internal constructor(private val api: KadansApi) {
     companion object {
         /** The longest note a movement keeps (the server's `Transaction.MaxNoteLength`). */
         const val NOTE_LENGTH = 1000
+
+        /** The most lines of a statement one request books (the server's `TransactionImportService.MaxPerRequest`). */
+        const val IMPORT_AT_ONCE = 500
     }
 
     suspend fun accounts(includeArchived: Boolean = false): List<AccountResponse> =
@@ -374,6 +389,17 @@ class BudgetApi internal constructor(private val api: KadansApi) {
     suspend fun deleteTransaction(id: String) {
         api.http.delete("budget/transactions/$id").orThrow<Success>()
     }
+
+    /**
+     * What an account already has of its statements (their keys), and the person's texts with their categories: the
+     * app compares a statement's lines with them on the device. Nothing of the statement is sent to ask.
+     */
+    suspend fun importKnown(accountId: String): ImportKnownResponse =
+        api.http.get("budget/transactions/import/known") { parameter("accountId", accountId) }.orThrow()
+
+    /** Books a statement's lines, [IMPORT_AT_ONCE] at most; those the account already has are skipped. */
+    suspend fun import(request: ImportTransactions): ImportTransactionsResponse =
+        api.http.post("budget/transactions/import/") { setBody(request) }.orThrow()
 
     suspend fun recurring(): List<RecurringTransactionResponse> =
         api.http.get("budget/recurring/").orThrow()

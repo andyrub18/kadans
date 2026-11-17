@@ -148,7 +148,10 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
       link used to 404), in-app Forgot/Reset screens, and a kadans:// deep link on Android;
       client CI workflow (jvmTest + desktop + Android assemble) on clients/** changes
 - [x] Client CI job: `.github/workflows/client.yml` (jvmTest + desktop + Android assemble) on `clients/**`;
-      backend CI (`ci.yml`) ignores `clients/**`
+      backend CI (`ci.yml`) ignores `clients/**`. Since 2026-11-16 it first compiles the shared code against common
+      Kotlin alone (`:shared:compileCommonMainKotlinMetadata`): the iPhone target is not built on Linux, and a call
+      that exists on the JVM and Android only passed everything else (found with the statement import: a regex
+      option, caught before it was pushed).
 
 ## Phase 7 – Budget module
 
@@ -965,6 +968,33 @@ installing on real devices second, hosting last.
         through the feed, that none shows twice.
       - [ ] Later, if testers ask: a warning when a focus session would run into a meeting; the iPhone's calendar with
         the iPhone app.
+- [x] 2026-11-16, the sixth and last integration from that feedback: statements in, data out (ARCHITECTURE →
+      "Statements in, data out"), on the desktop and on Android.
+      In: Budget → "Import a statement" takes a file downloaded from a bank (CSV, OFX, QFX or camt.053, the ISO
+      20022 statement), reads it on the device and books the lines the person keeps on the account they chose. A CSV file's columns are guessed and corrected
+      on one screen, with the first lines read that way; the lines are then checked one by one, each with a category
+      (suggested from the person's earlier movements of the same text). A line is booked once: the same statement
+      again, or the next one that overlaps it, shows those lines set aside and adds nothing twice. The file itself
+      never reaches the server, and nothing of a line leaves the device before "Import" (the app asks what the
+      account already holds and compares there); the privacy policy says so.
+      Out: Settings → "My data" saves one zip where the person says, with everything they put in Kadans as files a
+      spreadsheet and a calendar open: the budget (movements, accounts, categories and limits, recurring movements,
+      rates), the todos (a calendar file, the list, the history with notes), the focus sessions and cycles, the
+      account's own details. For every account, subscribed or not; the page that deletes the account points to it.
+      Checked: the server's tests (390), the app's (494: the reader with files as banks make them, the import's
+      steps, the file dialogs), `budget_flows.py` (the import and its refusals, the export's eleven files), the
+      desktop and Android builds, and on the emulator (Android 15) with a local API everything listed in
+      ARCHITECTURE. Not checked: a real bank's own export, the import screens on Windows and macOS, the iPhone.
+      Known since: a Haitian bank's statement is usually a PDF, which is answered and not read, so the import
+      serves accounts abroad first.
+      - [ ] By the owner: download a statement from your own bank (CSV if it offers it) and import it on the desktop
+        app or the phone; tell me what the columns screen guessed wrong, if anything, and send me the file's first
+        two lines with the amounts changed if a column was not recognised. Then Settings → "My data" and open the
+        zip.
+      - [ ] Later, if testers ask: the two sides of a transfer between one's own accounts matched into a transfer;
+        categories suggested for a text that is nearly the same (a date or a number in it); a movement deleted after
+        an import remembered as not wanted; the iPhone's document picker with the iPhone app; a statement as PDF
+        (a reader per bank's layout: it needs two or three sample statements of each bank, names and amounts changed).
 
 Nice-to-have hardening
 

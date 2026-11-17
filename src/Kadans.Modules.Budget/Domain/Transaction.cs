@@ -44,6 +44,20 @@ internal sealed class Transaction
     /// <summary>Set when a recurring rule materialized this row.</summary>
     public Guid? RecurringTransactionId { get; init; }
 
+    /// <summary>
+    /// Set when the movement came from a bank statement (ARCHITECTURE → "Statements in, data out"): what names that
+    /// line of the statement, made by the app from the line itself (the bank's own id for it, or its date, amount and
+    /// text). One per account: the same line imported again, from the same file or an overlapping one, is recognised
+    /// and not booked twice. It says nothing about the person's bank account.
+    /// </summary>
+    public string? ImportKey { get; init; }
+
+    public const int MaxImportKeyLength = 64;
+
+    /// <summary>What an import key is made of: letters, digits and a few signs, so that it is never text to interpret.</summary>
+    public static bool IsImportKey(string? key) =>
+        key is { Length: > 0 and <= MaxImportKeyLength } && key.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or ':' or '.');
+
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -132,7 +146,8 @@ internal sealed class Transaction
         string note,
         Account? transferAccount,
         decimal? transferAmount,
-        Guid? recurringTransactionId = null
+        Guid? recurringTransactionId = null,
+        string? importKey = null
     )
     {
         var checkedMove = CheckNew(account, kind, amount, category, note, transferAccount, transferAmount);
@@ -152,6 +167,7 @@ internal sealed class Transaction
             TransferAccountId = transferAccount?.Id,
             TransferAmount = checkedMove.AsT1,
             RecurringTransactionId = recurringTransactionId,
+            ImportKey = importKey,
         };
     }
 

@@ -13,11 +13,11 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 
 - `src/Kadans.Api` – host only: Serilog, OpenAPI/Scalar, JSON, authorization fallback, rate limiting and admission
   control (load shedding), metrics, module wiring.
-- `src/Kadans.Modules.Identity` – users, auth, tokens, profile (`identity` schema).
+- `src/Kadans.Modules.Identity` – users, auth, tokens, profile, "export my data" (`identity` schema).
 - `src/Kadans.Modules.Tasks` – todos, occurrences, pomodoro, Quartz jobs, the calendar feed (`tasks` schema).
 - `src/Kadans.Modules.Notifications` – notification log, SignalR hub `/hubs/kadans`, push (FCM) (`notifications` schema).
 - `src/Kadans.Modules.Budget` – accounts, categories, transactions/transfers, recurring money, monthly
-  summary, base currency + rates (`budget` schema).
+  summary, base currency + rates, a bank statement's lines imported once (`budget` schema).
 - `src/Kadans.Modules.Billing` – subscriptions as the stores report them (Google Play now, Apple with the iPhone app),
   phone access for push and for the calendar feed (`billing` schema). `Billing:Required` is off until the store product is live.
 - `src/Kadans.SharedKernel` – errors/ProblemDetails, `ICurrentUserService`, snake_case naming,
@@ -92,8 +92,10 @@ the task, notification, reminder, session, calendar feed, pomodoro and budget sc
 Subscriptions → Free accounts); `python3 tools/demo/seed_demo.py <username> [--language fr]` fills an empty demo account
 for the store screenshots (Google Play's listing: `store/play/`, checked by `tools/store/play.py check`); `python3 tools/smoke/budget_flows.py` for accounts, transfers with exchange, category
 limits (periods, other currencies at the person's rate, the 80% and 100% alerts), summary, correcting a movement
-(another account, another destination) and recurring rules, transfers too, on the todo's day parts (the 15th and the
-30th, the last Friday) (restart the API right before: the recurring job's first pass runs ~15 s after boot).
+(another account, another destination), recurring rules, transfers too, on the todo's day parts (the 15th and the
+30th, the last Friday), a bank statement's lines (booked once however often they are sent, their refusals) and "export
+my data" (the zip's files, a formula defused) (restart the API right before: the recurring job's first pass runs ~15 s
+after boot; the account in English: the alerts are read in it).
 In Development nothing applies migrations at startup – run the five `dotnet ef database update` commands above
 first. Production does (`Database:MigrateOnStartup`, set by the image): Kadans runs as exactly one instance.
 Anything a production host needs must be in `appsettings.json` or an environment variable, never only in
@@ -118,9 +120,13 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `WithName/WithSummary/Produces*` for OpenAPI. A paged list checks `Paging.Check(page, pageSize)` first
   (pages from 1, at most 100 a page).
 - An endpoint that mails an address the caller chooses gets `.RequireRateLimiting(RateLimitPolicies.Email)`.
-  One that checks a password or a code gets `RateLimitPolicies.Credentials`. Everything else is under the
-  host's global per-client limit. Development's limits are generous (`appsettings.Development.json`), so
+  One that checks a password or a code gets `RateLimitPolicies.Credentials`. One that hands over a whole account in
+  one answer gets `RateLimitPolicies.Export`. Everything else is under the host's global per-client limit. Development's limits are generous (`appsettings.Development.json`), so
   the smoke scripts never hit them.
+- A module that keeps something a person put in hands it over in "export my data" as it erases it with the account:
+  `IUserDataExporter` beside `IUserDataEraser` (SharedKernel), files a person can read (names, not ids; their time
+  zone), text cells through `SharedKernel/Text/Csv` (it defuses what a spreadsheet would run). Never a hash, a token or
+  a secret link (ARCHITECTURE → "Statements in, data out").
 - An address that is its own credential (the calendar feed's link: read without a sign-in, the secret in the path)
   goes under a prefix in `SharedKernel/Http/SecretLinks`: the host then keeps it out of every log line
   (`Telemetry.HideSecretLinks`) and counts it apart from the API's rate limit. Never log such a path yourself, never
@@ -174,7 +180,8 @@ Anything a production host needs must be in `appsettings.json` or an environment
 everything lives in `shared` (KMP library, package `app.kadans`); `androidApp`, `desktopApp`
 and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
 `./gradlew :desktopApp:run`, `:androidApp:assembleDebug`, `:shared:jvmTest`.
-iOS needs a Mac (open `iosApp/iosApp.xcodeproj`). Release bundles for Google Play are signed with the owner's
+iOS needs a Mac (open `iosApp/iosApp.xcodeproj`): no Linux machine compiles it, so after touching `commonMain` run
+`./gradlew :shared:compileCommonMainKotlinMetadata` (CI does), which refuses what exists on the JVM and Android only. Release bundles for Google Play are signed with the owner's
 upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subscriptions in the app go through
 `billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
 acknowledges a purchase. Reminders ring from the device through `reminders/LocalReminders` (the window the server hands
@@ -197,7 +204,15 @@ from any app's share sheet, or a selection's "Add to Kadans") opens the new-todo
 itself: `share/SharedText` (the text read as a title and a description, cleaned and cut: it is another app's, never
 trusted), `SharedTodoRoute` and `SharedTodoScreen` (alone on the screen, back to the other app when done, the session and
 the paywall first; ARCHITECTURE → "Share to Kadans"). A todo's title holds 500 characters and its description 4,000
-(`TodosApi.TITLE_LENGTH`, `DESCRIPTION_LENGTH`, the server's `Todo.Max…`): a form field for either stops there. The
+(`TodosApi.TITLE_LENGTH`, `DESCRIPTION_LENGTH`, the server's `Todo.Max…`): a form field for either stops there. A bank
+statement comes into the budget (Budget → "Import a statement"; desktop and Android) read on the device and never
+sent: `statement/` (CSV, OFX and camt.053 read as banks write them, pure and tested: a CSV file's columns are guessed
+and the person confirms, the standards need no guess; the keys that name a line so an account books it once), `ui/budget/StatementImportViewModel` and `StatementImportScreen` (the file, a CSV file's columns, the
+lines to check); only the lines kept go to the server. Never upload the file, never trust its text (plain, cut:
+`Statements.note`), and never read an amount through a floating number. A file comes in or goes out (the import,
+Settings → "My data") through `files/FilePorts`, the system's own dialog: no storage permission, and what needs it is
+not shown where `available` is false (iOS for now). A screen with steps of its own takes Back one step at a time with
+`ui/BackSteps` (`OnBackStep`); ARCHITECTURE → "Statements in, data out". The
 phone's calendar beside the todos (Android, off by default) is `calendar/PhoneCalendar` (the switch, the permission,
 what is shown) and `calendar/AndroidPhoneCalendar` (the system's calendar provider, read-only); `ui/calendar/DayItems`
 puts events and todos in one day's list (ARCHITECTURE → "The phone's calendar"). Its events are read when a screen shows

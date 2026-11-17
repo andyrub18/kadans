@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import app.kadans.api.AuthTokens
 import app.kadans.api.InMemoryTokenStore
 import app.kadans.api.KadansApi
@@ -16,24 +17,21 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 
 class AuthViewModelTests {
     private val dispatcher = StandardTestDispatcher()
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private fun api(
         store: InMemoryTokenStore = InMemoryTokenStore(),

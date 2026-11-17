@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import app.kadans.api.KadansApi
 import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.ui.budget.BudgetAddViewModel
@@ -20,14 +21,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -43,10 +41,10 @@ class BudgetEditTests {
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private fun account(id: String, name: String, currency: String, archived: Boolean = false) =
         """{"id":"$id","name":"$name","currency":"$currency","type":"Cash","initialBalance":0,"balance":0,""" +

@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import app.kadans.api.AuthTokens
 import app.kadans.api.InMemoryTokenStore
 import app.kadans.api.KadansApi
@@ -26,9 +27,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -39,10 +38,10 @@ class GoogleLoginTests {
         """{"accessToken":"a","expiresAt":"2027-01-01T13:00:00Z","refreshToken":"r","refreshTokenExpireAt":"2027-01-08T12:00:00Z","mfaRequired":false}"""
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private class FakeGoogle(
         override val isSupported: Boolean = true,

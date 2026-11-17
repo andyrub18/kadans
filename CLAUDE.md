@@ -181,7 +181,10 @@ everything lives in `shared` (KMP library, package `app.kadans`); `androidApp`, 
 and `iosApp` are thin launchers. Build with the wrapper from `clients/app`:
 `./gradlew :desktopApp:run`, `:androidApp:assembleDebug`, `:shared:jvmTest`.
 iOS needs a Mac (open `iosApp/iosApp.xcodeproj`): no Linux machine compiles it, so after touching `commonMain` run
-`./gradlew :shared:compileCommonMainKotlinMetadata` (CI does), which refuses what exists on the JVM and Android only. Release bundles for Google Play are signed with the owner's
+`./gradlew :shared:compileCommonMainKotlinMetadata` (CI does), which refuses what exists on the JVM and Android only.
+A view model's test sets `Dispatchers.Main` with `TestMain.set` in `@BeforeTest` and gives it back with
+`TestMain.reset` in `@AfterTest` (commonTest), never `Dispatchers.setMain` and `resetMain` themselves: a mock server's
+late answer otherwise fails a test that passed, now and then (`TestMainUseTest` checks it). Release bundles for Google Play are signed with the owner's
 upload key, configured outside the repo (DEPLOYMENT → Building the apps). Subscriptions in the app go through
 `billing/StoreBilling` (Play Billing on Android) and are only ever granted by the server's answer; the app never
 acknowledges a purchase. Reminders ring from the device through `reminders/LocalReminders` (the window the server hands

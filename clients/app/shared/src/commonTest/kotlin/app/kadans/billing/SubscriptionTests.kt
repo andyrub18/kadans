@@ -1,5 +1,6 @@
 package app.kadans.billing
 
+import app.kadans.TestMain
 import app.kadans.api.AuthTokens
 import app.kadans.api.InMemoryTokenStore
 import app.kadans.api.KadansApi
@@ -30,12 +31,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 
 /**
  * The phone's side of the subscription: the gate before Home (desktop is free; an unreachable server locks no one out;
@@ -47,10 +45,10 @@ class SubscriptionTests {
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     private fun status(required: Boolean = true, hasAccess: Boolean = false, state: String? = null, store: String? = null, fakeStore: Boolean = false) =
         """{"required":$required,"hasAccess":$hasAccess${state?.let { ""","state":"$it"""" } ?: ""}${store?.let { ""","store":"$it"""" } ?: ""},""" +

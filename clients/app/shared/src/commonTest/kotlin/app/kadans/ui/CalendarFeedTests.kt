@@ -1,5 +1,6 @@
 package app.kadans.ui
 
+import app.kadans.TestMain
 import app.kadans.api.KadansApi
 import app.kadans.api.model.DevicePlatform
 import app.kadans.i18n.CreoleStrings
@@ -30,10 +31,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -46,10 +45,10 @@ class CalendarFeedTests {
     private val jsonHeaders = headersOf(HttpHeaders.ContentType, "application/json")
 
     @BeforeTest
-    fun before() = Dispatchers.setMain(dispatcher)
+    fun before() = TestMain.set(dispatcher)
 
     @AfterTest
-    fun after() = Dispatchers.resetMain()
+    fun after() = TestMain.reset()
 
     /** The server: the account's feed, off or on with link number [link]; [reachable] false: offline. */
     private inner class Server {

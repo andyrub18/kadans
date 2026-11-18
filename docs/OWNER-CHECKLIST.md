@@ -272,11 +272,33 @@ Both:
 - [x] The first desktop release, v1.0.0 (2026-11-01): `https://kadansplanning.com/download`'s buttons work.
 - [x] v1.1.0, the first in the stores (2026-11-05): its release brings the new navigation, dates, clock and dark mode
       to the site's installers, announces them to the installed 1.0.0 apps, and carries the Microsoft Store's `.msix`.
-- [ ] v1.1.1: the desktop on a company network (its proxy, and the certificate authorities Windows trusts) and a Google
+- [x] v1.1.1: the desktop on a company network (its proxy, and the certificate authorities Windows trusts) and a Google
       button that no longer goes missing. Not before the Windows build connects on the company PC (`Kadans
       --network-check`, ARCHITECTURE → "The desktop app: in the tray, once"). Then `git tag v1.1.1 && git push origin v1.1.1`, then a new Partner Center
       submission with that release's `kadans-microsoft-store-x64.msix`. Android takes it with its next upload.
-      Tagged and released 2026-11-12 (GitHub's release `v1.1.1`); what is left is the Partner Center submission.
+      Tagged and released 2026-11-12 (GitHub's release `v1.1.1`); its `.msix` went to Partner Center the same day,
+      and Microsoft certified it: the Store's copy works (2026-11-18).
+- [ ] v1.2.0 (prepared 2026-11-17): November's six integrations (the calendar link, the home-screen widget, Do Not
+      Disturb during focus, Share to Kadans, the phone's calendar, statements in and data out) and the sealed session.
+      Test it before tagging, in this order:
+      1. **The server first**: deploy `main` (DEPLOYMENT → Updating). A 1.2.0 app asks for what an older server does
+         not have, and shows errors that are not bugs.
+      2. **Linux**: the `.deb` the release workflow built for the version's pull request (GitHub → Actions → Release →
+         that run → Artifacts → `linux`; `gh run download <run id> -n linux` from a terminal), installed over the
+         1.1.1 you use (`sudo apt install ./kadans-linux-amd64.deb`). It must open signed in, without asking. Do not
+         start a build from source before that (`./gradlew :desktopApp:run`): it shares the installed app's settings
+         and would seal the session, and the installed 1.1.1 would then find itself signed out.
+      3. **Android**: a bundle with `-Pkadans.versionCode=2` (DEPLOYMENT → Building the apps), uploaded to the
+         **internal testing** track with `store/play/<language>/changelogs/2.txt` as its release notes, then updated
+         from Play on your phone: it must open signed in. Not with adb: a build signed with another key does not
+         install over Play's copy, and uninstalling first wipes the very session the update must carry over.
+      4. **Satisfied**: `git tag v1.2.0 && git push origin v1.2.0` (DEPLOYMENT → Releasing the desktop app), a new
+         Partner Center submission with that release's `.msix`, the same Play bundle promoted to the closed test, and
+         both stores' descriptions updated from `store/play/<language>/full_description.txt`.
+      The stores' screenshots were retaken for 1.2 (2026-11-18): upload them with the descriptions, Play's eight per
+      language from `store/play/<language>/images/phoneScreenshots/` (the widget on a home screen is new; Settings
+      gave it its place) and the Microsoft Store's seven from `store/microsoft/<language>/screenshots/`. If a test
+      changes a screen that is in them, that picture is taken again.
 - [ ] Microsoft Store (Partner Center, an "MSIX or PWA app" named Kadans: identity `AndersonRuban.Kadans`, Store ID
       9NPHCHB96T03, already in `clients/app/desktopApp/msix/AppxManifest.xml`). A submission's Packages page takes
       `kadans-microsoft-store-x64.msix` from the GitHub Release (DEPLOYMENT → Releasing the desktop app); before the

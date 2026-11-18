@@ -470,7 +470,7 @@ val CreoleStrings = StringsCatalog(
     cycleDialogTitle = "Sik Pomodoro", cycleNone = "Okenn (otomatik nan premye demaraj la)", close = "Fèmen",
     startFocus = "Kòmanse yon seyans konsantrasyon", openFocus = "Ouvri seyans lan",
     repeatUntilFinish = "Repete sik la jiskaske m fini", handsFree = "Otomatik (li avanse epi voye notifikasyon pou kont li)",
-    focus = "Konsantrasyon", breakWord = "Poz", lapWord = "Tou", phaseWord = "faz", ofWord = "sou",
+    focus = "Konsantrasyon", breakWord = "Poz", lapWord = "Sik", phaseWord = "faz", ofWord = "sou",
     paused = "An poz", pause = "Mete an poz", resume = "Kontinye", nextPhase = "Faz k ap vini an",
     finishSession = "Fini seyans lan", discard = "Jete l", endSession = "Kanpe seyans lan",
     pomodoroComplete = "Pomodoro fini", wellDoneMore = "Bèl travay! Ou bezwen plis tan?",

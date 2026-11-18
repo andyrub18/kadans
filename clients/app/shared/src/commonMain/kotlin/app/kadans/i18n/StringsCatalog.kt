@@ -945,6 +945,8 @@ data class StringsCatalog(
     // pomodoro
     val focus: String,
     val breakWord: String,
+    /** One run of the cycle on the session screen ("Cycle 2 · phase 3 of 8"). The app says "cycle", as the notice
+     *  does ("Cycle 2 done"); "lap" is the code's word for it. */
     val lapWord: String,
     val phaseWord: String,
     val ofWord: String,

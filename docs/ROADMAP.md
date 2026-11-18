@@ -1014,6 +1014,24 @@ installing on real devices second, hosting last.
         an import remembered as not wanted; the iPhone's document picker with the iPhone app; a statement as PDF
         (a reader per bank's layout: it needs two or three sample statements of each bank, names and amounts changed).
 
+- [ ] Version 1.2.0, prepared 2026-11-17 for the owner's tests (OWNER-CHECKLIST → v1.2.0): everything since 1.1.1,
+      which is November's six integrations, the sealed session, and Windows' own tray menu. `kadans.version` is 1.2.0,
+      the desktop's release notes are in `clients/app/releases/1.2.0.json`, Play's "What's new" for the second upload
+      in `store/play/<language>/changelogs/2.txt`, and the stores' description and the website's home page now say
+      what the app does (they stopped at 1.1). Not released: the tag comes after the tests, on Linux first (the
+      installer the release workflow builds for the pull request, over the installed 1.1.1), then on Android through
+      Play's internal testing track (an update from Play is the only way to see the session carried over).
+      - [x] The stores' screenshots retaken for 1.2 (2026-11-18), English and French. Play's eight
+        (`store/play/<language>/images/phoneScreenshots/`): Home, the widget on a home screen (new), a reminder
+        ringing with its buttons, a todo with its cycle, a focus session with the offer to silence the phone, the
+        calendar with the offer to show the phone's own, the budget month, and its limits with the recurring salary
+        and "Import a statement"; Settings left the set to make room. The Microsoft Store's seven
+        (`store/microsoft/<language>/screenshots/`) are the same screens as before, as they are today. On the way:
+        the demo script gave the salary rule no time zone, so it read "· UTC" beside a Port-au-Prince account; and the
+        session screen said "Lap 1 · phase 1 of 8" ("Tour", "Tou") where the notice and the todo's screen say
+        "cycle": it says "Cycle 1" now, in the three languages.
+      - [ ] After the tests: the tag, the Partner Center submission, the closed test.
+
 Nice-to-have hardening
 
 - [ ] Integration tests with Testcontainers (Phase 3 leftover); unit tests for Identity and Notifications

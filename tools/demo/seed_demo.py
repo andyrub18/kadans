@@ -215,7 +215,8 @@ def main():
     while salary_day <= now:
         salary_day = (salary_day.replace(day=1) + dt.timedelta(days=32)).replace(day=1)
     api.call("POST", "/budget/recurring/", {"accountId": bank["id"], "kind": "Income", "amount": 85000, "categoryId": category["salary"],
-                                           "recurrence": {"frequency": "Monthly", "startDate": iso(salary_day)}})
+                                           "recurrence": {"frequency": "Monthly", "startDate": iso(salary_day),
+                                                          "timeZone": args.time_zone}})
     print(f"  budget 4 accounts, 7 categories (3 with a limit), {len(movements) + 2} movements in {month:%B %Y}, the salary monthly")
     print(f"\nDone. Home shows today's todos from {first:%H:%M}; take the screenshots within a few hours.")
 

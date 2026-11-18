@@ -470,7 +470,7 @@ val EnglishStrings = StringsCatalog(
     cycleDialogTitle = "Pomodoro cycle", cycleNone = "None (default on first start)", close = "Close",
     startFocus = "Start focus session", openFocus = "Open focus session",
     repeatUntilFinish = "Repeat the cycle until I finish", handsFree = "Hands-free (advance + notify automatically)",
-    focus = "Focus", breakWord = "Break", lapWord = "Lap", phaseWord = "phase", ofWord = "of",
+    focus = "Focus", breakWord = "Break", lapWord = "Cycle", phaseWord = "phase", ofWord = "of",
     paused = "Paused", pause = "Pause", resume = "Resume", nextPhase = "Next phase",
     finishSession = "Finish session", discard = "Discard", endSession = "End session",
     pomodoroComplete = "Pomodoro complete", wellDoneMore = "Well done. Need more time on this?",

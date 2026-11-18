@@ -470,7 +470,7 @@ val FrenchStrings = StringsCatalog(
     cycleDialogTitle = "Cycle Pomodoro", cycleNone = "Aucun (défaut au premier démarrage)", close = "Fermer",
     startFocus = "Démarrer une session", openFocus = "Ouvrir la session",
     repeatUntilFinish = "Répéter le cycle jusqu'à ce que je termine", handsFree = "Mains libres (avance + notifie automatiquement)",
-    focus = "Concentration", breakWord = "Pause", lapWord = "Tour", phaseWord = "phase", ofWord = "sur",
+    focus = "Concentration", breakWord = "Pause", lapWord = "Cycle", phaseWord = "phase", ofWord = "sur",
     paused = "En pause", pause = "Pause", resume = "Reprendre", nextPhase = "Phase suivante",
     finishSession = "Terminer la session", discard = "Abandonner", endSession = "Arrêter la session",
     pomodoroComplete = "Pomodoro terminé", wellDoneMore = "Bravo ! Besoin de plus de temps ?",

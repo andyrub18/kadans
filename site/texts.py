@@ -40,14 +40,17 @@ TEXTS = {
                    "shows how long you really focused.",
         "f3_title": "A budget in your currencies",
         "f3_text": "Accounts in gourdes, US and Canadian dollars, euros, Dominican and Mexican pesos. Transfers with "
-                   "their exchange, limits per category, and the salary that books itself every month.",
+                   "their exchange, limits per category, and the salary that books itself every month. Bring in a "
+                   "statement from your bank instead of typing it.",
         "home_sync_title": "Your phone and your computer, in step",
         "home_sync_text": "Mark a task done on one, and it is done on the other. Reminders ring on your phone even "
-                          "without internet, and the computer app waits quietly by the clock.",
+                          "without internet, and the computer app waits quietly by the clock. Your tasks also show "
+                          "in your calendar and on your phone's home screen.",
         "home_languages": "In English, French and Kreyòl.",
         "home_private_title": "Yours, and only yours",
         "home_private_text": "No ads, no tracking, nothing sold. Kadans keeps your data on its own server, and shares "
-                             "it only to deliver your notifications and emails.",
+                             "it only to deliver your notifications and emails. Take a copy of everything you put "
+                             "in whenever you want.",
         "home_private_link": "How we handle your data",
 
         "dl_title": "Download Kadans",
@@ -155,15 +158,17 @@ TEXTS = {
         "f3_title": "Un budget dans vos devises",
         "f3_text": "Des comptes en gourdes, en dollars américains et canadiens, en euros, en pesos dominicains et "
                    "mexicains. Des virements avec leur change, des limites par catégorie, et le salaire qui "
-                   "s'inscrit tout seul chaque mois.",
+                   "s'inscrit tout seul chaque mois. Importez un relevé de votre banque au lieu de le saisir.",
         "home_sync_title": "Votre téléphone et votre ordinateur, au même pas",
         "home_sync_text": "Marquez une tâche comme faite sur l'un, elle l'est sur l'autre. Les rappels sonnent sur "
                           "votre téléphone même sans internet, et l'application pour ordinateur attend discrètement "
-                          "près de l'horloge.",
+                          "près de l'horloge. Vos tâches apparaissent aussi dans votre calendrier et sur l'écran "
+                          "d'accueil de votre téléphone.",
         "home_languages": "En français, en anglais et en kreyòl.",
         "home_private_title": "À vous, et à vous seul",
         "home_private_text": "Pas de publicité, pas de pistage, rien n'est vendu. Kadans garde vos données sur son "
-                             "propre serveur, et ne les partage que pour livrer vos notifications et vos e-mails.",
+                             "propre serveur, et ne les partage que pour livrer vos notifications et vos e-mails. "
+                             "Gardez une copie de tout ce que vous y avez mis quand vous voulez.",
         "home_private_link": "Comment nous traitons vos données",
 
         "dl_title": "Télécharger Kadans",
@@ -271,14 +276,17 @@ TEXTS = {
                    "li montre konbyen tan ou te vrèman konsantre.",
         "f3_title": "Yon bidjè nan lajan pa w",
         "f3_text": "Kont an goud, an dola ameriken ak kanadyen, an ewo, an peso dominiken ak meksiken. Transfè ak "
-                   "chanj yo, limit pa kategori, ak salè a ki anrejistre pou kont li chak mwa.",
+                   "chanj yo, limit pa kategori, ak salè a ki anrejistre pou kont li chak mwa. Antre yon relve "
+                   "labank ou olye ou tape l.",
         "home_sync_title": "Telefòn ou ak òdinatè ou, menm pa",
         "home_sync_text": "Make yon travay fini sou youn, li fini sou lòt la tou. Rapèl yo sonnen sou telefòn ou menm "
-                          "san entènèt, epi aplikasyon òdinatè a ap tann dousman bò lè a.",
+                          "san entènèt, epi aplikasyon òdinatè a ap tann dousman bò lè a. Travay ou yo parèt tou nan "
+                          "kalandriye w ak sou ekran akèy telefòn ou.",
         "home_languages": "An kreyòl, an franse ak an angle.",
         "home_private_title": "Pou ou, pou ou sèlman",
         "home_private_text": "Pa gen piblisite, pa gen swivi, nou pa vann anyen. Kadans kenbe done ou sou pwòp sèvè "
-                             "li, epi li pataje yo sèlman pou voye notifikasyon ak imèl ou yo.",
+                             "li, epi li pataje yo sèlman pou voye notifikasyon ak imèl ou yo. Kenbe yon kopi tout sa "
+                             "ou mete ladan l lè ou vle.",
         "home_private_link": "Kijan nou okipe done ou",
 
         "dl_title": "Telechaje Kadans",

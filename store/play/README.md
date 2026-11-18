@@ -27,5 +27,13 @@ shows a language without its own the default language's. They are taken in a dem
 `play.py crop`: within 2:1 and 24-bit PNG without transparency, as Play wants. Retake them when a screen in them
 changes.
 
+The eight, as of 1.2: Home, the widget on a home screen, a reminder ringing with its buttons, a todo with its cycle,
+a focus session, the calendar, the budget month, its limits with "Import a statement". How the less obvious ones are
+made on the emulator: started with `-timezone America/Port-au-Prince` so the demo account's day is the phone's; the
+widget placed from Settings → "Add to my home screen", then made taller by its handles (a long press on it) so that
+it lists the day and tomorrow; the reminder from a one-time todo with a cycle created a minute or two ahead through
+the API while the app is open, the shade pulled down when it rings (`cmd statusbar expand-notifications`), the
+notification expanded, the emulator's own notices swiped away, and the demo clock set to the todo's time.
+
 The texts state what the app does today; change them with the app (and the website, `site/texts.py`, says the same
 things). The price and the trial follow OWNER-CHECKLIST → Subscriptions.

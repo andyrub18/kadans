@@ -5,6 +5,7 @@ DES TÂCHES QUI REVIENNENT
 • Un rappel un peu avant, et un autre au moment de commencer, même sans internet.
 • Depuis la notification : lancer une séance de concentration, marquer comme fait, ou repousser de 10 minutes.
 • Une note pour chaque fois, et l'historique de ce que vous avez fait.
+• Partagez un texte ou un lien depuis n'importe quelle application : il devient une tâche.
 
 LA CONCENTRATION, UN CYCLE À LA FOIS
 • Donnez un cycle Pomodoro à une tâche : concentration, petites pauses, une grande pause.
@@ -15,6 +16,12 @@ UN BUDGET DANS VOS DEVISES
 • Des comptes en gourdes, en dollars américains et canadiens, en euros, en pesos dominicains et mexicains.
 • Des virements avec leur change, et des limites par catégorie avec une alerte à 80 % et à 100 %.
 • Le salaire et le loyer reviennent tout seuls, chaque mois.
+• Importez un relevé de votre banque (CSV, OFX, QFX, CAMT.053) : chaque ligne est inscrite une seule fois.
+
+LÀ OÙ VOUS REGARDEZ DÉJÀ
+• Un widget sur l'écran d'accueil : les tâches du jour, faites d'un geste.
+• Vos tâches dans votre calendrier (Google Agenda, Calendrier d'Apple, Outlook), et l'agenda de votre téléphone à côté de vos tâches.
+• Ne pas déranger pendant la concentration, si vous l'activez.
 
 SUR TOUS VOS ÉCRANS
 • Votre téléphone et votre ordinateur restent au même pas : fait sur l'un, fait sur l'autre.
@@ -22,7 +29,8 @@ SUR TOUS VOS ÉCRANS
 
 À VOUS, ET À VOUS SEUL
 • Pas de publicité, pas de pistage, rien n'est vendu.
-• Double authentification, et vous pouvez supprimer votre compte à tout moment.
+• Double authentification, et votre connexion scellée par votre appareil.
+• Une copie de tout ce que vous y avez mis quand vous voulez, et vous pouvez supprimer votre compte à tout moment.
 
 En français, en anglais et en kreyòl.
 

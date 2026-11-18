@@ -5,6 +5,7 @@ TRAVAY KI RETOUNEN
 • Yon rapèl yon ti tan anvan, ak yon lòt lè li lè pou kòmanse, menm san entènèt.
 • Depi nan notifikasyon an: lanse yon seyans konsantrasyon, make l fini, oswa ranvwaye l 10 minit.
 • Yon nòt pou chak fwa, ak istwa sa ou te fè.
+• Pataje yon tèks oswa yon lyen depi nenpòt aplikasyon: li tounen yon travay.
 
 KONSANTRASYON, YON SIK APRE LÒT
 • Bay yon travay yon sik Pomodoro: konsantrasyon, ti poz, yon gwo poz.
@@ -15,6 +16,12 @@ YON BIDJÈ NAN LAJAN PA W
 • Kont an goud, an dola ameriken ak kanadyen, an ewo, an peso dominiken ak meksiken.
 • Transfè ak chanj yo, ak limit pa kategori ak yon alèt a 80% ak a 100%.
 • Salè a ak lwaye a retounen pou kont yo, chak mwa.
+• Antre yon relve labank ou (CSV, OFX, QFX, CAMT.053): chak liy anrejistre yon sèl fwa.
+
+KOTE OU GADE DEJA
+• Yon widget sou ekran akèy la: travay jodi a, fini ak yon sèl manyen.
+• Travay ou yo nan kalandriye w (Google Calendar, Apple Calendar, Outlook), ak kalandriye telefòn ou bò kote travay ou yo.
+• Pa deranje pandan konsantrasyon, si ou aktive l.
 
 SOU TOUT EKRAN OU
 • Telefòn ou ak òdinatè ou rete menm pa: fini sou youn, fini sou lòt la.
@@ -22,7 +29,8 @@ SOU TOUT EKRAN OU
 
 POU OU, POU OU SÈLMAN
 • Pa gen piblisite, pa gen swivi, nou pa vann anyen.
-• Otantifikasyon de etap, epi ou ka efase kont ou nenpòt ki lè.
+• Otantifikasyon de etap, epi koneksyon ou sele pa aparèy ou.
+• Yon kopi tout sa ou mete ladan l lè ou vle, epi ou ka efase kont ou nenpòt ki lè.
 
 An kreyòl, an franse ak an angle.
 

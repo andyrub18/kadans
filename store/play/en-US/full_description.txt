@@ -5,6 +5,7 @@ TASKS THAT COME BACK
 • A reminder a little before, and another when it is time to start, even without internet.
 • From the notification: start a focus session, mark it done, or put it off 10 minutes.
 • A note on each time you did it, and the history of what you did.
+• Share a text or a link from any app, and it becomes a task.
 
 FOCUS, ONE CYCLE AT A TIME
 • Give a task a Pomodoro cycle: focus, short breaks, a long break.
@@ -15,6 +16,12 @@ A BUDGET IN YOUR CURRENCIES
 • Accounts in gourdes, US and Canadian dollars, euros, Dominican and Mexican pesos.
 • Transfers with their exchange, and limits per category with an alert at 80% and at 100%.
 • The salary and the rent come back by themselves, every month.
+• Import a statement from your bank (CSV, OFX, QFX, CAMT.053): each line is booked once.
+
+WHERE YOU ALREADY LOOK
+• A widget on your home screen: today's tasks, done with one tap.
+• Your tasks in your calendar (Google Calendar, Apple Calendar, Outlook), and your phone's calendar beside your tasks.
+• Do Not Disturb while you focus, if you turn it on.
 
 ON EVERY SCREEN
 • Your phone and your computer stay in step: done on one, done on the other.
@@ -22,7 +29,8 @@ ON EVERY SCREEN
 
 YOURS, AND ONLY YOURS
 • No ads, no tracking, nothing sold.
-• Two-factor authentication, and you can delete your account at any time.
+• Two-factor authentication, and your sign-in sealed by your device.
+• A copy of everything you put in whenever you want, and you can delete your account at any time.
 
 In English, French and Kreyòl.
 

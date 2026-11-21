@@ -12,6 +12,7 @@ same output on every run: no dates or random names.
 import filecmp
 import hashlib
 import html
+import json
 import shutil
 import sys
 import tempfile
@@ -27,6 +28,9 @@ PAGES = ["", "download", "support", "delete-account", "privacy", "terms"]
 # Search engines are told so with the page itself (hreflang="x-default"), never with the address that redirects:
 # given that one, Google indexed it in place of the English page and called the English page a duplicate.
 DEFAULT_LANGUAGE = "en"
+# The site's name for search engines and link previews (the home pages' WebSite block, og:site_name): the app's.
+# Kadans is also a common word, which Google may pass over as a site name: the domain follows as its alternate.
+SITE_NAME = "Kadans"
 
 # The files every page may load (the site's Content-Security-Policy allows its own and nothing else).
 ASSETS = {
@@ -57,9 +61,25 @@ def alternates(page, tag):
     return [tag.format(hreflang=hreflang, href=DOMAIN + path(lang, page)) for hreflang, lang in versions]
 
 
-def layout(lang, page, title, description, body, scripts=()):
+def website():
+    """The site's name for Google: WebSite structured data, on the home page (Search Central → Site names). Its address
+    is the domain's own, which redirects: Google takes the name from the page it lands on, so each language's home
+    page carries the same block. A data block, never run: the Content-Security-Policy has nothing to allow."""
+    data = {"@context": "https://schema.org", "@type": "WebSite", "name": SITE_NAME,
+            "alternateName": ["kadansplanning.com"], "url": f"{DOMAIN}/"}
+    return f'\n<script type="application/ld+json">{json.dumps(data, ensure_ascii=False)}</script>'
+
+
+def layout(lang, page, title, description, body, scripts=(), structured="", address=True):
+    """A page. With address, it names its one address and its other languages (the 404 page is at none)."""
     t = TEXTS[lang]
-    head_alternates = "\n".join(alternates(page, '<link rel="alternate" hreflang="{hreflang}" href="{href}">'))
+    own = DOMAIN + path(lang, page)
+    address_tags = "".join(
+        line + "\n"
+        for line in [f'<link rel="canonical" href="{own}">',
+                     *alternates(page, '<link rel="alternate" hreflang="{hreflang}" href="{href}">'),
+                     f'<meta property="og:url" content="{own}">']
+    ) if address else ""
     switcher = " ".join(
         f'<a href="{path(other, page)}" lang="{other}" hreflang="{other}"'
         + (' aria-current="true"' if other == lang else "")
@@ -85,11 +105,14 @@ def layout(lang, page, title, description, body, scripts=()):
 <meta name="description" content="{html.escape(description)}">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#6750A4">
-<link rel="canonical" href="{DOMAIN}{path(lang, page)}">
-{head_alternates}
-<link rel="icon" href="{asset("kadans-icon.svg")}" type="image/svg+xml">
+<meta property="og:site_name" content="{SITE_NAME}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{html.escape(title)}">
+<meta property="og:description" content="{html.escape(description)}">
+<meta property="og:image" content="{DOMAIN}{asset("kadans-icon-512.png")}">
+{address_tags}<link rel="icon" href="{asset("kadans-icon.svg")}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{asset("kadans-icon-512.png")}">
-<link rel="stylesheet" href="{asset("style.css")}">{script_tags}
+<link rel="stylesheet" href="{asset("style.css")}">{script_tags}{structured}
 </head>
 <body>
 <header class="top">
@@ -140,7 +163,7 @@ def home(lang):
 <div><h2>{t["home_private_title"]}</h2><p>{t["home_private_text"]}</p>
 <p><a href="{path(lang, "privacy")}">{t["home_private_link"]}</a></p></div>
 </section>"""
-    return layout(lang, "", t["home_title"], t["description"], body)
+    return layout(lang, "", t["home_title"], t["description"], body, structured=website())
 
 
 def download(lang):
@@ -226,8 +249,7 @@ def not_found():
         f'<p><a href="{path(lang, "")}">{TEXTS[lang]["nf_home"]}</a></p></section>'
         for lang in LANGUAGES
     )
-    page = layout("en", "", TEXTS["en"]["nf_h1"], TEXTS["en"]["description"], blocks)
-    return page.replace('<link rel="canonical" href="https://kadansplanning.com/en/">\n', "")
+    return layout("en", "", TEXTS["en"]["nf_h1"], TEXTS["en"]["description"], blocks, address=False)
 
 
 def sitemap():

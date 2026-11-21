@@ -3,7 +3,8 @@
 `https://kadansplanning.com`: what Kadans is, the downloads, support, account deletion, and the privacy policy and
 terms the app's paywall and the stores link to. Plain files in `public/`, served by the nginx in front of the API
 (docs/DEPLOYMENT.md → The website). No server code, no cookies, no third party: the pages load their own style,
-mark and (on the download page) one small script, nothing else (the Content-Security-Policy says so).
+mark and (on the download page) one small script, nothing else (the Content-Security-Policy says so). The home pages'
+name for search engines is a data block (JSON-LD), which no browser runs: the policy has nothing to allow for it.
 
 `public/` is generated: never edit it. Change one of these and run the generator from the repository root:
 
@@ -30,4 +31,7 @@ visitor's. The download buttons point at `/files/<name>` and the desktop app's u
 For search engines, each page names its one address (`rel="canonical"`), its other languages and the English page
 for everyone else (`hreflang`, `x-default`: `DEFAULT_LANGUAGE`, never an address without a language), and the
 sitemap repeats it. A new page goes in `PAGES` with a title and a description of its own in the three languages; a
-link to a file that is not a page gets `rel="nofollow"` (DEPLOYMENT → The website → Search engines).
+link to a file that is not a page gets `rel="nofollow"` (DEPLOYMENT → The website → Search engines). The site's name
+is the app's, `SITE_NAME` (Kadans): the home pages' `WebSite` block gives it to Google, with the domain as the
+alternate it falls back to, and every page's `og:site_name` to link previews (with the page's title, description and
+the icon). `kadansplanning.com` is the address, never the name.

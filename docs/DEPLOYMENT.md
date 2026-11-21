@@ -280,7 +280,8 @@ nginx is away for a few seconds; the API does not restart.
   visitor's language is never kept by a browser (`Cache-Control: no-cache`).
 - **Search engines.** Every page declares its address (`rel="canonical"`), itself in the other languages and the
   English one for everyone else (`hreflang`, `x-default`), and has its own description; `sitemap.xml` lists the 18
-  pages with the same alternates, and `robots.txt` forbids nothing. The addresses without a language are redirects
+  pages with the same alternates, and `robots.txt` forbids nothing. The home pages give Google the site's
+  name, Kadans (a `WebSite` block, JSON-LD), with `kadansplanning.com` as the alternate it falls back to. The addresses without a language are redirects
   and are named nowhere: when the pages gave them as `x-default` and nginx answered 302, Google indexed them in
   place of the English pages and reported those as "Duplicate, Google chose different canonical than user". In
   Google Search Console's page report, these are meant and need no fix: "Page with redirect" for the `http://`, `www`

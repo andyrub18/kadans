@@ -565,6 +565,19 @@ installing on real devices second, hosting last.
       host answers `X-Robots-Tag: noindex`. Checked against the real nginx image with test certificates: the 18
       pages, every redirect in each language, the headers on each answer (DEPLOYMENT → The website → Search engines).
       The owner's part, after the deploy: OWNER-CHECKLIST → Google Search Console.
+- [x] The website's name for Google and link previews (2026-11-20: a search for "kadans planning" found nothing,
+      Search Console counted no impressions, and still reported 3 pages as "Duplicate, Google chose different canonical
+      than user"): the home pages give Google the site name Kadans (`WebSite`, JSON-LD: a data block the
+      Content-Security-Policy never runs, checked in Firefox against the site's policy, which reported a control
+      page's inline script and nothing of the home page), with the domain as the alternate Google falls back to on a
+      name this common, and every page has Open Graph tags for link previews (the name, its title, its description,
+      the icon). The titles stay: the name is Kadans, `kadansplanning.com` is only the address (the owner). The 404
+      page no longer names the home page's address or languages. What the site lacked is links to it: none (the
+      GitHub repository named no website, set the same day; the Play listing is not public yet). The live site was checked from outside
+      the same day (every redirect a 301 to the page's one
+      address, each page its own canonical, the API host `noindex`, the French and Kreyòl legal pages their own
+      text), so the 3 duplicates should be Google's view from before 2026-11-12. The owner's part:
+      OWNER-CHECKLIST → Google Search Console.
 - [x] The Windows tray menu, drawn by Kadans (2026-11-12, the owner's design review): Java's menu was Windows' old classic
       one ("the menu lines are weak"). A mock-up in light and dark was approved, then built as `tray/TrayMenu` in a window
       of its own (ARCHITECTURE → "The desktop app: in the tray, once"). For the next desktop version; to check on a real

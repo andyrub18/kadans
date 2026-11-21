@@ -194,6 +194,23 @@ engines, which also lists the entries that are meant).
       Google takes from a few days to a few weeks: the six pages move to Indexed, and the addresses without a
       language to "Page with redirect". Look again around the end of November.
 - Leave "Page with redirect" and "Blocked by robots.txt" as they are: both are meant, and a validation there fails.
+- [ ] Deploy the change of 2026-11-20 (the site's name for Google, link previews): `cd kadans && git pull` on the
+      server, pages only, nginx stays as it is. Check: `curl -s https://kadansplanning.com/en/ | grep -c
+      application/ld+json` prints 1.
+- [ ] URL inspection → `https://kadansplanning.com/en/`, `/fr/` and `/ht/` → **Request indexing** (their site name).
+- [ ] Pages → "Duplicate, Google chose different canonical than user": the export of 2026-11-20 (its data stops at
+      11-15, three days after the deploy of 11-12) still lists 3 pages, with the validation "Not started". Open the
+      entry and inspect each address it lists: "Google-selected canonical" should be an address without a language
+      (`/`, `/privacy`, …), Google's view from before 11-12. Then **Validate fix** again. Any other kind of address
+      there is something new: bring it back with what the inspection says.
+- [x] Links to the site from elsewhere, the first Google follows: the GitHub repository's website is
+      `https://kadansplanning.com` (set 2026-11-20).
+- [ ] Play Console → Store settings → Store listing contact details → Website, `https://kadansplanning.com` if it is
+      empty (shown once the listing is public).
+- What to expect: a new site that nothing links to shows first for its own address (`kadansplanning.com`;
+  `site:kadansplanning.com` lists what Google holds), then for its name within weeks of the first links
+  (Search Console → Performance counts each time it appears). "kadans planning" rests on the domain and the links (the
+  pages say Kadans), and "Kadans" alone, a common word, comes last.
 
 ## Monitoring
 

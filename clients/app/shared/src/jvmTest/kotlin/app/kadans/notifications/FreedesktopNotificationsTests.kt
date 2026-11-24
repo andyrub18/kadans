@@ -30,6 +30,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
@@ -230,6 +231,56 @@ class FreedesktopNotificationsTests {
         val link = runBlocking { withTimeout(5_000) { IncomingLinks.links.first() } }
         assertEquals(todoLink(reminder(focus = true).todoId), link)
         DesktopWindow.show = {}
+    }
+
+    /** What the desktop's sound was asked to do. */
+    private class RecordingPlayer : app.kadans.sound.SoundPlayer {
+        val calls = LinkedBlockingQueue<String>()
+
+        override fun play(sound: app.kadans.sound.KadansSound, keepRinging: Boolean) {
+            calls.add("${sound.id}${if (keepRinging) " ringing" else ""}")
+        }
+
+        override fun stop() {
+            calls.add("stop")
+        }
+    }
+
+    @Test
+    fun a_reminder_rings_on_the_computer_and_stops_when_it_is_answered() {
+        val server = server()
+        val notifications = notifications()
+        val player = RecordingPlayer()
+        var choice = app.kadans.sound.RingChoice(app.kadans.sound.ReminderStyle.Notification, keepRinging = true, sounds = true)
+        val notices = DesktopReminderNotices(
+            strings = { Language.En.catalog.reminders }, ring = { choice }, player = { player }, linux = { notifications }, actions = { null },
+        )
+        DesktopWindow.show = {}
+
+        // Shown: the desktop is silent, so Kadans plays its own sound, and keeps on since the person asked.
+        notices.show(reminder(focus = false))
+        val first = server.shown.next()
+        assertEquals("reminder ringing", player.calls.next())
+
+        // Dismissed without a click: an answer too.
+        server.dismiss(first.id)
+        assertEquals("stop", player.calls.next())
+
+        // A button: the ring stops before anything else happens. With nobody to ask ("Done" cannot reach Kadans here),
+        // the reminder comes back saying so, and does not ring a second time.
+        notices.show(reminder(focus = false))
+        val second = server.shown.next()
+        assertEquals("reminder ringing", player.calls.next())
+        server.click(second.id, DesktopReminderNotices.DONE)
+        assertEquals("stop", player.calls.next())
+        assertTrue("couldn't be reached" in server.shown.next().body)
+        assertNull(player.calls.poll(300, java.util.concurrent.TimeUnit.MILLISECONDS), "shown again without its sound")
+
+        // Sounds turned off in Settings: shown, never played.
+        choice = choice.copy(sounds = false)
+        notices.show(reminder(focus = false))
+        server.shown.next()
+        assertNull(player.calls.poll(300, java.util.concurrent.TimeUnit.MILLISECONDS))
     }
 
     /** The server's side of the notice's buttons: [up] false answers as an unreachable one would. */

@@ -45,6 +45,13 @@ internal sealed class Device
     /// registers; false for a device that never did (the desktop, an older app, the switch off).
     /// </summary>
     public bool QuietDuringFocus { get; set; }
+
+    /// <summary>
+    /// How this phone rings its reminders (ARCHITECTURE → "Sounds"): like an alarm, heard even on a silent phone, or
+    /// like a notification. The app says so when it registers, and again when the person changes it. Null for a device
+    /// that never said (the desktop, an app from before the choice): its reminders go where they always went.
+    /// </summary>
+    public bool? AlarmReminders { get; set; }
     public DateTimeOffset RegisteredAt { get; init; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;
 }

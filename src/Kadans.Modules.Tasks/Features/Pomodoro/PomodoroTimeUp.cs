@@ -102,11 +102,18 @@ internal sealed class PomodoroTimeUp(
                     ["runId"] = run.Id.ToString(),
                     ["currentPhaseIndex"] = run.CurrentPhaseIndex.ToString(),
                     ["link"] = PomodoroAutoAdvancer.FocusLink(run.TodoId),
+                    [NotificationSounds.DataKey] = Sound(run),
                 }
             ),
             cancellationToken
         );
     }
+
+    /// <summary>The phase whose time is up says which sound: the one that ran out (ARCHITECTURE → "Sounds").</summary>
+    internal static string Sound(PomodoroRun run) =>
+        run.Phases.OrderBy(p => p.Order).ElementAtOrDefault(run.CurrentPhaseIndex)?.Type == PomodoroPhaseType.Break
+            ? NotificationSounds.BreakOver
+            : NotificationSounds.FocusOver;
 
     /// <summary>What comes next: the following phase (the first of the next lap for a looping run), or the end.</summary>
     internal static string Body(PomodoroTexts texts, PomodoroRun run)

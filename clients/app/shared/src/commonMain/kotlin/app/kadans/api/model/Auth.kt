@@ -144,6 +144,8 @@ data class RegisterDeviceRequest(
     val appVersion: String? = null,
     /** This phone goes quiet during a focus phase ("Do Not Disturb during focus"); null where there is no such thing. */
     val quietDuringFocus: Boolean? = null,
+    /** This phone rings its reminders like an alarm (true) or like a notification (false); null from a computer. */
+    val alarmReminders: Boolean? = null,
 )
 
 @Serializable

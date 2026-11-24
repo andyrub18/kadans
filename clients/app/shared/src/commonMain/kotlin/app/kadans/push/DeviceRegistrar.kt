@@ -18,6 +18,8 @@ class DeviceRegistrar(
     private val api: KadansApi,
     private val settings: Settings,
     private val quiet: () -> Boolean? = { null },
+    /** How this phone rings its reminders (ARCHITECTURE → "Sounds"): the server names a pushed reminder's channel by it. */
+    private val alarmReminders: () -> Boolean? = { null },
 ) {
     /** True once the server has it. */
     suspend fun register(): Boolean =
@@ -26,7 +28,7 @@ class DeviceRegistrar(
                 ?: Uuid.random().toString().also { settings.putString(KEY, it) }
             api.account.registerDevice(
                 installationId,
-                RegisterDeviceRequest(devicePlatform(), deviceName(), currentPushToken(), quietDuringFocus = quiet()),
+                RegisterDeviceRequest(devicePlatform(), deviceName(), currentPushToken(), quietDuringFocus = quiet(), alarmReminders = alarmReminders()),
             )
         }.isSuccess
 

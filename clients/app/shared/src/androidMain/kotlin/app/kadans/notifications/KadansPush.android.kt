@@ -1,5 +1,7 @@
 package app.kadans.notifications
 
+import app.kadans.sound.KadansChannels
+import app.kadans.sound.KadansSound
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -38,8 +40,9 @@ object KadansPushChannel {
         manager.createNotificationChannel(
             NotificationChannel(ID, "Kadans", NotificationManager.IMPORTANCE_DEFAULT)
         )
-        // Reminders have their own (ARCHITECTURE → "Reminders ring on the phone"), named in the app's language.
-        (GlobalContext.getOrNull()?.get<ReminderScheduler>() as? AndroidReminderScheduler)?.ensureChannel()
+        // Reminders and the ends of a session's phases have their own, each with its sound (ARCHITECTURE → "Sounds"),
+        // named in the app's language.
+        (GlobalContext.getOrNull()?.get<ReminderScheduler>() as? AndroidReminderScheduler)?.ensureChannels()
     }
 }
 
@@ -104,9 +107,14 @@ class KadansMessagingService : FirebaseMessagingService() {
         }
         runCatching {
             KadansPushChannel.ensure(this)
+            // In the channel that has the sound it asks for (a phase's end), as the system would show it; else the default.
+            val sound = KadansSound.of(message.data[KadansSound.DATA_KEY])
+            val channel = KadansChannels.of(sound) ?: KadansPushChannel.ID
             val builder =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) android.app.Notification.Builder(this, KadansPushChannel.ID)
-                else @Suppress("DEPRECATION") android.app.Notification.Builder(this)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) android.app.Notification.Builder(this, channel)
+                else @Suppress("DEPRECATION") android.app.Notification.Builder(this).apply {
+                    if (sound != null) setSound(KadansChannels.uri(this@KadansMessagingService, sound), KadansChannels.attributes(alarm = false))
+                }
             builder
                 .setContentTitle(title)
                 .setContentText(body)

@@ -40,7 +40,8 @@ internal interface Notifications : DBusInterface {
 
 /**
  * Notifications with buttons on the Linux desktop, over D-Bus: [show] gives the notification's id, and a click on one of
- * its buttons, or on the notification ([DEFAULT]), reaches its handler, off D-Bus's own thread. [connect] answers null
+ * its buttons, or on the notification ([DEFAULT]), reaches its handler, off D-Bus's own thread, as does the person
+ * dismissing it without a click. [connect] answers null
  * when there is no session bus or no notification server: the caller then uses `notify-send`, without buttons.
  */
 internal class FreedesktopNotifications private constructor(
@@ -56,6 +57,9 @@ internal class FreedesktopNotifications private constructor(
     private val markup = "body-markup" in capabilities
 
     private val handlers = ConcurrentHashMap<Long, (String) -> Unit>()
+
+    /** What to do when the person dismisses a notification without clicking it (a reminder stops ringing). */
+    private val dismissals = ConcurrentHashMap<Long, () -> Unit>()
     private val calls = Executors.newSingleThreadExecutor { Thread(it, "kadans-notifications").apply { isDaemon = true } }
 
     /** The notification server's connection: only it reports clicks, not any program on the session. */
@@ -66,11 +70,16 @@ internal class FreedesktopNotifications private constructor(
         connection.addSigHandler(Notifications.ActionInvoked::class.java) { signal ->
             if (!fromServer(signal.source)) return@addSigHandler
             val handler = handlers.remove(signal.id.toLong()) ?: return@addSigHandler
+            dismissals.remove(signal.id.toLong())
             // Not on the signal's thread: a handler that calls the server back would wait on the thread bringing its reply.
             calls.execute { runCatching { handler(signal.actionKey) } }
         }
         connection.addSigHandler(Notifications.NotificationClosed::class.java) { signal ->
-            if (fromServer(signal.source)) handlers.remove(signal.id.toLong())
+            if (!fromServer(signal.source)) return@addSigHandler
+            handlers.remove(signal.id.toLong())
+            val dismissed = dismissals.remove(signal.id.toLong()) ?: return@addSigHandler
+            // By the person, not by its time running out: a banner that leaves the screen answers nothing.
+            if (signal.reason.toInt() == DISMISSED) calls.execute { runCatching { dismissed() } }
         }
     }
 
@@ -90,6 +99,7 @@ internal class FreedesktopNotifications private constructor(
         icon: String,
         buttons: List<Pair<String, String>> = emptyList(),
         replaces: Long = 0,
+        onDismissed: (() -> Unit)? = null,
         onClick: ((String) -> Unit)? = null,
     ): Long? = runCatching {
         val actions = buildList {
@@ -105,11 +115,13 @@ internal class FreedesktopNotifications private constructor(
         val hints = mapOf("desktop-entry" to Variant(DESKTOP_ENTRY), "urgency" to Variant(NORMAL))
         val id = server.Notify(APP_NAME, UInt32(replaces), icon, title, if (markup) escape(body) else body, actions, hints, SERVER_DEFAULT).toLong()
         if (onClick != null && clickable) handlers[id] = onClick
+        if (onDismissed != null) dismissals[id] = onDismissed
         id
     }.getOrNull()
 
     fun close(id: Long) {
         handlers.remove(id)
+        dismissals.remove(id)
         runCatching { server.CloseNotification(UInt32(id)) }
     }
 
@@ -129,6 +141,9 @@ internal class FreedesktopNotifications private constructor(
         /** The installed launcher (kadans/Kadans.kt): the server shows the app's own name and icon with the notification. */
         private const val DESKTOP_ENTRY = "kadans-Kadans"
         private const val NORMAL: Byte = 1
+
+        /** `NotificationClosed`'s reason 2: dismissed by the person (1 is its time running out, 3 the app closing it). */
+        private const val DISMISSED = 2
         private const val SERVER_DEFAULT = -1
 
         /** The session's notification server, or null: no bus, no server, any failure. [busAddress] is for tests. */

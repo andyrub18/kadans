@@ -6,7 +6,11 @@ import app.kadans.desktop.ReminderBalloon
 import app.kadans.i18n.ReminderStrings
 import app.kadans.notifications.FreedesktopNotifications
 import app.kadans.notifications.notificationIcon
-import app.kadans.notifications.showSystemNotification
+import app.kadans.notifications.showDesktopNotification
+import app.kadans.sound.KadansSound
+import app.kadans.sound.ReminderStyle
+import app.kadans.sound.RingChoice
+import app.kadans.sound.SoundPlayer
 import app.kadans.ui.focusLink
 import app.kadans.ui.todoLink
 import kotlinx.coroutines.CoroutineScope
@@ -24,27 +28,37 @@ import org.koin.core.context.GlobalContext
  */
 internal class DesktopReminderNotices(
     private val strings: () -> ReminderStrings,
+    /** How the person wants reminders to ring here, and what plays the sound (ARCHITECTURE → "Sounds"). */
+    private val ring: () -> RingChoice = { RingChoice(ReminderStyle.Notification, keepRinging = false, sounds = false) },
+    private val player: () -> SoundPlayer? = { GlobalContext.getOrNull()?.getOrNull<SoundPlayer>() },
     private val linux: () -> FreedesktopNotifications? = { if (isLinux) session else null },
     /** Looked up when a button is pressed: the actions need the reminders, which need this. */
     private val actions: () -> ReminderActions? = { GlobalContext.getOrNull()?.getOrNull<ReminderActions>() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
-    fun show(reminder: UpcomingReminder, body: String = reminder.body) {
+    /** [ringing] false: the reminder shown again after a button (it could not be reached), without its sound. */
+    fun show(reminder: UpcomingReminder, body: String = reminder.body, ringing: Boolean = true) {
+        // The desktop shows a notification without a sound: Kadans plays its own, and keeps on if the person asked.
+        val choice = ring()
+        if (ringing && choice.sounds) player()?.play(KadansSound.Reminder, choice.keepRinging)
         val notifications = linux()
         if (notifications?.clickable == true) {
             val s = strings()
             val first = if (reminder.isFocus) START to s.startFocus else DONE to s.done
             val buttons = if (reminder.isHeadsUp) emptyList() else listOf(first, SNOOZE to s.snooze)
-            val shown = notifications.show(reminder.title, body, notificationIcon, buttons) { key ->
+            val shown = notifications.show(reminder.title, body, notificationIcon, buttons, onDismissed = { player()?.stop() }) { key ->
                 clicked(reminder, key)
             }
             if (shown != null) return
         }
-        showSystemNotification(reminder.title, body)
+        // Without a sound of its own: the reminder's was played above.
+        showDesktopNotification(reminder.title, body)
         if (!isLinux) ReminderBalloon.shown(todoLink(reminder.todoId))
     }
 
     private fun clicked(reminder: UpcomingReminder, key: String) {
+        // Any answer is an answer: a reminder that keeps ringing stops.
+        player()?.stop()
         when (key) {
             FreedesktopNotifications.DEFAULT -> DesktopWindow.open(todoLink(reminder.todoId))
             START -> scope.launch {
@@ -65,7 +79,7 @@ internal class DesktopReminderNotices(
         }
     }
 
-    private fun failed(reminder: UpcomingReminder) = show(reminder, "${reminder.body}\n${strings().actionFailed}")
+    private fun failed(reminder: UpcomingReminder) = show(reminder, "${reminder.body}\n${strings().actionFailed}", ringing = false)
 
     internal companion object {
         const val START = "start-focus"

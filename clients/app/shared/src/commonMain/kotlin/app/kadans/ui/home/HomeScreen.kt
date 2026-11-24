@@ -1,5 +1,10 @@
 package app.kadans.ui.home
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import app.kadans.ui.settings.ReminderStyleDialog
+import app.kadans.reminders.LocalReminders
+import app.kadans.sound.RingSettings
 import app.kadans.ui.BigButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,6 +92,24 @@ fun HomeScreen(
     val ticked by viewModel.ticked.collectAsState()
     val s = LocalStrings.current
     val snackbar = remember { SnackbarHostState() }
+
+    // Someone who already has reminders on this phone, after the update that brought the choice: asked here, once,
+    // how they should ring (ARCHITECTURE → "Sounds"). A first-time user is asked when a reminder first matters.
+    val ring = koinInject<RingSettings>()
+    val reminders = koinInject<LocalReminders>()
+    var askingStyle by remember { mutableStateOf(ring.shouldAsk() && reminders.inUse()) }
+    if (askingStyle) {
+        ReminderStyleDialog(
+            onChoose = { style ->
+                ring.choose(style)
+                askingStyle = false
+            },
+            onLater = {
+                ring.askLater()
+                askingStyle = false
+            },
+        )
+    }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel) { viewModel.loggedOut.collect { onLoggedOut() } }

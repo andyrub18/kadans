@@ -79,4 +79,21 @@ public class PomodoroChoicesTests
         await Assert.That(PomodoroTimeUp.Body(LocalizedTexts.Pomodoro("ht"), looping)).IsEqualTo("Tan an fini. Apre sa: 25 min konsantrasyon, lè ou vle.");
         await Assert.That(PomodoroTimeUp.Body(LocalizedTexts.Pomodoro("es"), looping)).IsEqualTo("Se acabó el tiempo. Sigue: 25 min de enfoque, cuando quieras.");
     }
+
+    [Test]
+    public async Task A_phase_change_says_which_sound_it_is()
+    {
+        // Hands-free: the notice comes when the next phase has begun. A break beginning is focus being over.
+        await Assert.That(PomodoroAutoAdvancer.SoundFor(PomodoroRunStatus.Active, PomodoroPhaseType.Break, betweenLaps: false)).IsEqualTo("focus-over");
+        await Assert.That(PomodoroAutoAdvancer.SoundFor(PomodoroRunStatus.Active, PomodoroPhaseType.Focus, betweenLaps: false)).IsEqualTo("break-over");
+        // The session done, or a cycle done and waiting for "Another cycle": nothing to go back to yet.
+        await Assert.That(PomodoroAutoAdvancer.SoundFor(PomodoroRunStatus.Completed, PomodoroPhaseType.Focus, betweenLaps: false)).IsEqualTo("focus-over");
+        await Assert.That(PomodoroAutoAdvancer.SoundFor(PomodoroRunStatus.Paused, PomodoroPhaseType.Focus, betweenLaps: true)).IsEqualTo("focus-over");
+
+        // By hand: "time's up" comes while the phase that ran out is still the current one.
+        var manual = Start(autoAdvance: false);
+        await Assert.That(PomodoroTimeUp.Sound(manual)).IsEqualTo("focus-over");
+        manual.Advance(null, T0.AddMinutes(25));
+        await Assert.That(PomodoroTimeUp.Sound(manual)).IsEqualTo("break-over");
+    }
 }

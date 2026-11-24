@@ -4,13 +4,19 @@ namespace Kadans.SharedKernel.Users;
 /// <param name="RemindersThrough">How far that window reaches.</param>
 /// <param name="RemindersVersion">The account's reminders version that window holds.</param>
 /// <param name="QuietDuringFocus">The phone turns Do Not Disturb on during a focus phase, and is told when a session changes.</param>
+/// <param name="AlarmReminders">
+/// How the phone rings its reminders: like an alarm (heard on a silent phone) or like a notification. A reminder the
+/// system shows for it goes in the channel that rings that way. Null: an app from before the choice, whose channels
+/// are the older ones.
+/// </param>
 public sealed record PushTarget(
     string Platform,
     string Token,
     DateTimeOffset? RemindersSyncedAt = null,
     DateTimeOffset? RemindersThrough = null,
     long RemindersVersion = 0,
-    bool QuietDuringFocus = false
+    bool QuietDuringFocus = false,
+    bool? AlarmReminders = null
 );
 
 /// <summary>Push tokens of a user's registered devices (implemented by Identity, consumed by Notifications).</summary>

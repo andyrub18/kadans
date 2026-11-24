@@ -529,6 +529,46 @@ class LocalRemindersTests {
     }
 
     @Test
+    fun how_reminders_should_ring_is_asked_first_and_the_todo_is_saved_whatever_the_answer() = test {
+        scheduler.access = ReminderAccess.ExactAlarmsOff
+        val facts = app.kadans.sound.SoundFacts(notificationsOn = true, channelSilent = false, ringer = app.kadans.sound.Ringer.Normal, alarmVolumeOff = false)
+        val phone = object : ReminderScheduler by scheduler {
+            override fun soundFacts() = facts
+        }
+        val preferences = app.kadans.sound.SoundPreferences(MapSettings())
+        val ring = app.kadans.sound.RingSettings(preferences, phone, DeviceRegistrar(api, MapSettings()), scope)
+        var saves = 0
+
+        // No reminder on the todo: neither question.
+        ReminderPermissionAsk(reminders, ring).beforeSaving(notify = false) { saves++ }
+        assertEquals(1, saves)
+
+        // Closed without an answer: the other question follows, and the todo is saved.
+        val closed = ReminderPermissionAsk(reminders, ring)
+        closed.beforeSaving(notify = true) { saves++ }
+        assertTrue(closed.askingStyle)
+        assertFalse(closed.showing, "one question at a time")
+        closed.styleLater()
+        assertFalse(closed.askingStyle)
+        assertTrue(closed.showing, "then what Android has to allow")
+        closed.notNow()
+        assertEquals(2, saves)
+        assertEquals(null, preferences.style.value, "closed is not answered")
+
+        // Another day: asked again, answered, never again.
+        val later = ReminderPermissionAsk(reminders, app.kadans.sound.RingSettings(preferences, phone, DeviceRegistrar(api, MapSettings()), scope))
+        later.beforeSaving(notify = true) { saves++ }
+        assertTrue(later.askingStyle)
+        later.chooseStyle(app.kadans.sound.ReminderStyle.Alarm)
+        assertEquals(3, saves, "the permission was answered already: saved at once")
+        assertEquals(app.kadans.sound.ReminderStyle.Alarm, preferences.style.value)
+
+        later.beforeSaving(notify = true) { saves++ }
+        assertFalse(later.askingStyle)
+        assertEquals(4, saves)
+    }
+
+    @Test
     fun not_now_is_an_answer_too() = test {
         scheduler.access = ReminderAccess.ExactAlarmsOff
         val ask = ReminderPermissionAsk(reminders)

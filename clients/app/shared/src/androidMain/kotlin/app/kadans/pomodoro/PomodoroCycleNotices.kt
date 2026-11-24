@@ -1,5 +1,6 @@
 package app.kadans.pomodoro
 
+import app.kadans.sound.KadansChannels
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -32,7 +33,8 @@ internal object PomodoroCycleNotices {
         val s = actions.strings
         val body = if (failed) "${notice.body}\n${s.reminders.actionFailed}" else notice.body
         val builder =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, KadansPushChannel.ID)
+            // A cycle done is focus being over: that channel's sound (ARCHITECTURE → "Sounds").
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, KadansChannels.FOCUS_OVER)
             else @Suppress("DEPRECATION") Notification.Builder(context)
         val notification = builder
             .setSmallIcon(R.drawable.ic_stat_kadans)

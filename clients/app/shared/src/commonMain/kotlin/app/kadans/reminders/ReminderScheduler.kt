@@ -2,6 +2,8 @@ package app.kadans.reminders
 
 import app.kadans.api.model.UpcomingReminder
 import app.kadans.i18n.ReminderStrings
+import app.kadans.sound.RingChoice
+import app.kadans.sound.SoundFacts
 
 /** Whether this device can ring reminders itself, and if not, what the person could turn on. */
 enum class ReminderAccess {
@@ -43,6 +45,21 @@ interface ReminderScheduler {
 
     /** A background refresh of the window twice a day, while this device rings reminders. */
     fun keepFresh(enabled: Boolean)
+
+    /**
+     * What the phone's own settings make of a reminder's sound (ARCHITECTURE → "Sounds"), read when Settings shows it.
+     * Null where the app plays the sound itself and there is nothing of the system's to read (a computer).
+     */
+    fun soundFacts(): SoundFacts? = null
+
+    /** The system's own page for the reminders' sound, where the person picks another one or turns it off. */
+    fun openSoundSettings() = Unit
+
+    /** Rings a sample reminder, as a real one would ring now: nobody should wait for a real one to find out. */
+    fun ringTest() = Unit
+
+    /** The person changed how reminders ring: the system's side follows (Android: the channel they go in). */
+    fun ringChanged() = Unit
 }
 
 /** A platform that cannot ring reminders itself (iOS for now): the server's push and the hub stay its channels. */
@@ -60,7 +77,8 @@ object NoReminderScheduler : ReminderScheduler {
 
 /**
  * This platform's scheduler (Android: AlarmManager; desktop: a timer in the app). [strings]: the words in the app's
- * language (what the system lists reminders under, a reminder's buttons). [onDue]: what a timer in the app calls when the
- * next reminder is due ([LocalReminders.ringDue]); Android's alarm reaches it through its receiver instead.
+ * language (what the system lists reminders under, a reminder's buttons). [ring]: how the person wants reminders to
+ * ring here, read each time one does. [onDue]: what a timer in the app calls when the next reminder is due
+ * ([LocalReminders.ringDue]); Android's alarm reaches it through its receiver instead.
  */
-expect fun platformReminderScheduler(strings: () -> ReminderStrings, onDue: suspend () -> Unit): ReminderScheduler
+expect fun platformReminderScheduler(strings: () -> ReminderStrings, ring: () -> RingChoice, onDue: suspend () -> Unit): ReminderScheduler

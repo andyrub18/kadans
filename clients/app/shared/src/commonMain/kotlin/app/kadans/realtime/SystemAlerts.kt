@@ -4,6 +4,7 @@ import app.kadans.notifications.showCycleNotice
 import app.kadans.notifications.showSystemNotification
 import app.kadans.pomodoro.CycleNotice
 import app.kadans.reminders.LocalReminders
+import app.kadans.sound.KadansSound
 import app.kadans.sync.listen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,7 @@ class SystemAlerts(private val realtime: KadansRealtime, private val localRemind
                 when {
                     reminder != null && localReminders.showsReminders() -> localReminders.pushed(reminder)
                     cycle != null -> showCycleNotice(cycle) // with "Another cycle" and "Done" where it can
-                    else -> showSystemNotification(notification.title, notification.body)
+                    else -> showSystemNotification(notification.title, notification.body, KadansSound.of(notification.data?.get(KadansSound.DATA_KEY)))
                 }
             }
         }

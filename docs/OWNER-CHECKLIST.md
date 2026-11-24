@@ -330,6 +330,28 @@ size and at a computer's; nobody has looked at it on your computer or on a real 
 - [ ] The stores' screenshots still show the old look. When you are happy with the new one, tell me and I retake
       them (Play in four languages, the Microsoft Store's seven) for the next version's release.
 
+## Sounds (2026-11-24)
+
+What you chose: the marimba, reminders like an alarm (asked once, with a switch), "keep ringing" for a minute at most
+(ARCHITECTURE → "Sounds"). I checked it on the emulator, which has no speaker: nobody has heard it on a real device.
+
+- [ ] On your computer, the desktop app run from the branch (the look's steps, above): Settings → Sounds → **Test**
+      plays the reminder. Then a todo due in two minutes with "Remind me" at the start: at its time, the
+      notification and the sound. Turn on "Keep ringing until I answer" and do it again: it rings until you click
+      the notification or open Kadans, a minute at most. Start a hands-free focus session with a one-minute cycle
+      and listen for the two phase sounds. Tell me if they are too loud, too quiet or too long.
+- [ ] On your phone (a debug build): after the update Home asks "How should reminders reach you?". Answer, then
+      Settings → Reminder sound → **Test**. Put the phone on silent and press Test again: like an alarm it still
+      rings, like a notification the sentence above the switch says it will only show. "Change the sound" opens
+      Android's own page, where you can pick one of the phone's sounds instead.
+- [ ] A Samsung or a Tecno, if you can borrow one: these change how alarms and sounds behave, and only stock
+      Android was checked. What matters: does a reminder ring on silent in alarm style, and does it stop after a
+      minute with "keep ringing" on.
+- [ ] Deploy the server before the version that has the sounds is released (it deploys on merge, so merging first
+      is enough). It adds one column to the devices table by itself.
+- [ ] The privacy policy says one more thing is kept for a phone (whether its reminders ring like an alarm), in
+      the four languages, dated 24 November 2026: it goes live with the website's next deploy.
+
 ## Client (Compose Multiplatform)
 
 - [x] The first desktop release, v1.0.0 (2026-11-01): `https://kadansplanning.com/download`'s buttons work.

@@ -3,7 +3,9 @@ package app.kadans.pomodoro
 import app.kadans.desktop.DesktopWindow
 import app.kadans.notifications.FreedesktopNotifications
 import app.kadans.notifications.notificationIcon
-import app.kadans.notifications.showSystemNotification
+import app.kadans.notifications.showDesktopNotification
+import app.kadans.sound.DesktopSound
+import app.kadans.sound.KadansSound
 import app.kadans.reminders.DesktopReminderNotices
 import app.kadans.ui.focusLink
 import java.util.concurrent.ConcurrentHashMap
@@ -28,7 +30,10 @@ internal class DesktopCycleNotices(
     /** Each session's notice on screen. */
     private val shown = ConcurrentHashMap<String, Long>()
 
-    fun show(notice: CycleNotice, body: String = notice.body) {
+    /** [ringing] false: shown again after a button that could not reach Kadans, without its sound. */
+    fun show(notice: CycleNotice, body: String = notice.body, ringing: Boolean = true) {
+        // A cycle done is focus being over (ARCHITECTURE → "Sounds").
+        if (ringing) DesktopSound.notice(KadansSound.FocusOver)
         val notifications = linux()
         val actions = actions()
         if (notifications?.clickable == true && actions != null) {
@@ -42,7 +47,7 @@ internal class DesktopCycleNotices(
                 return
             }
         }
-        showSystemNotification(notice.title, body)
+        showDesktopNotification(notice.title, body)
     }
 
     private fun clicked(notice: CycleNotice, key: String) {
@@ -52,7 +57,7 @@ internal class DesktopCycleNotices(
                 val actions = actions() ?: return@launch
                 val settled = if (key == ANOTHER) actions.anotherCycle(notice) else actions.done(notice)
                 if (settled) shown.remove(notice.runId)
-                else show(notice, "${notice.body}\n${actions.strings.reminders.actionFailed}")
+                else show(notice, "${notice.body}\n${actions.strings.reminders.actionFailed}", ringing = false)
             }
         }
     }

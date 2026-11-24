@@ -1098,12 +1098,25 @@ installing on real devices second, hosting last.
         the way back is one button everywhere, "← Back" in a pill, with the page's name in the middle (in Settings
         the name sat beside a bare arrow and looked like part of it); and the sign-in screen says at once when the
         server cannot be reached, with "Retry", instead of only leaving "Continue with Google" out.
-      - [ ] Sounds, from the same look and the testers: a phase change and a reminder are easy to miss, on the
-        computer above all, where nothing is heard. Proposed to the owner, their choice pending; its own branch.
+      - [x] Sounds, from the same look and the testers: its own item, below.
       - [ ] By the owner: the rest of OWNER-CHECKLIST → The new look (a phone, the widget, Windows).
       - [ ] After the owner's look: new screenshots for Play (four languages) and the Microsoft Store, taken with
         `seed_demo.py` as the current ones were; the stores' pictures still show the old look.
       - [ ] Not a new version by itself: it ships with Spanish in the next one.
+
+- [x] Sounds (2026-11-24): the testers forgot a running session and missed reminders, because nothing was
+      heard (ARCHITECTURE → "Sounds"). Kadans has three sounds of its own now, a marimba the owner chose among
+      three: a reminder, the end of a focus phase, the end of a break. On a phone a reminder rings like an alarm,
+      heard on silent too, or like a notification: asked once, "Like an alarm" first, changed in Settings, which
+      also says how things stand ("This phone is on silent: reminders will only show"), opens the phone's own page
+      for the sound, and has a "Test". "Keep ringing until I answer" is an option, a minute at most. A computer
+      plays the sounds itself, since its desktop shows a notification without one. On the server: a phone says how
+      its reminders ring, and a push is named the channel that sounds right; older apps get what they got.
+      Checked: the server's tests (399) and the app's (589, 16 of them new), and on the emulator through real
+      pushes what ARCHITECTURE → "Sounds" lists. Not checked: by ear, on any real device; Windows; other makers'
+      phones.
+      - [ ] By the owner: OWNER-CHECKLIST → Sounds (hear them on your phone and your computer; the deploy).
+      - [ ] It ships with the look and Spanish in the next version, whose "What's new" names it.
 
 Nice-to-have hardening
 

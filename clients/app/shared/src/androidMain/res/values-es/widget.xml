@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_today_label">Tareas de hoy</string>
+    <string name="widget_today_description">Las tareas de hoy, cada una a su hora. Toca una para abrirla, o su círculo cuando esté hecha.</string>
+    <string name="widget_preview_today">Hoy</string>
+    <string name="widget_preview_date">lun, 4 ene</string>
+    <string name="widget_preview_first">Correr por la mañana</string>
+    <string name="widget_preview_second">Llamar al banco</string>
+    <string name="widget_preview_third">Hacer las compras</string>
+</resources>

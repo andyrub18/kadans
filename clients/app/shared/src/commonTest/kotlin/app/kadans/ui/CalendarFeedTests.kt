@@ -6,6 +6,7 @@ import app.kadans.api.model.DevicePlatform
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.realtime.RealtimeEvent
 import app.kadans.sync.DataChanges
 import app.kadans.ui.settings.CalendarFeedUiState
@@ -238,6 +239,7 @@ class CalendarFeedTests {
         assertEquals(EnglishStrings.calendarFeed.needsSubscription, EnglishStrings.errorFor(refused.errorCode, refused.error))
         assertEquals(FrenchStrings.calendarFeed.needsSubscription, FrenchStrings.errorFor(refused.errorCode, refused.error))
         assertEquals(CreoleStrings.calendarFeed.needsSubscription, CreoleStrings.errorFor(refused.errorCode, refused.error))
+        assertEquals(SpanishStrings.calendarFeed.needsSubscription, SpanishStrings.errorFor(refused.errorCode, refused.error))
     }
 
     @Test
@@ -284,5 +286,6 @@ class CalendarFeedTests {
         assertEquals("Last read by a calendar: Today · 14:02", EnglishStrings.calendarFeed.lastRead("Today · 14:02"))
         assertEquals("Dernière lecture par un calendrier : Aujourd'hui · 14:02", FrenchStrings.calendarFeed.lastRead("Aujourd'hui · 14:02"))
         assertEquals("Dènye fwa yon kalandriye li l: Jodi a · 14:02", CreoleStrings.calendarFeed.lastRead("Jodi a · 14:02"))
+        assertEquals("Última lectura por un calendario: Hoy · 14:02", SpanishStrings.calendarFeed.lastRead("Hoy · 14:02"))
     }
 }

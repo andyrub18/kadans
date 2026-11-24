@@ -45,12 +45,14 @@ class ReleaseTests(unittest.TestCase):
 
     def test_notes_and_a_minimum_are_carried(self):
         (self.notes / "1.1.0.json").write_text(json.dumps(
-            {"minimumVersion": "1.0.0", "notes": {"en": "Faster reminders.", "fr": "Rappels plus rapides."}}))
+            {"minimumVersion": "1.0.0", "notes": {"en": "Faster reminders.", "fr": "Rappels plus rapides.",
+                                                   "es": "Recordatorios más rápidos."}}))
 
         latest = release.assemble(self.out, "1.1.0", self.notes)
 
         self.assertEqual("1.0.0", latest["minimumVersion"])
         self.assertEqual("Rappels plus rapides.", latest["notes"]["fr"])
+        self.assertEqual("Recordatorios más rápidos.", latest["notes"]["es"])
         self.assertTrue((self.out / "notes.md").read_text().startswith("Faster reminders."))
 
     def test_a_wrong_notes_file_stops_the_release(self):
@@ -58,7 +60,7 @@ class ReleaseTests(unittest.TestCase):
             {"minimumVersion": "1.2.0"},                       # above the release
             {"minimumVersion": "latest"},
             {"notes": {"fr": "Seulement en français."}},        # English at least
-            {"notes": {"en": "Fine.", "es": "No."}},             # en, fr, ht only
+            {"notes": {"en": "Fine.", "de": "Nein."}},           # en, fr, ht, es only
             {"notes": {"en": " "}},
             {"version": "1.1.0"},                                # the version is the tag's, not the file's
         ]:

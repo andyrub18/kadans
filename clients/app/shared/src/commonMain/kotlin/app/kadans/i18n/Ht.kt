@@ -58,6 +58,7 @@ val CreoleStrings = StringsCatalog(
         everyMonthsFormat = "Chak %d mwa",
         everyYearsFormat = "Chak %d ane",
         monthDayFormat = "jou %d nan mwa a",
+        yearDayFormat = "%d %s",
         countFormat = "%d fwa",
         untilFormat = "jiska %s",
         firstTimeFormat = "Premye fwa a: %s",

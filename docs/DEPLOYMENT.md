@@ -273,13 +273,13 @@ cd kadans && git pull && cd deploy && docker compose up -d --force-recreate --no
 
 nginx is away for a few seconds; the API does not restart.
 
-- **Addresses.** `/en/…`, `/fr/…`, `/ht/…`; an address without a language (`/`, the app's `/privacy` and `/terms`)
-  goes to the visitor's, from the browser's first language (English when it is none of the three). `www` goes to the
+- **Addresses.** `/en/…`, `/fr/…`, `/ht/…`, `/es/…`; an address without a language (`/`, the app's `/privacy` and `/terms`)
+  goes to the visitor's, from the browser's first language (English when it is none of the four). `www` goes to the
   bare name. A page has one address: another spelling of it (`/en`, `/en/index.html`, `/en/download.html`,
   `/en/download/`) goes to that one. All of these are permanent redirects (301); the one that depends on the
   visitor's language is never kept by a browser (`Cache-Control: no-cache`).
 - **Search engines.** Every page declares its address (`rel="canonical"`), itself in the other languages and the
-  English one for everyone else (`hreflang`, `x-default`), and has its own description; `sitemap.xml` lists the 18
+  English one for everyone else (`hreflang`, `x-default`), and has its own description; `sitemap.xml` lists the 24
   pages with the same alternates, and `robots.txt` forbids nothing. The home pages give Google the site's
   name, Kadans (a `WebSite` block, JSON-LD), with `kadansplanning.com` as the alternate it falls back to. The addresses without a language are redirects
   and are named nowhere: when the pages gave them as `x-default` and nginx answered 302, Google indexed them in

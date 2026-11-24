@@ -7,6 +7,7 @@ import app.kadans.api.model.RecurrenceRuleResponse
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.ui.todos.RuleSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -45,6 +46,7 @@ class RuleSummaryTests {
         assertEquals("Every week · Mon–Fri · 07:00", RuleSummary.describe(alarm, EnglishStrings, portAuPrince))
         assertEquals("Chaque semaine · lun–ven · 07:00", RuleSummary.describe(alarm, FrenchStrings, portAuPrince))
         assertEquals("Chak semèn · len–van · 07:00", RuleSummary.describe(alarm, CreoleStrings, portAuPrince))
+        assertEquals("Cada semana · lun–vie · 07:00", RuleSummary.describe(alarm, SpanishStrings, portAuPrince))
     }
 
     @Test
@@ -52,6 +54,7 @@ class RuleSummaryTests {
         val everyOther = rule("FREQ=WEEKLY;INTERVAL=2;COUNT=10;BYDAY=MO,WE,FR", Frequency.Weekly, interval = 2, count = 10)
         assertEquals("Every 2 weeks · Mon, Wed, Fri · 07:00 · 10 times", RuleSummary.describe(everyOther, EnglishStrings, portAuPrince))
         assertEquals("Toutes les 2 semaines · lun, mer, ven · 07:00 · 10 fois", RuleSummary.describe(everyOther, FrenchStrings, portAuPrince))
+        assertEquals("Cada 2 semanas · lun, mié, vie · 07:00 · 10 veces", RuleSummary.describe(everyOther, SpanishStrings, portAuPrince))
 
         // A weekly rule made before days could be picked falls on its start's day.
         val plain = rule("FREQ=WEEKLY", Frequency.Weekly)
@@ -68,6 +71,7 @@ class RuleSummaryTests {
         assertEquals("Every day · 07:00 · until March 31, 2027", RuleSummary.describe(endOfDay, EnglishStrings, portAuPrince))
         val atSix = rule("FREQ=HOURLY;INTERVAL=2;UNTIL=20270331T220000Z", Frequency.Hourly, interval = 2, until = "2027-03-31T22:00:00Z")
         assertEquals("Chak 2 èdtan · jiska 31 mas 2027, 18:00", RuleSummary.describe(atSix, CreoleStrings, portAuPrince))
+        assertEquals("Cada 2 horas · hasta el 31 de marzo de 2027, 18:00", RuleSummary.describe(atSix, SpanishStrings, portAuPrince))
         assertEquals(
             "Every hour · until March 31, 2027, 6:00 PM",
             RuleSummary.describe(atSix.copy(interval = 1), EnglishStrings, portAuPrince, clock = ClockFormat.TwelveHour),
@@ -92,9 +96,13 @@ class RuleSummaryTests {
         val rent = rule("FREQ=MONTHLY", Frequency.Monthly, start = "2027-03-15T13:00:00Z")
         assertEquals("Every month · on day 15 · 09:00", RuleSummary.describe(rent, EnglishStrings, portAuPrince))
         assertEquals("Chaque mois · le 15 · 09:00", RuleSummary.describe(rent, FrenchStrings, portAuPrince))
+        assertEquals("Cada mes · el día 15 · 09:00", RuleSummary.describe(rent, SpanishStrings, portAuPrince))
 
         val birthday = rule("FREQ=YEARLY", Frequency.Yearly, start = "2027-03-15T13:00:00Z")
         assertEquals("Chaque année · 15 mars · 09:00", RuleSummary.describe(birthday, FrenchStrings, portAuPrince))
+        assertEquals("Every year · 15 March · 09:00", RuleSummary.describe(birthday, EnglishStrings, portAuPrince))
+        // Spanish puts "de" between the day and the month.
+        assertEquals("Cada año · 15 de marzo · 09:00", RuleSummary.describe(birthday, SpanishStrings, portAuPrince))
     }
 
     @Test
@@ -105,6 +113,7 @@ class RuleSummaryTests {
 
         assertEquals("One-time · Mon, Jan 4 · 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince, today = newYear))
         assertEquals("Unique · Lun. 4 janv. · 07:00", RuleSummary.describe(once, FrenchStrings, portAuPrince, today = newYear))
+        assertEquals("Una vez · Lun, 4 ene · 07:00", RuleSummary.describe(once, SpanishStrings, portAuPrince, today = newYear))
         // Seen from the year before, it says its year; the day before, it is tomorrow.
         assertEquals("One-time · Mon, Jan 4, 2027 · 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince, today = LocalDate(2026, 12, 30)))
         assertEquals("One-time · Tomorrow · 07:00", RuleSummary.describe(once, EnglishStrings, portAuPrince, today = LocalDate(2027, 1, 3)))
@@ -116,6 +125,7 @@ class RuleSummaryTests {
         assertEquals("Every month · on days 1, 15 · 07:00", RuleSummary.describe(payday, EnglishStrings, portAuPrince))
         assertEquals("Chaque mois · les 1, 15 · 07:00", RuleSummary.describe(payday, FrenchStrings, portAuPrince))
         assertEquals("Chak mwa · jou 1, 15 yo · 07:00", RuleSummary.describe(payday, CreoleStrings, portAuPrince))
+        assertEquals("Cada mes · los días 1, 15 · 07:00", RuleSummary.describe(payday, SpanishStrings, portAuPrince))
 
         assertEquals(
             "Every month · on the last day · 07:00",
@@ -133,6 +143,7 @@ class RuleSummaryTests {
         assertEquals("Every month · the last weekday · 07:00", RuleSummary.describe(closing, EnglishStrings, portAuPrince))
         assertEquals("Chaque mois · le dernier jour de semaine · 07:00", RuleSummary.describe(closing, FrenchStrings, portAuPrince))
         assertEquals("Chak mwa · dènye jou travay · 07:00", RuleSummary.describe(closing, CreoleStrings, portAuPrince))
+        assertEquals("Cada mes · el último día de semana · 07:00", RuleSummary.describe(closing, SpanishStrings, portAuPrince))
 
         assertEquals(
             "Every 2 months · the last Friday · 07:00",
@@ -150,6 +161,7 @@ class RuleSummaryTests {
         assertEquals("Every year · May · the second Sunday · 07:00", RuleSummary.describe(mothersDay, EnglishStrings, portAuPrince))
         assertEquals("Chaque année · mai · le deuxième dimanche · 07:00", RuleSummary.describe(mothersDay, FrenchStrings, portAuPrince))
         assertEquals("Chak ane · me · dezyèm dimanch · 07:00", RuleSummary.describe(mothersDay, CreoleStrings, portAuPrince))
+        assertEquals("Cada año · mayo · el segundo domingo · 07:00", RuleSummary.describe(mothersDay, SpanishStrings, portAuPrince))
 
         val quarterly = rule("FREQ=YEARLY;BYMONTH=1,4,7,10;BYMONTHDAY=1", Frequency.Yearly)
         assertEquals("Every year · January, April, July, October · on day 1 · 07:00", RuleSummary.describe(quarterly, EnglishStrings, portAuPrince))

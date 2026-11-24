@@ -155,6 +155,11 @@ internal static class BudgetTexts
                 "Ou rive nan limit {1}: {2} sou {3} ({0}%).",
                 "semèn sa a", "mwa sa a", "ane sa a"
             ),
+            "es" => new(
+                "{0}% del límite {1}: {2} de {3}.",
+                "Límite {1} alcanzado: {2} de {3} ({0}%).",
+                "de la semana", "del mes", "del año"
+            ),
             _ => new(
                 "{0}% of this {1}'s limit: {2} of {3}.",
                 "This {1}'s limit is reached: {2} of {3} ({0}%).",

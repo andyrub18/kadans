@@ -82,6 +82,7 @@ public class ForgottenSessionTests
     [Test]
     [Arguments("fr", "Cycle 1 terminé. Un autre ? La session vous attend.")]
     [Arguments("ht", "Sik 1 fini. Yon lòt? Seyans lan ap tann ou.")]
+    [Arguments("es", "Ciclo 1 completado. ¿Otro? La sesión te espera.")]
     public async Task The_notice_is_in_the_persons_language(string language, string expected)
     {
         await Assert.That(Notice(AfterOneCycle(), language).Body).IsEqualTo(expected);

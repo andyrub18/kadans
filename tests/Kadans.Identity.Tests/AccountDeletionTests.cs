@@ -257,5 +257,6 @@ public sealed class AccountDeletionTests : IAsyncDisposable
         await Assert.That(DeletionTexts.For("en").Date(at, haiti)).IsEqualTo("October 9, 2026"); // 23:00 the day before in Haiti
         await Assert.That(DeletionTexts.For("fr").Date(at, haiti)).IsEqualTo("9 octobre 2026");
         await Assert.That(DeletionTexts.For("ht").Date(at, haiti)).IsEqualTo("9 oktòb 2026");
+        await Assert.That(DeletionTexts.For("es").Date(at, haiti)).IsEqualTo("9 de octubre de 2026");
     }
 }

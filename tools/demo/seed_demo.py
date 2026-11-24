@@ -2,7 +2,7 @@
 """Fills an empty account with believable demo data, for the store screenshots and Google's reviewers:
 
     python3 tools/demo/seed_demo.py googleTest                    # English, Port-au-Prince time
-    python3 tools/demo/seed_demo.py kadans.demo.fr --language fr  # the same in French (ht: Kreyòl)
+    python3 tools/demo/seed_demo.py kadans.demo.fr --language fr  # the same in French (ht: Kreyòl, es: Spanish)
 
 Asks for the account's password (and a two-factor code if it has one), never stored. Talks to production
 (https://api.kadansplanning.com; --api for another server). It refuses an account that already has todos or budget
@@ -74,6 +74,23 @@ TEXTS = {
                        "phone": "Telefòn ak entènèt", "health": "Sante", "leisure": "Lwazi"},
         "notes": {"market": "Mache", "tap": "Taptap", "power": "Kouran", "internet": "Entènèt",
                   "pharmacy": "Famasi", "cinema": "Sinema", "topup": "Kat telefòn", "saving": "Nan ekonomi"},
+    },
+    "es": {
+        "template": "Clásico",
+        "todos": {
+            "deep": ("Trabajo a fondo: el informe", "Dos ciclos, el teléfono boca abajo."),
+            "language": ("Práctica de inglés", "20 palabras nuevas, luego el pódcast."),
+            "plants": ("Regar las plantas", ""),
+            "meeting": ("Reunión de equipo", "Llevar los números de la semana."),
+            "bill": ("Pagar el internet", ""),
+            "reading": ("Lectura de la noche", "30 páginas."),
+            "dentist": ("Cita con el dentista", "Llevar la tarjeta del seguro."),
+        },
+        "accounts": {"cash": "Efectivo", "bank": "Cuenta bancaria", "mobile": "Dinero móvil", "savings": "Ahorros (USD)"},
+        "categories": {"salary": "Salario", "food": "Comida", "transport": "Transporte", "bills": "Facturas",
+                       "phone": "Teléfono e internet", "health": "Salud", "leisure": "Ocio"},
+        "notes": {"market": "Mercado", "tap": "Tap-tap", "power": "Electricidad", "internet": "Internet",
+                  "pharmacy": "Farmacia", "cinema": "Cine", "topup": "Recarga del teléfono", "saving": "A ahorros"},
     },
 }
 

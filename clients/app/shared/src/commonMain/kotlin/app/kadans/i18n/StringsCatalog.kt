@@ -133,6 +133,8 @@ data class RepeatStrings(
     val everyYearsFormat: String,
     /** `%d` = the day of the month a monthly rule falls on. */
     val monthDayFormat: String,
+    /** A yearly rule's own date: `%d` = the day, `%s` = the month ("15 March", "15 mars", "15 de marzo"). */
+    val yearDayFormat: String,
     /** `%d` = how many times in all. */
     val countFormat: String,
     /** `%s` = the last date. */
@@ -201,6 +203,8 @@ data class RepeatStrings(
     }
 
     fun monthDay(day: Int): String = monthDayFormat.replace("%d", "$day")
+
+    fun yearDay(day: Int, month: String): String = yearDayFormat.replace("%d", "$day").replace("%s", month)
 
     fun shortMonths(day: Int): String = shortMonthsFormat.replace("%d", "$day")
 

@@ -10,8 +10,11 @@ like the rest. One folder per language, in fastlane's layout (`fastlane supply` 
 | `full_description.txt` | Full description | 4,000 |
 | `changelogs/<versionCode>.txt` | Release notes ("What's new") of that upload | 500 |
 
-`en-US` is the default language; `fr-FR` is added under "Manage translations". `ht` (Kreyòl) is ready for when Play
-Console offers Haitian Creole in its list; until then Play shows Kreyòl speakers the French or English listing.
+`en-US` is the default language; `fr-FR` and `es-419` (Spanish as Latin America writes it, Play's "Spanish (Latin
+America)") are added under "Manage translations". `ht` (Kreyòl) is ready for when Play Console offers Haitian Creole
+in its list; until then Play shows Kreyòl speakers the French or English listing. `es-419` has no changelog of the
+uploads made before the app spoke Spanish, and no screenshots yet: Play shows the English ones until a set is taken
+(`seed_demo.py --language es`).
 
 ```bash
 python3 tools/store/play.py check                       # every text within the limits (CI runs it)

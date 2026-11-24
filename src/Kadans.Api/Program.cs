@@ -105,7 +105,7 @@ builder.Services.AddHealthChecks().AddCheck<PostgresHealthCheck>("postgres", tag
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-builder.Services.AddScoped<IRequestLanguage, HttpRequestLanguage>(); // Accept-Language → en | fr | ht
+builder.Services.AddScoped<IRequestLanguage, HttpRequestLanguage>(); // Accept-Language → en | fr | ht | es
 builder.Services.AddKadansEmail(builder.Configuration);
 
 // Quartz runs the modules' scheduled jobs (each module adds its own via AddQuartz, which is additive).

@@ -32,7 +32,7 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `branding/` – the logo (a clock whose hands spell K) and `generate.py`, which draws every icon and the Android splash
   from one geometry: never edit a generated icon, change the script and run it (README there).
 - `site/` – the website (`https://kadansplanning.com`, served by the deploy's nginx): `generate.py` writes `site/public`
-  from `texts.py` (en/fr/ht) and `legal/`; never edit `public/`, run the generator and commit both (CI checks it,
+  from `texts.py` (en/fr/ht/es) and `legal/`; never edit `public/`, run the generator and commit both (CI checks it,
   README there).
 - `Dockerfile` + `deploy/` – the production image and the single-VPS Docker Compose setup (nginx with certbot, also serving the website, API, Postgres, nightly dump,
   and the monitoring: Prometheus, Loki, Grafana, node-exporter, configured in `deploy/observability/`).
@@ -112,7 +112,7 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `error.ToProblemDetails(context)` (or `.ToHttp(context)`) to RFC 9457 ProblemDetails. Error codes are
   `ErrorTypes` SmartEnums.
 - Error messages are written once, in English, where the error is created; never build per-language
-  strings in a service. Add the French and Kreyòl sentence to `SharedKernel/Errors/ErrorTexts.cs`
+  strings in a service. Add the French, Kreyòl and Spanish sentence to `SharedKernel/Errors/ErrorTexts.cs`
   (`Sentences` for a static message, `ByType` for a new `ErrorTypes` entry) – `ErrorLocalizationTests`
   scans `src/` and fails on a static message without a translation. The boundary picks the language from
   `Accept-Language`; codes never change with it. Identity's own messages live in `LocalizedIdentityErrorDescriber`.
@@ -147,15 +147,17 @@ Anything a production host needs must be in `appsettings.json` or an environment
   `Contracts/`, `Features/<Area>/` (services, routes, validators).
 - Domain rules (recurrence, pomodoro state machine) are pure code with unit tests; EF-only behaviour
   goes in integration tests.
-- The app is trilingual (en/fr/ht). Every user-visible client string goes through
-  `app.kadans.i18n.StringsCatalog` (add the key to the data class and all three instances —
+- The app speaks four languages (en/fr/ht/es; Spanish is Latin America's, its conventions head `i18n/Es.kt`; what
+  a language touches, from the server to the store listing: ARCHITECTURE → "Languages"). Every user-visible client
+  string goes through `app.kadans.i18n.StringsCatalog` (add the key to the data class and all four instances —
   the compiler enforces completeness); never hardcode UI text in composables. The flat catalog is
   nearly full: the JVM allows 255 parameters per method and the data class's synthetic `copy$default`
   is at 232, beyond 255 the class compiles but fails to load and the app does not start.
   Strings for a new feature area go in their own nested group (see `FocusStatsStrings`, used as
   `s.focusStats.title`); `StringsCatalogSizeTest` fails with that advice before the limit is hit. A sentence
   with a number is one whole phrase per case (`RepeatStrings`: "Toutes les %d semaines", "Tous les %d jours"),
-  never a prefix glued to a unit: French agrees with the unit. Server-rendered
+  never a prefix glued to a unit: French agrees with the unit; and never two words glued by a space where a
+  language wants one between them ("15 de marzo": `RepeatStrings.yearDayFormat`). Server-rendered
   texts (emails, notifications) go through `EmailTexts`/`LocalizedTexts` keyed by the user's
   `PreferredLanguage`, their times through `Clock(user.ClockFormat)` ("21:00" or "9:00 PM"); error responses
   follow the request's `Accept-Language`, which the client sets from its in-app language on every call. The

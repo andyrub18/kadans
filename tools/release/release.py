@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PROPERTIES = ROOT / "clients" / "app" / "gradle.properties"
 RELEASES = ROOT / "clients" / "app" / "releases"
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
-LANGUAGES = {"en", "fr", "ht"}
+LANGUAGES = {"en", "fr", "ht", "es"}
 
 # The names never change from one release to the next: the site's buttons and latest.json's address point at the
 # latest release's file of that name (deploy/nginx/site-https.conf.template).
@@ -80,7 +80,7 @@ def extras(version, releases=RELEASES):
     if "notes" in data:
         notes = data["notes"]
         if not isinstance(notes, dict) or not notes or set(notes) - LANGUAGES or "en" not in notes:
-            raise ReleaseError(f"{path.name}: notes are by language (en, fr, ht), English at least")
+            raise ReleaseError(f"{path.name}: notes are by language (en, fr, ht, es), English at least")
         if not all(isinstance(v, str) and v.strip() for v in notes.values()):
             raise ReleaseError(f"{path.name}: every note is a sentence")
         out["notes"] = {k: notes[k].strip() for k in sorted(notes)}

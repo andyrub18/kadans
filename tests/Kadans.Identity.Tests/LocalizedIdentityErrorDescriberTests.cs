@@ -16,6 +16,7 @@ public class LocalizedIdentityErrorDescriberTests
     {
         await Assert.That(new LocalizedIdentityErrorDescriber(new Fixed("fr")).PasswordTooShort(8).Description).IsEqualTo("Le mot de passe doit contenir au moins 8 caractères.");
         await Assert.That(new LocalizedIdentityErrorDescriber(new Fixed("ht")).PasswordTooShort(8).Description).IsEqualTo("Modpas la dwe gen omwen 8 karaktè.");
+        await Assert.That(new LocalizedIdentityErrorDescriber(new Fixed("es")).PasswordTooShort(8).Description).IsEqualTo("La contraseña debe tener al menos 8 caracteres.");
         await Assert.That(new LocalizedIdentityErrorDescriber(new Fixed("en")).PasswordTooShort(8).Description).IsEqualTo(new IdentityErrorDescriber().PasswordTooShort(8).Description);
     }
 
@@ -32,18 +33,21 @@ public class LocalizedIdentityErrorDescriberTests
     public async Task Every_message_identity_can_produce_is_translated()
     {
         var english = new IdentityErrorDescriber();
-        var french = new LocalizedIdentityErrorDescriber(new Fixed("fr"));
         var methods = typeof(IdentityErrorDescriber).GetMethods().Where(m => m.ReturnType == typeof(IdentityError)).ToList();
 
         var untranslated = new List<string>();
-        foreach (var method in methods)
+        foreach (var language in new[] { "fr", "ht", "es" })
         {
-            var arguments = method.GetParameters().Select(p => p.ParameterType == typeof(int) ? (object)8 : "x").ToArray();
-            var en = (IdentityError)method.Invoke(english, arguments)!;
-            var fr = (IdentityError)method.Invoke(french, arguments)!;
-            if (fr.Description == en.Description)
-                untranslated.Add(method.Name);
-            await Assert.That(fr.Code).IsEqualTo(en.Code);
+            var localized = new LocalizedIdentityErrorDescriber(new Fixed(language));
+            foreach (var method in methods)
+            {
+                var arguments = method.GetParameters().Select(p => p.ParameterType == typeof(int) ? (object)8 : "x").ToArray();
+                var en = (IdentityError)method.Invoke(english, arguments)!;
+                var other = (IdentityError)method.Invoke(localized, arguments)!;
+                if (other.Description == en.Description)
+                    untranslated.Add($"{language}: {method.Name}");
+                await Assert.That(other.Code).IsEqualTo(en.Code);
+            }
         }
 
         await Assert.That(methods.Count).IsGreaterThan(15);

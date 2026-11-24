@@ -5,6 +5,7 @@ import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.ui.pomodoro.SessionEnd
 import app.kadans.ui.templates.TemplateEditorState
 import io.ktor.client.engine.mock.MockEngine
@@ -40,6 +41,7 @@ class SessionEndAndCycleTests {
         assertEquals("Ends at 21:00", SessionEnd.label(end, nineAm, portAuPrince, EnglishStrings.pomodoro))
         assertEquals("Se termine à 21:00", SessionEnd.label(end, nineAm, portAuPrince, FrenchStrings.pomodoro))
         assertEquals("Ap fini a 21:00", SessionEnd.label(end, nineAm, portAuPrince, CreoleStrings.pomodoro))
+        assertEquals("Termina a las 21:00", SessionEnd.label(end, nineAm, portAuPrince, SpanishStrings.pomodoro))
         assertEquals("Ends tomorrow at 02:00", SessionEnd.label(nineAm + 17.hours, nineAm, portAuPrince, EnglishStrings.pomodoro))
     }
 
@@ -49,6 +51,7 @@ class SessionEndAndCycleTests {
         assertEquals("Ends at 14:00, when the next one starts", SessionEnd.label(two, nineAm, portAuPrince, EnglishStrings.pomodoro, withNext = true))
         assertEquals("Se termine à 14:00, au début de la suivante", SessionEnd.label(two, nineAm, portAuPrince, FrenchStrings.pomodoro, withNext = true))
         assertEquals("Ap fini a 14:00, lè pwochen an kòmanse", SessionEnd.label(two, nineAm, portAuPrince, CreoleStrings.pomodoro, withNext = true))
+        assertEquals("Termina a las 14:00, cuando empieza la siguiente", SessionEnd.label(two, nineAm, portAuPrince, SpanishStrings.pomodoro, withNext = true))
         assertEquals(
             "Ends tomorrow at 02:00, when the next one starts",
             SessionEnd.label(nineAm + 17.hours, nineAm, portAuPrince, EnglishStrings.pomodoro, withNext = true),
@@ -56,6 +59,7 @@ class SessionEndAndCycleTests {
         assertEquals("Cycle 3 done", EnglishStrings.pomodoro.cycleDone(3))
         assertEquals("Cycle 3 terminé", FrenchStrings.pomodoro.cycleDone(3))
         assertEquals("Sik 3 fini", CreoleStrings.pomodoro.cycleDone(3))
+        assertEquals("Ciclo 3 completado", SpanishStrings.pomodoro.cycleDone(3))
     }
 
     @Test

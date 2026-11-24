@@ -3,13 +3,15 @@ package app.kadans.i18n
 enum class Language(val tag: String, val displayName: String) {
     En("en", "English"),
     Fr("fr", "Français"),
-    Ht("ht", "Kreyòl Ayisyen");
+    Ht("ht", "Kreyòl Ayisyen"),
+    Es("es", "Español");
 
     val catalog: StringsCatalog
         get() = when (this) {
             En -> EnglishStrings
             Fr -> FrenchStrings
             Ht -> CreoleStrings
+            Es -> SpanishStrings
         }
 
     companion object {

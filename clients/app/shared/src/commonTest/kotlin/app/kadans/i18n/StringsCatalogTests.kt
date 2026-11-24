@@ -12,6 +12,7 @@ class StringsCatalogTests {
         assertEquals("Invalid username or password.", EnglishStrings.errorFor("10001", null))
         assertEquals("Nom d'utilisateur ou mot de passe invalide.", FrenchStrings.errorFor("10001", null))
         assertEquals("Non itilizatè oswa modpas la pa bon.", CreoleStrings.errorFor("10001", null))
+        assertEquals("Nombre de usuario o contraseña incorrectos.", SpanishStrings.errorFor("10001", null))
         assertEquals("Nou pa ka jwenn sèvè a.", CreoleStrings.errorFor("network", "ignored"))
         // Unknown codes fall back to the server's detail, then to the generic text.
         assertEquals("server detail", FrenchStrings.errorFor("99999", "server detail"))
@@ -32,6 +33,10 @@ class StringsCatalogTests {
         // Creole nouns don't inflect for number.
         assertEquals("Chak jou", CreoleStrings.repeat.every(Frequency.Daily, 1))
         assertEquals("Chak 2 jou", CreoleStrings.repeat.every(Frequency.Daily, 2))
+        // Spanish keeps "cada" and puts the unit in the plural.
+        assertEquals("Cada día", SpanishStrings.repeat.every(Frequency.Daily, 1))
+        assertEquals("Cada 2 días", SpanishStrings.repeat.every(Frequency.Daily, 2))
+        assertEquals("Cada 3 meses", SpanishStrings.repeat.every(Frequency.Monthly, 3))
     }
 
     @Test
@@ -41,7 +46,10 @@ class StringsCatalogTests {
         assertEquals(Language.En, Language.fromTag("de"))
         assertEquals(Language.En, Language.fromTag(null))
         assertEquals(Language.Fr, Language.next(Language.En))
-        assertEquals(Language.En, Language.next(Language.Ht))
+        assertEquals(Language.Es, Language.fromTag("es-DO"))
+        assertEquals(Language.Es, Language.fromTag("es_MX"))
+        assertEquals(Language.Es, Language.next(Language.Ht))
+        assertEquals(Language.En, Language.next(Language.Es))
     }
 
     @Test
@@ -55,5 +63,6 @@ class StringsCatalogTests {
         assertNotEquals(EnglishStrings, FrenchStrings)
         assertNotEquals(FrenchStrings, CreoleStrings)
         assertNotEquals(CreoleStrings, EnglishStrings)
+        assertEquals(Language.entries.size, Language.entries.map { it.catalog }.distinct().size)
     }
 }

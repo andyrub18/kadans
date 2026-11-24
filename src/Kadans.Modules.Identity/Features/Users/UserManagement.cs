@@ -3,6 +3,7 @@ using Kadans.SharedKernel.Security;
 using Kadans.Modules.Identity.Persistence;
 using Kadans.Modules.Identity.Contracts;
 using Kadans.SharedKernel.Errors;
+using Kadans.SharedKernel.Localization;
 using Kadans.Modules.Identity.Domain;
 using Kadans.Modules.Identity.Features.Account;
 using Kadans.Modules.Identity.Security;
@@ -25,7 +26,6 @@ internal sealed class UserManagement(
 )
 {
     private const string AdminRoleName = "Admin";
-    private static readonly string[] SupportedLanguages = ["en", "fr", "ht"];
     private string? pendingLanguage;
     private ClockFormat? pendingClockFormat;
 
@@ -491,7 +491,7 @@ internal sealed class UserManagement(
     private static string? NormalizeLanguage(string? language)
     {
         var normalized = language?.Trim().ToLowerInvariant();
-        return SupportedLanguages.Contains(normalized) ? normalized : null;
+        return normalized is not null && RequestLanguage.Supported.Contains(normalized) ? normalized : null;
     }
 
     private static string? NormalizeDisplayName(string? displayName) =>

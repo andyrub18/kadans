@@ -11,6 +11,7 @@ import app.kadans.api.model.SubscriptionStatusResponse
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.realtime.KadansRealtime
 import app.kadans.ui.billing.PaywallExit
 import app.kadans.ui.billing.PaywallNotice
@@ -315,7 +316,7 @@ class SubscriptionTests {
 
     @Test
     fun the_price_and_trial_read_in_every_language() {
-        listOf(EnglishStrings, FrenchStrings, CreoleStrings).forEach { strings ->
+        listOf(EnglishStrings, FrenchStrings, CreoleStrings, SpanishStrings).forEach { strings ->
             val p = strings.paywall
             val offer = p.trialPrice(14, "$0.99")
             assertTrue("14" in offer && "$0.99" in offer && "{" !in offer, offer)

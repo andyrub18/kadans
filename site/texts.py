@@ -1,9 +1,9 @@
-"""The website's words, in English, French and Kreyòl (site/generate.py puts them in pages). The legal pages are in
+"""The website's words, in English, French, Kreyòl and Spanish (site/generate.py puts them in pages). The legal pages are in
 legal/. A text may hold a little markup (a link, a command): it goes into the page as written. Screen and button
 names are the app's own (clients/app/shared/src/commonMain/kotlin/app/kadans/i18n): keep them in step.
 """
 
-LANGUAGES = ["en", "fr", "ht"]
+LANGUAGES = ["en", "fr", "ht", "es"]
 
 PLAY_STORE = "https://play.google.com/store/apps/details?id=app.kadans"
 RELEASES = "https://github.com/andyrub18/kadans/releases"
@@ -22,7 +22,7 @@ TEXTS = {
         "footer_support": "Support",
         "footer_delete": "Delete my account",
         "description": "Kadans keeps your tasks, your focus sessions and your budget in one place, and reminds you at "
-                       "the moment it matters. On Android, Linux and Windows, in English, French and Kreyòl.",
+                       "the moment it matters. On Android, Linux and Windows, in English, French, Kreyòl and Spanish.",
         "play_button": "Get it on Google Play",
 
         "home_title": "Kadans – your days, in rhythm",
@@ -46,7 +46,7 @@ TEXTS = {
         "home_sync_text": "Mark a task done on one, and it is done on the other. Reminders ring on your phone even "
                           "without internet, and the computer app waits quietly by the clock. Your tasks also show "
                           "in your calendar and on your phone's home screen.",
-        "home_languages": "In English, French and Kreyòl.",
+        "home_languages": "In English, French, Kreyòl and Spanish.",
         "home_private_title": "Yours, and only yours",
         "home_private_text": "No ads, no tracking, nothing sold. Kadans keeps your data on its own server, and shares "
                              "it only to deliver your notifications and emails. Take a copy of everything you put "
@@ -78,9 +78,9 @@ TEXTS = {
 
         "support_title": "Support – Kadans",
         "support_description": "Help with Kadans: reminders that do not ring, a forgotten password, your "
-                               "subscription, your account. Or write to us, in English, French or Kreyòl.",
+                               "subscription, your account. Or write to us, in English, French, Kreyòl or Spanish.",
         "support_h1": "Support",
-        "support_lead": f'Write to <a href="mailto:{SUPPORT}">{SUPPORT}</a>, in English, French or Kreyòl.',
+        "support_lead": f'Write to <a href="mailto:{SUPPORT}">{SUPPORT}</a>, in English, French, Kreyòl or Spanish.',
         "support_faq": "Common questions",
         "q1": "My reminders don't ring on my Android phone.",
         "a1": "In Kadans, open Settings → Reminders on this phone, and allow notifications and “Alarms &amp; "
@@ -139,7 +139,7 @@ TEXTS = {
         "footer_support": "Assistance",
         "footer_delete": "Supprimer mon compte",
         "description": "Kadans réunit vos tâches, vos séances de concentration et votre budget, et vous rappelle au "
-                       "bon moment. Sur Android, Linux et Windows, en français, en anglais et en kreyòl.",
+                       "bon moment. Sur Android, Linux et Windows, en français, en anglais, en kreyòl et en espagnol.",
         "play_button": "Disponible sur Google Play",
 
         "home_title": "Kadans – vos journées, en rythme",
@@ -164,7 +164,7 @@ TEXTS = {
                           "votre téléphone même sans internet, et l'application pour ordinateur attend discrètement "
                           "près de l'horloge. Vos tâches apparaissent aussi dans votre calendrier et sur l'écran "
                           "d'accueil de votre téléphone.",
-        "home_languages": "En français, en anglais et en kreyòl.",
+        "home_languages": "En français, en anglais, en kreyòl et en espagnol.",
         "home_private_title": "À vous, et à vous seul",
         "home_private_text": "Pas de publicité, pas de pistage, rien n'est vendu. Kadans garde vos données sur son "
                              "propre serveur, et ne les partage que pour livrer vos notifications et vos e-mails. "
@@ -197,9 +197,9 @@ TEXTS = {
 
         "support_title": "Assistance – Kadans",
         "support_description": "De l'aide pour Kadans : rappels qui ne sonnent pas, mot de passe oublié, abonnement, "
-                               "compte. Ou écrivez-nous, en français, en anglais ou en kreyòl.",
+                               "compte. Ou écrivez-nous, en français, en anglais, en kreyòl ou en espagnol.",
         "support_h1": "Assistance",
-        "support_lead": f'Écrivez à <a href="mailto:{SUPPORT}">{SUPPORT}</a>, en français, en anglais ou en kreyòl.',
+        "support_lead": f'Écrivez à <a href="mailto:{SUPPORT}">{SUPPORT}</a>, en français, en anglais, en kreyòl ou en espagnol.',
         "support_faq": "Questions fréquentes",
         "q1": "Mes rappels ne sonnent pas sur mon téléphone Android.",
         "a1": "Dans Kadans, ouvrez Paramètres → Rappels sur ce téléphone, et autorisez les notifications et "
@@ -258,7 +258,7 @@ TEXTS = {
         "footer_support": "Èd",
         "footer_delete": "Efase kont mwen",
         "description": "Kadans mete travay ou, seyans konsantrasyon ou ak bidjè ou ansanm, epi li fè ou sonje nan bon "
-                       "moman an. Sou Android, Linux ak Windows, an kreyòl, an franse ak an angle.",
+                       "moman an. Sou Android, Linux ak Windows, an kreyòl, an franse, an angle ak an panyòl.",
         "play_button": "Jwenn li sou Google Play",
 
         "home_title": "Kadans – jounen ou, nan bon ritm",
@@ -282,7 +282,7 @@ TEXTS = {
         "home_sync_text": "Make yon travay fini sou youn, li fini sou lòt la tou. Rapèl yo sonnen sou telefòn ou menm "
                           "san entènèt, epi aplikasyon òdinatè a ap tann dousman bò lè a. Travay ou yo parèt tou nan "
                           "kalandriye w ak sou ekran akèy telefòn ou.",
-        "home_languages": "An kreyòl, an franse ak an angle.",
+        "home_languages": "An kreyòl, an franse, an angle ak an panyòl.",
         "home_private_title": "Pou ou, pou ou sèlman",
         "home_private_text": "Pa gen piblisite, pa gen swivi, nou pa vann anyen. Kadans kenbe done ou sou pwòp sèvè "
                              "li, epi li pataje yo sèlman pou voye notifikasyon ak imèl ou yo. Kenbe yon kopi tout sa "
@@ -314,9 +314,9 @@ TEXTS = {
 
         "support_title": "Èd – Kadans",
         "support_description": "Èd pou Kadans: rapèl ki pa sonnen, yon modpas ou bliye, abònman ou, kont ou. Oswa "
-                               "ekri nou, an kreyòl, an franse oswa an angle.",
+                               "ekri nou, an kreyòl, an franse, an angle oswa an panyòl.",
         "support_h1": "Èd",
-        "support_lead": f'Ekri nou nan <a href="mailto:{SUPPORT}">{SUPPORT}</a>, an kreyòl, an franse oswa an angle.',
+        "support_lead": f'Ekri nou nan <a href="mailto:{SUPPORT}">{SUPPORT}</a>, an kreyòl, an franse, an angle oswa an panyòl.',
         "support_faq": "Kesyon moun poze souvan",
         "q1": "Rapèl mwen yo pa sonnen sou telefòn Android mwen.",
         "a1": "Nan Kadans, louvri Paramèt → Rapèl sou telefòn sa a, epi pèmèt notifikasyon ak « Alarmes et "
@@ -363,5 +363,124 @@ TEXTS = {
                              "bon itilizasyon, ak kijan sa fini.",
         "nf_h1": "Paj sa a pa egziste.",
         "nf_home": "Lakay Kadans",
+    },
+    "es": {
+        "language_name": "Español",
+        "language_label": "Idioma",
+        "nav_label": "Principal",
+        "nav_download": "Descargar",
+        "nav_support": "Ayuda",
+        "footer_privacy": "Privacidad",
+        "footer_terms": "Términos",
+        "footer_support": "Ayuda",
+        "footer_delete": "Eliminar mi cuenta",
+        "description": "Kadans reúne tus tareas, tus sesiones de enfoque y tu presupuesto en un solo lugar, y te avisa "
+                       "en el momento que importa. En Android, Linux y Windows, en español, inglés, francés y kreyòl.",
+        "play_button": "Disponible en Google Play",
+
+        "home_title": "Kadans – tus días, con ritmo",
+        "home_h1": "Tus días, con ritmo.",
+        "home_lead": "Kadans reúne tus tareas, tu enfoque y tu dinero en un solo lugar, y te avisa en el momento que "
+                     "importa.",
+        "home_desktop_button": "Descargar para tu computadora",
+        "home_price": "Gratis en tu computadora. En Android, USD 0.99 al mes después de una prueba gratis de 14 días.",
+        "home_features_title": "Tres cosas, bien hechas",
+        "f1_title": "Tareas que vuelven",
+        "f1_text": "Una vez, o con un ritmo: cada mañana, el 15 y el último día del mes, el último viernes. Kadans te "
+                   "avisa un poco antes, y otra vez cuando es hora de empezar.",
+        "f2_title": "Enfoque, un ciclo a la vez",
+        "f2_text": "Dale a una tarea un ciclo Pomodoro. Kadans lleva el tiempo, pregunta antes de empezar otro ciclo y "
+                   "te muestra cuánto tiempo te concentraste de verdad.",
+        "f3_title": "Un presupuesto en tus monedas",
+        "f3_text": "Cuentas en gourdes, dólares estadounidenses y canadienses, euros, pesos dominicanos y mexicanos. "
+                   "Transferencias con su cambio, límites por categoría y el salario que se registra solo cada mes. "
+                   "Importa un estado de cuenta de tu banco en lugar de escribirlo.",
+        "home_sync_title": "Tu teléfono y tu computadora, al mismo paso",
+        "home_sync_text": "Marca una tarea como hecha en uno, y queda hecha en el otro. Los recordatorios suenan en tu "
+                          "teléfono incluso sin internet, y la app de la computadora espera tranquila junto al reloj. "
+                          "Tus tareas también aparecen en tu calendario y en la pantalla de inicio de tu teléfono.",
+        "home_languages": "En español, inglés, francés y kreyòl.",
+        "home_private_title": "Tuyo, y solo tuyo",
+        "home_private_text": "Sin anuncios, sin rastreo, nada se vende. Kadans guarda tus datos en su propio servidor y "
+                             "solo los comparte para entregar tus notificaciones y correos. Llévate una copia de todo "
+                             "lo que pusiste cuando quieras.",
+        "home_private_link": "Cómo tratamos tus datos",
+
+        "dl_title": "Descargar Kadans",
+        "dl_description": "Descarga Kadans para Android, Linux (.deb y .rpm) y Windows. Gratis en tu computadora; en "
+                          "Android, USD 0.99 al mes después de una prueba gratis de 14 días.",
+        "dl_h1": "Descargar Kadans",
+        "dl_lead": "Inicia sesión con la misma cuenta en todas partes: tus tareas, tus sesiones de enfoque y tu "
+                   "presupuesto te siguen.",
+        "dl_phone_title": "En tu teléfono",
+        "dl_android_note": "USD 0.99 al mes después de una prueba gratis de 14 días.",
+        "dl_later": "Más adelante.",
+        "dl_desktop_title": "En tu computadora, gratis",
+        "dl_suggested": "Para esta computadora",
+        "dl_deb_title": "Linux: Ubuntu, Debian, Mint, <span class=\"nowrap\">Pop!_OS</span>",
+        "dl_deb_button": "Descargar el .deb",
+        "dl_deb_install": "Luego: <code>sudo apt install ./kadans-linux-amd64.deb</code>",
+        "dl_rpm_title": "Linux: Fedora, openSUSE",
+        "dl_rpm_button": "Descargar el .rpm",
+        "dl_rpm_install": "Luego: <code>sudo dnf install ./kadans-linux-x86_64.rpm</code>",
+        "dl_win_title": "Windows 10 y 11",
+        "dl_win_button": "Descargar el .msi",
+        "dl_win_install": "Ábrelo para instalar. Si Windows dice que protegió tu PC, elige <em>Más información</em> y "
+                          "luego <em>Ejecutar de todas formas</em>.",
+        "dl_updates": 'Kadans te avisa cuando sale una versión nueva. Todas las versiones, con sus sumas de '
+                      'verificación: <a href="{releases}">la página de versiones</a>.',
+
+        "support_title": "Ayuda – Kadans",
+        "support_description": "Ayuda con Kadans: recordatorios que no suenan, una contraseña olvidada, tu "
+                               "suscripción, tu cuenta. O escríbenos, en español, inglés, francés o kreyòl.",
+        "support_h1": "Ayuda",
+        "support_lead": f'Escribe a <a href="mailto:{SUPPORT}">{SUPPORT}</a>, en español, inglés, francés o kreyòl.',
+        "support_faq": "Preguntas frecuentes",
+        "q1": "Mis recordatorios no suenan en mi teléfono Android.",
+        "a1": "En Kadans, abre Configuración → Recordatorios en este teléfono, y permite las notificaciones y “Alarmas "
+              "y recordatorios”. Algunos teléfonos también ponen las apps a dormir: en la configuración de batería de "
+              "tu teléfono, deja que Kadans funcione sin restricciones.",
+        "q2": "Olvidé mi contraseña.",
+        "a2": "En la pantalla de inicio de sesión, toca “¿Olvidaste tu contraseña?” y abre el enlace que te enviamos "
+              "por correo.",
+        "q3": "¿Cómo cancelo mi suscripción?",
+        "a3": "En Google Play: tu perfil → Pagos y suscripciones → Suscripciones → Kadans. Conservas Kadans hasta el "
+              "final del período que pagaste.",
+        "q4": "¿Cómo elimino mi cuenta?",
+        "a4": 'Consulta <a href="{delete}">Eliminar mi cuenta</a>.',
+        "q5": "¿La app para computadora es gratis de verdad?",
+        "a5": "Sí. Solo se necesita una suscripción en los teléfonos, y para el enlace de calendario, que lleva tus "
+              "tareas al calendario de tu teléfono.",
+
+        "del_title": "Eliminar mi cuenta – Kadans",
+        "del_description": "Elimina tu cuenta de Kadans en la app o sin ella. Se cierra de inmediato y se borra siete "
+                           "días después con todo lo que contiene: tareas, historial de enfoque, presupuesto.",
+        "del_h1": "Eliminar mi cuenta",
+        "del_lead": "Puedes eliminar tu cuenta de Kadans en cualquier momento, con o sin la app.",
+        "del_app_title": "En la app",
+        "del_app": "Configuración → Eliminar mi cuenta, y luego confirma con tu contraseña. Si solo inicias sesión con "
+                   "Google, Kadans te envía por correo un enlace para confirmar.",
+        "del_web_title": "Sin la app",
+        "del_web": f'Abre <a href="{DELETION_PAGE}">la página para eliminar la cuenta</a>, escribe tu correo '
+                   "electrónico y abre el enlace que te enviamos.",
+        "del_what_title": "Qué pasa",
+        "del_what": [
+            "Tu cuenta se cierra de inmediato: se cierra tu sesión en todas partes.",
+            "Siete días después, se borra con todo lo que contiene: tareas, historial de enfoque, presupuesto. Inicia "
+            "sesión antes para conservarla.",
+            "Lo que queda en nuestras copias de seguridad nocturnas desaparece 14 días después de eso.",
+            "Una suscripción de Google Play deja de renovarse cuando se borra la cuenta. Para detenerla antes, "
+            "cancélala en Google Play.",
+        ],
+
+        "privacy_title": "Política de privacidad – Kadans",
+        "privacy_description": "Qué guarda Kadans sobre ti, por qué y por cuánto tiempo. Sin anuncios, sin rastreo, "
+                               "sin analíticas, nada se vende. Puedes eliminar cualquier cosa, y tu cuenta entera, en "
+                               "cualquier momento.",
+        "terms_title": "Términos de uso – Kadans",
+        "terms_description": "Los términos de uso de Kadans: tu cuenta, el precio y la suscripción, lo que pones en "
+                             "Kadans, el uso razonable y cómo termina.",
+        "nf_h1": "Esta página no existe.",
+        "nf_home": "Inicio de Kadans",
     },
 }

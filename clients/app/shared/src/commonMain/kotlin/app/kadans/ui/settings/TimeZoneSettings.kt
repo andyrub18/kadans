@@ -1,5 +1,6 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.KadansField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -93,7 +93,7 @@ fun TimeZonePickerDialog(choices: List<TimeZoneEntry>, selected: String?, onPick
         title = { Text(z.choose) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                KadansField(
                     value = query,
                     onValueChange = { query = it },
                     placeholder = { Text(z.searchHint) },

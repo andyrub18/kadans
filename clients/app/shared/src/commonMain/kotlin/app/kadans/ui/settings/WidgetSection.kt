@@ -1,10 +1,10 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,6 +28,6 @@ fun WidgetSection(widget: TodayWidget = koinInject()) {
 
     Text(w.section, style = MaterialTheme.typography.titleMedium)
     Text(w.sectionHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    OutlinedButton(onClick = widget::addToHomeScreen, modifier = Modifier.fillMaxWidth()) { Text(w.addToHome) }
+    SecondaryButton(onClick = widget::addToHomeScreen, modifier = Modifier.fillMaxWidth()) { Text(w.addToHome) }
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 }

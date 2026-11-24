@@ -1,5 +1,7 @@
 package app.kadans.ui.stats
 
+import app.kadans.ui.BigButton
+import app.kadans.ui.Segmented
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,15 +47,13 @@ fun StatsPane(modifier: Modifier = Modifier, viewModel: StatsViewModel = koinVie
 
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 560.dp).fillMaxSize()) {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatsRange.entries.forEach { range ->
-                    FilterChip(
-                        selected = state.range == range,
-                        onClick = { viewModel.select(range) },
-                        label = { Text(s.focusStats.rangeName(range)) },
-                    )
-                }
-            }
+            Segmented(
+                options = StatsRange.entries,
+                selected = state.range,
+                name = { s.focusStats.rangeName(it) },
+                onSelect = { viewModel.select(it) },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             when (val current = state) {
                 is StatsUiState.Loading ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -65,7 +64,7 @@ fun StatsPane(modifier: Modifier = Modifier, viewModel: StatsViewModel = koinVie
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
-                        Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
+                        BigButton(s.retry, viewModel::refresh, Modifier.padding(top = 12.dp))
                     }
                 is StatsUiState.Content -> StatsContent(current.summary, s)
             }

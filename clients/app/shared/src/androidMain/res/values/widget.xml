@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The home-screen widget (docs/ARCHITECTURE.md → "The home-screen widget"). Its colours are the app's Material 3
-         baseline ones, light here and dark in values-night: a widget follows the system's theme, like its neighbours
-         on the home screen, not the app's own Appearance setting. -->
-    <color name="widget_surface">#FFFBFE</color>
-    <color name="widget_on_surface">#1C1B1F</color>
-    <color name="widget_on_surface_variant">#49454F</color>
+    <!-- The home-screen widget (docs/ARCHITECTURE.md → "The home-screen widget"). Its colours are the app's own
+         (ui/Look.kt: a card's white, the ink, the purple), light here and dark in values-night: a widget follows the
+         system's theme, like its neighbours on the home screen, not the app's own Appearance setting. Change one
+         there, change it here. -->
+    <color name="widget_surface">#FFFFFF</color>
+    <color name="widget_on_surface">#2B2233</color>
+    <color name="widget_on_surface_variant">#675F70</color>
     <color name="widget_primary">#6750A4</color>
-    <color name="widget_divider">#1F1C1B1F</color>
+    <color name="widget_divider">#1F2B2233</color>
 
     <dimen name="widget_radius">16dp</dimen>
 

@@ -112,14 +112,95 @@ class GoogleLoginTests {
     }
 
     @Test
-    fun an_unsupported_platform_never_asks_the_server() = runTest(dispatcher) {
+    fun a_platform_without_google_asks_only_whether_the_server_is_there() = runTest(dispatcher) {
         val server = Server(configured)
         val viewModel = LoginViewModel(server.api(jsonHeaders, session), FakeGoogle(isSupported = false) { null })
 
+        withContext(Dispatchers.Default) { withTimeout(5_000) { while (server.asked == 0) delay(10) } }
         dispatcher.scheduler.advanceUntilIdle()
 
+        // The server offers Google and this platform cannot use it: no button, and nothing wrong to tell.
         assertEquals(false, viewModel.state.value.googleAvailable)
-        assertTrue(server.bodies.isEmpty())
+        assertEquals(false, viewModel.state.value.serverUnreachable)
+    }
+
+    @Test
+    fun a_server_out_of_reach_is_told_at_once_and_taken_back_when_it_answers() = runTest(dispatcher) {
+        val server = Server(configured).apply { unreachable = 2 }
+        val viewModel = LoginViewModel(server.api(jsonHeaders, session), FakeGoogle { null })
+
+        // Nothing typed, nothing pressed: the first unanswered question is enough.
+        viewModel.state.first { it.serverUnreachable }
+        assertEquals(false, viewModel.state.value.googleAvailable)
+
+        // Asked again by itself (2 s, then 4 s): the answer takes the notice back and brings the button.
+        val answered = viewModel.state.first { !it.serverUnreachable }
+        assertTrue(answered.googleAvailable)
+        assertEquals(3, server.asked)
+    }
+
+    @Test
+    fun retry_asks_again_in_place_of_the_try_that_was_waiting() = runTest(dispatcher) {
+        val server = Server(configured).apply { unreachable = 1 }
+        val viewModel = LoginViewModel(server.api(jsonHeaders, session), FakeGoogle { null })
+        viewModel.state.first { it.serverUnreachable }
+        val askedBefore = server.asked
+
+        viewModel.retryServer()
+        // Said at once that it is being asked, before any answer.
+        assertTrue(viewModel.state.value.isCheckingServer)
+        val answered = viewModel.state.first { !it.serverUnreachable }
+
+        assertEquals(false, answered.isCheckingServer)
+        assertTrue(answered.googleAvailable)
+        // One question more, and no other: the try that was waiting its turn was dropped, not left to ask too.
+        dispatcher.scheduler.advanceTimeBy(300_000)
+        withContext(Dispatchers.Default) { delay(200) }
+        assertEquals(askedBefore + 1, server.asked)
+    }
+
+    @Test
+    fun a_server_that_refuses_is_there() = runTest(dispatcher) {
+        // Busy, or too many requests: an answer. The notice is for a server that gives none.
+        var asked = 0
+        val api = KadansApi.create(
+            "http://test",
+            InMemoryTokenStore(),
+            MockEngine { _ ->
+                asked++
+                respond("""{"title":"Server busy","status":503}""", HttpStatusCode.ServiceUnavailable, jsonHeaders)
+            },
+        )
+        val viewModel = LoginViewModel(api, FakeGoogle { null })
+
+        withContext(Dispatchers.Default) { withTimeout(5_000) { while (asked == 0) delay(10) } }
+        dispatcher.scheduler.runCurrent()
+
+        assertEquals(false, viewModel.state.value.serverUnreachable)
+    }
+
+    @Test
+    fun a_sign_in_that_finds_no_server_puts_the_notice_up() = runTest(dispatcher) {
+        // The server was there when the screen opened, and is gone when "Sign in" is pressed.
+        var down = false
+        val api = KadansApi.create(
+            "http://test",
+            InMemoryTokenStore(),
+            MockEngine { request ->
+                if (down) error("no network")
+                respond(if (request.url.encodedPath.endsWith("auth/providers")) configured else session, HttpStatusCode.OK, jsonHeaders)
+            },
+        )
+        val viewModel = LoginViewModel(api, FakeGoogle { null })
+        viewModel.state.first { it.googleAvailable }
+
+        down = true
+        viewModel.onUsernameChange("marie")
+        viewModel.onPasswordChange("secret")
+        viewModel.submit()
+
+        val told = viewModel.state.first { it.serverUnreachable }
+        assertEquals("network", told.errorCode)
     }
 
     @Test

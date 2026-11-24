@@ -1,10 +1,14 @@
 package app.kadans.ui.budget
 
+import app.kadans.ui.BigButton
+import app.kadans.ui.PageHeader
+import app.kadans.ui.ProgressLine
+import app.kadans.ui.ChoiceChip
+import app.kadans.ui.Choices
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,11 +26,9 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -48,7 +50,6 @@ import app.kadans.api.model.BudgetTransactionKind
 import app.kadans.i18n.LocalStrings
 import app.kadans.i18n.StatementImportStrings
 import app.kadans.statement.CsvFile
-import app.kadans.statement.CsvMapping
 import app.kadans.statement.CsvTable
 import app.kadans.statement.StatementLine
 import app.kadans.statement.StatementText.DateOrder
@@ -77,23 +78,15 @@ fun StatementImportScreen(
     OnBackStep { viewModel.back() }
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().height(64.dp).padding(start = 4.dp, end = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = { if (!viewModel.back()) onBack() }) { Icon(KadansIcons.Back, contentDescription = s.back) }
-            Text(
-                when (state.step) {
-                    ImportStep.Choose -> t.title
-                    ImportStep.Columns -> t.columnsTitle
-                    ImportStep.Review -> t.reviewTitle
-                    ImportStep.Done -> t.doneTitle
-                },
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        PageHeader(
+            title = when (state.step) {
+                ImportStep.Choose -> t.title
+                ImportStep.Columns -> t.columnsTitle
+                ImportStep.Review -> t.reviewTitle
+                ImportStep.Done -> t.doneTitle
+            },
+            onBack = { if (!viewModel.back()) onBack() },
+        )
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             state.loadFailed -> Column(
@@ -102,7 +95,7 @@ fun StatementImportScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error)
-                Button(onClick = viewModel::load, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
+                BigButton(s.retry, viewModel::load, Modifier.padding(top = 12.dp))
             }
             else -> when (state.step) {
                 ImportStep.Choose -> ChooseStep(state, viewModel)
@@ -139,9 +132,9 @@ private fun ChooseStep(state: StatementImportUiState, viewModel: StatementImport
             return@Page
         }
         Text(t.intoAccount, style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Choices {
             state.accounts.forEach { account ->
-                FilterChip(
+                ChoiceChip(
                     selected = state.accountId == account.id,
                     onClick = { viewModel.selectAccount(account.id) },
                     label = { Text(accountLabel(account)) },
@@ -199,9 +192,9 @@ private fun ColumnsStep(state: StatementImportUiState, viewModel: StatementImpor
         ColumnChoice(t.dateColumn, mapping.date, table, optional = false) { picked -> viewModel.map { it.copy(date = picked) } }
         if (state.datesNeedOrder) {
             Text(t.datesWritten, style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Choices {
                 listOf(DateOrder.DayMonthYear to t.dayMonthYear, DateOrder.MonthDayYear to t.monthDayYear, DateOrder.YearMonthDay to t.yearMonthDay).forEach { (order, label) ->
-                    FilterChip(selected = mapping.order == order, onClick = { viewModel.map { it.copy(order = order) } }, label = { Text(label) })
+                    ChoiceChip(selected = mapping.order == order, onClick = { viewModel.map { it.copy(order = order) } }, label = { Text(label) })
                 }
             }
             if (state.orderUnsure) Text(t.orderUnsure, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -209,13 +202,13 @@ private fun ColumnsStep(state: StatementImportUiState, viewModel: StatementImpor
         ColumnChoice(t.textColumn, mapping.text, table, optional = true) { picked -> viewModel.map { it.copy(text = picked) } }
 
         Text(t.amountsIn, style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
+        Choices {
+            ChoiceChip(
                 selected = !twoColumns,
                 onClick = { twoColumns = false; viewModel.map { it.copy(moneyOut = null, moneyIn = null) } },
                 label = { Text(t.oneColumn) },
             )
-            FilterChip(
+            ChoiceChip(
                 selected = twoColumns,
                 onClick = { twoColumns = true; viewModel.map { it.copy(amount = null) } },
                 label = { Text(t.twoColumns) },
@@ -386,7 +379,7 @@ private fun ReviewStep(state: StatementImportUiState, viewModel: StatementImport
             }
             if (state.isImporting) {
                 Text(t.importing(state.sent, state.toSend), style = MaterialTheme.typography.bodySmall)
-                LinearProgressIndicator(
+                ProgressLine(
                     progress = { if (state.toSend == 0) 0f else state.sent.toFloat() / state.toSend },
                     modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
                 )
@@ -487,10 +480,11 @@ private fun CategoryDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(s.categoryLabel, style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = chosen == null, onClick = { chosen = null }, label = { Text(s.noCategory) })
+                Choices {
+                    ChoiceChip(selected = chosen == null, onClick = { chosen = null }, onCard = true, label = { Text(s.noCategory) })
                     state.categoriesFor(line.kind).forEach { category ->
-                        FilterChip(
+                        ChoiceChip(
+                            onCard = true,
                             selected = chosen == category.id,
                             onClick = { chosen = category.id },
                             label = { Text((category.icon?.plus(" ") ?: "") + category.name) },

@@ -1,5 +1,16 @@
 package app.kadans.ui.auth
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import app.kadans.ui.BigButton
+import app.kadans.ui.SecondaryButton
+import app.kadans.ui.ChoiceChip
+import app.kadans.ui.KadansField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,8 +21,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.FilterChip
 import app.kadans.config.ServerAddress
 import app.kadans.i18n.Language
 import app.kadans.i18n.LanguageController
@@ -95,27 +103,28 @@ fun LoginScreen(
             Text(notice, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
         } else if (sessionWaiting) {
             Text(s.account.sessionWaitingNotice, style = MaterialTheme.typography.bodyMedium)
-            OutlinedButton(onClick = onRetrySession) { Text(s.retry) }
+            SecondaryButton(onClick = onRetrySession) { Text(s.retry) }
         } else if (sessionEnded) {
             Text(s.account.sessionEndedNotice, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }
+        if (state.serverUnreachable) ServerUnreachable(checking = state.isCheckingServer, onRetry = viewModel::retryServer)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Language.entries.forEach { lang ->
-                FilterChip(
+                ChoiceChip(
                     selected = currentLanguage == lang,
                     onClick = { languageController.set(lang) },
                     label = { Text(lang.tag.uppercase()) },
                 )
             }
         }
-        OutlinedTextField(
+        KadansField(
             value = state.username,
             onValueChange = viewModel::onUsernameChange,
             label = { Text(s.usernameOrEmail) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        KadansField(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
             label = { Text(s.password) },
@@ -123,10 +132,10 @@ fun LoginScreen(
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
         )
-        ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
-        Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.signIn)
-        }
+        // "Could not reach the server" is on the notice above when the server is out of reach: not said twice.
+        val said = state.serverUnreachable && state.errorCode == "network"
+        ErrorText(if ((state.error != null || state.errorCode != null) && !said) s.errorFor(state.errorCode, state.error) else null)
+        BigButton(s.signIn, viewModel::submit, Modifier.fillMaxWidth(), enabled = state.canSubmit, busy = state.isLoading)
         if (state.googleAvailable) {
             GoogleSignInButton(
                 text = s.continueWithGoogle,
@@ -145,6 +154,31 @@ fun LoginScreen(
             TextButton(onClick = onForgotPassword) { Text(s.forgotPassword) }
         }
         if (ServerAddress.adjustable) ServerAddressButton(onChanged = viewModel::refreshProviders)
+    }
+}
+
+/**
+ * The server gave no answer when the screen asked it: said at once, at the top of the form, with a way to ask again
+ * now. It is asked again by itself too, and the notice goes with the first answer.
+ */
+@Composable
+private fun ServerUnreachable(checking: Boolean, onRetry: () -> Unit) {
+    val s = LocalStrings.current
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+        shape = RoundedCornerShape(20.dp),
+        color = scheme.errorContainer,
+        contentColor = scheme.onErrorContainer,
+    ) {
+        Row(Modifier.padding(start = 16.dp, end = 6.dp).heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(s.errorFor("network", null), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
+            if (checking) {
+                CircularProgressIndicator(Modifier.padding(horizontal = 18.dp).size(20.dp), color = scheme.onErrorContainer, strokeWidth = 2.5.dp)
+            } else {
+                TextButton(onClick = onRetry) { Text(s.retry, color = scheme.onErrorContainer) }
+            }
+        }
     }
 }
 
@@ -173,7 +207,7 @@ private fun ServerAddressButton(onChanged: () -> Unit = {}) {
             title = { Text(s.serverLabel) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    KadansField(
                         value = value,
                         onValueChange = { value = it },
                         singleLine = true,
@@ -207,7 +241,7 @@ fun ForgotPasswordScreen(
         if (state.sent) {
             Text(s.resetEmailSent, style = MaterialTheme.typography.bodyMedium)
         } else {
-            OutlinedTextField(
+            KadansField(
                 value = state.email,
                 onValueChange = { v -> viewModel.update { it.copy(email = v) } },
                 label = { Text(s.email) },
@@ -244,7 +278,7 @@ fun ResetPasswordScreen(
             Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text(s.signIn) }
         } else {
             Text(email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedTextField(
+            KadansField(
                 value = state.newPassword,
                 onValueChange = { v -> viewModel.update { it.copy(newPassword = v) } },
                 label = { Text(s.newPassword) },
@@ -283,7 +317,7 @@ fun MfaScreen(
 
     val s = LocalStrings.current
     AuthScaffold(title = s.twoFactorTitle) {
-        OutlinedTextField(
+        KadansField(
             value = state.code,
             onValueChange = viewModel::onCodeChange,
             label = { Text(s.mfaCodeLabel) },
@@ -291,9 +325,7 @@ fun MfaScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
-        Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.verify)
-        }
+        BigButton(s.verify, viewModel::submit, Modifier.fillMaxWidth(), enabled = state.canSubmit, busy = state.isLoading)
         TextButton(onClick = onBack) { Text(s.back) }
     }
 }
@@ -310,28 +342,28 @@ fun RegisterScreen(
 
     val s = LocalStrings.current
     AuthScaffold(title = s.registerTitle) {
-        OutlinedTextField(
+        KadansField(
             value = state.username,
             onValueChange = viewModel::onUsernameChange,
             label = { Text(s.username) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        KadansField(
             value = state.email,
             onValueChange = viewModel::onEmailChange,
             label = { Text(s.email) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        KadansField(
             value = state.displayName,
             onValueChange = viewModel::onDisplayNameChange,
             label = { Text(s.displayNameOptional) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        KadansField(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
             label = { Text(s.password) },
@@ -340,9 +372,7 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         ErrorText(if (state.error != null || state.errorCode != null) s.errorFor(state.errorCode, state.error) else null)
-        Button(onClick = viewModel::submit, enabled = state.canSubmit, modifier = Modifier.fillMaxWidth()) {
-            if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.register)
-        }
+        BigButton(s.register, viewModel::submit, Modifier.fillMaxWidth(), enabled = state.canSubmit, busy = state.isLoading)
         TextButton(onClick = onBack) { Text(s.backToSignIn) }
     }
 }

@@ -100,7 +100,9 @@ fun main(args: Array<String> = emptyArray()) {
     application {
         var windowVisible by remember { mutableStateOf(!(background && hasTray)) }
         var raised by remember { mutableIntStateOf(0) }
-        val windowState = rememberWindowState(isMinimized = background && !hasTray, width = 480.dp, height = 800.dp)
+        // The computer's layout from the first start: a sidebar and two columns (the phone's was 480 dp wide).
+        val (firstWidth, firstHeight) = remember { FirstWindow.size() }
+        val windowState = rememberWindowState(isMinimized = background && !hasTray, width = firstWidth.dp, height = firstHeight.dp)
         val strings = rememberAppStrings()
 
         LaunchedEffect(Unit) {

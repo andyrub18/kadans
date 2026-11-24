@@ -3,6 +3,13 @@ package app.kadans.i18n
 val CreoleStrings = StringsCatalog(
     signInTitle = "Konekte", usernameOrEmail = "Non itilizatè oswa imèl", password = "Modpas",
     signIn = "Konekte", createAccount = "Kreye yon kont", twoFactorTitle = "Kòd verifikasyon",
+    home = HomeStrings(
+        doneOfFormat = "Fèt: %1 sou %2",
+        ofFormat = "sou %d",
+        nextFormat = "Apre sa: %s",
+        allDone = "Tout fèt pou jodi a",
+        next = "apre sa",
+    ),
     account = AccountStrings(
         emailSection = "Imèl",
         emailConfirmed = "Konfime",

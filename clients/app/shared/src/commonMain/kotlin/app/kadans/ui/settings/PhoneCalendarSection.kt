@@ -1,12 +1,12 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -56,7 +56,7 @@ fun PhoneCalendarSection(calendar: PhoneCalendar = koinInject()) {
             color = MaterialTheme.colorScheme.error,
             modifier = Modifier.padding(top = 4.dp),
         )
-        OutlinedButton(onClick = calendar::allow, modifier = Modifier.fillMaxWidth()) { Text(c.allow) }
+        SecondaryButton(onClick = calendar::allow, modifier = Modifier.fillMaxWidth()) { Text(c.allow) }
     }
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 }

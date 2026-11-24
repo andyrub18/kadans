@@ -101,7 +101,7 @@ Security notes: MFA challenge tokens use audience `<Jwt:Audience>:mfa` so the be
 - [x] Navigation 3 (stable, multiplatform: androidx `navigation3-runtime` 1.1.1 + JetBrains
       `navigation3-ui`): owned back stack + `NavDisplay`, replacing navigation-compose 2.x
 - [x] Light/dark theme following the system on all platforms (`KadansTheme`, M3 baseline
-      schemes; the Kadans palette slots in there later)
+      schemes; the Kadans palette took their place on 2026-11-24: Phase 8, "The look")
 - [x] Create-todo screen (one-time + recurring: frequency/interval/count, M3 date & time pickers;
       wall-clock picks are converted to instants in the user's zone and the zone rides on the rule)
 - [x] Todo detail: pending/history occurrences with complete/skip, cancel todo, entry to the focus session
@@ -1078,6 +1078,32 @@ installing on real devices second, hosting last.
         the version is out, the website's deploy with nginx).
       - [ ] With the new look's screenshots: a Spanish set for Play (`seed_demo.py --language es`), and Spanish in
         the Microsoft Store's package and listing (its package declares English and French today).
+
+- [x] The look (2026-11-24): the testers' second ask. Two directions on a design canvas, phone and computer; the
+      owner took the warm one (ARCHITECTURE → "The look"): a cream page, white rounded cards, the logo's purple for
+      what is pressed or chosen, Baloo 2 and Nunito in place of the system's letters (both under the Open Font
+      License, shipped with the app), and one large thing on each screen. Focus is purple, a break green. What
+      changed for the person, beyond the paint: Home opens on the day's ring ("2 of 4 done", what comes next) and
+      each of the day's todos has a circle that marks it done, with five seconds to take it back; a session is a
+      ring around the time left over its cycle as a strip; Budget opens on the balance, with accounts as tiles and
+      each limit as a bar; and a computer gets its own layout, a column of named destinations and two columns of
+      content, in a window that opens at 1180 by 800 instead of a phone's 480. The forms (a todo, a movement, a
+      cycle) share one page, one field and the same pills. One change on the server: `GET /occurrences` takes
+      `completed=true`, so Home can count what is done (the default is as before).
+      Checked: the server's tests (396) and the app's (573, 23 of them new), `task_flows.py` with the new flag, and
+      on the emulator what ARCHITECTURE → "The look" lists, at a phone's size and a computer's, by day and by
+      night, and in Spanish and French at 360 dp. Not checked: the desktop app on Windows, Kreyòl, a screen
+      reader, the widget on a home screen, the iPhone.
+      - [x] The owner's look at the desktop app on Linux (2026-11-24): "really better". Two remarks, both built:
+        the way back is one button everywhere, "← Back" in a pill, with the page's name in the middle (in Settings
+        the name sat beside a bare arrow and looked like part of it); and the sign-in screen says at once when the
+        server cannot be reached, with "Retry", instead of only leaving "Continue with Google" out.
+      - [ ] Sounds, from the same look and the testers: a phase change and a reminder are easy to miss, on the
+        computer above all, where nothing is heard. Proposed to the owner, their choice pending; its own branch.
+      - [ ] By the owner: the rest of OWNER-CHECKLIST → The new look (a phone, the widget, Windows).
+      - [ ] After the owner's look: new screenshots for Play (four languages) and the Microsoft Store, taken with
+        `seed_demo.py` as the current ones were; the stores' pictures still show the old look.
+      - [ ] Not a new version by itself: it ships with Spanish in the next one.
 
 Nice-to-have hardening
 

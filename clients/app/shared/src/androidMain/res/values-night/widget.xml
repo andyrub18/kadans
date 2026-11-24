@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_surface">#1C1B1F</color>
-    <color name="widget_on_surface">#E6E1E5</color>
-    <color name="widget_on_surface_variant">#CAC4D0</color>
-    <color name="widget_primary">#D0BCFF</color>
-    <color name="widget_divider">#1FE6E1E5</color>
+    <color name="widget_surface">#2A2333</color>
+    <color name="widget_on_surface">#F4EEF8</color>
+    <color name="widget_on_surface_variant">#B9AFC4</color>
+    <color name="widget_primary">#CDBDFF</color>
+    <color name="widget_divider">#1FF4EEF8</color>
 </resources>

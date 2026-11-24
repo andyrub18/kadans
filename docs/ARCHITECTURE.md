@@ -1221,16 +1221,106 @@ icons follow the app's choice, not the system's (`SystemBarsFollow`). The QR cod
 
 **Navigation** (approved 2026-11-04 on a design canvas). Four destinations, one tap from each other: Home,
 Calendar, Budget and Focus (the focus stats and the Pomodoro cycles, one switch apart). `ui/shell/MainShell` frames
-them: the destination's name, the bell (its unread count shared by every destination, `UnreadNotifications`) and
-Settings on top; the destinations in a bar at the bottom of a phone, or in a column on the left of a window 600 dp
-wide or more (a computer, a tablet), with + floating at the bottom right of the list on Home (a todo) and Budget (a
-movement), on both. Their lists, and a todo's screen, keep a readable width, centred on a wide window
-(`ReadableList`); Budget's month and its arrows sit above its list, not at the window's edges. Home stays at the
+them. On a phone: the destination's name, the bell (its unread count shared by every destination,
+`UnreadNotifications`) and Settings on top, the destinations in a bar at the bottom, and + floating at the bottom
+right of the list on Home (a todo) and Budget (a movement). In a window 600 dp wide or more (a computer, a tablet):
+the destinations in a column on the left, each with its name, the bell and Settings at its foot, and + as a button
+that says what it adds ("New todo") at the top right. Home, Budget, a todo's screen and the forms use a wide window's
+width in two columns; the other lists keep a readable width, centred (`ReadableList`). What the frame and the screens
+look like is "The look", below. Home stays at the
 bottom of the back stack and another destination sits alone on it (`selectTab`), so Back from a destination leads
 Home and Back from Home leaves the app; everything else (a todo, a form, the notifications, Settings) opens over the
 frame with its own back arrow. Settings' main page holds the account with Sign out, the language, the time format,
 the time zone and what belongs to the device; Profile, Email and password, Two-factor, Devices (with "Sign out
 everywhere") and Delete my account are pages of their own. The icons are drawn in `KadansIcons` (no icon library).
+
+### The look (2026-11-24)
+
+The closed test's testers found the app plain: it wore Material 3's stock colours, type and shapes. The owner chose
+between two directions drawn on a design canvas, phone and computer side by side, and took the warm one: a cream
+page, white rounded cards with a soft shadow, the logo's purple for what is pressed or chosen, rounder letters, and
+one large thing to look at on each screen (the day's ring, the countdown's ring, the balance). Focus is purple,
+because the logo is a purple clock; a break is green. Nothing was copied from another app.
+
+- **The palette** (`ui/Look.kt`). Two Material colour schemes, `KadansLight` and `KadansDark`, so every Material
+  component follows without being told, bent on purpose in two places: every `surfaceContainer*` is the card's colour
+  (white by day), so a card, a dialog, a menu and the bar are the same white on the cream page; and
+  `secondaryContainer` is the purple itself, so whatever Material draws as "selected" is solid purple, not a tint.
+  What Material has no role for is `KadansColors` (`LocalKadansColors`): done (green), a break's and a coming
+  phase's share of the strip, the tracks under rings and bars, a limit that is near (amber), "pending", money out,
+  and the balance card's purple, which by night is a deeper one: the scheme's primary is light there, and a card
+  filled with it would be the brightest thing on the screen. A colour is never written in a screen: it comes from
+  `MaterialTheme.colorScheme` or `LocalKadansColors`. Two things outside Compose repeat the palette by hand, with a
+  comment saying so: the Android widget's `res/values/widget.xml` and `values-night` (a widget follows the system's
+  theme, not the app's setting), and the logo's purple in `branding/`.
+- **The type.** Baloo 2 for titles and numbers, Nunito for everything else (`kadansTypography()`), both under the
+  SIL Open Font License, which allows shipping them in an app: six static files in `composeResources/font` (about
+  1.3 MB; Android 7 reads no variable font), their licence texts beside them in `composeResources/files/licenses`.
+  They hold the four languages' letters, Kreyòl's "ò" and Spanish's "ñ" included. A countdown is written in digits
+  of one width (`tnum`) so that it does not shake as it counts.
+- **The pieces** (`ui/Kit.kt`, `ui/Fields.kt`, `ui/Forms.kt`): what a screen is built from, so that a card or a
+  field is drawn once. `KadansCard`, `ProgressRing`, `TickCircle`, `Tag`, `SectionHeader`, `CircleButton`,
+  `BigButton` (a screen's main action), `SecondaryButton`, `ProgressLine`, and `BackButton` with `PageHeader` (the
+  way back, below); `KadansField`, the one text field (white, round, its
+  label inside, a faint line that turns purple while it is written in; Material's own are see-through or
+  underlined, and their colours are not the theme's to set); and for forms `FormPage` (the title, the round button
+  that leaves, one column or two), `FormActions`, `Segmented` (two or three choices in one white pill), `ChoiceChip`
+  in `Choices` (a pill each, white until chosen), `SwitchCard`, `StepButton`, `RuleWords`. A screen takes these
+  before it takes Material's `OutlinedTextField`, `FilterChip`, `OutlinedButton` or segmented buttons, which are no
+  longer used. On a white card or in a dialog a pill is the page's colour instead (`onCard`), or it would not show.
+- **Home says how the day is going.** A ring and "2 of 4 done" with what comes next (`home/TodayProgress`, pure),
+  over the day's todos, each with a circle that marks it done, the done ones struck through and kept in the count.
+  Two things that took: the circle waits five seconds before it sends, with "Undo" on the snackbar (`home/Ticks`),
+  as the home-screen widget's circle does, because a circle is pressed by mistake and the server has no "not done
+  after all"; ticks still waiting when the screen goes away are sent then, not lost. And the list of occurrences
+  left out everything done (a one-time todo completes with its only occurrence), so the count fell as it rose:
+  `GET /occurrences?completed=true` now returns the completed ones of the range too. The default is unchanged, so an
+  older app, the widget and the calendar feed see what they saw.
+- **A focus session** is a ring that fills around the time left, purple for focus and green for a break, over the
+  cycle as a strip, one segment a phase and as wide as the phase is long (`pomodoro/PhaseStrip`, pure; a session
+  that repeats shows the cycle it is in). The todo's name is on the screen, read once when it opens.
+- **Budget** opens on the balance, large on purple, with the month's money in and out; accounts as tiles, each
+  kind with its picture; a category's limit as a bar that is green, amber from 80% and red from 100%, the alerts'
+  own thresholds. Its own bars, not Material's: `LinearProgressIndicator`'s track takes `secondaryContainer`, which
+  is the purple here.
+- **A computer is not a wide phone.** From 600 dp the frame is a column of named destinations; from 720 dp Home and
+  Budget are two columns, from 840 dp (`WideWindow`) a todo's screen and the forms too, and a session puts the ring
+  beside its buttons. Pushed screens stay full pages with their way back. The desktop window used to open 480 dp
+  wide, the phone's layout on a computer screen: it opens at 1180 by 800 where the screen has room and at what fits
+  where it has not (`desktop/FirstWindow`), and can still be narrowed down to the phone's layout.
+- **The way back is one button.** A page opened over the frame (Settings and its pages, the notifications, the
+  statement import, a todo, a session) goes back by `BackButton`: the arrow and the word "Back" in one white pill,
+  pressed anywhere on it. Where the page has a name, `PageHeader` puts it in the middle of the page, away from the
+  button. Settings used to show a bare arrow with its title beside it, which read as one thing: the owner pressed
+  "Settings" to go back and nothing happened (2026-11-24). A form is left by its round cross instead: it is given
+  up, not gone back from.
+- **A server out of reach is said on the sign-in screen at once** (the owner's remark, 2026-11-24). The screen
+  already asked the server which sign-ins it offers, and with no answer it only left "Continue with Google" out,
+  which told nobody anything. The same question now says whether the server is there, on every platform
+  (`LoginUiState.serverUnreachable`): "Could not reach the server" with "Retry" at the top of the form, before
+  anything is typed. It keeps asking by itself, less and less often, and the first answer takes the notice back.
+  An answer that is a refusal (busy, too many requests) is a server that is there.
+- **Dark** is the same design on a purple-tinted night: the page darker than its cards, the primary a light purple
+  with dark writing on it. `LocalDarkTheme` decides, as before ("Light and dark", above).
+
+Checked on the emulator (Android 15) with a seeded demo account against a local API, at a phone's size (411 dp) and
+at a computer's (1280 by 800 dp, the same code the desktop app runs), by day and by night: Home with a todo ticked,
+taken back, and ticked for good (the server then says Completed); a session in focus and in a break; Budget and one
+of its dialogs; a todo's screen; the three forms (a new todo with a weekly and a monthly rule, a new movement with
+its amount, a category and a rule that ends on a date, a Pomodoro cycle) and their date picker; Settings, the
+calendar and the focus stats. In Spanish and in French on a narrow phone (360 dp): Home, Settings, Budget and the two
+forms, which found three things, all fixed: "Sign out" beside the address left it four letters (the button goes
+under it on a narrow phone), "Notifications" was cut by its count in the column of destinations (the count sits on
+the bell), and "Concentration" reached the edge of the bottom bar (a label gets smaller before it is cut). The
+owner then looked at the desktop app on Linux (2026-11-24: "really better"), which brought the two remarks above, the
+way back and the sign-in screen, both checked on the emulator afterwards (the notice with the app pointed at an
+address where nothing listens, "Retry", and the notice gone once the address was right again). The tests
+cover what is pure: the day's count and what is next, the tick and its undo, the strip, the window's size; and
+`task_flows.py` what `completed=true` returns; and the sign-in screen's notice (told at once, taken back by an
+answer, "Retry", a refusal that is not "out of reach"). Not checked: the desktop app on Windows (its tray menu, the
+fonts as Windows draws them), Kreyòl in the new layouts, a screen reader's reading of the new pieces, the statement
+import's pages, the paywall and the sign-in screens beyond a glance, the Android widget with its new colours on a
+home screen, and the iPhone.
 
 ### The desktop app: in the tray, once
 

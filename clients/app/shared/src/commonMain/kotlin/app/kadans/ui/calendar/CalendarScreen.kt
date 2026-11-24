@@ -1,5 +1,6 @@
 package app.kadans.ui.calendar
 
+import app.kadans.ui.ProgressLine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -82,7 +82,7 @@ fun CalendarScreen(
             }
         }
 
-        if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 2.dp))
+        if (state.isLoading) ProgressLine(Modifier.fillMaxWidth().padding(vertical = 2.dp))
 
         state.cells.chunked(7).forEach { week ->
             Row(Modifier.fillMaxWidth()) {

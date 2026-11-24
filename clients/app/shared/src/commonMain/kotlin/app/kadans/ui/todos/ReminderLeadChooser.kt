@@ -2,13 +2,13 @@ package app.kadans.ui.todos
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.ChoiceChip
+import app.kadans.ui.Choices
+import app.kadans.ui.FieldLabel
 
 /** How long before a todo's start its reminder comes. */
 object ReminderLeads {
@@ -21,18 +21,19 @@ object ReminderLeads {
     fun options(current: Int?): List<Int> = (presets + listOfNotNull(current)).distinct().sorted()
 }
 
-/** "When": one chip per lead, the [selected] one marked. Shown under the "Remind me" switch. */
+/** "When": one pill per lead, the [selected] one marked. Shown under the "Remind me" switch; [onCard] on its white card. */
 @Composable
-fun ReminderLeadChooser(selected: Int, onSelect: (Int) -> Unit, enabled: Boolean = true) {
+fun ReminderLeadChooser(selected: Int, onSelect: (Int) -> Unit, enabled: Boolean = true, onCard: Boolean = false) {
     val f = LocalStrings.current.todoForm
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(f.reminderWhen, style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FieldLabel(f.reminderWhen)
+        Choices {
             ReminderLeads.options(selected).forEach { minutes ->
-                FilterChip(
+                ChoiceChip(
                     selected = minutes == selected,
                     onClick = { onSelect(minutes) },
                     enabled = enabled,
+                    onCard = onCard,
                     label = { Text(f.reminderLead(minutes)) },
                 )
             }

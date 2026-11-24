@@ -50,6 +50,29 @@ data class FocusStatsStrings(
  * Every user-visible string. A data class so the compiler forces each language to provide
  * every key — a missing translation is a build error, not a runtime English leak.
  */
+/**
+ * Home's own words (ARCHITECTURE → "The look"): how much of today is done, and what comes next. A count that agrees
+ * with nothing, so one phrase serves every number ("Done: 1 of 4", "Fait : 1 sur 4"). A feature group.
+ */
+data class HomeStrings(
+    /** The day's card, and what a screen reader says for its ring: `%1` done, `%2` in all. */
+    val doneOfFormat: String,
+    /** Under the count in the ring: `%d` in all ("of 4"). */
+    val ofFormat: String,
+    /** `%s` = the title of the next todo still to do today. */
+    val nextFormat: String,
+    /** Every todo of the day is done. */
+    val allDone: String,
+    /** After the time of the next todo to do, in its line ("1:15 PM · next"). */
+    val next: String,
+) {
+    fun doneOf(done: Int, total: Int): String = doneOfFormat.replace("%1", "$done").replace("%2", "$total")
+
+    fun of(total: Int): String = ofFormat.replace("%d", "$total")
+
+    fun next(title: String): String = nextFormat.replace("%s", title)
+}
+
 /** Settings → email and devices. A feature group, like [FocusStatsStrings] (the flat catalog is full). */
 data class AccountStrings(
     val emailSection: String,
@@ -838,6 +861,7 @@ data class StringsCatalog(
     val password: String,
     val signIn: String,
     val focusStats: FocusStatsStrings,
+    val home: HomeStrings,
     val account: AccountStrings,
     val timeZone: TimeZoneStrings,
     val todoForm: TodoFormStrings,

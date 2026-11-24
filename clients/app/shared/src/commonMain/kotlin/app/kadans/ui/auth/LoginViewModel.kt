@@ -33,6 +33,13 @@ data class LoginUiState(
     val isGoogleLoading: Boolean = false,
     val error: String? = null,
     val errorCode: String? = null,
+    /**
+     * The server gave no answer (no network, the server down): said on the screen as soon as it is known, before
+     * anything is typed, instead of a "Continue with Google" button that is simply not there.
+     */
+    val serverUnreachable: Boolean = false,
+    /** "Retry" was pressed: the server is being asked again. */
+    val isCheckingServer: Boolean = false,
 ) {
     val canSubmit: Boolean get() = username.isNotBlank() && password.isNotBlank() && !isLoading && !isGoogleLoading
 }
@@ -70,24 +77,46 @@ class LoginViewModel(
      * desktop opens this screen as the computer signs in, often before its network is up, and one
      * lost answer must not hide the button for as long as the app runs. Called again when the
      * server address changes on the Login screen.
+     *
+     * The same question says whether the server can be reached at all, on every platform: no answer is told on the
+     * screen at once ([LoginUiState.serverUnreachable]) and taken back by the first answer. An answer that is a
+     * refusal (busy, too many requests) is a server that is there.
      */
     fun refreshProviders() {
-        if (!googleSignIn.isSupported) return
         providersJob?.cancel()
         providersJob = viewModelScope.launch {
             var wait = FIRST_RETRY
             while (true) {
-                val answer = runCatching { api.auth.providers() }.getOrNull()
-                if (answer != null) {
-                    val google = answer.google
+                // A question dropped because another took its place ("Retry", a new address) says nothing: only its
+                // own failure does, so the cancellation goes on its way instead of being read as "no answer".
+                val failure = try {
+                    val google = api.auth.providers().google
                     googleConfig = google
-                    _state.update { it.copy(googleAvailable = google != null && googleSignIn.canSignIn(google)) }
+                    val offered = googleSignIn.isSupported && google != null && googleSignIn.canSignIn(google)
+                    _state.update { it.copy(googleAvailable = offered, serverUnreachable = false, isCheckingServer = false) }
                     return@launch
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    e
                 }
+                _state.update { it.copy(serverUnreachable = failure !is KadansApiException, isCheckingServer = false) }
                 delay(wait)
                 wait = (wait * 2).coerceAtMost(LAST_RETRY)
             }
         }
+    }
+
+    /** "Retry" on the notice: asked now, not when the next try was due. */
+    fun retryServer() {
+        _state.update { it.copy(isCheckingServer = true) }
+        refreshProviders()
+    }
+
+    /** A sign-in found the server out of reach: said on the notice, which the next answer takes back. */
+    private fun serverOutOfReach() {
+        _state.update { it.copy(serverUnreachable = true) }
+        if (providersJob?.isActive != true) refreshProviders()
     }
 
     fun signInWithGoogle() {
@@ -119,6 +148,7 @@ class LoginViewModel(
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(isGoogleLoading = false, error = null, errorCode = "network") }
+                serverOutOfReach()
             }
         }
     }
@@ -163,6 +193,7 @@ class LoginViewModel(
                 _state.update { it.copy(isLoading = false, error = e.message, errorCode = e.errorCode) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = null, errorCode = "network") }
+                serverOutOfReach()
             }
         }
     }

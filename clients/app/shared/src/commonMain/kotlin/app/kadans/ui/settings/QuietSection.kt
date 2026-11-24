@@ -1,13 +1,13 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.Card
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,7 +63,7 @@ fun QuietSection(quiet: FocusQuiet = koinInject()) {
     }
     if (missing != null) {
         Text(missing, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
-        OutlinedButton(onClick = quiet::openSettings, modifier = Modifier.fillMaxWidth()) {
+        SecondaryButton(onClick = quiet::openSettings, modifier = Modifier.fillMaxWidth()) {
             Text(LocalStrings.current.reminders.openSettings)
         }
     }
@@ -96,7 +96,7 @@ fun QuietOffer(modifier: Modifier = Modifier, quiet: FocusQuiet = koinInject()) 
     if (!offered) return
     val q = LocalStrings.current.quiet
 
-    OutlinedCard(modifier = modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Text(q.offerTitle, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp))
         Text(
             q.offerText,

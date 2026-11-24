@@ -1,5 +1,7 @@
 package app.kadans.ui.notifications
 
+import app.kadans.ui.BigButton
+import app.kadans.ui.PageHeader
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,16 +49,13 @@ fun NotificationsScreen(
 
     Scaffold(
         topBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onBack) { Text("← " + s.back) }
-                Text(s.notifications.title, style = MaterialTheme.typography.titleLarge)
+            // "Mark all read" under the header, not in it: beside "Back" and the title it did not fit a phone in French.
+            Column {
+                PageHeader(s.notifications.title, onBack)
                 TextButton(
                     onClick = viewModel::markAllRead,
                     enabled = (state as? NotificationsUiState.Content)?.unread?.let { it > 0 } == true,
+                    modifier = Modifier.align(Alignment.End).padding(end = 8.dp),
                 ) { Text(s.notifications.markAllRead) }
             }
         },
@@ -71,7 +70,7 @@ fun NotificationsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(s.errorFor(current.code, current.message), color = MaterialTheme.colorScheme.error)
-                    Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
+                    BigButton(s.retry, viewModel::refresh, Modifier.padding(top = 12.dp))
                 }
             is NotificationsUiState.Content ->
                 Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {

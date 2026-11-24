@@ -24,6 +24,7 @@ import app.kadans.ui.LocalDates
 import app.kadans.ui.DateRange
 import app.kadans.ui.PickerField
 import app.kadans.ui.PickerKind
+import app.kadans.ui.RuleWords
 import kotlin.time.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -50,7 +51,7 @@ internal fun WhenSection(
     var pickingTime by remember { mutableStateOf(false) }
 
     // Tapped anywhere, the fields open their pickers: the value keeps the room a "Pick" button used to take.
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         PickerField(
             value = state.date?.let { d.short(it, today) } ?: "",
             label = if (state.mode == TodoMode.OneTime) s.dueDate else s.firstOn,
@@ -74,13 +75,11 @@ internal fun WhenSection(
     }
 
     if (state.mode == TodoMode.Recurring) {
-        RepeatSection(state, update)
+        RepeatSection(state, update, label = s.repeatLabel)
 
         // The rule as it will be sent, in words, and its first moment when that is not the date and time picked.
         val words = remember(state, s, d) { CreateTodoViewModel.ruleInWords(state, s, zone, now, d.clock) }
-        if (words != null) {
-            Text(words, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-        }
+        if (words != null) RuleWords(words)
         val first = CreateTodoViewModel.firstStart(state, zone, now)
         val picked = state.date?.let { LocalDateTime(it, CreateTodoViewModel.effectiveTime(state)) }
         if (first != null && first != picked) {

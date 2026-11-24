@@ -1,6 +1,5 @@
 package app.kadans.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,13 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.ApiDayOfWeek
 import app.kadans.i18n.LocalStrings
@@ -83,20 +82,20 @@ internal fun MonthPicker(selected: Set<Int>, onToggle: (Int) -> Unit, modifier: 
     }
 }
 
-/** One cell of the pickers, styled as the filter chips. */
+/** One cell of the pickers, as the forms' pills: white until picked, then purple. */
 @Composable
 private fun DayToggle(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
     Surface(
         selected = selected,
         onClick = onClick,
-        shape = MaterialTheme.shapes.small,
-        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-        contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier.height(40.dp),
+        shape = CircleShape,
+        color = if (selected) scheme.primary else scheme.surfaceContainerHighest,
+        contentColor = if (selected) scheme.onPrimary else scheme.onSurface,
+        modifier = modifier.height(44.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
         }
     }
 }

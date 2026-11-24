@@ -250,10 +250,11 @@ internal static class TodoRoutes
                         GetTodos service,
                         HttpContext context,
                         [FromQuery(Name = "from")] DateTimeOffset from,
-                        [FromQuery(Name = "to")] DateTimeOffset to
+                        [FromQuery(Name = "to")] DateTimeOffset to,
+                        [FromQuery(Name = "completed")] bool? completed
                     ) =>
                     {
-                        var result = await service.GetOccurrencesByDateRange(from, to);
+                        var result = await service.GetOccurrencesByDateRange(from, to, withCompleted: completed ?? false);
                         return result.Match<
                             Results<Ok<List<TodoOccurrenceResponse>>, ProblemHttpResult>
                         >(
@@ -264,8 +265,8 @@ internal static class TodoRoutes
                     }
                 )
                 .WithName("OccurrencesListByRange")
-                .WithSummary("List pending occurrences in a date range")
-                .WithDescription("Pending occurrences across all todos between `from` and `to`; beyond the materialization horizon, computed previews (`isPreview`) fill the window.")
+                .WithSummary("List occurrences in a date range")
+                .WithDescription("Pending occurrences across all todos between `from` and `to`; beyond the materialization horizon, computed previews (`isPreview`) fill the window. With `completed=true`, the completed ones of the window too (a day's list that keeps what was done); cancelled ones never.")
                 .Produces<List<TodoOccurrenceResponse>>(StatusCodes.Status200OK)
                 .ProducesProblem(StatusCodes.Status400BadRequest);
 

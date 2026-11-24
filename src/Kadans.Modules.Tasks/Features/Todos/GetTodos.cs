@@ -34,6 +34,22 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
                 .Where(o => o.ScheduledAt >= from && o.ScheduledAt <= to)
         );
 
+    // With what is already done: a day's list keeps what was ticked, and counts it (the app's Home). A one-time todo is
+    // itself completed with its only occurrence, so the todos' filter is lifted too; a todo that is no longer active
+    // gives its done occurrences and nothing else.
+    private static readonly Func<TasksDbContext, DateTimeOffset, DateTimeOffset, IAsyncEnumerable<TodoOccurrence>> OccurrencesBetweenWithCompleted =
+        EF.CompileAsyncQuery(
+            (TasksDbContext db, DateTimeOffset from, DateTimeOffset to) => db
+                .TodoOccurrences.IgnoreQueryFilters(new[] { TasksDbContext.ACTIVE_OCCURRENCES_FILTER, TasksDbContext.ACTIVE_TODOS_FILTER })
+                .AsNoTrackingWithIdentityResolution()
+                .Include(o => o.Todo)
+                .Where(o => o.ScheduledAt >= from && o.ScheduledAt <= to)
+                .Where(o =>
+                    o.Status == OccurrenceStatus.Completed
+                    || (o.Status == OccurrenceStatus.Pending && o.Todo!.Status != TaskStatus.Completed && o.Todo!.Status != TaskStatus.Cancelled)
+                )
+        );
+
     private static readonly Func<TasksDbContext, DateTimeOffset, IAsyncEnumerable<Todo>> GeneratedShortOf = EF.CompileAsyncQuery(
         (TasksDbContext db, DateTimeOffset to) => db
             .Todos.AsNoTracking()
@@ -95,8 +111,13 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
     /// <summary>
     /// Pending occurrences across all todos in a window of up to a year. Past the materialization
     /// horizon the window is filled with computed previews, so calendars can page far ahead.
+    /// <paramref name="withCompleted"/>: the completed ones of the window too, for a list that keeps what was done.
     /// </summary>
-    public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetOccurrencesByDateRange(DateTimeOffset from, DateTimeOffset to)
+    public async Task<OneOf<ApplicationError, List<TodoOccurrenceResponse>>> GetOccurrencesByDateRange(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        bool withCompleted = false
+    )
     {
         if (from > to)
             return new ApplicationError(ErrorTypes.InvalidInterval, "Start date must be earlier than end date.");
@@ -104,7 +125,7 @@ internal sealed class GetTodos(TasksDbContext dbContext, IOptions<TasksOptions> 
         if (to - from > MaxWindow)
             return new ApplicationError(ErrorTypes.InvalidInterval, "The calendar range can be at most a year.");
 
-        var materialized = await OccurrencesBetween(dbContext, from, to).ToListAsync();
+        var materialized = await (withCompleted ? OccurrencesBetweenWithCompleted : OccurrencesBetween)(dbContext, from, to).ToListAsync();
         var result = materialized.ConvertAll(o => o.ToResponse());
 
         var notFullyGenerated = await GeneratedShortOf(dbContext, to).ToListAsync();

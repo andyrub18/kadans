@@ -1,8 +1,6 @@
 package app.kadans.ui
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -49,8 +47,9 @@ expect fun SystemBarsFollow(dark: Boolean)
 val LocalDarkTheme = staticCompositionLocalOf { false }
 
 /**
- * Light or dark as the [Appearance] says, the system's by default, and as the system changes. Material 3 baseline
- * schemes for now; a Kadans palette is a deliberate later decision and slots in here.
+ * Light or dark as the [Appearance] says, the system's by default, and as the system changes. Kadans' own look
+ * ([KadansLight], [KadansDark], [kadansTypography], [KadansShapes]; ARCHITECTURE → "The look"): every screen takes its
+ * colours, type and corners from here, and what Material has no role for from [LocalKadansColors].
  */
 @Composable
 fun KadansTheme(content: @Composable () -> Unit) {
@@ -61,7 +60,21 @@ fun KadansTheme(content: @Composable () -> Unit) {
         Appearance.Dark -> true
     }
     SystemBarsFollow(dark)
-    CompositionLocalProvider(LocalDarkTheme provides dark) {
-        MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme(), content = content)
+    KadansLook(dark, content)
+}
+
+/** The look alone, for what draws outside the app's own window with no preference to read (a test, a preview). */
+@Composable
+fun KadansLook(dark: Boolean, content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalDarkTheme provides dark,
+        LocalKadansColors provides if (dark) KadansColors.Dark else KadansColors.Light,
+    ) {
+        MaterialTheme(
+            colorScheme = if (dark) KadansDark else KadansLight,
+            typography = kadansTypography(),
+            shapes = KadansShapes,
+            content = content,
+        )
     }
 }

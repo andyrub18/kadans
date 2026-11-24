@@ -309,6 +309,27 @@ Both:
       paste the English and French full descriptions again (their last lines name four languages). No Spanish
       screenshots yet: Play shows the English ones. That release's notes need a Spanish "What's new" too.
 
+## The new look (2026-11-24)
+
+What you chose on the canvas, built (ARCHITECTURE → "The look"). I checked it on the Android emulator, at a phone's
+size and at a computer's; nobody has looked at it on your computer or on a real phone yet.
+
+- [x] The desktop app on your computer (2026-11-24: "really better"; your two remarks, the "Back" button and the
+      sign-in screen saying when the server cannot be reached, are built). To look again: quit the installed Kadans from the tray first (a second one would only show
+      the first), start the API, then from `clients/app` run `./gradlew :desktopApp:run`. The window should open
+      wide, with the destinations in a column on the left. Look at Home, a focus session, the budget, a todo, and
+      the three forms (a todo, a movement, a Pomodoro cycle); narrow the window until it becomes the phone's layout
+      and widen it again; switch Settings → Appearance to Dark and back. Tell me what looks wrong, with the screen.
+- [ ] On Home, press a todo's circle, then "Undo" on the bar at the bottom within five seconds; press it again and
+      wait: the todo is struck through and the ring moves. This is new behaviour, not only paint: tell me if five
+      seconds is not what you want.
+- [ ] On your phone (a debug build: Testing on a real Android phone, above): the same screens, and the
+      home-screen widget, whose colours changed with the app's (I did not see it on a home screen).
+- [ ] Windows: the same look at the installed app when the next version is out, the tray's menu included (it takes
+      the app's colours). The fonts are the app's own files, so they should be the same as on Linux; nobody checked.
+- [ ] The stores' screenshots still show the old look. When you are happy with the new one, tell me and I retake
+      them (Play in four languages, the Microsoft Store's seven) for the next version's release.
+
 ## Client (Compose Multiplatform)
 
 - [x] The first desktop release, v1.0.0 (2026-11-01): `https://kadansplanning.com/download`'s buttons work.

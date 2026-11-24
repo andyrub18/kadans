@@ -222,11 +222,15 @@ class TodosApi internal constructor(private val api: KadansApi) {
             parameter("pageSize", pageSize)
         }.orThrow()
 
-    /** Materialized rows plus computed previews (`isPreview`) beyond the horizon. */
-    suspend fun occurrencesBetween(from: Instant, to: Instant): List<TodoOccurrenceResponse> =
+    /**
+     * Pending rows plus computed previews (`isPreview`) beyond the horizon; [withCompleted]: the completed ones of the
+     * window too, for a list that keeps what was done (Home). Never the cancelled ones.
+     */
+    suspend fun occurrencesBetween(from: Instant, to: Instant, withCompleted: Boolean = false): List<TodoOccurrenceResponse> =
         api.http.get("occurrences") {
             parameter("from", from.toString())
             parameter("to", to.toString())
+            if (withCompleted) parameter("completed", true)
         }.orThrow()
 
     /** One occurrence, whatever its status (a focus session's end asks whether it is done). */

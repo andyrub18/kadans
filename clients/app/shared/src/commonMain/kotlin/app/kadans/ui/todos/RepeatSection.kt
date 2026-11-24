@@ -1,17 +1,18 @@
 package app.kadans.ui.todos
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.InputChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -26,15 +27,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.kadans.api.model.Frequency
 import app.kadans.i18n.LocalStrings
+import app.kadans.ui.ChoiceChip
+import app.kadans.ui.Choices
 import app.kadans.ui.Dates
+import app.kadans.ui.FieldGroup
+import app.kadans.ui.KadansField
 import app.kadans.ui.LocalDates
 import app.kadans.ui.DateRange
 import app.kadans.ui.MonthDayPicker
 import app.kadans.ui.MonthPicker
 import app.kadans.ui.PickerField
 import app.kadans.ui.PickerKind
+import app.kadans.ui.StepButton
 import app.kadans.ui.WeekDayPicker
 import app.kadans.ui.capitalized
+import app.kadans.ui.shell.KadansIcons
 import kotlin.time.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -47,7 +54,8 @@ private enum class RepeatTime { Extra, Until }
  * or "the second Tuesday"), the months, several times a day, and the end. Each picker starts from the date picked, so a
  * rule left alone falls on it. A todo's ([WhenSection]) and a budget rule's (the movement form): one builder, one engine.
  * [frequencies] are those offered (money moves once a day at most), [severalTimes] offers several times a day, and
- * [endTime] lets the last day end at a time rather than with the day. The caller says the rule in words.
+ * [endTime] lets the last day end at a time rather than with the day, and [label] is the word over the frequencies where
+ * nothing above says what they are. The caller says the rule in words.
  */
 @Composable
 internal fun RepeatSection(
@@ -56,29 +64,33 @@ internal fun RepeatSection(
     frequencies: List<Frequency> = Frequency.entries,
     severalTimes: Boolean = true,
     endTime: Boolean = true,
+    label: String? = null,
 ) {
     val s = LocalStrings.current
     var pickingEnd by remember { mutableStateOf(false) }
     var pickingTime by remember { mutableStateOf<RepeatTime?>(null) }
 
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        frequencies.forEach { f ->
-            FilterChip(
-                selected = state.frequency == f,
-                onClick = { update { CreateTodoViewModel.withFrequency(it, f) } },
-                label = { Text(s.frequencyName(f)) },
-            )
+    FieldGroup(label) {
+        Choices {
+            frequencies.forEach { f ->
+                ChoiceChip(
+                    selected = state.frequency == f,
+                    onClick = { update { CreateTodoViewModel.withFrequency(it, f) } },
+                    label = { Text(s.frequencyName(f)) },
+                )
+            }
         }
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         // Every 5 minutes at most: the stepper stops there (the server refuses more).
-        OutlinedButton(
+        StepButton(
+            "−",
             onClick = { update { it.copy(interval = (it.interval - 1).coerceAtLeast(CreateTodoViewModel.minInterval(it.frequency))) } },
             enabled = state.interval > CreateTodoViewModel.minInterval(state.frequency),
-        ) { Text("−") }
+        )
         Text(s.repeat.every(state.frequency, state.interval), style = MaterialTheme.typography.titleMedium)
-        OutlinedButton(onClick = { update { it.copy(interval = it.interval + 1) } }) { Text("+") }
+        StepButton("+", onClick = { update { it.copy(interval = it.interval + 1) } })
     }
     if (state.severalMonthsNeedEveryYear) {
         Text(s.repeat.severalMonthsEveryYear, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -87,23 +99,25 @@ internal fun RepeatSection(
     // What the date picked does not say, the pickers do: each starts from that date (its weekday, its day of the
     // month, its month), so a rule left alone falls on it. A last choice cannot be dropped.
     if (state.frequency == Frequency.Weekly) {
-        Text(s.onDaysLabel, style = MaterialTheme.typography.labelLarge)
-        WeekDayPicker(state.weekDays, onToggle = { day -> update { CreateTodoViewModel.toggleDay(it, day) } })
+        FieldGroup(s.onDaysLabel) {
+            WeekDayPicker(state.weekDays, onToggle = { day -> update { CreateTodoViewModel.toggleDay(it, day) } })
+        }
     }
 
     if (state.frequency == Frequency.Yearly) {
-        Text(s.repeat.monthsLabel, style = MaterialTheme.typography.labelLarge)
-        MonthPicker(state.effectiveMonths, onToggle = { month -> update { CreateTodoViewModel.toggleMonth(it, month) } })
+        FieldGroup(s.repeat.monthsLabel) {
+            MonthPicker(state.effectiveMonths, onToggle = { month -> update { CreateTodoViewModel.toggleMonth(it, month) } })
+        }
     }
 
     if (state.frequency == Frequency.Monthly || state.frequency == Frequency.Yearly) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
+        Choices {
+            ChoiceChip(
                 selected = state.dayRule == DayRule.ByDate,
                 onClick = { update { it.copy(dayRule = DayRule.ByDate) } },
                 label = { Text(s.repeat.byDate) },
             )
-            FilterChip(
+            ChoiceChip(
                 selected = state.dayRule == DayRule.ByWeekday,
                 onClick = { update { it.copy(dayRule = DayRule.ByWeekday) } },
                 label = { Text(s.repeat.byWeekday) },
@@ -119,9 +133,9 @@ internal fun RepeatSection(
             }
             DayRule.ByWeekday -> {
                 // "The second Tuesday", "the last weekday": which one, then which day.
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Choices {
                     Ordinal.entries.forEach { ordinal ->
-                        FilterChip(
+                        ChoiceChip(
                             selected = state.effectiveOrdinal == ordinal,
                             onClick = { update { it.copy(ordinal = ordinal) } },
                             label = { Text(s.repeat.ordinals[ordinal.ordinal].capitalized()) },
@@ -132,9 +146,9 @@ internal fun RepeatSection(
                     selected = state.effectiveKind.days.singleOrNull()?.let { setOf(it) } ?: emptySet(),
                     onToggle = { day -> update { it.copy(dayKind = DayKind.of(day)) } },
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Choices {
                     DayKind.Groups.forEach { kind ->
-                        FilterChip(
+                        ChoiceChip(
                             selected = state.effectiveKind == kind,
                             onClick = { update { it.copy(dayKind = kind) } },
                             label = { Text(RuleSummary.kindName(kind, s).capitalized()) },
@@ -146,43 +160,55 @@ internal fun RepeatSection(
     }
 
     if (severalTimes && state.frequency in CreateTodoViewModel.SEVERAL_TIMES) {
-        Text(s.timesThatDay, style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            state.times.sorted().forEach { t ->
-                InputChip(
-                    selected = false,
-                    onClick = { update { it.copy(times = it.times - t) } },
-                    label = { Text(LocalDates.current.time(t) + "  ✕") },
-                )
+        FieldGroup(s.timesThatDay) {
+            Choices {
+                state.times.sorted().forEach { t ->
+                    // Pressed, a time goes: the cross says so.
+                    Surface(
+                        onClick = { update { it.copy(times = it.times - t) } },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    ) {
+                        Row(
+                            Modifier.heightIn(min = 44.dp).padding(start = 16.dp, end = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(LocalDates.current.time(t), style = MaterialTheme.typography.labelLarge)
+                            Icon(KadansIcons.Close, contentDescription = s.deleteWord, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+                TextButton(onClick = { pickingTime = RepeatTime.Extra }) { Text(s.addTime) }
             }
-            OutlinedButton(onClick = { pickingTime = RepeatTime.Extra }) { Text(s.addTime) }
-        }
-        if (!state.timesShareMinute) {
-            Text(s.sameMinuteError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (!state.timesShareMinute) {
+                Text(s.sameMinuteError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 
-    Text(s.ends, style = MaterialTheme.typography.labelLarge)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = state.endMode == EndMode.Never,
-            onClick = { update { it.copy(endMode = EndMode.Never) } },
-            label = { Text(s.endNever) },
-        )
-        FilterChip(
-            selected = state.endMode == EndMode.AfterCount,
-            onClick = { update { it.copy(endMode = EndMode.AfterCount) } },
-            label = { Text(s.endAfterCount) },
-        )
-        FilterChip(
-            selected = state.endMode == EndMode.OnDate,
-            onClick = { update { it.copy(endMode = EndMode.OnDate) } },
-            label = { Text(s.endOnDate) },
-        )
+    FieldGroup(s.ends) {
+        Choices {
+            ChoiceChip(
+                selected = state.endMode == EndMode.Never,
+                onClick = { update { it.copy(endMode = EndMode.Never) } },
+                label = { Text(s.endNever) },
+            )
+            ChoiceChip(
+                selected = state.endMode == EndMode.AfterCount,
+                onClick = { update { it.copy(endMode = EndMode.AfterCount) } },
+                label = { Text(s.endAfterCount) },
+            )
+            ChoiceChip(
+                selected = state.endMode == EndMode.OnDate,
+                onClick = { update { it.copy(endMode = EndMode.OnDate) } },
+                label = { Text(s.endOnDate) },
+            )
+        }
     }
     when (state.endMode) {
         EndMode.AfterCount ->
-            OutlinedTextField(
+            KadansField(
                 value = state.count?.toString() ?: "",
                 onValueChange = { v -> update { it.copy(count = RuleLimits.countInput(v)) } },
                 label = { Text(s.howManyTimes) },

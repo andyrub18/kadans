@@ -1,23 +1,12 @@
 package app.kadans.ui.todos
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -27,7 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import app.kadans.api.TodosApi
@@ -35,6 +23,12 @@ import app.kadans.billing.SubscriptionGate
 import app.kadans.i18n.LocalStrings
 import app.kadans.share.SharedText
 import app.kadans.share.TodoDraft
+import app.kadans.ui.FormActions
+import app.kadans.ui.FormColumns
+import app.kadans.ui.FormPage
+import app.kadans.ui.KadansField
+import app.kadans.ui.Segmented
+import app.kadans.ui.SwitchCard
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -78,66 +72,58 @@ fun CreateTodoScreen(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Column(
-            modifier = Modifier.widthIn(max = 420.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(s.newTodo, style = MaterialTheme.typography.headlineSmall)
-
-            OutlinedTextField(
+    FormPage(s.newTodo, onBack) { wide ->
+        // What it is and whether it reminds on one side, when it happens on the other; a phone reads them in order.
+        val what: @Composable ColumnScope.() -> Unit = {
+            KadansField(
                 value = state.title,
                 onValueChange = { v -> viewModel.update { it.copy(title = SharedText.within(v, TodosApi.TITLE_LENGTH)) } },
                 label = { Text(s.titleLabel) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            KadansField(
                 value = state.description,
                 onValueChange = { v -> viewModel.update { it.copy(description = SharedText.within(v, TodosApi.DESCRIPTION_LENGTH)) } },
                 label = { Text(s.descriptionOptional) },
+                minLines = if (wide) 3 else 1,
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = state.mode == TodoMode.OneTime,
-                    onClick = { viewModel.update { it.copy(mode = TodoMode.OneTime) } },
-                    label = { Text(s.oneTime) },
-                )
-                FilterChip(
-                    selected = state.mode == TodoMode.Recurring,
-                    onClick = { viewModel.update { it.copy(mode = TodoMode.Recurring) } },
-                    label = { Text(s.recurring) },
-                )
-            }
-
-            WhenSection(state, viewModel::update)
-
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(s.remindMe)
-                Switch(checked = state.notify, onCheckedChange = { v -> viewModel.update { it.copy(notify = v) } })
-            }
-            if (state.notify) {
-                ReminderLeadChooser(selected = state.notifyBefore, onSelect = { v -> viewModel.update { it.copy(notifyBefore = v) } })
-            }
-
-            if (state.error != null || state.errorCode != null) {
-                Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-            val ready = state.canSubmit && CreateTodoViewModel.ruleReady(state, TimeZone.currentSystemDefault(), Clock.System.now())
-            Button(onClick = { permission.beforeSaving(state.notify, viewModel::submit) }, enabled = ready, modifier = Modifier.fillMaxWidth()) {
-                if (state.isLoading) CircularProgressIndicator(modifier = Modifier.padding(2.dp)) else Text(s.create)
-            }
-            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(s.cancel) }
         }
+        val whenItIs: @Composable ColumnScope.() -> Unit = {
+            Segmented(
+                options = TodoMode.entries,
+                selected = state.mode,
+                name = { if (it == TodoMode.OneTime) s.oneTime else s.recurring },
+                onSelect = { mode -> viewModel.update { it.copy(mode = mode) } },
+            )
+            WhenSection(state, viewModel::update)
+        }
+        val reminder: @Composable ColumnScope.() -> Unit = {
+            SwitchCard(s.remindMe, state.notify, onChange = { v -> viewModel.update { it.copy(notify = v) } }) {
+                ReminderLeadChooser(selected = state.notifyBefore, onSelect = { v -> viewModel.update { it.copy(notifyBefore = v) } }, onCard = true)
+            }
+        }
+        if (wide) {
+            FormColumns(first = { what(); reminder() }, second = whenItIs)
+        } else {
+            what()
+            whenItIs()
+            reminder()
+        }
+
+        if (state.error != null || state.errorCode != null) {
+            Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        val ready = state.canSubmit && CreateTodoViewModel.ruleReady(state, TimeZone.currentSystemDefault(), Clock.System.now())
+        FormActions(
+            wide = wide,
+            confirm = s.create,
+            onConfirm = { permission.beforeSaving(state.notify, viewModel::submit) },
+            onCancel = onBack,
+            enabled = ready,
+            busy = state.isLoading,
+        )
     }
     ReminderPermissionDialog(permission)
 }

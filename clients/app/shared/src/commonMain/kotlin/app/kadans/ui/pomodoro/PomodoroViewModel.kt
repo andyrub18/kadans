@@ -4,10 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
-import app.kadans.api.model.CreatePomodoroPhase
 import app.kadans.api.model.CreatePomodoroTemplate
 import app.kadans.api.model.OccurrenceStatus
-import app.kadans.api.model.PomodoroPhaseType
 import app.kadans.api.model.PomodoroRunResponse
 import app.kadans.api.model.PomodoroRunStatus
 import app.kadans.realtime.KadansRealtime
@@ -61,11 +59,16 @@ class PomodoroViewModel(
     private val _donePrompt = MutableStateFlow<DonePrompt?>(null)
     val donePrompt: StateFlow<DonePrompt?> = _donePrompt.asStateFlow()
 
+    /** The todo's name, over the dial: read once, and the screen does without it when that fails. */
+    private val _title = MutableStateFlow<String?>(null)
+    val title: StateFlow<String?> = _title.asStateFlow()
+
     /** The run whose end was already asked about: a session ends once, and is asked about once. */
     private var askedFor: String? = null
 
     init {
         realtime.start() // idempotent — the focus screen must not depend on Home having done it
+        viewModelScope.launch { runCatching { api.todos.get(todoId).title }.onSuccess { _title.value = it } }
         viewModelScope.launch { tick() }
         // Hands-free advances happen server-side; the hub pushes each new phase to us live.
         // Adopt only pushes about the run on screen, and never a state older than what we show —

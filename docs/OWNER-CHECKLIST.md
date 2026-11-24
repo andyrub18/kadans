@@ -259,7 +259,9 @@ Google Play (sells in Haiti, to Haitian buyers and from a Haitian seller account
       need a company and a D-U-N-S number). The testers never pay: while `BILLING_REQUIRED=false` nobody sees a
       paywall; once it is on, each one signs up and you add them with `tools/admin/free_accounts.py add <them>`
       (DEPLOYMENT → Subscriptions → Free accounts), then they open the app again. License testing is no use for
-      them: their test subscriptions end within the hour.
+      them: their test subscriptions end within the hour. A tester counts once they have accepted the link and
+      stay on the list: keep a few more than 12, since one who leaves before the 14 days are up can start the
+      count again. Then Dashboard → **Apply for production** (Google asks about the test and how testers found it).
 - [ ] Play Console → App content → App access: an account for Google's reviewers (username and password), listed
       as a free account (`tools/admin/free_accounts.py add <it>`) so they see the whole app. Without two-factor:
       reviewers cannot get the codes.
@@ -328,13 +330,23 @@ Both:
          1.1.1 you use (`sudo apt install ./kadans-linux-amd64.deb`). It must open signed in, without asking. Do not
          start a build from source before that (`./gradlew :desktopApp:run`): it shares the installed app's settings
          and would seal the session, and the installed 1.1.1 would then find itself signed out.
-      3. **Android**: a bundle with `-Pkadans.versionCode=2` (DEPLOYMENT → Building the apps), uploaded to the
-         **internal testing** track with `store/play/<language>/changelogs/2.txt` as its release notes, then updated
+      3. **Android**: a bundle with `-Pkadans.versionCode=3` (codes 1 and 2 are taken: Play refuses a code twice;
+         DEPLOYMENT → Building the apps), uploaded to the
+         **internal testing** track with `store/play/<language>/changelogs/3.txt` as its release notes, then updated
          from Play on your phone: it must open signed in. Not with adb: a build signed with another key does not
          install over Play's copy, and uninstalling first wipes the very session the update must carry over.
       4. **Satisfied**: `git tag v1.2.0 && git push origin v1.2.0` (DEPLOYMENT → Releasing the desktop app), a new
          Partner Center submission with that release's `.msix`, the same Play bundle promoted to the closed test, and
-         both stores' descriptions updated from `store/play/<language>/full_description.txt`.
+         both stores' descriptions updated from `store/play/<language>/full_description.txt`. Tagged 2026-11-20, the
+         release published and the Microsoft Store's copy out; what is left is Play's closed test.
+         **Promoted, never uploaded again**: Play takes a version code once, whatever the track, so the same bundle
+         uploaded to the closed test is refused ("already used"). Test and release → Testing → Internal testing →
+         Releases → the 1.2.0 (3) release → **Promote release** → Closed testing (the track Play made, "Alpha"),
+         which keeps the bundle and its release notes. A closed-test release started with the refused upload
+         blocks the promotion: discard it first. Before the first one, the track's Testers tab needs its list (the
+         Google accounts the testers use in Play on their phones) and its Countries / regions; then Publishing
+         overview → **Send changes for review**. Once Google has reviewed it, the Testers tab shows the link to send
+         them: each one opens it, accepts, and installs from Play (Production access, below, counts the days).
       The stores' screenshots were retaken for 1.2 (2026-11-18): upload them with the descriptions, Play's eight per
       language from `store/play/<language>/images/phoneScreenshots/` (the widget on a home screen is new; Settings
       gave it its place) and the Microsoft Store's seven from `store/microsoft/<language>/screenshots/`. If a test
@@ -367,6 +379,11 @@ Both:
       (the site's page: both ways, in the app and on the web, in three languages, with the link to the web form
       `https://api.kadansplanning.com/account/delete`). The form also asks how long deletion takes: closed at once,
       erased after 7 days, out of the backups 14 days after that.
+- [ ] Play Console → App content → Advertising ID: **No**. Checked on the 1.2.0 bundle (version code 3, 2026-11-22):
+      its merged manifest has no `com.google.android.gms.permission.AD_ID`, and nothing in it reads the advertising
+      ID (no Firebase Analytics, no ads library, no `play-services-ads-identifier`; Firebase Messaging's
+      `firebase-measurement-connector` is only a hook Analytics would plug into). The answer changes only if one of
+      those comes in: then the permission is in the manifest and the answer is Yes.
 - [ ] The session sealed on the device (2026-11-17), with the next builds, each installed over the one you use and
       never after a sign-out: the phone (from Play's test track), the computer (the `.deb`), Windows (the `.msi` or
       the Store's). Each should open signed in, without asking anything: the session the old version kept in the
@@ -406,7 +423,7 @@ Both:
       If Play Console asks about the new permission (Do Not Disturb access) at upload, tell me what it asks: no
       declaration was found to be required.
 - [ ] Deep links: on Android the emailed password reset is a verified App Link (DEPLOYMENT → Building the apps → App
-      Links). To finish: update the server, upload version code 2, install it from Play, then tap the link in a reset
-      email: Kadans' own screen opens. Universal Links wait for the iPhone app.
+      Links). To finish: with the server up to date, install Kadans from Play (1.2.0, version code 3, has it), then tap
+      the link in a reset email: Kadans' own screen opens. Universal Links wait for the iPhone app.
 - [x] Device registration on every sign-in: `PUT /users/me/devices/{installationId}` with the
       FCM token on Android (null elsewhere)

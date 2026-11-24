@@ -1,10 +1,10 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,7 +46,7 @@ fun RemindersSection(reminders: LocalReminders = koinInject()) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (access != ReminderAccess.Ready) {
-        OutlinedButton(onClick = reminders::openSettings, modifier = Modifier.fillMaxWidth()) { Text(r.openSettings) }
+        SecondaryButton(onClick = reminders::openSettings, modifier = Modifier.fillMaxWidth()) { Text(r.openSettings) }
     }
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 }

@@ -145,3 +145,9 @@ kotlin {
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }
+
+// The app's own fonts and their licences (src/commonMain/composeResources): `Res` sits beside the code that uses it.
+compose.resources {
+    packageOfResClass = "app.kadans.resources"
+    publicResClass = false
+}

@@ -1,5 +1,12 @@
 package app.kadans.ui.home
 
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.TimeZone
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import app.kadans.ui.Dates
+import app.kadans.api.model.OccurrenceStatus
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.kadans.api.KadansApi
@@ -74,6 +81,27 @@ class HomeViewModel(
     private val _liveNotifications = MutableSharedFlow<NotificationResponse>(extraBufferCapacity = 4)
     val liveNotifications: SharedFlow<NotificationResponse> = _liveNotifications.asSharedFlow()
 
+    /** A todo could not be marked done (offline, signed out): the screen says so. */
+    private val _tickFailed = MutableSharedFlow<KadansApiException?>(extraBufferCapacity = 4)
+    val tickFailed: SharedFlow<KadansApiException?> = _tickFailed.asSharedFlow()
+
+    /** The circles pressed on Home: shown done at once, sent after the few seconds an undo has. */
+    private val ticks = Ticks(
+        scope = viewModelScope,
+        send = { id -> api.todos.completeOccurrence(id) },
+        sent = { _, failure ->
+            if (failure != null) _tickFailed.emit(failure as? KadansApiException)
+            // Done or not, the list says what the server holds; the widget has the same day.
+            load(quiet = true)
+            todayWidget.refreshSoon()
+        },
+    )
+    val ticked: StateFlow<Set<String>> = ticks.ticked
+
+    fun tick(occurrenceId: String) = ticks.tick(occurrenceId)
+
+    fun untick(occurrenceId: String) = ticks.undo(occurrenceId)
+
     private val _access = MutableStateFlow(if (gate.appliesHere) HomeAccess.Checking else HomeAccess.Open)
     val access: StateFlow<HomeAccess> = _access.asStateFlow()
 
@@ -136,8 +164,11 @@ class HomeViewModel(
         try {
             val now = Clock.System.now()
             val todos = api.todos.list(pageSize = 50)
-            val upcoming = api.todos.occurrencesBetween(now, now + 7.days)
-                .filter { !it.isPreview }
+            // From the day's first minute: what was done today stays in sight, and the day's progress counts it.
+            val zone = TimeZone.currentSystemDefault()
+            val dayStart = Dates.today(zone).atStartOfDayIn(zone)
+            val upcoming = api.todos.occurrencesBetween(dayStart, now + 7.days, withCompleted = true)
+                .filter { !it.isPreview && it.status != OccurrenceStatus.Cancelled }
             // The phone's own events for the same week, read on the phone (empty unless the person turned that on).
             val events = phoneCalendar.events(now, now + 7.days, upcoming)
             _state.value = HomeUiState.Content(todos, upcoming, events)
@@ -151,5 +182,16 @@ class HomeViewModel(
         } catch (e: Exception) {
             if (!(quiet && _state.value is HomeUiState.Content)) _state.value = HomeUiState.Error(null, "network")
         }
+    }
+
+    /** Home is gone for good (signed out, the app closed): what was ticked and not yet sent is sent now. */
+    override fun onCleared() {
+        val left = ticks.abandon()
+        if (left.isNotEmpty()) {
+            CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+                left.forEach { id -> runCatching { api.todos.completeOccurrence(id) } }
+            }
+        }
+        super.onCleared()
     }
 }

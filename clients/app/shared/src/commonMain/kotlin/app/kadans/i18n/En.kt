@@ -3,6 +3,13 @@ package app.kadans.i18n
 val EnglishStrings = StringsCatalog(
     signInTitle = "Sign in", usernameOrEmail = "Username or email", password = "Password",
     signIn = "Sign in", createAccount = "Create an account", twoFactorTitle = "Two-factor code",
+    home = HomeStrings(
+        doneOfFormat = "%1 of %2 done",
+        ofFormat = "of %d",
+        nextFormat = "Next: %s",
+        allDone = "All done for today",
+        next = "next",
+    ),
     account = AccountStrings(
         emailSection = "Email",
         emailConfirmed = "Confirmed",

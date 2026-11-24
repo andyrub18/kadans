@@ -1,12 +1,12 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,7 +75,7 @@ fun StartAtLoginSection(startAtLogin: StartAtLogin = koinInject(), updates: AppU
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(u.available(notice.version), color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-            OutlinedButton(onClick = { runCatching { uriHandler.openUri(AppUpdates.DOWNLOAD_PAGE) } }) { Text(u.download) }
+            SecondaryButton(onClick = { runCatching { uriHandler.openUri(AppUpdates.DOWNLOAD_PAGE) } }) { Text(u.download) }
         }
         notice.notes?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }

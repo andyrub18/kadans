@@ -1,5 +1,6 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +13,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -71,7 +71,7 @@ internal fun CalendarFeedPage(
     when {
         feed == null && state.isLoading ->
             Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        feed == null -> OutlinedButton(onClick = { viewModel.load() }, modifier = Modifier.fillMaxWidth()) { Text(s.retry) }
+        feed == null -> SecondaryButton(onClick = { viewModel.load() }, modifier = Modifier.fillMaxWidth()) { Text(s.retry) }
         // The feed is part of the phones' subscription. A phone without one is behind the paywall: this is the free
         // desktop app, which sells nothing, so it says where to subscribe. A link already given out can still go.
         !feed.available -> {
@@ -127,7 +127,7 @@ private fun FeedOn(feed: CalendarFeedResponse, url: String, busy: Boolean, onCom
     Text(c.googleTitle, style = MaterialTheme.typography.titleSmall)
     Text(if (onComputer) c.googleOnComputer else c.googleOnPhone, style = MaterialTheme.typography.bodySmall)
     if (onComputer) {
-        OutlinedButton(
+        SecondaryButton(
             onClick = {
                 clipboard.setText(AnnotatedString(url))
                 googleOpened = runCatching { uriHandler.openUri(GOOGLE_CALENDAR_ADD_BY_URL) }.isSuccess
@@ -143,7 +143,7 @@ private fun FeedOn(feed: CalendarFeedResponse, url: String, busy: Boolean, onCom
 
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
-    OutlinedButton(onClick = { replacing = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(c.replace) }
+    SecondaryButton(onClick = { replacing = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(c.replace) }
     TurnOff(enabled = !busy, onConfirmed = viewModel::turnOff)
 
     if (replacing) {

@@ -38,7 +38,8 @@ Not yet: the macOS `.icns` (made on a Mac, with the DMG) and the iPhone app's ic
 ## Rules
 
 - **Colour**: the app's purple, `#6750A4` (Material 3 baseline primary), and white. On purple or dark, the mark is
-  white; on light, purple. The app's dark theme uses its own lighter purple, `#D0BCFF`.
+  white; on light, purple. The app's dark theme uses its own lighter purple, `#CDBDFF` (the app's whole palette:
+  `clients/app/shared/.../ui/Look.kt`, ARCHITECTURE → "The look").
 - **Sizes**: the full dial from 32 px up; the small mark below that (the notification and the tray).
 - **Space**: keep a tenth of the mark's width clear around it.
 - **Never**: redraw it by hand, stretch it, rotate it, or move the hands. The K is the hands' only position at rest.

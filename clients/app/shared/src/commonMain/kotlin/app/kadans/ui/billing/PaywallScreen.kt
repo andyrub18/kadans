@@ -1,5 +1,6 @@
 package app.kadans.ui.billing
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -89,7 +89,7 @@ fun PaywallScreen(
                 Text(p.renewalTerms, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else if (state.status != null) {
                 Text(p.unavailable, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                OutlinedButton(onClick = viewModel::retry, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) { Text(s.retry) }
+                SecondaryButton(onClick = viewModel::retry, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) { Text(s.retry) }
             }
 
             when (state.notice) {
@@ -106,10 +106,10 @@ fun PaywallScreen(
             }
 
             if (state.status != null) {
-                OutlinedButton(onClick = viewModel::restore, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) { Text(p.restore) }
+                SecondaryButton(onClick = viewModel::restore, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) { Text(p.restore) }
             }
             state.manageUrl?.takeIf { state.canManage }?.let { url ->
-                OutlinedButton(onClick = { open(url) }, modifier = Modifier.fillMaxWidth()) { Text(p.manage) }
+                SecondaryButton(onClick = { open(url) }, modifier = Modifier.fillMaxWidth()) { Text(p.manage) }
             }
             if (state.canFake) {
                 TextButton(onClick = viewModel::fakeTrial, modifier = Modifier.fillMaxWidth()) { Text(p.devFakeTrial) }

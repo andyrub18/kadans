@@ -165,6 +165,20 @@ Anything a production host needs must be in `appsettings.json` or an environment
   account's clock), never an ISO date or a `toString()`; a clock dial takes `is24Hour = !twelveHour`. A colour that
   differs in dark mode asks `LocalDarkTheme.current` (the system's, or Settings → Appearance), never
   `isSystemInDarkTheme()`.
+- The look (ARCHITECTURE → "The look"; the owner chose it on a design canvas): a colour comes from
+  `MaterialTheme.colorScheme` or `LocalKadansColors` (`ui/Look.kt`), never a `Color(0x…)` in a screen, and a text
+  style from `MaterialTheme.typography` (Baloo 2 for titles and numbers, Nunito for the rest: static files in
+  `composeResources/font`, their licences in `composeResources/files/licenses`). A screen is built from the app's
+  own pieces: `ui/Kit.kt` (`KadansCard`, `ProgressRing`, `TickCircle`, `Tag`, `SectionHeader`, `BigButton`,
+  `SecondaryButton`, `ProgressLine`, and `BackButton` / `PageHeader`: a page's way back is that one pill, never an
+  arrow alone beside a title), `ui/Fields.kt` (`KadansField`, the one text field) and `ui/Forms.kt`
+  (`FormPage`, `FormActions`, `Segmented`, `ChoiceChip` in `Choices`, `SwitchCard`); never Material's
+  `OutlinedTextField`, `TextField`, `FilterChip`, `OutlinedButton`, segmented buttons or a bare
+  `LinearProgressIndicator` (the theme makes `secondaryContainer` the purple itself, so its track would hide its
+  line). On a white card or in a dialog a pill takes `onCard = true`. A screen that a computer shows asks
+  `BoxWithConstraints` and uses two columns from `WideWindow`; look at a new screen at 360 dp in French or Spanish,
+  at a computer's width, and in dark. The Android widget repeats the palette by hand (`res/values/widget.xml`,
+  `values-night`): change a colour in both places.
 - Observability (ARCHITECTURE → Observability): a new metric goes on the module's meter (`Kadans.<Module>`, created
   from `IMeterFactory` in a `*Metrics` singleton), named `kadans.<area>.<thing>` with a unit, and histograms get
   explicit buckets (`InstrumentAdvice`). Labels stay bounded: never a user id. Logs carry user ids, never an email

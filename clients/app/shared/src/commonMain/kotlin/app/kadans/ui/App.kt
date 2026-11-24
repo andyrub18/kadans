@@ -213,7 +213,7 @@ private fun KadansNav(
     }
 
     @Composable
-    fun Destination(tab: MainTab, title: String, add: AddAction? = null, content: @Composable (Modifier) -> Unit) =
+    fun Destination(tab: MainTab, title: String, add: AddAction? = null, subtitle: String? = null, content: @Composable (Modifier) -> Unit) =
         MainShell(
             tab = tab,
             title = title,
@@ -221,6 +221,7 @@ private fun KadansNav(
             onNotifications = { backStack.add(NotificationsRoute) },
             onSettings = { backStack.add(SettingsRoute) },
             add = add,
+            subtitle = subtitle,
             content = content,
         )
 
@@ -348,7 +349,14 @@ private fun KadansNav(
                 }
                 is HomeRoute -> NavEntry(key) {
                     val s = LocalStrings.current
-                    Destination(MainTab.Home, "Kadans", AddAction(s.newTodo) { backStack.add(CreateTodoRoute) }) { modifier ->
+                    // Home is the day: its date over "Today".
+                    val today = Dates.today()
+                    Destination(
+                        MainTab.Home,
+                        s.dates.today,
+                        AddAction(s.newTodo) { backStack.add(CreateTodoRoute) },
+                        subtitle = LocalDates.current.long(today, today),
+                    ) { modifier ->
                         HomeScreen(
                             onLoggedOut = { resetTo(LoginRoute) },
                             onOpenTodo = { todoId -> backStack.add(TodoDetailRoute(todoId)) },

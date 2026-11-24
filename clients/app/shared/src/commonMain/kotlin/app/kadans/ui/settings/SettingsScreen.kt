@@ -1,11 +1,18 @@
 package app.kadans.ui.settings
 
+import app.kadans.ui.PageHeader
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.BoxWithConstraints
+import app.kadans.ui.SecondaryButton
+import app.kadans.ui.ChoiceChip
+import app.kadans.ui.Choices
+import app.kadans.ui.Segmented
+import app.kadans.ui.KadansField
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,13 +28,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -85,13 +89,7 @@ fun SettingsScreen(
     LaunchedEffect(Unit) { if (shownBefore) viewModel.refresh() else shownBefore = true }
 
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().height(64.dp).padding(start = 4.dp, end = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) { Icon(KadansIcons.Back, contentDescription = s.back) }
-            Text(page.title(s), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        PageHeader(page.title(s), onBack)
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else {
@@ -152,9 +150,9 @@ private fun MainPage(
     // Language, time format, appearance and time zone apply as soon as they are chosen.
     Text(s.languageLabel, style = MaterialTheme.typography.labelLarge)
     // Four names do not fit on one line of a phone: they wrap.
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Choices {
         Language.entries.forEach { candidate ->
-            FilterChip(
+            ChoiceChip(
                 selected = language == candidate,
                 onClick = { languageController.set(candidate) },
                 label = { Text(candidate.displayName) },
@@ -162,17 +160,14 @@ private fun MainPage(
         }
     }
     Text(s.dates.clockSection, style = MaterialTheme.typography.labelLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val clock = LocalDates.current.clock
-        listOf(ClockFormat.TwelveHour to s.dates.clock12, ClockFormat.TwentyFourHour to s.dates.clock24).forEach { (format, label) ->
-            FilterChip(
-                selected = clock == format,
-                onClick = { if (clock != format) viewModel.setClock(format) },
-                enabled = !state.isBusy,
-                label = { Text(label) },
-            )
-        }
-    }
+    val clock = LocalDates.current.clock
+    Segmented(
+        options = listOf(ClockFormat.TwelveHour, ClockFormat.TwentyFourHour),
+        selected = clock,
+        name = { if (it == ClockFormat.TwelveHour) s.dates.clock12 else s.dates.clock24 },
+        onSelect = { if (clock != it) viewModel.setClock(it) },
+        enabled = !state.isBusy,
+    )
     Text(s.dates.clockHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     AppearanceChoice()
     TimeZoneSection(state, viewModel)
@@ -207,11 +202,18 @@ private fun AppearanceChoice(preference: AppearancePreference = koinInject()) {
     val a = LocalStrings.current.appearance
     val chosen by preference.appearance.collectAsState()
     Text(a.section, style = MaterialTheme.typography.labelLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(Appearance.System to a.system, Appearance.Light to a.light, Appearance.Dark to a.dark).forEach { (appearance, label) ->
-            FilterChip(selected = chosen == appearance, onClick = { preference.set(appearance) }, label = { Text(label) })
-        }
-    }
+    Segmented(
+        options = listOf(Appearance.System, Appearance.Light, Appearance.Dark),
+        selected = chosen,
+        name = {
+            when (it) {
+                Appearance.System -> a.system
+                Appearance.Light -> a.light
+                Appearance.Dark -> a.dark
+            }
+        },
+        onSelect = { preference.set(it) },
+    )
 }
 
 /** Who is signed in, and the way out: the first thing on the page. */
@@ -220,28 +222,40 @@ private fun AccountCard(user: UserResponse, onSignOut: () -> Unit) {
     val s = LocalStrings.current
     val name = user.displayName?.takeIf { it.isNotBlank() } ?: user.username
     Card(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+            val who: @Composable RowScope.() -> Unit = {
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(name.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        user.email ?: user.username,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    user.email ?: user.username,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            val signOut: @Composable () -> Unit = {
+                SecondaryButton(onClick = onSignOut) { Text(s.signOut, color = MaterialTheme.colorScheme.error) }
             }
-            OutlinedButton(onClick = onSignOut) { Text(s.signOut, color = MaterialTheme.colorScheme.error) }
+            // On a narrow phone "Cerrar sesión" beside the address left it four letters: the button goes under it.
+            if (maxWidth >= 380.dp) {
+                Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    who()
+                    signOut()
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.End) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically, content = who)
+                    signOut()
+                }
+            }
         }
     }
 }
@@ -273,14 +287,14 @@ private fun SettingsRow(label: String, onClick: () -> Unit, trailing: String? = 
 @Composable
 private fun ProfilePage(state: SettingsUiState, viewModel: SettingsViewModel) {
     val s = LocalStrings.current
-    OutlinedTextField(
+    KadansField(
         value = state.username,
         onValueChange = { v -> viewModel.update { it.copy(username = v) } },
         label = { Text(s.username) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
-    OutlinedTextField(
+    KadansField(
         value = state.displayName,
         onValueChange = { v -> viewModel.update { it.copy(displayName = v) } },
         label = { Text(s.displayNameOptional) },
@@ -319,7 +333,7 @@ private fun EmailSection(state: SettingsUiState, viewModel: SettingsViewModel) {
     } else {
         Text(a.noEmailYet, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    OutlinedTextField(
+    KadansField(
         value = state.newEmail,
         onValueChange = { v -> viewModel.update { it.copy(newEmail = v, emailChangeSentTo = null) } },
         label = { Text(a.newEmailLabel) },
@@ -327,7 +341,7 @@ private fun EmailSection(state: SettingsUiState, viewModel: SettingsViewModel) {
         modifier = Modifier.fillMaxWidth(),
     )
     if (state.user?.hasPassword == true) {
-        OutlinedTextField(
+        KadansField(
             value = state.emailPassword,
             onValueChange = { v -> viewModel.update { it.copy(emailPassword = v) } },
             label = { Text(s.currentPassword) },
@@ -337,7 +351,7 @@ private fun EmailSection(state: SettingsUiState, viewModel: SettingsViewModel) {
         )
     }
     Text(a.emailChangeHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    OutlinedButton(onClick = viewModel::requestEmailChange, enabled = state.canRequestEmailChange, modifier = Modifier.fillMaxWidth()) {
+    SecondaryButton(onClick = viewModel::requestEmailChange, enabled = state.canRequestEmailChange, modifier = Modifier.fillMaxWidth()) {
         Text(a.sendEmailChangeLink)
     }
     state.emailChangeSentTo?.let { sentTo ->
@@ -349,7 +363,7 @@ private fun EmailSection(state: SettingsUiState, viewModel: SettingsViewModel) {
 private fun PasswordSection(state: SettingsUiState, viewModel: SettingsViewModel) {
     val s = LocalStrings.current
     Text(s.changePasswordTitle, style = MaterialTheme.typography.titleMedium)
-    OutlinedTextField(
+    KadansField(
         value = state.currentPassword,
         onValueChange = { v -> viewModel.update { it.copy(currentPassword = v) } },
         label = { Text(s.currentPassword) },
@@ -357,7 +371,7 @@ private fun PasswordSection(state: SettingsUiState, viewModel: SettingsViewModel
         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
         modifier = Modifier.fillMaxWidth(),
     )
-    OutlinedTextField(
+    KadansField(
         value = state.newPassword,
         onValueChange = { v -> viewModel.update { it.copy(newPassword = v) } },
         label = { Text(s.newPassword) },
@@ -366,7 +380,7 @@ private fun PasswordSection(state: SettingsUiState, viewModel: SettingsViewModel
         modifier = Modifier.fillMaxWidth(),
     )
     Text(s.passwordChangedSignInAgain, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    OutlinedButton(
+    SecondaryButton(
         onClick = viewModel::changePassword,
         enabled = !state.isBusy && state.currentPassword.isNotBlank() && state.newPassword.isNotBlank(),
         modifier = Modifier.fillMaxWidth(),
@@ -396,12 +410,12 @@ private fun TwoFactorSection(state: SettingsUiState, viewModel: SettingsViewMode
         state.user?.twoFactorEnabled == true -> {
             MfaCodeField(state.mfaCode, viewModel)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
+                SecondaryButton(
                     onClick = viewModel::regenerateRecoveryCodes,
                     enabled = !state.isBusy && state.mfaCode.isNotBlank(),
                     modifier = Modifier.weight(1f),
                 ) { Text(s.regenerateRecoveryCodes) }
-                OutlinedButton(
+                SecondaryButton(
                     onClick = viewModel::disableMfa,
                     enabled = !state.isBusy && state.mfaCode.isNotBlank(),
                     modifier = Modifier.weight(1f),
@@ -475,7 +489,7 @@ private fun DevicesSection(state: SettingsUiState, viewModel: SettingsViewModel)
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
     // Every session at once, this one included: a lost phone, a shared computer.
-    OutlinedButton(onClick = viewModel::signOutEverywhere, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) {
+    SecondaryButton(onClick = viewModel::signOutEverywhere, enabled = !state.isBusy, modifier = Modifier.fillMaxWidth()) {
         Text(s.signOutEverywhere, color = MaterialTheme.colorScheme.error)
     }
 }
@@ -493,7 +507,7 @@ private fun DeleteAccountSection(state: SettingsUiState, viewModel: SettingsView
         TextButton(onClick = { onOpen(SettingsPage.MyData) }) { Text(s.dataExport.beforeDeleting) }
     }
     if (state.user?.hasPassword == true) {
-        OutlinedTextField(
+        KadansField(
             value = state.deletePassword,
             onValueChange = { v -> viewModel.update { it.copy(deletePassword = v) } },
             label = { Text(s.currentPassword) },
@@ -502,7 +516,7 @@ private fun DeleteAccountSection(state: SettingsUiState, viewModel: SettingsView
             modifier = Modifier.fillMaxWidth(),
         )
     }
-    OutlinedButton(onClick = { confirming = true }, enabled = state.canDeleteAccount, modifier = Modifier.fillMaxWidth()) {
+    SecondaryButton(onClick = { confirming = true }, enabled = state.canDeleteAccount, modifier = Modifier.fillMaxWidth()) {
         Text(d.deleteAccount, color = MaterialTheme.colorScheme.error)
     }
     state.deletionLinkSentTo?.let { address ->
@@ -528,7 +542,7 @@ private fun DeleteAccountSection(state: SettingsUiState, viewModel: SettingsView
 @Composable
 private fun MfaCodeField(value: String, viewModel: SettingsViewModel) {
     val s = LocalStrings.current
-    OutlinedTextField(
+    KadansField(
         value = value,
         onValueChange = { v -> viewModel.update { it.copy(mfaCode = v) } },
         label = { Text(s.mfaCodeLabel) },

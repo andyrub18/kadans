@@ -1,5 +1,30 @@
 package app.kadans.ui.todos
 
+import app.kadans.ui.BackButton
+import app.kadans.ui.KadansField
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import app.kadans.ui.BigButton
+import app.kadans.ui.CircleButton
+import app.kadans.ui.KadansCard
+import app.kadans.ui.LocalKadansColors
+import app.kadans.ui.SectionHeader
+import app.kadans.ui.Tag
+import app.kadans.ui.WideWindow
+import app.kadans.ui.shell.KadansIcons
+import app.kadans.ui.softShadow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +35,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -84,59 +108,77 @@ private fun Detail(
     var pickingTemplate by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var rescheduling by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
     var noting by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<TodoOccurrenceResponse?>(null) }
-    // A readable width, in the middle of a wide window: never a row of toggles at the far right.
-    ReadableList(Modifier.fillMaxSize()) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = padding,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = onBack) { Text("← " + s.back) }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(s.statusName(content.todo.status), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                        TextButton(onClick = onEdit) { Text(s.editTodo) }
-                    }
-                }
+    val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
+
+    // The screen's parts, put one under the other on a phone and in two columns in a wide window.
+    val head: @Composable () -> Unit = {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            BackButton(onBack)
+            Spacer(Modifier.weight(1f))
+            Tag(s.statusName(content.todo.status))
+            Surface(
+                onClick = onEdit,
+                modifier = Modifier.softShadow(CircleShape, 8.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ) {
+                Text(s.editTodo, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 13.dp))
             }
-            item { Text(content.todo.title, style = MaterialTheme.typography.headlineSmall) }
-            if (content.todo.description.isNotBlank()) {
-                // A link in it (a page shared to Kadans) opens from here.
-                item { LinkedText(content.todo.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+    val about: LazyListScope.() -> Unit = {
+        item(key = "title") { Text(content.todo.title, style = MaterialTheme.typography.headlineMedium) }
+        if (content.todo.description.isNotBlank()) {
+            // A link in it (a page shared to Kadans) opens from here.
+            item(key = "description") {
+                LinkedText(content.todo.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            content.todo.recurrenceRule?.let { rule ->
-                item {
+        }
+        content.todo.recurrenceRule?.let { rule ->
+            item(key = "rule") {
+                Row(
+                    Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall).padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        if (rule.isOneTime) KadansIcons.Calendar else KadansIcons.Repeat,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
                     Text(
-                        RuleSummary.describe(rule, s, kotlinx.datetime.TimeZone.currentSystemDefault(), clock = LocalDates.current.clock),
+                        RuleSummary.describe(rule, s, zone, clock = LocalDates.current.clock),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
             }
-
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        }
+    }
+    val focus: LazyListScope.() -> Unit = {
+        item(key = "focus") {
+            KadansCard(Modifier.fillMaxWidth().padding(top = 4.dp), padding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp)) {
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         s.cycleWord + ": " + (content.templates.firstOrNull { it.id == content.todo.pomodoroTemplateId }?.name
                             ?: s.cycleDefault),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp),
                     )
                     TextButton(onClick = { pickingTemplate = true }) { Text(s.change) }
                 }
-            }
-            if (!content.hasActiveRun) {
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                if (!content.hasActiveRun) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
                         // Wraps rather than run under its switch on a narrow phone.
-                        Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                        Text(s.repeatUntilFinish, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         androidx.compose.material3.Switch(checked = loop, onCheckedChange = { loop = it })
                     }
-                }
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        // Wraps rather than run under its switch on a narrow phone.
-                        Text(s.handsFree, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(s.handsFree, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = 8.dp))
                         androidx.compose.material3.Switch(
                             checked = handsFree,
                             onCheckedChange = {
@@ -145,15 +187,13 @@ private fun Detail(
                             },
                         )
                     }
-                }
-                if (loop) {
-                    item {
-                        val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
+                    if (loop) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         val now = kotlin.time.Clock.System.now()
                         val end = endTime?.let { SessionEnd.next(it, now, zone) } ?: (now + SessionEnd.DEFAULT)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(SessionEnd.label(end, now, zone, s.pomodoro, clockFormat = LocalDates.current.clock), style = MaterialTheme.typography.bodyMedium)
+                                Text(SessionEnd.label(end, now, zone, s.pomodoro, clockFormat = LocalDates.current.clock), style = MaterialTheme.typography.bodyLarge)
                                 Text(
                                     if (content.todo.recurrenceRule?.isOneTime == false) s.pomodoro.endHintRepeating else s.pomodoro.endHint,
                                     style = MaterialTheme.typography.bodySmall,
@@ -174,48 +214,48 @@ private fun Detail(
                         }
                     }
                 }
-            }
-            item {
-                Button(
+                BigButton(
+                    if (content.hasActiveRun) s.openFocus else s.startFocus,
                     onClick = {
-                        val end = endTime?.takeIf { loop }?.let {
-                            SessionEnd.next(it, kotlin.time.Clock.System.now(), kotlinx.datetime.TimeZone.currentSystemDefault())
-                        }
+                        val end = endTime?.takeIf { loop }?.let { SessionEnd.next(it, kotlin.time.Clock.System.now(), zone) }
                         onOpenPomodoro(loop, handsFree, end)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (content.hasActiveRun) s.openFocus else s.startFocus)
-                }
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                    icon = KadansIcons.Focus,
+                )
             }
-
-            if (content.actionError != null || content.actionErrorCode != null) {
-                item { Text(s.errorFor(content.actionErrorCode, content.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            }
-
-            item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (content.showHistory) s.history else s.pendingOccurrences, style = MaterialTheme.typography.titleMedium)
-                    TextButton(onClick = viewModel::toggleHistory) { Text(if (content.showHistory) s.showPending else s.showHistory) }
-                }
-            }
-            if (content.occurrences.isEmpty()) {
-                item { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
-            }
-            items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
-                OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it }, onNote = { noting = it })
-            }
-
-            if (content.runs.isNotEmpty()) {
-                item { Text(s.focusStats.focusSessions, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
-                items(content.runs, key = { "run-" + it.id }) { run ->
-                    val zone = kotlinx.datetime.TimeZone.currentSystemDefault()
-                    val laps = app.kadans.ui.stats.StatsViewModel.lapsOf(run)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        }
+        if (content.actionError != null || content.actionErrorCode != null) {
+            item(key = "error") { Text(s.errorFor(content.actionErrorCode, content.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        }
+    }
+    val occurrences: LazyListScope.() -> Unit = {
+        item(key = "occurrences") {
+            SectionHeader(
+                if (content.showHistory) s.history else s.pendingOccurrences,
+                action = if (content.showHistory) s.showPending else s.showHistory,
+                onAction = viewModel::toggleHistory,
+            )
+        }
+        if (content.occurrences.isEmpty()) {
+            item(key = "none") { Text(s.nothingHere, style = MaterialTheme.typography.bodyMedium) }
+        }
+        items(content.occurrences, key = { it.id ?: it.scheduledAt.toString() }) { occurrence ->
+            OccurrenceRow(occurrence, viewModel, onMove = { rescheduling = it }, onNote = { noting = it })
+        }
+    }
+    val rest: LazyListScope.() -> Unit = {
+        if (content.runs.isNotEmpty()) {
+            item(key = "runs") { SectionHeader(s.focusStats.focusSessions, Modifier.padding(top = 4.dp)) }
+            items(content.runs, key = { "run-" + it.id }) { run ->
+                val laps = app.kadans.ui.stats.StatsViewModel.lapsOf(run)
+                Card(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             LocalDates.current.moment(run.startedAt, zone) +
                                 (if (laps > 1) " · ×$laps" else ""),
                             style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
                         )
                         Text(
                             s.focusStats.runStatusName(run.status) + " · " + s.focus + " " +
@@ -226,17 +266,51 @@ private fun Detail(
                     }
                 }
             }
+        }
+        if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
+            item(key = "cancel") {
+                TextButton(onClick = viewModel::cancelTodo, modifier = Modifier.fillMaxWidth()) {
+                    Text(s.cancelThisTodo, color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+        item(key = "delete") {
+            TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(s.deletion.deleteTodo, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
 
-            if (content.todo.status.name == "Scheduled" || content.todo.status.name == "Started") {
-                item {
-                    TextButton(onClick = viewModel::cancelTodo, modifier = Modifier.fillMaxWidth()) {
-                        Text(s.cancelThisTodo, color = MaterialTheme.colorScheme.error)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        if (maxWidth >= WideWindow) {
+            // A computer: the todo and its cycle on the left, its times on the right, each scrolling by itself.
+            val side = maxOf(32.dp, (maxWidth - 1080.dp) / 2)
+            Column(Modifier.fillMaxSize().padding(start = side, end = side, top = 20.dp)) {
+                head()
+                Row(Modifier.fillMaxSize().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                    LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        about()
+                        focus()
+                        rest()
+                    }
+                    LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        occurrences()
                     }
                 }
             }
-            item {
-                TextButton(onClick = { deleting = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(s.deletion.deleteTodo, color = MaterialTheme.colorScheme.error)
+        } else {
+            // A readable width, in the middle of the window: never a row of toggles at the far right.
+            ReadableList(Modifier.fillMaxSize(), readable = 560.dp) { padding ->
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = padding,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    item(key = "head") { head() }
+                    about()
+                    focus()
+                    occurrences()
+                    rest()
                 }
             }
         }
@@ -290,18 +364,23 @@ private fun OccurrenceRow(
     onNote: (TodoOccurrenceResponse) -> Unit,
 ) {
     val s = LocalStrings.current
+    val k = LocalKadansColors.current
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 4.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     LocalDates.current.moment(occurrence.scheduledAt, kotlinx.datetime.TimeZone.currentSystemDefault()),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
                 )
-                Text(
-                    s.occurrenceStatusName(occurrence.status) + if (occurrence.isRescheduled) " · " + s.moved else "",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                // Waiting, done or dropped: said by the word and by its colour.
+                val word = s.occurrenceStatusName(occurrence.status) + if (occurrence.isRescheduled) " · " + s.moved else ""
+                when (occurrence.status) {
+                    OccurrenceStatus.Pending -> Tag(word, container = k.waiting, content = k.onWaiting)
+                    OccurrenceStatus.Completed ->
+                        Tag(word, container = MaterialTheme.colorScheme.tertiaryContainer, content = MaterialTheme.colorScheme.onTertiaryContainer)
+                    else -> Tag(word, container = MaterialTheme.colorScheme.surfaceVariant, content = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             // The note on this time, "how it went": under it, in the history too.
             occurrence.remarks?.let {
@@ -314,9 +393,16 @@ private fun OccurrenceRow(
             }
             // A computed one beyond the horizon (no id) has nothing to act on yet.
             if (occurrence.id != null) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FlowRow(Modifier.offset(x = (-12).dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     if (occurrence.status == OccurrenceStatus.Pending) {
-                        TextButton(onClick = { viewModel.completeOccurrence(occurrence.id) }) { Text(s.complete) }
+                        TextButton(
+                            onClick = { viewModel.completeOccurrence(occurrence.id) },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary),
+                        ) {
+                            Icon(KadansIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(s.complete)
+                        }
                         TextButton(onClick = { viewModel.cancelOccurrence(occurrence.id) }) { Text(s.skip) }
                         TextButton(onClick = { onMove(occurrence) }) { Text(s.move) }
                     }
@@ -363,7 +449,7 @@ private fun NoteDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                androidx.compose.material3.OutlinedTextField(
+                KadansField(
                     value = text,
                     onValueChange = { text = it },
                     placeholder = { Text(s.notes.placeholder) },
@@ -426,7 +512,7 @@ private fun RescheduleDialog(
                     onPick = { pickingTime = true },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                androidx.compose.material3.OutlinedTextField(
+                KadansField(
                     value = reason,
                     onValueChange = { reason = it },
                     label = { Text(s.reasonOptional) },

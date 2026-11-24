@@ -1,10 +1,10 @@
 package app.kadans.ui.billing
 
+import app.kadans.ui.SecondaryButton
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -84,7 +84,7 @@ fun SubscriptionSection(viewModel: SubscriptionSettingsViewModel = koinViewModel
     val troubled = current.state == SubscriptionState.GracePeriod || current.state == SubscriptionState.OnHold
     Text(line, style = MaterialTheme.typography.bodyMedium, color = if (troubled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
     viewModel.manageUrl(current)?.let { url ->
-        OutlinedButton(onClick = { runCatching { uriHandler.openUri(url) } }, modifier = Modifier.fillMaxWidth()) { Text(p.manage) }
+        SecondaryButton(onClick = { runCatching { uriHandler.openUri(url) } }, modifier = Modifier.fillMaxWidth()) { Text(p.manage) }
     }
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 }

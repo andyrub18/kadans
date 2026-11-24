@@ -11,6 +11,13 @@ package app.kadans.i18n
 val SpanishStrings = StringsCatalog(
     signInTitle = "Iniciar sesión", usernameOrEmail = "Nombre de usuario o correo", password = "Contraseña",
     signIn = "Iniciar sesión", createAccount = "Crear cuenta", twoFactorTitle = "Código de verificación",
+    home = HomeStrings(
+        doneOfFormat = "Hecho: %1 de %2",
+        ofFormat = "de %d",
+        nextFormat = "Sigue: %s",
+        allDone = "Todo hecho por hoy",
+        next = "sigue",
+    ),
     account = AccountStrings(
         emailSection = "Correo electrónico",
         emailConfirmed = "Confirmado",

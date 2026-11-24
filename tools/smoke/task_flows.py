@@ -75,6 +75,17 @@ C("bounded todo auto-completes once nothing is pending", todo["status"] == "Comp
 s, hist = call("GET", f"/todos/{t3['id']}/history", token=T)
 C("history shows all 3 with statuses", sorted(h["status"] for h in hist) == ["Cancelled", "Completed", "Completed"], f"{[h['status'] for h in hist]}")
 
+# --- what is done, for Home's "2 of 4 done": `completed=true` adds the range's completed occurrences, a finished todo's too ---
+around = f"from={iso(start - dt.timedelta(hours=1))}&to={iso(start + dt.timedelta(days=11))}"
+s, to_do = call("GET", f"/occurrences?{around}", token=T)
+C("the list of what is to do leaves out what is done", s == 200 and not ({o3[0]["id"], o3[1]["id"]} & {o.get("id") for o in to_do}), f"{s}")
+s, with_done = call("GET", f"/occurrences?{around}&completed=true", token=T)
+statuses = {o.get("id"): o["status"] for o in with_done} if s == 200 else {}
+C("completed=true returns the completed ones, of a todo that is itself completed",
+  statuses.get(o3[0]["id"]) == "Completed" and statuses.get(o3[1]["id"]) == "Completed", f"{s} {statuses}")
+C("completed=true never returns a cancelled one", s == 200 and o3[2]["id"] not in statuses)
+C("completed=true keeps what is to do", s == 200 and {o.get("id") for o in to_do} <= set(statuses))
+
 # --- until: "I know when it ends, not how many" (a treatment course) ---
 s, tu = call("POST", "/todos/recurring", {"title": "smoke: antibiotics", "description": "", "notificationEnabled": False,
              "recurrenceRule": {"frequency": "Daily", "startDate": iso(start), "timeZone": "UTC", "until": iso(start + dt.timedelta(days=3))}}, token=T)

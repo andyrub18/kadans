@@ -1,5 +1,26 @@
 package app.kadans.ui.budget
 
+import app.kadans.ui.BigButton
+import app.kadans.ui.ChoiceChip
+import app.kadans.ui.Choices
+import app.kadans.ui.KadansField
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import app.kadans.ui.KadansCard
+import app.kadans.ui.LocalKadansColors
+import app.kadans.ui.SectionHeader
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Color
@@ -26,11 +47,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,7 +79,6 @@ import app.kadans.i18n.LocalStrings
 import app.kadans.ui.Dates
 import app.kadans.ui.FabClearance
 import app.kadans.ui.ReadableList
-import app.kadans.ui.LocalDarkTheme
 import app.kadans.ui.LocalDates
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -97,10 +113,13 @@ fun BudgetScreen(
     // The destination's name, the bell and + are the frame's (MainShell); the month and its arrows lead the screen.
     Scaffold(
         modifier = modifier,
+        containerColor = Color.Transparent,
         topBar = {
-            // Over the list's readable width (ReadableList), the month and its arrows above it on a wide window.
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                Row(Modifier.widthIn(max = 760.dp).fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                // Over the list: its readable width on a phone, its two columns' left edge in a wide window.
+                val row = if (maxWidth >= TwoColumns) Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp)
+                else Modifier.widthIn(max = 760.dp).fillMaxWidth().padding(start = 16.dp, end = 8.dp)
+                Row(row, verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         (s.monthNames[state.month - 1] + " " + state.year).replaceFirstChar { it.titlecase() },
                         style = MaterialTheme.typography.titleMedium,
@@ -113,153 +132,181 @@ fun BudgetScreen(
         },
     ) { padding ->
         val summary = state.summary
-        // Centred on a wide window, and clear of the floating + at the bottom (MainShell).
-        ReadableList(Modifier.fillMaxSize().padding(padding), bottom = FabClearance) { listPadding ->
-            when {
-                state.isLoading && summary == null ->
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                state.error != null || state.errorCode != null ->
-                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error)
-                        Button(onClick = viewModel::refresh, modifier = Modifier.padding(top = 12.dp)) { Text(s.retry) }
-                    }
-                summary != null -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = listPadding,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+        when {
+            state.isLoading && summary == null ->
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            state.error != null || state.errorCode != null ->
+                Column(Modifier.fillMaxSize().padding(padding), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(s.errorFor(state.errorCode, state.error), color = MaterialTheme.colorScheme.error)
+                    BigButton(s.retry, viewModel::refresh, Modifier.padding(top = 12.dp))
+                }
+            summary != null -> {
+                // The screen's parts, one under the other on a phone and in two columns in a wide window.
+                val overview: LazyListScope.() -> Unit = {
                     if (state.actionError != null || state.actionErrorCode != null) {
-                        item { Text(s.errorFor(state.actionErrorCode, state.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                        item(key = "error") { Text(s.errorFor(state.actionErrorCode, state.actionError), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     }
-
-                    // ---- combined estimate: only worth showing once a second currency exists ----
-                    val currencyCount = summary.accounts.map { it.currency }.distinct().size
-                    if (currencyCount > 1) summary.combined?.let { combined ->
-                        item {
+                    // What there is in all, the month's money in and out: everything together at the person's rates
+                    // once a second currency exists, else the one currency's own figures.
+                    val currencies = summary.accounts.map { it.currency }.distinct()
+                    val combined = summary.combined.takeIf { currencies.size > 1 }
+                    if (combined != null) {
+                        item(key = "balance") {
+                            BalanceCard(
+                                note = s.atYourRate,
+                                balance = formatMoney(combined.totalBalance, combined.baseCurrency),
+                                income = combined.income,
+                                expense = combined.expense,
+                                net = combined.net,
+                                warning = combined.missingRates.takeIf { it.isNotEmpty() }
+                                    ?.let { missing -> s.missingRatesLabel + " " + missing.joinToString { it.name.uppercase() } },
+                            )
+                        }
+                        // Each currency's own figures, exact, under the estimate.
+                        items(summary.totals, key = { "tot-" + it.currency.name }) { totals ->
+                            Text(
+                                "${totals.currency.name.uppercase()} — ${s.income}: ${formatAmount(totals.income)} · ${s.expense}: ${formatAmount(totals.expense)} · ${s.netLabel}: ${formatAmount(totals.net)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        currencies.singleOrNull()?.let { currency ->
+                            val totals = summary.totals.firstOrNull { it.currency == currency }
+                            item(key = "balance") {
+                                BalanceCard(
+                                    note = null,
+                                    balance = formatMoney(summary.accounts.sumOf { it.balance }, currency),
+                                    income = totals?.income ?: 0.0,
+                                    expense = totals?.expense ?: 0.0,
+                                    net = totals?.net ?: 0.0,
+                                    warning = null,
+                                )
+                            }
+                        }
+                    }
+                    item(key = "rates") { TextButton(onClick = { editingRate = true }) { Text(s.exchangeRateTitle) } }
+                }
+                val accounts: LazyListScope.() -> Unit = {
+                    item(key = "accounts") { SectionHeader(s.accountsSection, action = s.newAccount, onAction = { creatingAccount = true }) }
+                    item(key = "account tiles") {
+                        // As many tiles side by side as fit, two at least: every account in sight without a swipe.
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val columns = maxOf(2, (maxWidth / 176.dp).toInt())
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                summary.accounts.chunked(columns).forEach { row ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        row.forEach { account -> AccountTile(account, onClick = { editingAccount = account }, Modifier.weight(1f)) }
+                                        repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                val categories: LazyListScope.() -> Unit = {
+                    // ---- categories: the month's spending, and each limit in its period ----
+                    item(key = "categories") { SectionHeader(s.categoriesSection, action = s.newCategory, onAction = { creatingCategory = true }) }
+                    // Every expense category (a limit can be set before anything is spent), then the incomes of the month.
+                    val shownCategories = state.categories.filter { !it.isArchived }
+                        .filter { c -> c.kind == CategoryKind.Expense || summary.categories.any { it.categoryId == c.id } }
+                        .sortedWith(compareBy({ it.kind != CategoryKind.Expense }, { it.name.lowercase() }))
+                    if (shownCategories.isNotEmpty()) {
+                        item(key = "category rows") {
                             Card(Modifier.fillMaxWidth()) {
-                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(s.atYourRate, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(s.totalBalanceLabel + ": " + formatMoney(combined.totalBalance, combined.baseCurrency), style = MaterialTheme.typography.titleMedium)
-                                    Text("${s.income}: ${formatAmount(combined.income)}  ·  ${s.expense}: ${formatAmount(combined.expense)}  ·  ${s.netLabel}: ${formatAmount(combined.net)}", style = MaterialTheme.typography.bodySmall)
-                                    if (combined.missingRates.isNotEmpty()) {
-                                        Text(
-                                            s.missingRatesLabel + " " + combined.missingRates.joinToString { it.name.uppercase() },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error,
+                                Column(Modifier.padding(vertical = 6.dp)) {
+                                    shownCategories.forEach { category ->
+                                        CategoryRow(
+                                            category = category,
+                                            spends = summary.categories.filter { it.categoryId == category.id },
+                                            limit = summary.limits.firstOrNull { it.categoryId == category.id },
+                                            // A weekly limit is this week's: on another month there is no bar to show.
+                                            showsWeek = state.year == today.year && state.month == today.month.number,
+                                            onClick = if (category.kind == CategoryKind.Expense) ({ limitFor = category }) else null,
                                         )
                                     }
                                 }
                             }
                         }
                     }
-                    items(summary.totals, key = { "tot-" + it.currency.name }) { totals ->
-                        Text(
-                            "${totals.currency.name.uppercase()} — ${s.income}: ${formatAmount(totals.income)} · ${s.expense}: ${formatAmount(totals.expense)} · ${s.netLabel}: ${formatAmount(totals.net)}",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                    item {
-                        TextButton(onClick = { editingRate = true }) { Text(s.exchangeRateTitle) }
-                    }
-
-                    // ---- accounts ----
-                    item { HorizontalDivider() }
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(s.accountsSection, style = MaterialTheme.typography.titleMedium)
-                            TextButton(onClick = { creatingAccount = true }) { Text(s.newAccount) }
-                        }
-                    }
-                    items(summary.accounts, key = { it.id }) { account ->
-                        Card(onClick = { editingAccount = account }, modifier = Modifier.fillMaxWidth()) {
-                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Column {
-                                    Text(account.name, style = MaterialTheme.typography.titleSmall)
-                                    Text(s.accountTypeName(account.type), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Text(formatMoney(account.balance, account.currency), style = MaterialTheme.typography.titleSmall)
-                            }
-                        }
-                    }
-
-                    // ---- categories: the month's spending, and each limit in its period ----
-                    item { HorizontalDivider() }
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(s.categoriesSection, style = MaterialTheme.typography.titleMedium)
-                            TextButton(onClick = { creatingCategory = true }) { Text(s.newCategory) }
-                        }
-                    }
-                    // Every expense category (a limit can be set before anything is spent), then the incomes of the month.
-                    val shownCategories = state.categories.filter { !it.isArchived }
-                        .filter { c -> c.kind == CategoryKind.Expense || summary.categories.any { it.categoryId == c.id } }
-                        .sortedWith(compareBy({ it.kind != CategoryKind.Expense }, { it.name.lowercase() }))
-                    items(shownCategories, key = { "cat-" + it.id }) { category ->
-                        CategoryRow(
-                            category = category,
-                            spends = summary.categories.filter { it.categoryId == category.id },
-                            limit = summary.limits.firstOrNull { it.categoryId == category.id },
-                            // A weekly limit is this week's: on another month there is no bar to show.
-                            showsWeek = state.year == today.year && state.month == today.month.number,
-                            onClick = if (category.kind == CategoryKind.Expense) ({ limitFor = category }) else null,
-                        )
-                    }
-
-                    // ---- recurring ----
+                }
+                val recurring: LazyListScope.() -> Unit = {
                     if (state.recurring.isNotEmpty()) {
-                        item { HorizontalDivider() }
-                        item { Text(s.recurringSection, style = MaterialTheme.typography.titleMedium) }
+                        item(key = "recurring") { SectionHeader(s.recurringSection) }
                         items(state.recurring, key = { "rec-" + it.id }) { rule ->
-                            Row(
-                                Modifier.fillMaxWidth().clickable { editingRule = rule }.padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        "${s.transactionKindName(rule.kind)} · ${formatMoney(rule.amount, rule.currency)}" +
-                                            received(rule.kind, rule.currency, rule.transferAccountId, rule.transferAmount, state.accounts) +
-                                            (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                    // How it repeats, as the form said it ("Every month · on days 15, 30"), then the next one.
-                                    Text(
-                                        RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false, clock = LocalDates.current.clock),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                    Text(
-                                        listOfNotNull(
-                                            rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let {
-                                                s.movements.next(LocalDates.current.shortDay(it, Dates.today()))
-                                            },
-                                            accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
-                                        ).joinToString(" · "),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                            Card(onClick = { editingRule = rule }, modifier = Modifier.fillMaxWidth()) {
+                                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f).padding(end = 8.dp)) {
+                                        Text(
+                                            "${s.transactionKindName(rule.kind)} · ${formatMoney(rule.amount, rule.currency)}" +
+                                                received(rule.kind, rule.currency, rule.transferAccountId, rule.transferAmount, state.accounts) +
+                                                (rule.note.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                                            style = MaterialTheme.typography.titleSmall,
+                                        )
+                                        // How it repeats, as the form said it ("Every month · on days 15, 30"), then the next one.
+                                        Text(
+                                            RuleSummary.describe(rule.asRule(), s, TimeZone.currentSystemDefault(), withTime = false, clock = LocalDates.current.clock),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                        Text(
+                                            listOfNotNull(
+                                                rule.nextAt?.toLocalDateTime(TimeZone.currentSystemDefault())?.date?.let {
+                                                    s.movements.next(LocalDates.current.shortDay(it, Dates.today()))
+                                                },
+                                                accountsLine(rule.accountId, rule.transferAccountId, state.accounts),
+                                            ).joinToString(" · "),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    TextButton(onClick = { viewModel.toggleRecurring(rule) }) { Text(if (rule.isActive) s.pause else s.resume) }
                                 }
-                                TextButton(onClick = { viewModel.toggleRecurring(rule) }) { Text(if (rule.isActive) s.pause else s.resume) }
                             }
                         }
                     }
-
+                }
+                val movements: LazyListScope.() -> Unit = {
                     // ---- the month's movements: one opens to correct it ----
-                    item { HorizontalDivider() }
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(s.movements.listTitle, style = MaterialTheme.typography.titleMedium)
-                            if (canImport) TextButton(onClick = onImport) { Text(s.statementImport.title) }
-                        }
+                    item(key = "movements") {
+                        SectionHeader(s.movements.listTitle, action = s.statementImport.title.takeIf { canImport }, onAction = onImport)
                     }
                     if (state.recent.isEmpty()) {
-                        item { Text(s.noTransactionsYet, style = MaterialTheme.typography.bodyMedium) }
+                        item(key = "no movements") { Text(s.noTransactionsYet, style = MaterialTheme.typography.bodyMedium) }
                     }
                     items(state.recent, key = { "tx-" + it.id }) { tx ->
                         MovementRow(tx, state.accounts, state.categories, s, onClick = { onEditTransaction(tx.id) })
                     }
                     if (state.recentHasMore) {
-                        item {
+                        item(key = "more") {
                             TextButton(onClick = viewModel::showMore, modifier = Modifier.fillMaxWidth()) { Text(s.movements.showMore) }
+                        }
+                    }
+                }
+
+                BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+                    if (maxWidth >= TwoColumns) {
+                        // A computer: what there is on the left, where it goes on the right, each scrolling by itself.
+                        Row(Modifier.fillMaxSize().padding(start = 8.dp, end = 28.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                overview()
+                                accounts()
+                                recurring()
+                            }
+                            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                categories()
+                                movements()
+                            }
+                        }
+                    } else {
+                        // Centred, and clear of the floating + at the bottom (MainShell).
+                        ReadableList(Modifier.fillMaxSize(), bottom = FabClearance) { listPadding ->
+                            LazyColumn(Modifier.fillMaxSize(), contentPadding = listPadding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                overview()
+                                accounts()
+                                categories()
+                                recurring()
+                                movements()
+                            }
                         }
                     }
                 }
@@ -333,18 +380,18 @@ private fun NewAccountDialog(onCreate: (String, Currency, AccountType, Double) -
         title = { Text(s.newAccount) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(s.accountName) }, singleLine = true)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                KadansField(value = name, onValueChange = { name = it }, label = { Text(s.accountName) }, singleLine = true)
+                Choices {
                     Currency.entries.forEach { c ->
-                        FilterChip(selected = currency == c, onClick = { currency = c }, label = { Text(c.name.uppercase()) })
+                        ChoiceChip(selected = currency == c, onClick = { currency = c }, onCard = true, label = { Text(c.name.uppercase()) })
                     }
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choices {
                     AccountType.entries.forEach { t ->
-                        FilterChip(selected = type == t, onClick = { type = t }, label = { Text(s.accountTypeName(t)) })
+                        ChoiceChip(selected = type == t, onClick = { type = t }, onCard = true, label = { Text(s.accountTypeName(t)) })
                     }
                 }
-                OutlinedTextField(value = balance, onValueChange = { balance = it }, label = { Text(s.initialBalanceLabel) }, singleLine = true)
+                KadansField(value = balance, onValueChange = { balance = it }, label = { Text(s.initialBalanceLabel) }, singleLine = true)
             }
         },
         confirmButton = {
@@ -372,12 +419,12 @@ private fun EditAccountDialog(
         title = { Text(s.editAccount) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(s.accountName) }, singleLine = true)
+                KadansField(value = name, onValueChange = { name = it }, label = { Text(s.accountName) }, singleLine = true)
                 // The currency is the account's identity: change it by making a new account.
                 Text(s.currencyLabel + ": " + account.currency.name.uppercase(), style = MaterialTheme.typography.bodySmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choices {
                     AccountType.entries.forEach { t ->
-                        FilterChip(selected = type == t, onClick = { type = t }, label = { Text(s.accountTypeName(t)) })
+                        ChoiceChip(selected = type == t, onClick = { type = t }, onCard = true, label = { Text(s.accountTypeName(t)) })
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -404,12 +451,12 @@ private fun NewCategoryDialog(onCreate: (String, CategoryKind, String?) -> Unit,
         title = { Text(s.newCategory) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(s.categoryName) }, singleLine = true)
+                KadansField(value = name, onValueChange = { name = it }, label = { Text(s.categoryName) }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = kind == CategoryKind.Expense, onClick = { kind = CategoryKind.Expense }, label = { Text(s.expense) })
-                    FilterChip(selected = kind == CategoryKind.Income, onClick = { kind = CategoryKind.Income }, label = { Text(s.income) })
+                    ChoiceChip(selected = kind == CategoryKind.Expense, onClick = { kind = CategoryKind.Expense }, onCard = true, label = { Text(s.expense) })
+                    ChoiceChip(selected = kind == CategoryKind.Income, onClick = { kind = CategoryKind.Income }, onCard = true, label = { Text(s.income) })
                 }
-                OutlinedTextField(value = icon, onValueChange = { icon = it }, label = { Text(s.iconOptional) }, singleLine = true)
+                KadansField(value = icon, onValueChange = { icon = it }, label = { Text(s.iconOptional) }, singleLine = true)
             }
         },
         confirmButton = {
@@ -438,9 +485,9 @@ private fun CurrenciesDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(s.baseCurrencyLabel, style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choices {
                     Currency.entries.forEach { c ->
-                        FilterChip(selected = base == c, onClick = { onSetBase(c) }, label = { Text(c.name.uppercase()) })
+                        ChoiceChip(selected = base == c, onClick = { onSetBase(c) }, onCard = true, label = { Text(c.name.uppercase()) })
                     }
                 }
                 Text(s.rateHint, style = MaterialTheme.typography.bodySmall)
@@ -453,7 +500,7 @@ private fun CurrenciesDialog(
                     )
                 }
                 if (others.isNotEmpty()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Choices {
                         others.forEach { c ->
                             TextButton(onClick = { revealed = revealed + c }) { Text("+ " + c.name.uppercase()) }
                         }
@@ -471,7 +518,7 @@ private fun RateRow(currency: Currency, base: Currency, current: Double?, onSet:
     var value by remember(currency, current) { mutableStateOf(current?.let(::editableAmount) ?: "") }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("1 " + currency.name.uppercase() + " =", style = MaterialTheme.typography.bodyMedium)
-        OutlinedTextField(
+        KadansField(
             value = value,
             onValueChange = { value = it },
             singleLine = true,
@@ -485,9 +532,107 @@ private fun RateRow(currency: Currency, base: Currency, current: Double?, onSet:
     }
 }
 
-/** Near a limit (80%): amber, legible on the theme's light and dark surfaces (Material has no warning colour). */
+/** A list this wide puts what there is and where it goes side by side. */
+private val TwoColumns = 720.dp
+
+/**
+ * What there is in all, large on the app's purple, over the month's money in, money out and what is left of it.
+ * [note]: said above the balance when it is an estimate across currencies; [warning]: a currency without a rate.
+ */
 @Composable
-private fun nearLimitColor(): Color = if (LocalDarkTheme.current) Color(0xFFFFB951) else Color(0xFF8A5100)
+private fun BalanceCard(note: String?, balance: String, income: Double, expense: Double, net: Double, warning: String?) {
+    val s = LocalStrings.current
+    val k = LocalKadansColors.current
+    KadansCard(
+        Modifier.fillMaxWidth(),
+        color = k.hero,
+        contentColor = k.onHero,
+        padding = PaddingValues(20.dp),
+    ) {
+        Text(s.totalBalanceLabel, style = MaterialTheme.typography.labelMedium, color = k.onHeroSoft)
+        // One line whatever the amount: the figures shrink before any of them is cut.
+        Text(
+            balance,
+            style = MaterialTheme.typography.headlineLarge,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 20.sp, maxFontSize = 34.sp, stepSize = 2.sp),
+        )
+        if (note != null) Text(note, style = MaterialTheme.typography.bodySmall, color = k.onHeroSoft)
+        Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MoneyTile(s.income, income, KadansIcons.ArrowUp, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
+            MoneyTile(s.expense, expense, KadansIcons.ArrowDown, k.expense, Modifier.weight(1f))
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(s.netLabel, style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+            Text(formatAmount(net), style = MaterialTheme.typography.titleSmall)
+        }
+        if (warning != null) {
+            Text(warning, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
+        }
+    }
+}
+
+/** Money in or money out of the month, on the balance card: an arrow says which, beside the word. */
+@Composable
+private fun MoneyTile(label: String, amount: Double, icon: ImageVector, tint: Color, modifier: Modifier = Modifier) {
+    val k = LocalKadansColors.current
+    Row(
+        modifier.background(k.heroTile, RoundedCornerShape(18.dp)).padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.size(32.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        }
+        Column {
+            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                formatAmount(amount),
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 1.sp),
+            )
+        }
+    }
+}
+
+/** An account: its kind as a small picture, its name, what is in it. A tap opens it to rename or archive it. */
+@Composable
+private fun AccountTile(account: AccountResponse, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val s = LocalStrings.current
+    val k = LocalKadansColors.current
+    val scheme = MaterialTheme.colorScheme
+    val (icon, container, content) = when (account.type) {
+        AccountType.Cash -> Triple(KadansIcons.Cash, k.waiting, k.onWaiting)
+        AccountType.Bank -> Triple(KadansIcons.Bank, scheme.primaryContainer, scheme.onPrimaryContainer)
+        AccountType.MobileMoney -> Triple(KadansIcons.Phone, scheme.tertiaryContainer, scheme.onTertiaryContainer)
+        AccountType.Card -> Triple(KadansIcons.Card, k.expenseContainer, k.expense)
+        AccountType.Savings -> Triple(KadansIcons.Coins, scheme.tertiaryContainer, scheme.onTertiaryContainer)
+        AccountType.Other -> Triple(KadansIcons.Budget, scheme.surfaceVariant, scheme.onSurfaceVariant)
+    }
+    Card(onClick = onClick, modifier = modifier.semantics(mergeDescendants = true) { }) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Box(Modifier.size(34.dp).background(container, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = s.accountTypeName(account.type), tint = content, modifier = Modifier.size(18.dp))
+            }
+            Text(account.name, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // The amount and its currency wrap apart rather than lose a figure in a narrow tile.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.Bottom) {
+                Text(formatAmount(account.balance), style = MaterialTheme.typography.titleSmall)
+                Text(account.currency.name.uppercase(), style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 2.dp))
+            }
+        }
+    }
+}
+
+/** A limit's bar: how much of it is used, round at both ends. */
+@Composable
+private fun LimitBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
+    val track = LocalKadansColors.current.barTrack
+    Box(modifier.fillMaxWidth().height(10.dp).background(track, CircleShape)) {
+        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).height(10.dp).background(color, CircleShape))
+    }
+}
 
 /**
  * A category: what it took this month per currency and, with a limit, a bar of its period's use in the limit's
@@ -504,14 +649,14 @@ private fun CategoryRow(
 ) {
     val s = LocalStrings.current
     Column(
-        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text((category.icon?.plus(" ") ?: "") + category.name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+            Text((category.icon?.plus(" ") ?: "") + category.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f).padding(end = 8.dp))
             Text(
                 spends.sortedByDescending { it.amount }.joinToString(" · ") { formatMoney(it.amount, it.currency) }.ifEmpty { "—" },
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.labelLarge,
             )
         }
         val name = when (limit?.period) {
@@ -526,16 +671,14 @@ private fun CategoryRow(
             limit.period == LimitPeriod.Week && !showsWeek ->
                 Text("$name: " + formatMoney(limit.amount, limit.currency), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             else -> {
-                val color = when {
-                    limit.percent >= 100 -> MaterialTheme.colorScheme.error
-                    limit.percent >= 80 -> nearLimitColor()
-                    else -> MaterialTheme.colorScheme.primary
+                // Green while there is room, amber from 80%, red once the limit is reached: the bar and its words.
+                val k = LocalKadansColors.current
+                val (bar, color) = when {
+                    limit.percent >= 100 -> MaterialTheme.colorScheme.error to MaterialTheme.colorScheme.error
+                    limit.percent >= 80 -> k.near to k.near
+                    else -> k.done to MaterialTheme.colorScheme.tertiary
                 }
-                LinearProgressIndicator(
-                    progress = { (limit.percent / 100f).coerceIn(0f, 1f) },
-                    color = color,
-                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                )
+                LimitBar(limit.percent / 100f, bar, Modifier.padding(top = 2.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
                         s.limits.percent(limit.percent) + " · " + name,
@@ -590,7 +733,7 @@ private fun LimitDialog(
         title = { Text((category.icon?.plus(" ") ?: "") + category.name) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                KadansField(
                     value = amount,
                     onValueChange = { amount = amountInput(it) },
                     label = { Text(s.amountLabel + " (" + currency.name.uppercase() + ")") },
@@ -599,17 +742,17 @@ private fun LimitDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (existing == null) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Choices {
                         Currency.entries.forEach { c ->
-                            FilterChip(selected = currency == c, onClick = { currency = c }, label = { Text(c.name.uppercase()) })
+                            ChoiceChip(selected = currency == c, onClick = { currency = c }, onCard = true, label = { Text(c.name.uppercase()) })
                         }
                     }
                 } else {
                     Text(s.limits.currencyFixed(currency.name.uppercase()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Choices {
                     listOf(LimitPeriod.Week to s.limits.weekly, LimitPeriod.Month to s.limits.monthly, LimitPeriod.Year to s.limits.yearly)
-                        .forEach { (p, label) -> FilterChip(selected = period == p, onClick = { period = p }, label = { Text(label) }) }
+                        .forEach { (p, label) -> ChoiceChip(selected = period == p, onClick = { period = p }, onCard = true, label = { Text(label) }) }
                 }
                 Text(s.limits.alertNote, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (existing != null) {
@@ -648,7 +791,10 @@ private fun received(
     return if (destination == currency) "" else " → " + formatMoney(transferAmount, destination)
 }
 
-/** One movement of the month: what, then when, where and why; a tap opens it to correct it. */
+/**
+ * One movement of the month: an arrow for money in, out or across, what it was (its note, else its category), then
+ * when and where, and the amount on the right. A tap opens it to correct it.
+ */
 @Composable
 private fun MovementRow(
     tx: BudgetTransactionResponse,
@@ -657,37 +803,54 @@ private fun MovementRow(
     s: StringsCatalog,
     onClick: () -> Unit,
 ) {
+    val k = LocalKadansColors.current
+    val scheme = MaterialTheme.colorScheme
     val sign = when (tx.kind) {
-        BudgetTransactionKind.Expense -> "−"
-        BudgetTransactionKind.Income -> "+"
-        BudgetTransactionKind.Transfer -> "⇄"
+        BudgetTransactionKind.Expense -> "− "
+        BudgetTransactionKind.Income -> "+ "
+        BudgetTransactionKind.Transfer -> ""
+    }
+    val (icon, container, content) = when (tx.kind) {
+        BudgetTransactionKind.Expense -> Triple(KadansIcons.ArrowDown, k.expenseContainer, k.expense)
+        BudgetTransactionKind.Income -> Triple(KadansIcons.ArrowUp, scheme.tertiaryContainer, scheme.onTertiaryContainer)
+        BudgetTransactionKind.Transfer -> Triple(KadansIcons.Swap, scheme.primaryContainer, scheme.onPrimaryContainer)
     }
     val category = categories.firstOrNull { it.id == tx.categoryId }?.let { (it.icon?.plus(" ") ?: "") + it.name }
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f).padding(end = 8.dp)) {
+    val note = tx.note.takeIf { it.isNotBlank() }
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(38.dp).background(container, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = s.transactionKindName(tx.kind), tint = content, modifier = Modifier.size(18.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    note ?: category ?: s.transactionKindName(tx.kind),
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    listOfNotNull(
+                        LocalDates.current.shortDay(tx.occurredAt.toLocalDateTime(TimeZone.currentSystemDefault()).date, Dates.today()),
+                        accountsLine(tx.accountId, tx.transferAccountId, accounts),
+                        category.takeIf { note != null },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
-                "$sign " + formatMoney(tx.amount, tx.currency) +
-                    received(tx.kind, tx.currency, tx.transferAccountId, tx.transferAmount, accounts) +
-                    (category?.let { " · $it" } ?: ""),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                listOfNotNull(
-                    LocalDates.current.shortDay(tx.occurredAt.toLocalDateTime(TimeZone.currentSystemDefault()).date, Dates.today()),
-                    accountsLine(tx.accountId, tx.transferAccountId, accounts),
-                    tx.note.takeIf { it.isNotBlank() },
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                sign + formatMoney(tx.amount, tx.currency) + received(tx.kind, tx.currency, tx.transferAccountId, tx.transferAmount, accounts),
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.End,
             )
         }
-        Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -729,7 +892,7 @@ private fun RuleDialog(
                         .joinToString(" · "),
                     style = MaterialTheme.typography.titleSmall,
                 )
-                OutlinedTextField(
+                KadansField(
                     value = amount,
                     onValueChange = { amount = amountInput(it) },
                     label = { Text(s.amountLabel + " (" + rule.currency.name.uppercase() + ")") },
@@ -737,7 +900,7 @@ private fun RuleDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (cross) {
-                    OutlinedTextField(
+                    KadansField(
                         value = received,
                         onValueChange = { received = amountInput(it) },
                         label = { Text(s.receivedAmount + " (" + destination.currency.name.uppercase() + ")") },
@@ -747,10 +910,11 @@ private fun RuleDialog(
                     )
                 }
                 if (matching.isNotEmpty()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(selected = categoryId == null, onClick = { categoryId = null }, label = { Text(s.noCategory) })
+                    Choices {
+                        ChoiceChip(selected = categoryId == null, onClick = { categoryId = null }, onCard = true, label = { Text(s.noCategory) })
                         matching.forEach { category ->
-                            FilterChip(
+                            ChoiceChip(
+                                onCard = true,
                                 selected = categoryId == category.id,
                                 onClick = { categoryId = category.id },
                                 label = { Text((category.icon?.plus(" ") ?: "") + category.name) },
@@ -758,7 +922,7 @@ private fun RuleDialog(
                         }
                     }
                 }
-                OutlinedTextField(
+                KadansField(
                     value = note,
                     onValueChange = { note = it.take(BudgetApi.NOTE_LENGTH) },
                     label = { Text(s.descriptionOptional) },

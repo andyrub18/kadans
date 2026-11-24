@@ -1029,11 +1029,11 @@ installing on real devices second, hosting last.
 
 - [ ] Version 1.2.0, prepared 2026-11-17 for the owner's tests (OWNER-CHECKLIST → v1.2.0): everything since 1.1.1,
       which is November's six integrations, the sealed session, and Windows' own tray menu. `kadans.version` is 1.2.0,
-      the desktop's release notes are in `clients/app/releases/1.2.0.json`, Play's "What's new" for the second upload
-      in `store/play/<language>/changelogs/2.txt`, and the stores' description and the website's home page now say
-      what the app does (they stopped at 1.1). Not released: the tag comes after the tests, on Linux first (the
-      installer the release workflow builds for the pull request, over the installed 1.1.1), then on Android through
-      Play's internal testing track (an update from Play is the only way to see the session carried over).
+      the desktop's release notes are in `clients/app/releases/1.2.0.json`, Play's "What's new" for this upload (version code 3)
+      in `store/play/<language>/changelogs/3.txt`, and the stores' description and the website's home page now say
+      what the app does (they stopped at 1.1). Tested on Linux first (the installer the release workflow builds for
+      the pull request, over the installed 1.1.1), then on Android through Play's internal testing track (an update
+      from Play is the only way to see the session carried over), then tagged 2026-11-20.
       - [x] The stores' screenshots retaken for 1.2 (2026-11-18), English and French. Play's eight
         (`store/play/<language>/images/phoneScreenshots/`): Home, the widget on a home screen (new), a reminder
         ringing with its buttons, a todo with its cycle, a focus session with the offer to silence the phone, the
@@ -1043,7 +1043,14 @@ installing on real devices second, hosting last.
         the demo script gave the salary rule no time zone, so it read "· UTC" beside a Port-au-Prince account; and the
         session screen said "Lap 1 · phase 1 of 8" ("Tour", "Tou") where the notice and the todo's screen say
         "cycle": it says "Cycle 1" now, in the three languages.
-      - [ ] After the tests: the tag, the Partner Center submission, the closed test.
+      - [x] After the tests: the tag (2026-11-20; the release workflow published the installers and the `.msix`)
+        and the Partner Center submission.
+      - [x] Play's closed test: the internal testing track's release (version code 3) promoted to it, not uploaded
+        again, since Play takes a version code once (OWNER-CHECKLIST → v1.2.0, step 4). It is running: the testers'
+        first feedback came on 2026-11-23, three asks. Spanish; a more attractive look (a Kadans palette in place of
+        Material's stock colours, then Home, Focus and Budget); and apps of one's choice blocked during focus
+        (Android first, after the production launch). Each in its own branch, in that order.
+      - [ ] Production: 12 testers for 14 days, then "Apply for production" (OWNER-CHECKLIST → Subscriptions).
 
 Nice-to-have hardening
 

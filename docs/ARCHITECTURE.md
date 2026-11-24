@@ -179,7 +179,7 @@ at capacity.
 Services return `ApplicationError(ErrorType, message)` with an English message next to the code that
 detected the problem – about 150 call sites, none of which knows a language. The wording a user reads
 is chosen in one place, the HTTP boundary: `error.ToProblemDetails(context)` resolves the request's
-language from `Accept-Language` (`RequestLanguage`: en, fr or ht; anything else is English) and
+language from `Accept-Language` (`RequestLanguage`: en, fr, ht or es; anything else is English) and
 translates `detail` and every validation `message` through `ErrorTexts`. The header rather than the
 account's `PreferredLanguage`, because register and login have no account yet and because it is what
 the person is looking at right now. `errorCode` and validation `code`s never change with the language:
@@ -193,12 +193,44 @@ an id or a name), then English. ASP.NET Identity's messages carry numbers and na
 translated where the parameters are: `LocalizedIdentityErrorDescriber`. Emails and notifications keep
 using the account's language – there is no request to read a header from.
 
+### Languages: four, and what one touches (Spanish added 2026-11-23)
+
+Kadans speaks English, French, Kreyòl and Spanish: `en`, `fr`, `ht`, `es`, the same tag in the app's settings, in
+`Accept-Language`, on the account and in the website's addresses; a region never changes the wording (`es-DO` and
+`es-MX` are `es`). Spanish came from the closed test's testers, and it is Latin America's, since that is where its
+readers are (the Dominican Republic next door, Mexico: the budget already kept their pesos): "tú", "computadora",
+"monto", "estado de cuenta", "configuración", numbers written "5 000" as the amounts are. Its vocabulary is fixed at
+the head of `i18n/Es.kt`: a todo is "una tarea" and one time it falls "una repetición", so what describes them is
+feminine ("completada", "movida"); a focus phase is "enfoque", a break "descanso", and a session is "empezada",
+never "iniciada", because "iniciar sesión" is signing in.
+
+No language is a fallback of another, and nothing is translated at run time: every sentence is written where the
+others are, and a missing one fails a build or a test. What a language touches:
+
+| Where | What | What keeps it complete |
+|-------|------|------------------------|
+| App | its catalog (`i18n/Es.kt`) and its entry in `Language`: the pickers (sign-in, Settings), `Accept-Language` and the account's language follow | the compiler (a `StringsCatalog` takes every key), `StringsCatalogTests` |
+| Android | `res/values-<tag>`: what the system shows in the phone's language (the widget picker, the share sheet, the kind of the quiet mode) | compared by hand with `values-fr` |
+| Server | `RequestLanguage.Supported`; `ErrorTexts.Text` (a sentence for every entry); `LocalizedIdentityErrorDescriber`; `EmailTexts` and `DeletionTexts` (emails, the pages their links open); Tasks' `LocalizedTexts` (reminders, pomodoro notices); Budget's `BudgetTexts` (limit alerts) | `ErrorLocalizationTests`, `LocalizedIdentityErrorDescriberTests`; a `switch` without the language falls to English silently, so each has a test that names it |
+| Website | `site/texts.py`, `site/legal/*.<tag>.html`, and nginx's language map and its two address patterns (`deploy/nginx/site-https.conf.template`) | the generator fails on a missing key or legal page; `generate.py --check` in CI |
+| Stores | `store/play/<locale>/` (Spanish is `es-419`, Play's Latin American Spanish); the demo account's words for screenshots (`tools/demo/seed_demo.py`); the tags release notes may use (`tools/release/release.py`) | `tools/store/play.py check` |
+
+A sentence is one whole phrase in each language, never words joined in code: French agrees with the unit ("Toutes
+les 2 semaines"), and Spanish puts a word where the others put a space, which is why a yearly rule's date goes through
+`RepeatStrings.yearDayFormat` ("15 March", "15 de marzo") instead of a day and a month side by side. Dates take their
+patterns from `DateStrings` ("jueves, 5 de noviembre", "jue, 5 nov", "31 de marzo de 2027").
+
+An older app meets a newer account without harm: a version that has no Spanish shows English for an account whose
+language is `es`, and sends nothing back, so the account keeps its Spanish for the devices that have it. The server
+must have the language before an app that offers it is released (a server without it would answer a change of
+language with success and keep the old one): the server deploys on merge, the apps are released after.
+
 ### The account's time zone, language and clock
 
 The server works in the account's time zone and language: reminder texts, focus-stats days, Budget months and
 emails. Both come from the device, not from a form. A new account starts with the device's IANA zone and the
 app's language: sign-up sends them, and so does a Google sign-in that creates the account (the server keeps a
-zone its tz database knows and a language among en, fr and ht, otherwise UTC and English; linking leaves an
+zone its tz database knows and a language among en, fr, ht and es, otherwise UTC and English; linking leaves an
 existing profile alone). After that the client's `ProfileSync` runs after every sign-in and app start:
 
 - **Time zone**: while "Follow this device" is on (per install, on by default) the account takes the device's

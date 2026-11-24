@@ -169,7 +169,7 @@ internal object RuleSummary {
                     }
                     rule.byDay != null -> return null // every Monday of the month: not one the app makes
                     rule.byMonthDay != null -> monthDays(rule.byMonthDay, s) ?: return null
-                    rule.frequency == Frequency.Yearly && months == null -> "${start.date.day} ${s.monthNames[start.date.month.ordinal]}"
+                    rule.frequency == Frequency.Yearly && months == null -> s.repeat.yearDay(start.date.day, s.monthNames[start.date.month.ordinal])
                     else -> s.repeat.monthDay(start.date.day)
                 }
             }

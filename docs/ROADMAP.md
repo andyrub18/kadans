@@ -1045,6 +1045,33 @@ installing on real devices second, hosting last.
         "cycle": it says "Cycle 1" now, in the three languages.
       - [ ] After the tests: the tag, the Partner Center submission, the closed test.
 
+- [x] Spanish, the fourth language (2026-11-23): the closed test's testers asked for it. As Latin America writes it
+      ("tú", "computadora", "monto", "estado de cuenta"), since its readers are next door and in Mexico and the
+      budget already kept their pesos; the vocabulary heads `i18n/Es.kt`, and ARCHITECTURE → "Languages" lists what a
+      language touches. Everywhere the other three are: the app (its catalog, the pickers on the sign-in screen and
+      in Settings, where four names now wrap on a phone; Android's widget picker, share sheet and quiet mode), the
+      server (errors, sign-up and password rules, the emails and the pages their links open, the account deletion
+      page, reminders, pomodoro notices, limit alerts), the website (`/es/…`, with the privacy policy and the terms)
+      and Play's listing (`store/play/es-419`). The other languages now say Kadans speaks four. Two things the
+      words needed from the code: a yearly rule's date is a phrase of its own ("15 de marzo", `yearDayFormat`), and
+      a date field shared by a todo and a movement is just "Fecha". Not a new version by itself: it ships with the
+      next one, whose release notes and "What's new" are written then, in four languages.
+      Checked: the server's tests (396) and the app's (550), with Spanish beside the other languages wherever a test
+      names them; against a local API, a sign-up in Spanish (its refusals, the confirmation email and the page its
+      link opens), the deletion page and `task_flows.py`; nginx's language map and address patterns in a container
+      (`/` with `Accept-Language: es` goes to `/es/`, `/es/download.html` to `/es/download`); and on the emulator
+      (Android 15) at 360 dp, a demo account seeded in Spanish: sign-in, Home, Settings, a todo, the new-todo form
+      with its monthly and "nth weekday" choices, a focus session, the calendar, the budget, a new movement, the
+      focus stats. That look found what Spanish's longer words did on a narrow phone, all fixed: on the session
+      screen "Atrás" broke inside the word beside two other buttons (the three now wrap whole, in every language),
+      and three labels wrapped or touched their neighbour, so they are shorter ("Primera vez", "Crear cuenta",
+      "Recordarme antes del inicio"). Not checked: a Spanish speaker's reading, the desktop window and the
+      notifications' buttons in Spanish (their words are the catalog's), Windows, the iPhone.
+      - [ ] By the owner: the points in OWNER-CHECKLIST → Spanish (a Spanish speaker's reading, Play's listing once
+        the version is out, the website's deploy with nginx).
+      - [ ] With the new look's screenshots: a Spanish set for Play (`seed_demo.py --language es`), and Spanish in
+        the Microsoft Store's package and listing (its package declares English and French today).
+
 Nice-to-have hardening
 
 - [ ] Integration tests with Testcontainers (Phase 3 leftover); unit tests for Identity and Notifications

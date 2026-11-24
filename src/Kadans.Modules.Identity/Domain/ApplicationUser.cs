@@ -13,7 +13,7 @@ internal sealed class ApplicationUser : IdentityUser
     /// </summary>
     public string TimeZoneId { get; set; } = "UTC";
 
-    /// <summary>UI/notification language: en, fr or ht.</summary>
+    /// <summary>UI/notification language: en, fr, ht or es.</summary>
     public string PreferredLanguage { get; set; } = "en";
 
     /// <summary>"21:00" or "9:00 PM", in every app and in the server's own notifications.</summary>

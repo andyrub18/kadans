@@ -58,6 +58,7 @@ val EnglishStrings = StringsCatalog(
         everyMonthsFormat = "Every %d months",
         everyYearsFormat = "Every %d years",
         monthDayFormat = "on day %d",
+        yearDayFormat = "%d %s",
         countFormat = "%d times",
         untilFormat = "until %s",
         firstTimeFormat = "First time: %s",

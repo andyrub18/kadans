@@ -3,6 +3,7 @@ package app.kadans.ui.pomodoro
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -165,7 +166,11 @@ private fun Session(session: PomodoroUiState.Session, viewModel: PomodoroViewMod
                     }
                     OutlinedButton(onClick = viewModel::skipPhase, enabled = run.status == PomodoroRunStatus.Active) { Text(s.nextPhase) }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 8.dp)) {
+                // Three buttons do not fit a narrow phone in every language: they wrap whole, never inside a word.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                    modifier = Modifier.padding(top = 8.dp),
+                ) {
                     if (run.loop) {
                         TextButton(onClick = viewModel::finish) { Text(s.finishSession) }
                         TextButton(onClick = viewModel::end) { Text(s.discard, color = MaterialTheme.colorScheme.error) }

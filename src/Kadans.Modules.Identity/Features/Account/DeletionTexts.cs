@@ -24,7 +24,7 @@ internal sealed record DeletionTexts(
     string DatePattern
 )
 {
-    /// <summary>"October 10, 2026", "10 octobre 2026", "10 oktòb 2026", in the account's time zone. No culture data
+    /// <summary>"October 10, 2026", "10 octobre 2026", "10 oktòb 2026", "10 de octubre de 2026", in the account's time zone. No culture data
     /// needed: the server may have none for Kreyòl.</summary>
     public string Date(DateTimeOffset at, TimeZoneInfo zone)
     {
@@ -37,6 +37,7 @@ internal sealed record DeletionTexts(
         {
             "fr" => French,
             "ht" => Creole,
+            "es" => Spanish,
             _ => English,
         };
 
@@ -98,5 +99,25 @@ internal sealed record DeletionTexts(
         "Lyen sa a pa valab oswa li ekspire.",
         ["janvye", "fevriye", "mas", "avril", "me", "jen", "jiyè", "out", "septanm", "oktòb", "novanm", "desanm"],
         "{0} {1} {2}"
+    );
+
+    private static readonly DeletionTexts Spanish = new(
+        "Confirma la eliminación de tu cuenta de Kadans",
+        "Hola, {0}. Alguien pidió eliminar esta cuenta de Kadans. Si fuiste tú, abre este enlace para confirmar:\n{1}\n\nSi no fuiste tú, ignora este mensaje: no cambia nada.",
+        "Tu cuenta de Kadans se va a borrar",
+        "Hola, {0}. Tu cuenta de Kadans está cerrada y se borrará con todo lo que contiene (tareas, historial de enfoque, presupuesto) el {1}.\n\n¿Cambiaste de opinión? Inicia sesión en Kadans antes de esa fecha y elige conservarla.\n\nEliminar la cuenta no cancela una suscripción comprada en Google Play o en el App Store: cancélala allí.",
+        "Tu cuenta de Kadans se borró",
+        "Hola, {0}. Tu cuenta de Kadans y todo lo que contenía se borraron, como pediste. Nuestras copias de seguridad la olvidan en un plazo de 14 días.\n\nGracias por usar Kadans.",
+        "Eliminar tu cuenta de Kadans",
+        "Escribe el correo electrónico de tu cuenta y te enviaremos un enlace para confirmar. Tu cuenta se cierra de inmediato y se borra con todo lo que contiene (tareas, historial de enfoque, presupuesto) 7 días después; inicia sesión antes para conservarla.",
+        "Correo electrónico",
+        "Enviar el enlace",
+        "Si una cuenta usa este correo, le enviamos un enlace para confirmar.",
+        "¿Eliminar la cuenta de Kadans {0}? Se cierra de inmediato y se borra con todo lo que contiene el {1}, a menos que inicies sesión antes para conservarla.",
+        "Eliminar mi cuenta",
+        "Tu cuenta está cerrada y se borrará el {1}. Para conservarla, inicia sesión en Kadans antes de esa fecha.",
+        "Este enlace no es válido o ya expiró.",
+        ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+        "{0} de {1} de {2}"
     );
 }

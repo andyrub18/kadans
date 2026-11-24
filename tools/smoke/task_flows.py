@@ -226,11 +226,12 @@ except OSError as e:  # the request timed out: the server is stuck in the expans
 
 # --- error texts follow Accept-Language; codes never change ---
 bad = {"title": "", "description": "", "notificationEnabled": False, "dueDate": "2020-01-01T00:00:00Z"}
-answers = {lang: call("POST", "/todos/one-time", bad, token=T, lang=lang)[1] for lang in (None, "fr-HT,fr;q=0.9", "ht")}
+answers = {lang: call("POST", "/todos/one-time", bad, token=T, lang=lang)[1] for lang in (None, "fr-HT,fr;q=0.9", "ht", "es-DO")}
 messages = {lang: sorted(e["message"] for e in r["errors"]) for lang, r in answers.items()}
 C("validation stays English without Accept-Language", "Title is required." in messages[None], messages[None])
 C("validation is French for fr-HT", "Le titre est obligatoire." in messages["fr-HT,fr;q=0.9"], messages["fr-HT,fr;q=0.9"])
 C("validation is Kreyòl for ht", "Tit la obligatwa." in messages["ht"], messages["ht"])
+C("validation is Spanish for es-DO", "El título es obligatorio." in messages["es-DO"], messages["es-DO"])
 C("codes are identical in every language", len({tuple(sorted(e["code"] for e in r["errors"])) for r in answers.values()}) == 1
   and len({r["errorCode"] for r in answers.values()}) == 1)
 s, r = call("GET", "/todos/00000000-0000-0000-0000-000000000001", token=T, lang="ht")

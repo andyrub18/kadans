@@ -6,6 +6,7 @@ import app.kadans.api.model.UserResponse
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.ui.settings.SettingsUiState
 import app.kadans.ui.settings.SettingsViewModel
 import kotlin.test.Test
@@ -58,7 +59,7 @@ class SettingsAccountTests {
 
     @Test
     fun the_sent_message_names_the_address_in_every_language() {
-        listOf(EnglishStrings, FrenchStrings, CreoleStrings).forEach { strings ->
+        listOf(EnglishStrings, FrenchStrings, CreoleStrings, SpanishStrings).forEach { strings ->
             assertTrue("alice@new.example" in strings.account.emailChangeSent("alice@new.example"))
         }
     }

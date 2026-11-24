@@ -35,6 +35,7 @@ internal static class LocalizedTexts
         {
             "fr" => new("Commence à {0} — dans {1}", "Commence maintenant ({0})", "min", "h", "j"),
             "ht" => new("L ap kòmanse a {0} — nan {1}", "L ap kòmanse kounye a ({0})", "min", "è", "jou"),
+            "es" => new("Empieza a las {0} — en {1}", "Empieza ahora ({0})", "min", "h", "d"),
             _ => new("Starts at {0} — in {1}", "Starts now ({0})", "min", "h", "d"),
         };
 
@@ -58,6 +59,15 @@ internal static class LocalizedTexts
                 "Seyans lan fini a {0}, jan sa te prevwa.",
                 "Seyans lan fini a {0}, lè pwochen an kòmanse.",
                 "Sik {0} fini. Yon lòt? Seyans lan ap tann ou."
+            ),
+            "es" => new(
+                "Descanso — {0} min", "Enfoque — {0} min", "Pomodoro completado. ¡Bien hecho!", "Vuelta {0} · ",
+                "Se acabó el tiempo. Sigue: {0} min de enfoque, cuando quieras.",
+                "Se acabó el tiempo. Sigue: {0} min de descanso, cuando quieras.",
+                "Se acabó el tiempo. Era la última fase: termina cuando quieras.",
+                "La sesión terminó a las {0}, como estaba previsto.",
+                "La sesión terminó a las {0}, al empezar la siguiente.",
+                "Ciclo {0} completado. ¿Otro? La sesión te espera."
             ),
             _ => new(
                 "Break — {0} min", "Focus — {0} min", "Pomodoro complete. Well done!", "Lap {0} · ",

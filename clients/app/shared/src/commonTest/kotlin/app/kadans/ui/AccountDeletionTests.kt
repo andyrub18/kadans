@@ -8,6 +8,7 @@ import app.kadans.api.model.UserResponse
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.ui.auth.LoginEvent
 import app.kadans.ui.auth.LoginViewModel
 import app.kadans.ui.settings.SettingsUiState
@@ -44,6 +45,7 @@ class AccountDeletionTests {
         assertEquals("October 9, 2026", EnglishStrings.deletion.date(day))
         assertEquals("9 octobre 2026", FrenchStrings.deletion.date(day))
         assertEquals("9 oktòb 2026", CreoleStrings.deletion.date(day))
+        assertEquals("9 de octubre de 2026", SpanishStrings.deletion.date(day))
         assertEquals(
             "Your account is closed and will be erased on October 9, 2026. Sign in before then to keep it.",
             EnglishStrings.deletion.closedNotice(EnglishStrings.deletion.date(day)),

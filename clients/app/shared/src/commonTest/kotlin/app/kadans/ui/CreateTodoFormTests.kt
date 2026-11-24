@@ -5,6 +5,7 @@ import app.kadans.api.model.Frequency
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.ui.todos.CreateTodoUiState
 import app.kadans.ui.todos.CreateTodoViewModel
 import app.kadans.ui.todos.DayKind
@@ -315,6 +316,10 @@ class CreateTodoFormTests {
         assertEquals(
             listOf("Lè l kòmanse", "5 min anvan", "1 èdtan anvan", "90 min anvan", "2 èdtan anvan", "1 jou anvan", "2 jou anvan"),
             leads.map(CreoleStrings.todoForm::reminderLead),
+        )
+        assertEquals(
+            listOf("Al inicio", "5 min antes", "1 h antes", "90 min antes", "2 h antes", "1 día antes", "2 días antes"),
+            leads.map(SpanishStrings.todoForm::reminderLead),
         )
     }
 }

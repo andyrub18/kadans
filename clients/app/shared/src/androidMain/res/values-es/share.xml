@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_new_todo">Nueva tarea</string>
+    <string name="share_add_to_kadans">Agregar a Kadans</string>
+</resources>

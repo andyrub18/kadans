@@ -58,6 +58,7 @@ val FrenchStrings = StringsCatalog(
         everyMonthsFormat = "Tous les %d mois",
         everyYearsFormat = "Tous les %d ans",
         monthDayFormat = "le %d",
+        yearDayFormat = "%d %s",
         countFormat = "%d fois",
         untilFormat = "jusqu'au %s",
         firstTimeFormat = "Première fois : %s",

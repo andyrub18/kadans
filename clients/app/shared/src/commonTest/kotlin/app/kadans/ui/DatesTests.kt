@@ -5,6 +5,7 @@ import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
 import app.kadans.i18n.Language
+import app.kadans.i18n.SpanishStrings
 import app.kadans.ui.pomodoro.SessionEnd
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,6 +21,7 @@ class DatesTests {
     private val en = Dates(EnglishStrings.dates, ClockFormat.TwentyFourHour)
     private val fr = Dates(FrenchStrings.dates, ClockFormat.TwentyFourHour)
     private val ht = Dates(CreoleStrings.dates, ClockFormat.TwentyFourHour)
+    private val es = Dates(SpanishStrings.dates, ClockFormat.TwentyFourHour)
     private val en12 = Dates(EnglishStrings.dates, ClockFormat.TwelveHour)
 
     @Test
@@ -31,6 +33,9 @@ class DatesTests {
         assertEquals("Demain", fr.day(LocalDate(2026, 11, 5), today))
         assertEquals("Jodi a", ht.day(today, today))
         assertEquals("Yè", ht.shortDay(LocalDate(2026, 11, 3), today))
+        assertEquals("Hoy", es.day(today, today))
+        assertEquals("Mañana", es.day(LocalDate(2026, 11, 5), today))
+        assertEquals("Ayer", es.shortDay(LocalDate(2026, 11, 3), today))
     }
 
     @Test
@@ -42,6 +47,8 @@ class DatesTests {
         assertEquals("Jeu. 12 nov.", fr.shortDay(thursday, today))
         assertEquals("Jedi 12 novanm", ht.day(thursday, today))
         assertEquals("Jed 12 nov", ht.shortDay(thursday, today))
+        assertEquals("Jueves, 12 de noviembre", es.day(thursday, today))
+        assertEquals("Jue, 12 nov", es.shortDay(thursday, today))
         // The day named even when it is today: a calendar's heading, a form's field.
         assertEquals("Wednesday, November 4", en.long(today, today))
         assertEquals("Mer. 4 nov.", fr.short(today, today))
@@ -54,9 +61,12 @@ class DatesTests {
         assertEquals("Mon, Jan 4, 2027", en.shortDay(nextYear, today))
         assertEquals("Lundi 4 janvier 2027", fr.day(nextYear, today))
         assertEquals("Len 4 jan 2027", ht.shortDay(nextYear, today))
+        assertEquals("Lunes, 4 de enero de 2027", es.day(nextYear, today))
+        assertEquals("Lun, 4 ene 2027", es.shortDay(nextYear, today))
         // Inside a sentence ("until …"), a date always says its year.
         assertEquals("March 31, 2027", en.date(LocalDate(2027, 3, 31)))
         assertEquals("31 mars 2027", fr.date(LocalDate(2027, 3, 31)))
+        assertEquals("31 de marzo de 2027", es.date(LocalDate(2027, 3, 31)))
     }
 
     @Test
@@ -65,6 +75,7 @@ class DatesTests {
         assertEquals("Tuesday, December 1", en.day(first, today))
         assertEquals("Mardi 1er décembre", fr.day(first, today))
         assertEquals("Madi 1ye desanm", ht.day(first, today))
+        assertEquals("Martes, 1 de diciembre", es.day(first, today))
     }
 
     @Test

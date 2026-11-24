@@ -35,6 +35,7 @@ public class OccurrenceReminderJobTests
     [Test]
     [Arguments("fr", "15 min", "1 j 2 h")]
     [Arguments("ht", "15 min", "1 jou 2 è")]
+    [Arguments("es", "15 min", "1 d 2 h")]
     public async Task Describe_uses_the_users_unit_words(string language, string quarter, string dayAndTwoHours)
     {
         var texts = LocalizedTexts.Reminder(language);

@@ -114,5 +114,9 @@ public class CategoryLimitTests
         var over = limit.Use([(Currency.Htg, 15_800m)], Rates);
         var reached = CategoryLimitAlerts.Message(limit, over, 100, BudgetTexts.Limit("fr"));
         await Assert.That(reached.Body).IsEqualTo("Limite du mois atteinte : 15 800.00 HTG sur 15 000.00 HTG (105 %).");
+
+        var spanish = BudgetTexts.Limit("es");
+        await Assert.That(CategoryLimitAlerts.Message(limit, use, 80, spanish).Body).IsEqualTo("84% del límite del mes: ≈ 12 640.00 HTG de 15 000.00 HTG.");
+        await Assert.That(CategoryLimitAlerts.Message(limit, over, 100, spanish).Body).IsEqualTo("Límite del mes alcanzado: 15 800.00 HTG de 15 000.00 HTG (105%).");
     }
 }

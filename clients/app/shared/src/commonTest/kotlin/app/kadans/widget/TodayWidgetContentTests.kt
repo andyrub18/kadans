@@ -4,6 +4,7 @@ import app.kadans.api.model.ClockFormat
 import app.kadans.i18n.CreoleStrings
 import app.kadans.i18n.EnglishStrings
 import app.kadans.i18n.FrenchStrings
+import app.kadans.i18n.SpanishStrings
 import app.kadans.i18n.StringsCatalog
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -140,6 +141,7 @@ class TodayWidgetContentTests {
         assertEquals("Aujourd'hui", french.title)
         assertEquals(listOf("○ 18:30 Appeler la banque"), french.text())
         assertEquals("Jodi a", content(entries, catalog = CreoleStrings).title)
+        assertEquals("Hoy", content(entries, catalog = SpanishStrings).title)
     }
 
     @Test
@@ -161,6 +163,7 @@ class TodayWidgetContentTests {
         assertEquals(listOf("+ 5 more"), content(five, capacity = 1).text())
         assertEquals(listOf("○ 11:00 Todo 1", "+ 4 de plus"), content(five, capacity = 2, catalog = FrenchStrings).text())
         assertEquals(listOf("○ 11:00 Todo 1", "+ 4 lòt ankò"), content(five, capacity = 2, catalog = CreoleStrings).text())
+        assertEquals(listOf("○ 11:00 Todo 1", "+ 4 más"), content(five, capacity = 2, catalog = SpanishStrings).text())
     }
 
     @Test

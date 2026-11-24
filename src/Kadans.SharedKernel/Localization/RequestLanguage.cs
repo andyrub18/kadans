@@ -2,14 +2,14 @@ using Microsoft.AspNetCore.Http;
 
 namespace Kadans.SharedKernel.Localization;
 
-/// <summary>The language the current request wants its human-readable texts in: "en", "fr" or "ht".</summary>
+/// <summary>The language the current request wants its human-readable texts in: "en", "fr", "ht" or "es".</summary>
 public interface IRequestLanguage
 {
     string Code { get; }
 }
 
 /// <summary>
-/// Kadans speaks English, French and Haitian Creole. The client sends its in-app language as
+/// Kadans speaks English, French, Haitian Creole and Spanish. The client sends its in-app language as
 /// <c>Accept-Language</c> on every call, which also covers anonymous requests (register, login)
 /// where the server knows no user yet. Anything else — no header, another language, a background
 /// job — is English.
@@ -17,7 +17,7 @@ public interface IRequestLanguage
 public static class RequestLanguage
 {
     public const string Default = "en";
-    public static readonly IReadOnlyList<string> Supported = ["en", "fr", "ht"];
+    public static readonly IReadOnlyList<string> Supported = ["en", "fr", "ht", "es"];
 
     private const string ItemKey = "kadans.language";
 
@@ -39,7 +39,7 @@ public static class RequestLanguage
                             && double.TryParse(parameter[2..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var q))
                             quality = q;
                     }
-                    // "fr-HT" and "fr_CA" are French to us; region never changes the wording here.
+                    // "fr-HT" and "fr_CA" are French to us, "es-DO" and "es-MX" Spanish; region never changes the wording here.
                     var primary = parts[0].Split('-', '_')[0].ToLowerInvariant();
                     return (primary, quality, index);
                 })

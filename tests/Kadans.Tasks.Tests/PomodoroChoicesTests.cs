@@ -77,5 +77,6 @@ public class PomodoroChoicesTests
         looping.Advance(null, T0.AddMinutes(25));
         await Assert.That(PomodoroTimeUp.Body(english, looping)).IsEqualTo("Time's up. Next: 25 min of focus, when you're ready.");
         await Assert.That(PomodoroTimeUp.Body(LocalizedTexts.Pomodoro("ht"), looping)).IsEqualTo("Tan an fini. Apre sa: 25 min konsantrasyon, lè ou vle.");
+        await Assert.That(PomodoroTimeUp.Body(LocalizedTexts.Pomodoro("es"), looping)).IsEqualTo("Se acabó el tiempo. Sigue: 25 min de enfoque, cuando quieras.");
     }
 }

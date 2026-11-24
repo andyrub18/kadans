@@ -3,7 +3,7 @@
 *Kadans* (Kreyòl: cadence) is a personal life-management app built around rhythms: scheduled and
 recurring tasks, Pomodoro sessions attached to them, notifications when a task is about to start,
 and a personal budget (multi-currency, HTG/USD first). One backend, one client codebase for phone
-and desktop. Trilingual: English, French, Haitian Creole.
+and desktop. In four languages: English, French, Haitian Creole, Spanish.
 
 ## Repository
 

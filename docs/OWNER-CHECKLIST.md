@@ -284,6 +284,29 @@ Both:
       The privacy policy states what is kept and for how long: the table in ARCHITECTURE → Data retention, including
       the 14 days of backups; change both together. Have a native speaker read the Kreyòl.
 
+## Spanish (2026-11-23)
+
+- [ ] Have a Spanish speaker read it before the version that carries it is released: one of the testers who asked is
+      the right person. In the app (Settings → Idioma → Español): the sign-in screen, Home, a todo and its repeat
+      rule, a focus session, the budget, Settings. On the web: `https://kadansplanning.com/es/`, its privacy policy
+      and its terms. It is Latin American Spanish with "tú"; the words chosen are at the head of
+      `clients/app/shared/src/commonMain/kotlin/app/kadans/i18n/Es.kt` ("tarea", "repetición", "enfoque",
+      "descanso", "monto", "estado de cuenta"). Send me what reads wrong, with the screen it is on.
+- [ ] Deploy: the website's pages and nginx both changed (the `/es/…` addresses), so after `git pull` nginx is
+      created again (DEPLOYMENT → The website; a few seconds without the site, the API does not restart). Check:
+      `curl -sI https://kadansplanning.com/es/ | head -1` says 200, and
+      `curl -sI -H 'Accept-Language: es' https://kadansplanning.com/ | grep -i location` points at `/es/`.
+- [ ] The website and the store texts now say "English, French, Kreyòl and Spanish", and the support page that you
+      can be written to in Spanish. The apps people have today (1.2.0) do not speak it yet: either release the next
+      version soon after the deploy, or tell me to hold those sentences back until then. If you would rather not
+      answer support in Spanish, tell me and the page says three languages again.
+- [ ] Search Console → URL inspection → `https://kadansplanning.com/es/` → **Request indexing**.
+- [ ] Play Console, once the version with Spanish is on the track (not before: the listing would promise a language
+      the app does not have): Grow → Store presence → Main store listing → Manage translations → add **Spanish
+      (Latin America) – es-419**, with the title, the short and the full description of `store/play/es-419/`; and
+      paste the English and French full descriptions again (their last lines name four languages). No Spanish
+      screenshots yet: Play shows the English ones. That release's notes need a Spanish "What's new" too.
+
 ## Client (Compose Multiplatform)
 
 - [x] The first desktop release, v1.0.0 (2026-11-01): `https://kadansplanning.com/download`'s buttons work.

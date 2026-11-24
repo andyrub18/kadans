@@ -5,7 +5,7 @@ The website). Never edit site/public; change the texts, the legal pages or the a
     python3 site/generate.py           # writes site/public
     python3 site/generate.py --check   # fails when site/public is not what this makes (CI runs it)
 
-Every page exists in English, French and Kreyòl (/en/…, /fr/…, /ht/…). The words are in texts.py, the privacy policy
+Every page exists in English, French, Kreyòl and Spanish (/en/…, /fr/…, /ht/…, /es/…). The words are in texts.py, the privacy policy
 and the terms in legal/. The mark comes from branding/ (drawn by branding/generate.py). Standard library only, and the
 same output on every run: no dates or random names.
 """

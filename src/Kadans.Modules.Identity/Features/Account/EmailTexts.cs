@@ -2,7 +2,7 @@ namespace Kadans.Modules.Identity.Features.Account;
 
 /// <summary>
 /// Account email wording per language ({0} = greeting name, {1} = link; in the changed-notice, {1} = the new address).
-/// Languages: en (default), fr, ht (Kreyòl Ayisyen).
+/// Languages: en (default), fr, ht (Kreyòl Ayisyen), es.
 /// </summary>
 internal sealed record EmailTexts(
     string ConfirmSubject,
@@ -26,6 +26,7 @@ internal sealed record EmailTexts(
         {
             "fr" => French,
             "ht" => Creole,
+            "es" => Spanish,
             _ => English,
         };
 
@@ -78,5 +79,22 @@ internal sealed record EmailTexts(
         "Adrès imèl ou chanje. Ou ka retounen nan Kadans.",
         "Adrès imèl kont Kadans ou chanje",
         "Bonjou {0}, adrès imèl kont Kadans ou fèk chanje pou {1}.\n\nSi se ou menm ki fè sa, pa gen anyen pou fè. Si se pa ou menm, konekte epi chanje modpas ou touswit."
+    );
+
+    private static readonly EmailTexts Spanish = new(
+        "Confirma tu correo de Kadans",
+        "Te damos la bienvenida a Kadans, {0}. Confirma tu correo electrónico abriendo este enlace:\n{1}\n\nSi no creaste esta cuenta, ignora este mensaje.",
+        "Restablece tu contraseña de Kadans",
+        "Hola, {0}. Alguien pidió restablecer la contraseña de esta cuenta. Abre este enlace para elegir una nueva:\n{1}\n\nEl enlace expira pronto. Si no fuiste tú, puedes ignorar este mensaje; tu contraseña no cambia.",
+        "Confirma tu nuevo correo de Kadans",
+        "Hola, {0}. Confirma que este es tu nuevo correo electrónico abriendo este enlace:\n{1}\n\nSi no pediste este cambio, ignora este mensaje.",
+        "Tu correo electrónico está confirmado. Puedes volver a la aplicación.",
+        "Elige una nueva contraseña de Kadans",
+        "Nueva contraseña",
+        "Restablecer contraseña",
+        "Contraseña cambiada. Ya puedes iniciar sesión en Kadans.",
+        "Tu correo electrónico se cambió. Puedes volver a Kadans.",
+        "El correo electrónico de tu cuenta de Kadans cambió",
+        "Hola, {0}. El correo electrónico de tu cuenta de Kadans acaba de cambiarse a {1}.\n\nSi fuiste tú, no hay nada que hacer. Si no, inicia sesión y cambia tu contraseña de inmediato."
     );
 }

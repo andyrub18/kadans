@@ -9,12 +9,13 @@ Releasing the desktop app). Its content goes into `latest.json`, which every ins
   "notes": {
     "en": "Faster reminders, and two-factor by QR code.",
     "fr": "Des rappels plus rapides, et la double authentification par code QR.",
-    "ht": "Rapèl pi rapid, ak otantifikasyon de etap ak kòd QR."
+    "ht": "Rapèl pi rapid, ak otantifikasyon de etap ak kòd QR.",
+    "es": "Recordatorios más rápidos y la autenticación de dos factores con código QR."
   }
 }
 ```
 
-- `notes`: what is new, one or two sentences, English at least, French and Kreyòl when you have them (the app falls
+- `notes`: what is new, one or two sentences, English at least, French, Kreyòl and Spanish when you have them (the app falls
   back to English). The notification and Settings → This computer show them.
 - `minimumVersion` (rare): the oldest version that still works with the server. Raise it only with a release whose
   server change older apps cannot follow; those apps then ask to update at every start. Never above the release.

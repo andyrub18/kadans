@@ -13,7 +13,11 @@ public class ErrorLocalizationTests
     [Arguments("fr-HT", "fr")]
     [Arguments("fr_CA", "fr")]
     [Arguments("HT", "ht")]
-    [Arguments("de, es;q=0.9", "en")]
+    [Arguments("es", "es")]
+    [Arguments("es-DO", "es")]
+    [Arguments("es_MX", "es")]
+    [Arguments("de, es;q=0.9", "es")]
+    [Arguments("de, pt;q=0.9", "en")]
     [Arguments("de, ht;q=0.8, fr;q=0.9", "fr")]
     [Arguments("fr;q=0, ht", "ht")]
     [Arguments("en-US,en;q=0.9,fr;q=0.8", "en")]
@@ -24,10 +28,10 @@ public class ErrorLocalizationTests
     }
 
     [Test]
-    public async Task Every_error_type_has_a_french_and_a_creole_sentence()
+    public async Task Every_error_type_has_its_sentence_in_every_other_language()
     {
         var missing = ErrorTypes.List
-            .Where(type => !ErrorTexts.ByType.TryGetValue(type.Value, out var text) || string.IsNullOrWhiteSpace(text.Fr) || string.IsNullOrWhiteSpace(text.Ht))
+            .Where(type => !ErrorTexts.ByType.TryGetValue(type.Value, out var text) || string.IsNullOrWhiteSpace(text.Fr) || string.IsNullOrWhiteSpace(text.Ht) || string.IsNullOrWhiteSpace(text.Es))
             .Select(type => $"{type.Value} {type.Name}")
             .ToList();
 
@@ -42,6 +46,7 @@ public class ErrorLocalizationTests
         await Assert.That(error.ToProblemDetails("/x").Detail).IsEqualTo("Amount must be greater than zero.");
         await Assert.That(error.ToProblemDetails("/x", "fr").Detail).IsEqualTo("Le montant doit être supérieur à zéro.");
         await Assert.That(error.ToProblemDetails("/x", "ht").Detail).IsEqualTo("Montan an dwe pi gran pase zewo.");
+        await Assert.That(error.ToProblemDetails("/x", "es").Detail).IsEqualTo("El monto debe ser mayor que cero.");
     }
 
     [Test]
@@ -50,6 +55,7 @@ public class ErrorLocalizationTests
         var error = new ApplicationError(ErrorTypes.TodoNotFound, $"Todo with id {Guid.NewGuid()} not found");
 
         await Assert.That(error.ToProblemDetails("/x", "ht").Detail).IsEqualTo("Nou pa jwenn travay la.");
+        await Assert.That(error.ToProblemDetails("/x", "es").Detail).IsEqualTo("No se encontró la tarea.");
         await Assert.That(error.ToProblemDetails("/x", "en").Detail!).Contains("Todo with id");
     }
 
@@ -96,7 +102,7 @@ public class ErrorLocalizationTests
 
     /// <summary>
     /// The server-side twin of the client's compile-checked catalog: a static English message anywhere in
-    /// <c>src/</c> without a French and Creole sentence in <see cref="ErrorTexts"/> fails the build here.
+    /// <c>src/</c> without a French, Creole and Spanish sentence in <see cref="ErrorTexts"/> fails the build here.
     /// (Interpolated messages are covered by their error type's sentence, asserted above.)
     /// </summary>
     [Test]

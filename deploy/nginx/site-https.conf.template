@@ -1,13 +1,14 @@
 # The website over HTTPS (docs/DEPLOYMENT.md → The website): the static pages of site/public, made by site/generate.py,
-# in English, French and Kreyòl. Nothing here runs on the server, posts a form or sets a cookie. Rendered into conf.d/
+# in English, French, Kreyòl and Spanish. Nothing here runs on the server, posts a form or sets a cookie. Rendered into conf.d/
 # by 40-kadans-certificate.sh once the certificate exists.
 
-# The visitor's first language, for an address without one ("/", the app's "/privacy" and "/terms"): French or
-# Kreyòl when the browser asks for it first, else English.
+# The visitor's first language, for an address without one ("/", the app's "/privacy" and "/terms"): French,
+# Kreyòl or Spanish when the browser asks for it first, else English.
 map $http_accept_language $kadans_site_lang {
     default en;
     ~*^fr   fr;
     ~*^ht   ht;
+    ~*^es   es;
 }
 
 # A page has one address, the one it declares to search engines (/en/, /en/download). This is that address when the
@@ -15,8 +16,8 @@ map $http_accept_language $kadans_site_lang {
 # the address as it was asked, never from $uri: nginx itself goes through /en/index.html to serve /en/.
 map $request_uri $kadans_site_address {
     default "";
-    "~^/(?<kadans_home>en|fr|ht)(/index(\.html)?)?(\?|$)"              /$kadans_home/;
-    "~^(?<kadans_clean>/(en|fr|ht)/[a-z-]+)(\.html|/)(\?|$)"           $kadans_clean;
+    "~^/(?<kadans_home>en|fr|ht|es)(/index(\.html)?)?(\?|$)"           /$kadans_home/;
+    "~^(?<kadans_clean>/(en|fr|ht|es)/[a-z-]+)(\.html|/)(\?|$)"        $kadans_clean;
 }
 
 # www goes to the bare name.

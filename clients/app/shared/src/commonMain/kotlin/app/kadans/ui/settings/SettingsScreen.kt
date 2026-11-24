@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -150,7 +151,8 @@ private fun MainPage(
 
     // Language, time format, appearance and time zone apply as soon as they are chosen.
     Text(s.languageLabel, style = MaterialTheme.typography.labelLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    // Four names do not fit on one line of a phone: they wrap.
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Language.entries.forEach { candidate ->
             FilterChip(
                 selected = language == candidate,

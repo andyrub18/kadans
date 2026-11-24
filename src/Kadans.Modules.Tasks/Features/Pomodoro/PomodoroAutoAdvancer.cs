@@ -157,6 +157,7 @@ internal sealed class PomodoroAutoAdvancer(
             ["status"] = status.ToString(),
             ["currentPhaseIndex"] = currentPhaseIndex.ToString(),
             ["link"] = FocusLink(todoId),
+            [NotificationSounds.DataKey] = SoundFor(status, currentType, betweenLaps),
         };
         var cycleDone = CycleDone(currentPhaseIndex, cycleLength, betweenLaps);
         if (cycleDone is { } done)
@@ -177,6 +178,15 @@ internal sealed class PomodoroAutoAdvancer(
     /// </summary>
     internal static int? CycleDone(int currentPhaseIndex, int cycleLength, bool betweenLaps) =>
         betweenLaps && cycleLength > 0 && currentPhaseIndex > 0 ? currentPhaseIndex / cycleLength : null;
+
+    /// <summary>
+    /// What a phase change sounds like (ARCHITECTURE → "Sounds"): a break beginning, a cycle or the session done, is
+    /// focus being over; a focus phase beginning is the break being over.
+    /// </summary>
+    internal static string SoundFor(PomodoroRunStatus status, PomodoroPhaseType currentType, bool betweenLaps) =>
+        status == PomodoroRunStatus.Active && !betweenLaps && currentType == PomodoroPhaseType.Focus
+            ? NotificationSounds.BreakOver
+            : NotificationSounds.FocusOver;
 
     /// <summary>One phrasing for every phase notification, whoever advanced the run.</summary>
     internal static string PhaseBody(

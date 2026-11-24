@@ -535,13 +535,13 @@ the push and the hub). What rings is always read from the stored window:
   unless no longer due (a moved one fetches the window again), and the next alarm is set. A reminder rings late (a
   phone that was off) until its event starts, or ten minutes after its time when that is later; never twice
   (`occurrence@notifyAt` remembered three days, so a moved one rings again).
-- **Notifications**: their own channel, `kadans.reminders` (urgent: heads-up, sound; named in the app's language),
-  tagged with the occurrence as Firebase tags the push it shows, so one replaces the other ("starts now" replaces the
+- **Notifications**: their own channel (urgent: heads-up, sound; named in the app's language; which one, and what it
+  sounds like, is the person's choice: "Sounds", below), tagged with the occurrence as Firebase tags the push it shows, so one replaces the other ("starts now" replaces the
   reminder before it). Two buttons, broadcasts to `ReminderActionReceiver` (not exported, immutable PendingIntents, one
   data URI per reminder and button): it asks the server within the eight seconds it gives itself, then updates the same
   notification silently: "Focus session started" (a tap opens the session, `kadans://todos/{id}/focus`), gone, or the
   reminder again saying Kadans could not be reached, its buttons still there. A system-shown reminder
-  push goes to that channel too (an app too old to have it falls back to its default one). A tap opens the todo
+  push goes to the channel the phone said its reminders ring in (an app too old to have it falls back to its default one). A tap opens the todo
   (`kadans://todos/{id}`, only with a session), whether the app is open, in the background or stopped.
 - **Pushes**: "occurrence.due" goes through `LocalReminders.pushed` (dropped if it rang here or the session is gone);
   "reminders.changed" fetches the window, always: Android freezes an app in the background, and the server may have
@@ -1321,6 +1321,66 @@ answer, "Retry", a refusal that is not "out of reach"). Not checked: the desktop
 fonts as Windows draws them), Kreyòl in the new layouts, a screen reader's reading of the new pieces, the statement
 import's pages, the paywall and the sign-in screens beyond a glance, the Android widget with its new colours on a
 home screen, and the iPhone.
+
+### Sounds (2026-11-24)
+
+The testers forgot a session was running and missed reminders: nothing was heard. The cause differed by device. A
+computer's desktop shows a notification silently (Linux always; the app's beep does nothing there). A phone played its
+own notification tone, once, and not at all on silent or vibrate, where many phones spend the day; and nothing told
+the person that the phone's settings decide. The owner's choices (2026-11-24): Kadans' own sounds, a marimba; a
+reminder that rings like an alarm, asked first and able to be turned off; an option to ring until answered, a minute
+at most; and the app saying how things stand, with the way to the phone's own settings.
+
+- **Three sounds, drawn not recorded** (`branding/sounds.py`, sine waves, so there is no licence to keep): a reminder,
+  the end of a focus phase (coming down), the end of a break (going up). A notification asks for one in its data,
+  `sound` = `focus-over` or `break-over` (`NotificationSounds` on the server, `KadansSound` in the app); a reminder's
+  is the phone's choice below.
+- **A phone's sounds are its channels'.** On Android a sound belongs to a notification channel, is fixed when the
+  channel is made, and is the person's to change afterwards, never the app's. So each way of ringing is a channel
+  (`sound/KadansChannels`): `kadans.reminders.alarm` (the alarm volume, which silent and vibrate leave alone),
+  `kadans.reminders.chime` (follows the phone's sound), `kadans.focus.over`, `kadans.break.over`; the reminders' other
+  channel, and the one from before (`kadans.reminders`, the phone's own tone), are deleted. Changing a shipped
+  sound means a new channel id, and everyone's own choice starting over: not lightly.
+- **Like an alarm, or like a notification** (`ReminderStyle`, kept per device in `SoundPreferences`). Asked once,
+  "How should reminders reach you?", with "Like an alarm" offered first: the first time a todo with a reminder is
+  saved, or on Home for someone who already has reminders when the update arrives. Until the answer, reminders ring
+  like a notification: nobody's phone rings aloud on silent without their having been told. Settings → "Reminder
+  sound" has the switch afterwards. Phase changes follow the phone's sound in either case.
+- **The server names the channel of what the system shows.** A push shown while the app is not running is shown by
+  Google's services in the channel the server names, and only the phone knows its choice: it says so when it
+  registers (`alarmReminders` on the device, `PushTarget.AlarmReminders`). `FcmPushSender` then names the reminders'
+  channel by it, and the phase channels for a notification that asks for a sound. A device that never said (an app
+  from before) gets exactly the message it got before: its old channel, no phase channel. The ids are written twice,
+  in `KadansChannels` and in `FcmPushSender`: change one, change the other.
+- **Ring until answered** (off by default): Android's own insistent notification, which repeats the sound until the
+  person opens the notifications or acts on it; an alarm set when it begins takes it down after one minute
+  (`SoundPreferences.RINGS_FOR`) and puts the reminder back silently, buttons and all. Android keeps an insistent
+  notification ringing through an update, so whatever replaces a ringing reminder cancels it first. Only where the
+  app builds the notification: a reminder the system shows by itself rings once.
+- **Telling the person** (`ui/settings/SoundSection`, `ReminderSoundState`, pure): one sentence for what a reminder
+  will do as the phone stands now (like an alarm; the alarm volume at zero; the phone on silent, or on vibrate;
+  silenced for Kadans in the system's settings), read again when the app comes back; "Change the sound", which opens
+  the system's page for that channel, where any sound the phone has can be picked; and "Test", a sample reminder.
+- **A computer plays the sounds itself** (`sound/DesktopSoundPlayer`, Java's own sound, the files in the app's
+  resources): when a reminder rings, when a phase ends, on Linux and on Windows alike, unless Settings → "Sounds" is
+  off. Ringing until answered stops at a click on the notification or one of its buttons, at its dismissal, when the
+  window is opened, or after the minute. A computer whose sound cannot be opened stays silent and nothing fails.
+- **Order of release.** The server first, as always: it must know the channels before an app that has them. An app
+  with the choice and a server without it would only lose the channel's name on system-shown pushes.
+
+Checked on the emulator (Android 15) against a local API sending real pushes through Firebase, the update installed
+over a build from before the sounds: the old channel deleted and the new ones made with Kadans' sounds; the question on Home, answered
+"Like an alarm", the alarm channel made, the other deleted, and the server's device row saying so; Settings' sentence;
+"Test" ringing in the alarm channel; with the phone on silent, the alarm style ringing and the notification style
+not (the system's own record of what is sounding), and the sentence saying so; "Change the sound" opening the
+system's page for the channel; a real reminder, the phone on silent and "ring until answered" on: ringing at its
+start, still at 36 seconds, silent at 70 with the reminder still shown; and a hands-free session's two phase changes,
+the app in the background, each shown by the system in its own channel and sounding. The emulator has no speaker:
+"sounding" is Android's record, not something heard. On the computer: the files open on this machine's sound output
+(not played), and the tests cover the player (once, ringing, the minute, stopping) and the reminder's ring and its
+stop against a private notification server. Not checked: any of it by ear on a real phone or a real computer, the
+sounds' loudness beside a phone's own, phone makers' changes to sound and alarms (Samsung, Tecno), Android before 8,
+Windows, and the iPhone, which has no sounds of Kadans' yet.
 
 ### The desktop app: in the tray, once
 

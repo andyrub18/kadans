@@ -1,5 +1,6 @@
 package app.kadans.di
 
+import app.kadans.sound.RingSettings
 import app.kadans.startup.StartAtLogin
 import app.kadans.startup.platformStartAtLogin
 import app.kadans.api.KadansApi
@@ -27,6 +28,9 @@ import app.kadans.reminders.ReminderScheduler
 import app.kadans.reminders.ReminderStore
 import app.kadans.reminders.ReminderActions
 import app.kadans.reminders.platformReminderScheduler
+import app.kadans.sound.SoundPlayer
+import app.kadans.sound.SoundPreferences
+import app.kadans.sound.platformSoundPlayer
 import app.kadans.widget.TodayWidget
 import app.kadans.widget.TodayWidgetStore
 import app.kadans.widget.WidgetSurface
@@ -97,7 +101,7 @@ val appModule = org.koin.dsl.module {
     single { SystemAlerts(get(), get()) }
     single {
         val koin = getKoin()
-        DeviceRegistrar(get(), get(), quiet = { koin.get<FocusQuiet>().reportable })
+        DeviceRegistrar(get(), get(), quiet = { koin.get<FocusQuiet>().reportable }, alarmReminders = { koin.get<RingSettings>().reportable })
     }
     // Do Not Disturb during focus (Android): the phone quiet while a focus phase counts down.
     single { FocusQuietStore(get()) }
@@ -113,11 +117,16 @@ val appModule = org.koin.dsl.module {
         FocusQuiet(get(), get(), get(), get<KadansRealtime>().events, report = { koin.get<DeviceRegistrar>().register() })
     }
     single { ReminderStore(get()) }
+    // Sounds (ARCHITECTURE → "Sounds"): what the person chose here, and what plays them where the app does (a computer).
+    single { SoundPreferences(get()) }
+    single<SoundPlayer> { platformSoundPlayer() }
+    single { RingSettings(get(), get(), get()) }
     single<ReminderScheduler> {
         val settings = get<Settings>()
         val koin = getKoin()
         platformReminderScheduler(
             strings = { Language.fromTag(LanguageController.currentTag(settings)).catalog.reminders },
+            ring = { koin.get<SoundPreferences>().ring },
             onDue = { koin.get<LocalReminders>().ringDue() },
         )
     }

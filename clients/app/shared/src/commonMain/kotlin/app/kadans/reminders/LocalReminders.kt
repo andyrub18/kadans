@@ -230,6 +230,9 @@ class LocalReminders(
      */
     fun showsReminders(): Boolean = scheduler.access() != ReminderAccess.Unsupported
 
+    /** Reminders already matter on this device (some are held, or the person was asked about them): not a first day. */
+    fun inUse(): Boolean = store.permissionAsked || store.syncing || store.window().isNotEmpty()
+
     fun access(): ReminderAccess = scheduler.access()
 
     /** The first time a todo with a reminder is saved here, the person is asked once, with an explanation. */

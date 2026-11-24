@@ -152,6 +152,7 @@ internal sealed class PomodoroAutoFinish(
                     ["runId"] = run.Id.ToString(),
                     ["status"] = run.Status.ToString(),
                     ["link"] = PomodoroAutoAdvancer.FocusLink(run.TodoId),
+                    [NotificationSounds.DataKey] = NotificationSounds.FocusOver,
                 }
             ),
             cancellationToken

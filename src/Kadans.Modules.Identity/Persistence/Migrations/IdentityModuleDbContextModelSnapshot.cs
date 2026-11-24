@@ -168,6 +168,10 @@ namespace Kadans.Modules.Identity.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<bool?>("AlarmReminders")
+                        .HasColumnType("boolean")
+                        .HasColumnName("alarm_reminders");
+
                     b.Property<string>("AppVersion")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")

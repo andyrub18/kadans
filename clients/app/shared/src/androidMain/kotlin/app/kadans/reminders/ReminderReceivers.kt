@@ -36,7 +36,8 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
 /**
  * A reminder's button ([ReminderActions]): "Start focus" or "Done" asks the server, within the time a receiver has,
  * "In 10 min" puts it off on this phone. The notification then shows what happened: the session's notice, gone, or the
- * reminder again saying Kadans could not be reached, its buttons still there.
+ * reminder again saying Kadans could not be reached, its buttons still there. It also receives the alarm that ends a
+ * reminder's ringing when it has kept on for a minute.
  */
 class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -62,6 +63,8 @@ class ReminderActionReceiver : BroadcastReceiver() {
                         actions.snooze(reminder)
                         notices.dismiss(reminder)
                     }
+                    // Not a button: the alarm set when a reminder began to keep ringing (ARCHITECTURE → "Sounds").
+                    QUIET -> notices.quiet(reminder)
                 }
             } catch (_: Exception) {
             } finally {
@@ -74,6 +77,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
         const val START_FOCUS = "app.kadans.reminders.START_FOCUS"
         const val DONE = "app.kadans.reminders.DONE"
         const val SNOOZE = "app.kadans.reminders.SNOOZE"
+        const val QUIET = "app.kadans.reminders.QUIET"
         const val REMINDER = "reminder"
 
         /** Inside the ten seconds a receiver has: the server's answer, or "could not be reached". */

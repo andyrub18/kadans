@@ -50,6 +50,8 @@ internal sealed class DeviceService(IdentityModuleDbContext dbContext, ICurrentU
         device.AppVersion = request.AppVersion;
         if (request.QuietDuringFocus is { } quiet)
             device.QuietDuringFocus = quiet;
+        if (request.AlarmReminders is { } alarm)
+            device.AlarmReminders = alarm;
         device.LastSeenAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync();

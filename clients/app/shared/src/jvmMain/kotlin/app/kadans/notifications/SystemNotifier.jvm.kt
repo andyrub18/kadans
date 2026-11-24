@@ -11,9 +11,16 @@ import javax.imageio.ImageIO
 /**
  * Linux desktops get a freedesktop notification (`notify-send`, or `gdbus` when libnotify-bin
  * isn't installed) — GNOME shows those even with no tray support. Elsewhere an AWT tray icon's
- * balloon does the job. A beep flags the change when the user's eyes are off the screen.
+ * balloon does the job. Kadans' own [sound] flags the change when the user's eyes are off the screen (the desktop
+ * shows a notification without one); a notification that asks for none gets the system's beep, as it always did.
  */
-actual fun showSystemNotification(title: String, body: String) {
+actual fun showSystemNotification(title: String, body: String, sound: app.kadans.sound.KadansSound?) {
+    showDesktopNotification(title, body)
+    if (sound != null) app.kadans.sound.DesktopSound.notice(sound) else runCatching { Toolkit.getDefaultToolkit().beep() }
+}
+
+/** The notification alone, with no sound of any kind: for what plays its own (a reminder, a cycle's notice). */
+internal fun showDesktopNotification(title: String, body: String) {
     runCatching {
         val os = System.getProperty("os.name").lowercase()
         if ("linux" in os) {
@@ -22,7 +29,6 @@ actual fun showSystemNotification(title: String, body: String) {
             balloonIcon()?.displayMessage(title, body, TrayIcon.MessageType.INFO)
         }
     }
-    runCatching { Toolkit.getDefaultToolkit().beep() }
 }
 
 actual fun showCycleNotice(notice: app.kadans.pomodoro.CycleNotice) = app.kadans.pomodoro.DesktopCycleNotices.shared.show(notice)

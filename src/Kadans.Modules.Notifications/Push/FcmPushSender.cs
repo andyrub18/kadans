@@ -60,8 +60,39 @@ internal sealed class FcmPushSender : IPushSender
         return new PushOutcome(response.SuccessCount, response.FailureCount - dead.Count, dead);
     }
 
-    /// <summary>The Android app's notification channel for reminders (its <c>AndroidReminderScheduler.CHANNEL_ID</c>).</summary>
+    /// <summary>
+    /// The Android app's notification channels (its <c>KadansChannels</c>; docs/ARCHITECTURE.md → "Sounds"). A channel
+    /// carries its sound, and Android lets nobody but the person change it: so a reminder the system shows goes in the
+    /// channel the phone said it rings in. The first is the only one an app from before the choice has.
+    /// </summary>
     internal const string RemindersChannel = "kadans.reminders";
+    internal const string RemindersChimeChannel = "kadans.reminders.chime";
+    internal const string RemindersAlarmChannel = "kadans.reminders.alarm";
+    internal const string FocusOverChannel = "kadans.focus.over";
+    internal const string BreakOverChannel = "kadans.break.over";
+
+    internal static string RemindersChannelFor(PushTarget target) => target.AlarmReminders switch
+    {
+        true => RemindersAlarmChannel,
+        false => RemindersChimeChannel,
+        null => RemindersChannel,
+    };
+
+    /// <summary>
+    /// The channel that has the sound a notification asks for, on a phone whose app has it: one that said how its
+    /// reminders ring is recent enough. Null: the app's default channel, as before.
+    /// </summary>
+    internal static string? SoundChannelFor(PushTarget target, IReadOnlyDictionary<string, string> data)
+    {
+        if (target.AlarmReminders is null || !data.TryGetValue(NotificationSounds.DataKey, out var sound))
+            return null;
+        return sound switch
+        {
+            NotificationSounds.FocusOver => FocusOverChannel,
+            NotificationSounds.BreakOver => BreakOverChannel,
+            _ => null,
+        };
+    }
 
     /// <summary>
     /// One device's message. A reminder lives as long as it is of use (its start, or ten minutes after a "starts now";
@@ -116,7 +147,19 @@ internal sealed class FcmPushSender : IPushSender
             return new Message { Token = token, Data = data, Android = new AndroidConfig { Priority = Priority.High } };
         }
         if (message.Reminder is not { } reminder)
-            return new Message { Token = token, Notification = notification, Data = data };
+        {
+            // A phase's end has its own sound: shown in the channel that has it, where the app has that channel.
+            var channel = SoundChannelFor(envelope.Target, data);
+            return channel is null
+                ? new Message { Token = token, Notification = notification, Data = data }
+                : new Message
+                {
+                    Token = token,
+                    Notification = notification,
+                    Data = data,
+                    Android = new AndroidConfig { Notification = new AndroidNotification { ChannelId = channel } },
+                };
+        }
 
         var android = new AndroidConfig
         {
@@ -131,8 +174,9 @@ internal sealed class FcmPushSender : IPushSender
             return new Message { Token = token, Data = data, Android = android };
         }
 
-        // The app's reminders channel (urgent: heads-up, sound); an app too old to have it falls back to its default one.
-        android.Notification = new AndroidNotification { Tag = reminder.OccurrenceId.ToString(), ChannelId = RemindersChannel };
+        // The app's reminders channel (urgent: heads-up, sound), the one that rings as the phone said its reminders
+        // do; an app too old to have it falls back to its default one.
+        android.Notification = new AndroidNotification { Tag = reminder.OccurrenceId.ToString(), ChannelId = RemindersChannelFor(envelope.Target) };
         return new Message { Token = token, Notification = notification, Data = data, Android = android };
 #pragma warning restore CS0618
     }

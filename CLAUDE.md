@@ -30,7 +30,8 @@ Read `docs/ARCHITECTURE.md` (target design and the rules that keep it a modular 
 - `clients/app` – Compose Multiplatform client (Gradle project, opened separately in Android Studio/Fleet).
 - `docs/` – architecture, roadmap, decisions, `DEPLOYMENT.md`, and `OWNER-CHECKLIST.md` (accounts/keys only the owner can set up).
 - `branding/` – the logo (a clock whose hands spell K) and `generate.py`, which draws every icon and the Android splash
-  from one geometry: never edit a generated icon, change the script and run it (README there).
+  from one geometry: never edit a generated icon, change the script and run it (README there). `sounds.py` draws the
+  app's three sounds the same way.
 - `site/` – the website (`https://kadansplanning.com`, served by the deploy's nginx): `generate.py` writes `site/public`
   from `texts.py` (en/fr/ht/es) and `legal/`; never edit `public/`, run the generator and commit both (CI checks it,
   README there).
@@ -222,7 +223,13 @@ resources in the phone's language. Do Not Disturb during focus (Android 10+, off
 focus phase counts down, whichever device started the session) is `quiet/FocusQuiet` (the sessions' timetable, what the
 phone is set to, whose word holds) and `quiet/AndroidQuietMode` (a mode of Kadans' own in the system's settings, never
 the phone's main Do Not Disturb; one exact alarm; the notice with "Sound on"; ARCHITECTURE → "Do Not Disturb during
-focus"). Every session a request brings back goes through `KadansApi.seen`: a new call that returns a session must too.
+focus"). Sounds (ARCHITECTURE → "Sounds") are `sound/`: `KadansSound` (a
+notification asks for one in its data, `sound`), `SoundPreferences` and `RingSettings` (the person's choices: like an
+alarm or like a notification, asked once; ring until answered), Android's `KadansChannels` (a sound is its channel's,
+fixed when the channel is made: a new sound is a new channel id, never an edit; the ids are repeated in the server's
+`FcmPushSender`) and the desktop's `DesktopSoundPlayer` (a computer plays them itself). Nobody's phone rings like an
+alarm before they answered the question; whatever replaces a ringing reminder cancels it first.
+Every session a request brings back goes through `KadansApi.seen`: a new call that returns a session must too.
 Whatever makes the phone quiet sets the alarm that ends it in the same step. Share to Kadans (Android: a text or a link
 from any app's share sheet, or a selection's "Add to Kadans") opens the new-todo form filled in and saves nothing by
 itself: `share/SharedText` (the text read as a title and a description, cleaned and cut: it is another app's, never

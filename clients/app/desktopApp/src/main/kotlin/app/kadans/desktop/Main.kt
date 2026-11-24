@@ -109,6 +109,7 @@ fun main(args: Array<String> = emptyArray()) {
             for (request in requests) {
                 when (request) {
                     TrayAction.Open -> {
+                        DesktopWindow.cameForward()
                         windowVisible = true
                         windowState.isMinimized = false
                         raised++

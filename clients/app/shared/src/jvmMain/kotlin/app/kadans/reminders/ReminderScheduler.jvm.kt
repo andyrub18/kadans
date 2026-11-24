@@ -3,6 +3,9 @@ package app.kadans.reminders
 import app.kadans.api.model.UpcomingReminder
 import app.kadans.i18n.ReminderStrings
 import app.kadans.notifications.showSystemNotification
+import app.kadans.sound.KadansSound
+import app.kadans.sound.RingChoice
+import app.kadans.sound.SoundPlayer
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -15,9 +18,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 
-actual fun platformReminderScheduler(strings: () -> ReminderStrings, onDue: suspend () -> Unit): ReminderScheduler {
-    val notices = DesktopReminderNotices(strings)
-    return DesktopReminderScheduler(onDue, show = notices::show)
+actual fun platformReminderScheduler(strings: () -> ReminderStrings, ring: () -> RingChoice, onDue: suspend () -> Unit): ReminderScheduler {
+    val notices = DesktopReminderNotices(strings, ring)
+    return DesktopReminderScheduler(
+        onDue,
+        show = { notices.show(it) },
+        // "Test" in Settings: the reminder's sound, once. Not kept ringing: there is no notification here to answer,
+        // and the person is looking at the very window that would have to be opened to stop it.
+        test = { GlobalContext.getOrNull()?.getOrNull<SoundPlayer>()?.play(KadansSound.Reminder) },
+    )
 }
 
 /**
@@ -35,6 +44,7 @@ internal class DesktopReminderScheduler(
     private val now: () -> Instant = { Clock.System.now() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val show: (UpcomingReminder) -> Unit = { showSystemNotification(it.title, it.body) },
+    private val test: () -> Unit = {},
 ) : ReminderScheduler {
     private var timer: Job? = null
 
@@ -61,6 +71,8 @@ internal class DesktopReminderScheduler(
     override fun show(reminder: UpcomingReminder) = show.invoke(reminder)
 
     override fun keepFresh(enabled: Boolean) = Unit
+
+    override fun ringTest() = test()
 
     internal companion object {
         /** The longest the timer sleeps at once: how late a reminder can be after the computer wakes. */

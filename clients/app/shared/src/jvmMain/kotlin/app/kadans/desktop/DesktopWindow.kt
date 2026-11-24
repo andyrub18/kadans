@@ -17,6 +17,9 @@ object DesktopWindow {
         show()
         IncomingLinks.open(link)
     }
+
+    /** The window came forward by the person's doing: a reminder that keeps ringing has been heard, and stops. */
+    fun cameForward() = app.kadans.sound.DesktopSound.answered()
 }
 
 /**

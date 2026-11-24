@@ -1,13 +1,15 @@
 package app.kadans.notifications
 
 import app.kadans.pomodoro.CycleNotice
+import app.kadans.sound.KadansSound
 
 /**
  * Shows an OS-level notification so the user hears about phase changes and reminders without
  * looking at the app. Best-effort: platforms without a wired channel (Android/iOS until FCM and
  * APNs land, per the owner checklist) no-op and the in-app snackbar still covers the foreground.
+ * [sound]: the one the notification asks for, played where the app plays its own (ARCHITECTURE → "Sounds").
  */
-expect fun showSystemNotification(title: String, body: String)
+expect fun showSystemNotification(title: String, body: String, sound: KadansSound? = null)
 
 /**
  * A looping focus session's cycle done, with "Another cycle" and "Done" where the platform has buttons (the Linux

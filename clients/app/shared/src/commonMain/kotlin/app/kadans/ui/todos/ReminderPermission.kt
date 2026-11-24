@@ -11,6 +11,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import app.kadans.i18n.LocalStrings
 import app.kadans.reminders.LocalReminders
+import app.kadans.sound.ReminderStyle
+import app.kadans.sound.RingSettings
+import app.kadans.ui.settings.ReminderStyleDialog
 import org.koin.compose.koinInject
 
 /**
@@ -20,8 +23,16 @@ import org.koin.compose.koinInject
  * dismissed without one asks again next time.
  */
 @Stable
-class ReminderPermissionAsk internal constructor(private val reminders: LocalReminders) {
+class ReminderPermissionAsk internal constructor(private val reminders: LocalReminders, private val ring: RingSettings? = null) {
     var showing by mutableStateOf(false)
+        private set
+
+    /**
+     * Before that, and whatever Android allows: "How should reminders reach you?" (ARCHITECTURE → "Sounds"), for a
+     * phone whose person has not said yet. Like an alarm or like a notification; closed without an answer, it comes
+     * back another time, and the todo is saved all the same.
+     */
+    var askingStyle by mutableStateOf(false)
         private set
 
     private var pendingSave: (() -> Unit)? = null
@@ -29,12 +40,24 @@ class ReminderPermissionAsk internal constructor(private val reminders: LocalRem
 
     /** Saves now, or once the person has answered. */
     fun beforeSaving(notify: Boolean, save: () -> Unit) {
-        if (notify && reminders.shouldOfferPermission()) {
-            pendingSave = save
-            showing = true
-        } else {
-            save()
-        }
+        pendingSave = save
+        if (notify && ring?.shouldAsk() == true) askingStyle = true else afterStyle(notify)
+    }
+
+    fun chooseStyle(style: ReminderStyle) {
+        ring?.choose(style)
+        askingStyle = false
+        afterStyle(notify = true)
+    }
+
+    fun styleLater() {
+        ring?.askLater()
+        askingStyle = false
+        afterStyle(notify = true)
+    }
+
+    private fun afterStyle(notify: Boolean) {
+        if (notify && reminders.shouldOfferPermission()) showing = true else dismiss()
     }
 
     fun allow() = answer(open = true)
@@ -64,11 +87,13 @@ class ReminderPermissionAsk internal constructor(private val reminders: LocalRem
 @Composable
 fun rememberReminderPermissionAsk(): ReminderPermissionAsk {
     val reminders = koinInject<LocalReminders>()
-    return remember(reminders) { ReminderPermissionAsk(reminders) }
+    val ring = koinInject<RingSettings>()
+    return remember(reminders, ring) { ReminderPermissionAsk(reminders, ring) }
 }
 
 @Composable
 fun ReminderPermissionDialog(ask: ReminderPermissionAsk) {
+    if (ask.askingStyle) ReminderStyleDialog(onChoose = ask::chooseStyle, onLater = ask::styleLater)
     if (!ask.showing) return
     val r = LocalStrings.current.reminders
     AlertDialog(

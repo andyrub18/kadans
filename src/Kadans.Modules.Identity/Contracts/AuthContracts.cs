@@ -103,12 +103,16 @@ public sealed record RecoveryCodesResponse(IReadOnlyList<string> Codes);
 /// This phone turns Do Not Disturb on during a focus phase, and wants to hear of a session changed on another device.
 /// Null (an app from before, the desktop) leaves what the device said last.
 /// </param>
+/// <param name="AlarmReminders">
+/// This phone rings its reminders like an alarm (true) or like a notification (false). Null leaves what it said last.
+/// </param>
 public sealed record RegisterDeviceRequest(
     DevicePlatform Platform,
     string Name,
     string? PushToken = null,
     string? AppVersion = null,
-    bool? QuietDuringFocus = null
+    bool? QuietDuringFocus = null,
+    bool? AlarmReminders = null
 );
 
 public sealed record DeviceResponse(

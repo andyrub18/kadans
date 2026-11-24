@@ -35,6 +35,22 @@ for the desktop's window, tray and splash: keep its numbers in step with the scr
 
 Not yet: the macOS `.icns` (made on a Mac, with the DMG) and the iPhone app's icons (with the iPhone app).
 
+## The sounds
+
+Kadans has three sounds of its own, drawn by `sounds.py` from sine waves, so nothing is recorded or borrowed: a
+reminder, the end of a focus phase, the end of a break (docs/ARCHITECTURE.md → "Sounds"). One voice, a marimba, which
+the owner chose among three on 2026-11-24. Never edit a generated file; change the numbers in the script and run it
+from the repository root:
+
+```bash
+python3 branding/sounds.py        # standard library only
+```
+
+It writes Android's `res/raw/kadans_*.wav` (each notification channel's sound) and the desktop app's
+`resources/sounds/*.wav` (played by the app itself). The reminder is not to be retuned lightly: Android fixes a
+channel's sound when the channel is made, so a new sound means a new channel, and everyone's own choice of sound for
+their reminders starts over.
+
 ## Rules
 
 - **Colour**: the app's purple, `#6750A4` (Material 3 baseline primary), and white. On purple or dark, the mark is

@@ -384,6 +384,45 @@ public class PushWorkerTests
     }
 
     [Test]
+    public async Task A_reminder_the_system_shows_goes_in_the_channel_the_phone_rings_in()
+    {
+        var reminder = ReminderAt(Now.AddMinutes(-1), 0).Message;
+        string Channel(bool? alarm) =>
+            FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", AlarmReminders: alarm), reminder), Now).Android.Notification.ChannelId;
+
+        // The phone said how its reminders ring: a channel carries its sound, and only the person can change it.
+        await Assert.That(Channel(true)).IsEqualTo("kadans.reminders.alarm");
+        await Assert.That(Channel(false)).IsEqualTo("kadans.reminders.chime");
+        // An app from before the choice has neither: its own channel, as before.
+        await Assert.That(Channel(null)).IsEqualTo("kadans.reminders");
+    }
+
+    [Test]
+    public async Task A_phase_change_is_shown_in_the_channel_that_has_its_sound_where_the_app_has_one()
+    {
+        NotificationMessage Phase(string? sound) => new(
+            "pomodoro.phase.completed", "Deep work", "Break — 5 min",
+            sound is null ? null : new Dictionary<string, string> { [NotificationSounds.DataKey] = sound });
+        var recent = new PushTarget("Android", "t", AlarmReminders: false);
+
+        var focusOver = FcmPushSender.Build(new PushEnvelope(recent, Phase(NotificationSounds.FocusOver)), Now);
+        await Assert.That(focusOver.Notification!.Body).IsEqualTo("Break — 5 min"); // still shown by the system
+        await Assert.That(focusOver.Android.Notification.ChannelId).IsEqualTo("kadans.focus.over");
+        await Assert.That(focusOver.Data["sound"]).IsEqualTo("focus-over"); // and the app in front reads it there
+
+        var breakOver = FcmPushSender.Build(new PushEnvelope(recent, Phase(NotificationSounds.BreakOver)), Now);
+        await Assert.That(breakOver.Android.Notification.ChannelId).IsEqualTo("kadans.break.over");
+
+        // An app from before has no such channel: the message it always got, in its default one.
+        var older = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), Phase(NotificationSounds.FocusOver)), Now);
+        await Assert.That(older.Android).IsNull();
+
+        // A notification that asks for no sound, or for one nobody knows: the default channel.
+        await Assert.That(FcmPushSender.Build(new PushEnvelope(recent, Phase(null)), Now).Android).IsNull();
+        await Assert.That(FcmPushSender.Build(new PushEnvelope(recent, Phase("fanfare")), Now).Android).IsNull();
+    }
+
+    [Test]
     public async Task A_notice_the_app_builds_with_its_button_reaches_it_as_data_and_older_apps_as_before()
     {
         var cycle = new NotificationMessage(

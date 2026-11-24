@@ -781,11 +781,55 @@ data class ReminderStrings(
     val focusStarted: String,
     /** A button whose request failed (offline, signed out): the reminder stays, with its buttons. */
     val actionFailed: String,
+    /**
+     * What the phone's own settings list Kadans' sounds under, beside [channelName] (ARCHITECTURE → "Sounds"):
+     * reminders that ring like an alarm, the end of a focus phase, the end of a break.
+     */
+    val channelAlarm: String,
+    val channelFocusOver: String,
+    val channelBreakOver: String,
+    /** "Test" in Settings: a sample reminder. */
+    val testTitle: String,
+    val testBody: String,
 ) {
     fun startsAt(time: String): String = startsAtFormat.replace("%s", time)
 
     fun startedAt(time: String): String = startedAtFormat.replace("%s", time)
 }
+
+/**
+ * How reminders sound (ARCHITECTURE → "Sounds"): Settings' part, on a phone and on a computer, and the question asked
+ * once. A feature group.
+ */
+data class SoundStrings(
+    /** Settings, on a phone. */
+    val section: String,
+    /** What a reminder will do when it rings, as the phone's own settings stand now: one of these is shown. */
+    val stateAlarm: String,
+    val stateAlarmVolumeOff: String,
+    val stateSound: String,
+    val statePhoneSilent: String,
+    val statePhoneVibrates: String,
+    val stateMuted: String,
+    val alarmSwitch: String,
+    val alarmHint: String,
+    val keepRinging: String,
+    val keepRingingHint: String,
+    /** Opens the phone's own page for the reminders' sound. */
+    val chooseSound: String,
+    val test: String,
+    /** Asked once, when reminders begin to matter: like an alarm, or like a notification. */
+    val question: String,
+    val likeAlarm: String,
+    val likeAlarmHint: String,
+    val likeNotification: String,
+    val likeNotificationHint: String,
+    val questionNote: String,
+    /** Settings, on a computer: the app plays the sounds itself. */
+    val computerSection: String,
+    val computerSwitch: String,
+    val computerHint: String,
+)
 
 /** A note on one occurrence, "how it went": written under it on the todo's screen, in its history too. A feature group. */
 data class NoteStrings(
@@ -883,6 +927,7 @@ data class StringsCatalog(
     val calendarFeed: CalendarFeedStrings,
     val widget: WidgetStrings,
     val quiet: QuietStrings,
+    val sound: SoundStrings,
     val share: ShareStrings,
     val phoneCalendar: PhoneCalendarStrings,
     val statementImport: StatementImportStrings,

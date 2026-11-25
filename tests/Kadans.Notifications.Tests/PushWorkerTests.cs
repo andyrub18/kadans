@@ -398,28 +398,49 @@ public class PushWorkerTests
     }
 
     [Test]
-    public async Task A_phase_change_is_shown_in_the_channel_that_has_its_sound_where_the_app_has_one()
+    public async Task A_sessions_notice_reaches_an_app_that_has_the_sounds_as_data_it_builds_itself()
     {
-        NotificationMessage Phase(string? sound) => new(
+        NotificationMessage Phase(string? sound, string? run = "r1") => new(
             "pomodoro.phase.completed", "Deep work", "Break — 5 min",
-            sound is null ? null : new Dictionary<string, string> { [NotificationSounds.DataKey] = sound });
+            new Dictionary<string, string?> { [NotificationSounds.DataKey] = sound, ["runId"] = run }
+                .Where(kv => kv.Value is not null).ToDictionary(kv => kv.Key, kv => kv.Value!));
         var recent = new PushTarget("Android", "t", AlarmReminders: false);
 
+        // Only a notification the app builds rings until answered, and through Kadans' own quiet during focus.
         var focusOver = FcmPushSender.Build(new PushEnvelope(recent, Phase(NotificationSounds.FocusOver)), Now);
-        await Assert.That(focusOver.Notification!.Body).IsEqualTo("Break — 5 min"); // still shown by the system
-        await Assert.That(focusOver.Android.Notification.ChannelId).IsEqualTo("kadans.focus.over");
-        await Assert.That(focusOver.Data["sound"]).IsEqualTo("focus-over"); // and the app in front reads it there
+        await Assert.That(focusOver.Notification).IsNull();
+        await Assert.That(focusOver.Data["title"]).IsEqualTo("Deep work");
+        await Assert.That(focusOver.Data["body"]).IsEqualTo("Break — 5 min");
+        await Assert.That(focusOver.Data["sound"]).IsEqualTo("focus-over"); // the channel it rings in
+        await Assert.That(focusOver.Android.Priority).IsEqualTo(FirebaseAdmin.Messaging.Priority.High); // at once, Doze or not
+        // A phone out of reach gets the session's latest notice alone, and none that is too old to be of use.
+        await Assert.That(focusOver.Android.CollapseKey).IsEqualTo("r1");
+        await Assert.That(focusOver.Android.TimeToLive).IsEqualTo(FcmPushSender.SessionNoticeUsefulFor);
 
-        var breakOver = FcmPushSender.Build(new PushEnvelope(recent, Phase(NotificationSounds.BreakOver)), Now);
-        await Assert.That(breakOver.Android.Notification.ChannelId).IsEqualTo("kadans.break.over");
+        var breakOver = FcmPushSender.Build(new PushEnvelope(recent, Phase(NotificationSounds.BreakOver, run: null)), Now);
+        await Assert.That(breakOver.Notification).IsNull();
+        await Assert.That(breakOver.Android.CollapseKey).IsEqualTo("pomodoro.phase.completed");
 
-        // An app from before has no such channel: the message it always got, in its default one.
+        // An app from before the sounds: the notification the system shows, in its default channel, as it always got.
         var older = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t"), Phase(NotificationSounds.FocusOver)), Now);
+        await Assert.That(older.Notification!.Body).IsEqualTo("Break — 5 min");
         await Assert.That(older.Android).IsNull();
 
-        // A notification that asks for no sound, or for one nobody knows: the default channel.
-        await Assert.That(FcmPushSender.Build(new PushEnvelope(recent, Phase(null)), Now).Android).IsNull();
-        await Assert.That(FcmPushSender.Build(new PushEnvelope(recent, Phase("fanfare")), Now).Android).IsNull();
+        // A notification that asks for no sound, or for one nobody knows: shown by the system too.
+        await Assert.That(FcmPushSender.Build(new PushEnvelope(recent, Phase(null)), Now).Notification).IsNotNull();
+        await Assert.That(FcmPushSender.Build(new PushEnvelope(recent, Phase("fanfare")), Now).Notification).IsNotNull();
+    }
+
+    [Test]
+    public async Task A_reminder_never_takes_a_sessions_way_whatever_its_data_says()
+    {
+        var reminder = ReminderAt(Now.AddMinutes(-1), 0).Message;
+        var loud = reminder with { Data = new Dictionary<string, string> { [NotificationSounds.DataKey] = NotificationSounds.FocusOver } };
+
+        var sent = FcmPushSender.Build(new PushEnvelope(new PushTarget("Android", "t", AlarmReminders: true), loud), Now);
+
+        await Assert.That(sent.Android.Notification.ChannelId).IsEqualTo("kadans.reminders.alarm");
+        await Assert.That(sent.Android.CollapseKey).IsEqualTo(reminder.Reminder!.OccurrenceId.ToString());
     }
 
     [Test]

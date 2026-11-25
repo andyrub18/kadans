@@ -33,7 +33,12 @@ class SystemAlerts(private val realtime: KadansRealtime, private val localRemind
                 when {
                     reminder != null && localReminders.showsReminders() -> localReminders.pushed(reminder)
                     cycle != null -> showCycleNotice(cycle) // with "Another cycle" and "Done" where it can
-                    else -> showSystemNotification(notification.title, notification.body, KadansSound.of(notification.data?.get(KadansSound.DATA_KEY)))
+                    else -> showSystemNotification(
+                        notification.title,
+                        notification.body,
+                        KadansSound.of(notification.data?.get(KadansSound.DATA_KEY)),
+                        notification.data?.get("link"),
+                    )
                 }
             }
         }

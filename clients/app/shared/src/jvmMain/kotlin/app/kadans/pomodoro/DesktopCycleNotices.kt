@@ -32,16 +32,16 @@ internal class DesktopCycleNotices(
 
     /** [ringing] false: shown again after a button that could not reach Kadans, without its sound. */
     fun show(notice: CycleNotice, body: String = notice.body, ringing: Boolean = true) {
-        // A cycle done is focus being over (ARCHITECTURE → "Sounds").
+        // A cycle done is focus being over (ARCHITECTURE → "Sounds"): its sound, kept ringing if the person asked.
         if (ringing) DesktopSound.notice(KadansSound.FocusOver)
         val notifications = linux()
         val actions = actions()
         if (notifications?.clickable == true && actions != null) {
             val s = actions.strings
             val buttons = listOf(ANOTHER to s.pomodoro.anotherCycle, DONE to s.reminders.done)
-            val id = notifications.show(notice.title, body, notificationIcon, buttons, replaces = shown[notice.runId] ?: 0) { key ->
-                clicked(notice, key)
-            }
+            val id = notifications.show(
+                notice.title, body, notificationIcon, buttons, replaces = shown[notice.runId] ?: 0, onDismissed = { DesktopSound.answered() },
+            ) { key -> clicked(notice, key) }
             if (id != null) {
                 shown[notice.runId] = id
                 return
@@ -51,6 +51,8 @@ internal class DesktopCycleNotices(
     }
 
     private fun clicked(notice: CycleNotice, key: String) {
+        // Any answer is an answer: a notice that keeps ringing stops.
+        DesktopSound.answered()
         when (key) {
             FreedesktopNotifications.DEFAULT -> DesktopWindow.open(focusLink(notice.todoId))
             ANOTHER, DONE -> scope.launch {

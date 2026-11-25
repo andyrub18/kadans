@@ -17,16 +17,14 @@ import android.graphics.drawable.Icon
 import app.kadans.api.KadansJson
 import app.kadans.api.model.UpcomingReminder
 import app.kadans.i18n.ReminderStrings
-import app.kadans.ui.focusLink
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import app.kadans.sound.KadansChannels
 import app.kadans.sound.KadansSound
 import app.kadans.sound.ReminderStyle
 import app.kadans.sound.RingChoice
+import app.kadans.sound.Ringing
 import app.kadans.sound.Ringer
 import app.kadans.sound.SoundFacts
-import app.kadans.sound.SoundPreferences
 import app.kadans.auth.AndroidActivityHolder
 import app.kadans.config.AndroidAppContext
 import app.kadans.ui.todoLink
@@ -46,7 +44,7 @@ actual fun platformReminderScheduler(strings: () -> ReminderStrings, ring: () ->
  *
  * How one rings is the person's choice ([choice]; ARCHITECTURE → "Sounds"): in the channel that rings like an alarm or
  * in the one that rings like a notification ([KadansChannels]), once or, if they asked, again and again until
- * answered, a minute at most ([quiet]).
+ * answered, a minute at most ([Ringing]).
  */
 internal class AndroidReminderScheduler(
     private val context: Context,
@@ -84,58 +82,35 @@ internal class AndroidReminderScheduler(
             return
         }
         try {
-            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.notifyAt.toEpochMilliseconds(), ring())
+            // A few seconds ahead: the app starts and asks the server, and the reminder rings at its second (ringDue).
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, (next.notifyAt - LocalReminders.AHEAD).toEpochMilliseconds(), ring())
         } catch (_: SecurityException) {
             // The permission went between the check and here: the next sync hands the reminders back to the push.
         }
     }
 
-    override fun show(reminder: UpcomingReminder) {
-        val keepRinging = choice().keepRinging
-        post(reminder, reminder(reminder, reminder.body, keepRinging = keepRinging))
-        if (keepRinging) quietAfter(reminder)
+    override fun show(reminder: UpcomingReminder) =
+        Ringing.post(context, reminder.occurrenceId, reminder(reminder, reminder.body).build(), choice().keepRinging)
+
+    /** A button's request failed (offline, signed out): the reminder is back, saying so, with its buttons and no sound. */
+    fun showFailed(reminder: UpcomingReminder) = with(Ringing) {
+        postQuietly(context, reminder.occurrenceId, reminder(reminder, "${reminder.body}\n${strings().actionFailed}").quietly().build())
     }
 
-    /** "Start focus" worked: the reminder becomes the session's notice, silently (a tap opens the session). */
-    fun showFocusStarted(reminder: UpcomingReminder) {
-        val notice = builder()
-            .quietly()
-            .setContentTitle(strings().focusStarted)
-            .setContentText(reminder.title)
-            .setAutoCancel(true)
-            .setContentIntent(openLink(focusLink(reminder.todoId)))
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) notice.setTimeoutAfter(FOCUS_NOTICE.inWholeMilliseconds)
-        postQuietly(reminder, notice.build())
-    }
-
-    /** A button's request failed (offline, signed out): the reminder stays, saying so, with its buttons. */
-    fun showFailed(reminder: UpcomingReminder) =
-        postQuietly(reminder, reminder(reminder, "${reminder.body}\n${strings().actionFailed}", alert = false))
-
-    /**
-     * A reminder that keeps ringing has rung for [SoundPreferences.RINGS_FOR] without an answer: it stays where it is,
-     * with its buttons, and stops ringing. Nothing if the person dealt with it meanwhile.
-     */
-    fun quiet(reminder: UpcomingReminder) {
-        val shown = runCatching { notifications.activeNotifications.any { it.tag == reminder.occurrenceId } }.getOrDefault(false)
-        if (shown) postQuietly(reminder, reminder(reminder, reminder.body, alert = false))
-    }
-
-    /** Done, or put off: the reminder goes. */
+    /** Answered (a button pressed): the reminder goes, and with it its ringing. */
     fun dismiss(reminder: UpcomingReminder) {
         runCatching { notifications.cancel(reminder.occurrenceId, 0) }
     }
 
     /**
      * The reminder's notification: its words, a tap opening its todo, and its buttons, but for the heads-up before the
-     * start ([UpcomingReminder.isHeadsUp]). [alert] false: updated silently. [keepRinging]: its sound again and again
-     * until the person opens the notifications or answers it (Android's own "insistent" notification).
+     * start ([UpcomingReminder.isHeadsUp]). Tagged with the occurrence, as Firebase tags the push it shows (id 0): one
+     * replaces the other, never both.
      */
-    private fun reminder(reminder: UpcomingReminder, body: String, alert: Boolean = true, keepRinging: Boolean = false): Notification {
+    private fun reminder(reminder: UpcomingReminder, body: String): Notification.Builder {
         val s = strings()
         val first = if (reminder.isFocus) ReminderActionReceiver.START_FOCUS to s.startFocus else ReminderActionReceiver.DONE to s.done
         val notification = builder()
-            .apply { if (!alert) quietly() }
             .setContentTitle(reminder.title)
             .setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
@@ -149,7 +124,7 @@ internal class AndroidReminderScheduler(
                 .addAction(button(reminder, first.first, first.second))
                 .addAction(button(reminder, ReminderActionReceiver.SNOOZE, s.snooze))
         }
-        return notification.build().also { if (alert && keepRinging) it.flags = it.flags or Notification.FLAG_INSISTENT }
+        return notification
     }
 
     /** In the channel that rings as the person chose; before Android 8, which has no channels, with the same sound. */
@@ -163,51 +138,6 @@ internal class AndroidReminderScheduler(
                 .setSound(KadansChannels.uri(context, KadansSound.Reminder), KadansChannels.attributes(style == ReminderStyle.Alarm))
                 .setVibrate(KadansChannels.VIBRATION)
         return builder.setSmallIcon(R.drawable.ic_stat_kadans).setColor(KadansMark.PURPLE_ARGB)
-    }
-
-    /**
-     * Shown or updated without a sound, a vibration or a heads-up, whatever its channel: a member of a group whose
-     * summary alone would alert, and there is no summary (what `NotificationCompat.setSilent` does).
-     */
-    private fun Notification.Builder.quietly(): Notification.Builder {
-        setOnlyAlertOnce(true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) setGroup(QUIET_GROUP).setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY)
-        return this
-    }
-
-    /** Tagged with the occurrence, as Firebase tags the push it shows (id 0): one replaces the other, never both. */
-    private fun post(reminder: UpcomingReminder, notification: Notification) {
-        runCatching { notifications.notify(reminder.occurrenceId, 0, notification) }
-    }
-
-    /**
-     * In the place of the reminder as it rang. Taken down first: Android keeps an insistent notification ringing
-     * through an update of it, and only its removal stops the sound.
-     */
-    private fun postQuietly(reminder: UpcomingReminder, notification: Notification) {
-        runCatching { notifications.cancel(reminder.occurrenceId, 0) }
-        post(reminder, notification)
-    }
-
-    /** One alarm per ringing reminder, for when it has rung long enough ([ReminderActionReceiver.QUIET]). */
-    private fun quietAfter(reminder: UpcomingReminder) {
-        val at = System.currentTimeMillis() + SoundPreferences.RINGS_FOR.inWholeMilliseconds
-        val stop = PendingIntent.getBroadcast(
-            context,
-            0,
-            actionIntent(reminder, ReminderActionReceiver.QUIET),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        try {
-            // To the second where Android allows it; a little late is harmless (the ring goes on that much longer).
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()) {
-                alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, stop)
-            } else {
-                alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, stop)
-            }
-        } catch (_: SecurityException) {
-            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, stop)
-        }
     }
 
     /** A broadcast about [reminder] to [ReminderActionReceiver]: its own data URI, so that two never share one. */
@@ -293,12 +223,8 @@ internal class AndroidReminderScheduler(
             .setCategory(Notification.CATEGORY_REMINDER)
             .setAutoCancel(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) sample.setTimeoutAfter(TEST_SHOWN.inWholeMilliseconds)
-        val notification = sample.build().also { if (choice().keepRinging) it.flags = it.flags or Notification.FLAG_INSISTENT }
-        runCatching {
-            // Taken down first: pressed twice, it rings twice.
-            notifications.cancel(TEST_TAG, 0)
-            notifications.notify(TEST_TAG, 0, notification)
-        }
+        // Pressed twice, it rings twice; and it stops as a real one does (a touch in the app is an answer).
+        Ringing.post(context, TEST_TAG, sample.build(), choice().keepRinging)
     }
 
     private fun ring(): PendingIntent = PendingIntent.getBroadcast(
@@ -328,13 +254,9 @@ internal class AndroidReminderScheduler(
     }.isSuccess
 
     companion object {
-        /** How long "Focus session started" stays: the session's own notices follow. */
-        val FOCUS_NOTICE = 10.minutes
-
         /** How long the sample reminder of "Test" stays, and rings if reminders keep ringing. */
         val TEST_SHOWN = 20.seconds
 
         private const val TEST_TAG = "kadans.sound.test"
-        private const val QUIET_GROUP = "kadans.quiet"
     }
 }

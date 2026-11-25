@@ -1,6 +1,8 @@
 package app.kadans.pomodoro
 
 import app.kadans.sound.KadansChannels
+import app.kadans.sound.KadansSound
+import app.kadans.sound.Ringing
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -23,47 +25,62 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.context.GlobalContext
 
 /**
- * A looping session's cycle done on Android (ARCHITECTURE → Pomodoro), built from its push: the server's words, a tap
- * opening the session, "Another cycle" and "Done" ([PomodoroActionReceiver]). Tagged with the session: the next cycle's
- * replaces it. A button whose request failed shows it again, quietly, saying Kadans could not be reached.
+ * A focus session's notices on Android, built from their push (ARCHITECTURE → "Sounds"): a phase's end, "time's up",
+ * the session over, in the channel that has its sound ([KadansChannels]). The app builds them, not the system, for what
+ * only the app can give them: they count as a timer's alarm, so Kadans' own quiet during focus lets "back to focus"
+ * through; they keep ringing until answered if the person asked ([Ringing]); and one per session, the next phase's
+ * taking its place. A tap opens the session. A cycle done while the session waits ([PhaseNotice.cycle]) has "Another
+ * cycle" and "Done" ([PomodoroActionReceiver]); a button whose request failed shows it again, quietly, saying Kadans
+ * could not be reached.
  */
-internal object PomodoroCycleNotices {
-    fun show(context: Context, notice: CycleNotice, actions: CycleActions, failed: Boolean = false) {
+internal object SessionNotices {
+    fun show(context: Context, notice: PhaseNotice, actions: CycleActions?, keepRinging: Boolean, failed: Boolean = false) {
         KadansPushChannel.ensure(context)
-        val s = actions.strings
-        val body = if (failed) "${notice.body}\n${s.reminders.actionFailed}" else notice.body
+        val body = if (failed && actions != null) "${notice.body}\n${actions.strings.reminders.actionFailed}" else notice.body
         val builder =
-            // A cycle done is focus being over: that channel's sound (ARCHITECTURE → "Sounds").
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, KadansChannels.FOCUS_OVER)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(context, KadansChannels.of(notice.sound) ?: KadansChannels.FOCUS_OVER)
             else @Suppress("DEPRECATION") Notification.Builder(context)
-        val notification = builder
+                .setPriority(Notification.PRIORITY_HIGH)
+                .setSound(KadansChannels.uri(context, notice.sound), KadansChannels.attributes(alarm = false))
+                .setVibrate(KadansChannels.VIBRATION)
+        builder
             .setSmallIcon(R.drawable.ic_stat_kadans)
             .setColor(KadansMark.PURPLE_ARGB)
             .setContentTitle(notice.title)
             .setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
-            .setOnlyAlertOnce(failed)
+            // A timer the person started: what Do Not Disturb lets through as an alarm, Kadans' own mode included.
+            .setCategory(Notification.CATEGORY_ALARM)
             .setAutoCancel(true)
-            .setContentIntent(openSession(context, notice))
-            .addAction(button(context, notice, PomodoroActionReceiver.ANOTHER, s.pomodoro.anotherCycle))
-            .addAction(button(context, notice, PomodoroActionReceiver.DONE, s.reminders.done))
-            .build()
-        runCatching { manager(context).notify(notice.runId, 0, notification) }
+            .setContentIntent(openSession(context, notice.todoId))
+        val cycle = notice.cycle
+        if (cycle != null && actions != null) {
+            builder
+                .addAction(button(context, cycle, PomodoroActionReceiver.ANOTHER, actions.strings.pomodoro.anotherCycle))
+                .addAction(button(context, cycle, PomodoroActionReceiver.DONE, actions.strings.reminders.done))
+        }
+        // Tagged with the session: the next phase's notice replaces this one.
+        with(Ringing) {
+            if (failed) postQuietly(context, notice.runId, builder.quietly().build())
+            else post(context, notice.runId, builder.build(), keepRinging)
+        }
     }
 
-    fun dismiss(context: Context, notice: CycleNotice) {
-        runCatching { manager(context).cancel(notice.runId, 0) }
+    /** Answered (a button pressed): the notice goes, and with it its ringing. */
+    fun dismiss(context: Context, runId: String) {
+        runCatching { manager(context).cancel(runId, 0) }
     }
 
     private fun manager(context: Context) = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     /** The app on the session's focus link: brought forward if it is open, started if not. */
-    private fun openSession(context: Context, notice: CycleNotice): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(focusLink(notice.todoId)))
+    private fun openSession(context: Context, todoId: String): PendingIntent {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(focusLink(todoId)))
             .setComponent(context.packageManager.getLaunchIntentForPackage(context.packageName)?.component)
             .setPackage(context.packageName)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        // Its own per todo: extras and data are what tell two sessions' taps apart.
+        return PendingIntent.getActivity(context, todoId.hashCode(), intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     /**
@@ -85,8 +102,8 @@ internal object PomodoroCycleNotices {
 }
 
 /**
- * A cycle notice's button: "Another cycle" or "Done" asks the server within the time a receiver has; the notice goes, or
- * says why not.
+ * A cycle notice's button: the notice goes at once, and its ringing with it; "Another cycle" or "Done" then asks the
+ * server within the time a receiver has, and only a request that failed brings the notice back, saying why.
  */
 class PomodoroActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -102,11 +119,15 @@ class PomodoroActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
+                // Pressed is answered: gone before the server's word, which can take seconds on a phone's network.
+                SessionNotices.dismiss(context, notice.runId)
                 val settled = withTimeoutOrNull(WITHIN) {
                     if (action == ANOTHER) actions.anotherCycle(notice) else actions.done(notice)
                 }
-                if (settled == true) PomodoroCycleNotices.dismiss(context, notice)
-                else PomodoroCycleNotices.show(context, notice, actions, failed = true)
+                if (settled != true) {
+                    val again = PhaseNotice(notice.runId, notice.todoId, notice.title, notice.body, KadansSound.FocusOver, cycle = notice)
+                    SessionNotices.show(context, again, actions, keepRinging = false, failed = true)
+                }
             } catch (_: Exception) {
             } finally {
                 pending.finish()

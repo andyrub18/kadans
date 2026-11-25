@@ -3,6 +3,7 @@ package app.kadans.pomodoro
 import app.kadans.api.KadansApi
 import app.kadans.api.KadansApiException
 import app.kadans.i18n.StringsCatalog
+import app.kadans.sound.KadansSound
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import kotlin.coroutines.cancellation.CancellationException
@@ -11,7 +12,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * A looping focus session's cycle ended and the session waits (ARCHITECTURE → Pomodoro): the notice asks for another
  * one. Its buttons: "Another cycle" starts it, "Done" finishes the session and marks its occurrence done (as a reminder's
  * "Done" does). Neither: the session counts nothing more and ends by itself. Android shows it with the buttons
- * (`PomodoroCycleNotices`), the Linux desktop too (`DesktopCycleNotices`); elsewhere it is the server's words alone.
+ * (`SessionNotices`), the Linux desktop too (`DesktopCycleNotices`); elsewhere it is the server's words alone.
  * [occurrenceId]: the occurrence the session is for, null when none was near its start ("Done" then only finishes).
  */
 data class CycleNotice(
@@ -35,6 +36,36 @@ data class CycleNotice(
                 title = title ?: return null,
                 body = body.orEmpty(),
                 occurrenceId = data["occurrenceId"]?.takeIf { it.isNotBlank() },
+            )
+        }
+    }
+}
+
+/**
+ * A focus session's notice as a device shows it itself (ARCHITECTURE → "Sounds"): a phase's end, "time's up", the
+ * session over. It asks for a sound of its own ([KadansSound.DATA_KEY]), which is what tells it from any other
+ * notification, and it belongs to a session: the next one takes its place. [cycle]: a cycle is done and the session
+ * waits for the person, so the notice has its two buttons.
+ */
+data class PhaseNotice(
+    val runId: String,
+    val todoId: String,
+    val title: String,
+    val body: String,
+    val sound: KadansSound,
+    val cycle: CycleNotice? = null,
+) {
+    companion object {
+        /** The notice in a notification, pushed or live; null for any other (a reminder has its own way of ringing). */
+        fun of(kind: String?, data: Map<String, String>?, title: String?, body: String?): PhaseNotice? {
+            val sound = KadansSound.of(data?.get(KadansSound.DATA_KEY))?.takeIf { it != KadansSound.Reminder } ?: return null
+            return PhaseNotice(
+                runId = data?.get("runId")?.takeIf { it.isNotBlank() } ?: return null,
+                todoId = data["todoId"]?.takeIf { it.isNotBlank() } ?: return null,
+                title = title ?: return null,
+                body = body.orEmpty(),
+                sound = sound,
+                cycle = CycleNotice.of(kind, data, title, body),
             )
         }
     }

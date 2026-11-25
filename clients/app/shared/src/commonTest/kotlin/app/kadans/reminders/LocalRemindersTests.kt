@@ -24,6 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -182,9 +183,16 @@ class LocalRemindersTests {
         var clock = t0
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val events = MutableSharedFlow<RealtimeEvent>(extraBufferCapacity = 4)
+        /** How long each reminder woken ahead of its time waited for it, and what happens meanwhile. */
+        val waits = mutableListOf<Duration>()
+        var whileWaiting: suspend () -> Unit = {}
         val reminders = LocalReminders(
             api, DeviceRegistrar(api, settings), scheduler, store, events, { clock }, scope, 200.milliseconds,
             snoozedText = { reminder, now -> "${reminder.title}, again at $now" },
+            wait = {
+                waits += it
+                whileWaiting()
+            },
         )
 
         suspend fun fetches() = server.calls().count { it == "POST /reminders/sync" }
@@ -243,6 +251,59 @@ class LocalRemindersTests {
 
         assertEquals(listOf("a", "b"), scheduler.shown)
         assertEquals(listOf("c"), scheduler.scheduled)
+    }
+
+    @Test
+    fun woken_ahead_of_its_time_a_reminder_rings_at_its_second_with_the_servers_word_in_hand() = test {
+        server.window = listOf(reminder("a", t0 + 1.minutes), reminder("b", t0 + 1.hours))
+        reminders.sync()
+
+        // The alarm is set LocalReminders.AHEAD of the reminder; the app took a second to start.
+        clock = t0 + 1.minutes - 4.seconds
+        whileWaiting = {
+            assertEquals(emptyList(), scheduler.shown, "not before its time")
+            assertTrue(server.calls().any { it.startsWith("GET /reminders/") }, "the server is asked while there is time")
+            clock = t0 + 1.minutes
+        }
+        reminders.ringDue()
+
+        assertEquals(listOf(4.seconds), waits)
+        assertEquals(listOf("a"), scheduler.shown)
+        assertEquals(listOf("b"), scheduler.scheduled, "the one an hour away is not this alarm's")
+    }
+
+    @Test
+    fun a_reminder_dealt_with_while_it_waited_for_its_time_stays_quiet() = test {
+        server.window = listOf(reminder("done-here", t0 + 1.minutes), reminder("dropped", t0 + 1.minutes), reminder("b", t0 + 1.hours))
+        reminders.sync()
+
+        clock = t0 + 1.minutes - 4.seconds
+        var first = true
+        whileWaiting = {
+            if (first) {
+                first = false
+                reminders.settled("done-here") // "Done" pressed in the app, seconds before it would ring
+                server.window = listOf(reminder("b", t0 + 1.hours)) // and the other deleted on the desktop: a fresh window
+                reminders.sync()
+                clock = t0 + 1.minutes
+            }
+        }
+        reminders.ringDue()
+
+        assertEquals(emptyList(), scheduler.shown)
+        assertEquals(listOf("b"), scheduler.scheduled)
+    }
+
+    @Test
+    fun an_alarm_on_time_or_late_waits_for_nothing() = test {
+        server.window = listOf(reminder("a", t0 + 1.minutes))
+        reminders.sync()
+
+        clock = t0 + 1.minutes + 3.seconds // after a restart, or a phone that was off
+        reminders.ringDue()
+
+        assertEquals(emptyList(), waits)
+        assertEquals(listOf("a"), scheduler.shown)
     }
 
     @Test

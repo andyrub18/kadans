@@ -1,0 +1,5 @@
+• Una nueva apariencia: colores más cálidos, formas más redondas y el avance de tu día en Inicio.
+• Marca una tarea como hecha directamente desde Inicio.
+• Sonidos: los recordatorios pueden sonar como una alarma, incluso en silencio, y el fin de una fase de enfoque o de un descanso tiene su propio sonido.
+• Kadans ahora habla español.
+• La pantalla de inicio de sesión te avisa de inmediato cuando no se puede conectar con el servidor.

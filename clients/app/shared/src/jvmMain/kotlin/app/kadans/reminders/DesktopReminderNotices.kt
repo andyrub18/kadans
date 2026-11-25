@@ -11,7 +11,6 @@ import app.kadans.sound.KadansSound
 import app.kadans.sound.ReminderStyle
 import app.kadans.sound.RingChoice
 import app.kadans.sound.SoundPlayer
-import app.kadans.ui.focusLink
 import app.kadans.ui.todoLink
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +21,8 @@ import org.koin.core.context.GlobalContext
 /**
  * The desktop's reminders as notifications (ARCHITECTURE → "Reminders ring on the phone"). On Linux, freedesktop
  * notifications with the reminder's buttons, as on Android ([ReminderActions]: "Start focus" or "Done", "In 10 min";
- * none on the heads-up before the start, [UpcomingReminder.isHeadsUp]), and a click opening its todo; the result shows as the phone's does: the session's notice, nothing, or the reminder
- * again saying Kadans could not be reached. Elsewhere (or a desktop without a notification server) the system's own
+ * none on the heads-up before the start, [UpcomingReminder.isHeadsUp]), and a click opening its todo; a button pressed, the reminder is gone, as
+ * on the phone, and only a request that failed brings it back, saying Kadans could not be reached. Elsewhere (or a desktop without a notification server) the system's own
  * notification without buttons: on Windows and macOS a balloon, whose click opens the todo ([ReminderBalloon]).
  */
 internal class DesktopReminderNotices(
@@ -61,21 +60,9 @@ internal class DesktopReminderNotices(
         player()?.stop()
         when (key) {
             FreedesktopNotifications.DEFAULT -> DesktopWindow.open(todoLink(reminder.todoId))
-            START -> scope.launch {
-                when (actions()?.startFocus(reminder)) {
-                    is ReminderActions.Result.FocusStarted -> focusStarted(reminder)
-                    else -> failed(reminder)
-                }
-            }
+            START -> scope.launch { if (actions()?.startFocus(reminder) !is ReminderActions.Result.FocusStarted) failed(reminder) }
             DONE -> scope.launch { if (actions()?.done(reminder) != ReminderActions.Result.Done) failed(reminder) }
             SNOOZE -> scope.launch { actions()?.snooze(reminder) }
-        }
-    }
-
-    /** The session runs: its notice, a click on which opens it. */
-    private fun focusStarted(reminder: UpcomingReminder) {
-        linux()?.show(strings().focusStarted, reminder.title, notificationIcon) { key ->
-            if (key == FreedesktopNotifications.DEFAULT) DesktopWindow.open(focusLink(reminder.todoId))
         }
     }
 

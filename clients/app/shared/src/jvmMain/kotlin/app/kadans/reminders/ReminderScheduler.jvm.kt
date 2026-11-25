@@ -55,7 +55,8 @@ internal class DesktopReminderScheduler(
     @Synchronized
     override fun schedule(reminders: List<UpcomingReminder>) {
         timer?.cancel()
-        val next = reminders.minOfOrNull { it.notifyAt } ?: return
+        // A few seconds ahead: the server is asked meanwhile, and the reminder rings at its second (ringDue).
+        val next = reminders.minOfOrNull { it.notifyAt }?.minus(LocalReminders.AHEAD) ?: return
         timer = scope.launch {
             // In short steps on the wall clock: after the computer slept, or its clock was set, it still rings on time.
             while (true) {

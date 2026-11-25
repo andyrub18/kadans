@@ -223,7 +223,8 @@ patterns from `DateStrings` ("jueves, 5 de noviembre", "jue, 5 nov", "31 de marz
 An older app meets a newer account without harm: a version that has no Spanish shows English for an account whose
 language is `es`, and sends nothing back, so the account keeps its Spanish for the devices that have it. The server
 must have the language before an app that offers it is released (a server without it would answer a change of
-language with success and keep the old one): the server deploys on merge, the apps are released after.
+language with success and keep the old one): the server is deployed first, by hand (DEPLOYMENT → Updating; a merge
+deploys nothing by itself), the apps are released after.
 
 ### The account's time zone, language and clock
 
@@ -530,17 +531,25 @@ A button that worked tells the app's screens at once (`DataChanges`, below): the
 Android (built): `reminders/LocalReminders` (common) keeps the window in the settings store and decides what rings;
 `ReminderScheduler` is the OS's side (Android: `AndroidReminderScheduler`; desktop below; iOS has none yet and stays on
 the push and the hub). What rings is always read from the stored window:
-- **One exact alarm**, the next reminder's (`setExactAndAllowWhileIdle`, far from Android's 500 per app). When it
-  rings, every reminder due and not rung here is checked with the server (two seconds at most, in parallel), shown
-  unless no longer due (a moved one fetches the window again), and the next alarm is set. A reminder rings late (a
+- **One exact alarm**, the next reminder's (`setExactAndAllowWhileIdle`, far from Android's 500 per app), set five
+  seconds ahead of its time (`LocalReminders.AHEAD`; the desktop's timer too). When it goes off, every reminder due
+  by then and not rung here is checked with the server (two seconds at most, in parallel), then waits for its own
+  second and is shown unless no longer due (a moved one fetches the window again) or dealt with on this device
+  meanwhile (it is read from the stored window again at that second), and the next alarm is set. Ahead, because on
+  the owner's phone (2026-11-24) a reminder "lagged": woken at the minute, the app first had to start and ask the
+  server, and rang 1.5 seconds late on the emulator beside a local server, more over a phone's network. Woken ahead
+  it rang 0.03 seconds after its time, cold start included. An alarm that goes off on time or late (a restart, a
+  phone that was off) waits for nothing. A reminder rings late (a
   phone that was off) until its event starts, or ten minutes after its time when that is later; never twice
   (`occurrence@notifyAt` remembered three days, so a moved one rings again).
 - **Notifications**: their own channel (urgent: heads-up, sound; named in the app's language; which one, and what it
   sounds like, is the person's choice: "Sounds", below), tagged with the occurrence as Firebase tags the push it shows, so one replaces the other ("starts now" replaces the
   reminder before it). Two buttons, broadcasts to `ReminderActionReceiver` (not exported, immutable PendingIntents, one
-  data URI per reminder and button): it asks the server within the eight seconds it gives itself, then updates the same
-  notification silently: "Focus session started" (a tap opens the session, `kadans://todos/{id}/focus`), gone, or the
-  reminder again saying Kadans could not be reached, its buttons still there. A system-shown reminder
+  data URI per reminder and button): the reminder goes the moment a button is pressed, and its ringing with it; the
+  server is then asked within the eight seconds the receiver gives itself, and only a request that failed brings the
+  reminder back, silently, saying Kadans could not be reached, its buttons still there. (Until 1.3.0 "Start focus"
+  left a notice in its place, "Focus session started", for ten minutes: the owner, on a real phone, read it as the
+  reminder not going away. The desktop shows none either.) A system-shown reminder
   push goes to the channel the phone said its reminders ring in (an app too old to have it falls back to its default one). A tap opens the todo
   (`kadans://todos/{id}`, only with a session), whether the app is open, in the background or stopped.
 - **Pushes**: "occurrence.due" goes through `LocalReminders.pushed` (dropped if it rang here or the session is gone);
@@ -776,7 +785,9 @@ not risked. The owner chose the defaults on a written proposal (2026-11-15).
   started it. Not in a break (that is when one looks at the phone; what was silenced waits in the shade), not while
   paused, not with the timer at 0:00 waiting for the person (a manual session, or a hands-free cycle that ended and asks
   "Another cycle?"), not once the session is over. The sound comes back two seconds before the phase ends
-  (`QuietPlan.SOUND_BACK`), so what Kadans says at that end ("time's up", the break that begins) is heard.
+  (`QuietPlan.SOUND_BACK`), so what Kadans says at that end ("time's up", the break that begins) is heard. What
+  Kadans says as a focus phase *begins* ("break over, back to focus") arrives with the phone already quiet: it is
+  heard because the app builds that notice as a timer's alarm, which this mode lets through ("Sounds", below).
 - **Off by default, one switch.** Settings → "Do Not Disturb during focus", this device's own setting like its
   language (it survives a sign-out; the access Android gave does too). The session screen offers it once, on a phone
   that can and has it off (`QuietOffer`); either answer ends the offer.
@@ -1349,22 +1360,45 @@ at most; and the app saying how things stand, with the way to the phone's own se
 - **The server names the channel of what the system shows.** A push shown while the app is not running is shown by
   Google's services in the channel the server names, and only the phone knows its choice: it says so when it
   registers (`alarmReminders` on the device, `PushTarget.AlarmReminders`). `FcmPushSender` then names the reminders'
-  channel by it, and the phase channels for a notification that asks for a sound. A device that never said (an app
-  from before) gets exactly the message it got before: its old channel, no phase channel. The ids are written twice,
-  in `KadansChannels` and in `FcmPushSender`: change one, change the other.
-- **Ring until answered** (off by default): Android's own insistent notification, which repeats the sound until the
-  person opens the notifications or acts on it; an alarm set when it begins takes it down after one minute
-  (`SoundPreferences.RINGS_FOR`) and puts the reminder back silently, buttons and all. Android keeps an insistent
-  notification ringing through an update, so whatever replaces a ringing reminder cancels it first. Only where the
-  app builds the notification: a reminder the system shows by itself rings once.
+  channel by it. A device that never said (an app from before) gets exactly the message it got before: its old
+  channel. The ids are written twice, in `KadansChannels` and in `FcmPushSender`: change one, change the other.
+- **A session's notices are built by the app** (`pomodoro/SessionNotices`, from `PhaseNotice`: a phase's end, "time's
+  up", a cycle done with its buttons, the session over; told from any other notification by the sound it asks for).
+  The first version let the system show them, in their channel; the owner's test on a real phone (2026-11-24) found
+  what that cannot do. It cannot ring until answered: only a notification the app posts can be insistent. And "break
+  over, back to focus" did not ring at all with Do Not Disturb during focus on: it arrives as the focus phase
+  begins, the phone already quiet, and the system's own record said `intercepted … !priority`. So to a phone whose
+  app has the sounds (it said how its reminders ring) the server sends them as data, at high priority, the
+  session's latest replacing one still waiting for a phone out of reach, dropped after fifteen minutes
+  (`FcmPushSender.SessionNoticeUsefulFor`: a phase's end heard much later is noise); an older app gets the
+  notification the system shows, as before. The app posts it in the sound's channel with the category of an alarm
+  or timer (`CATEGORY_ALARM`), which is what a phase's end is: Kadans' own quiet mode lets alarms through, and so
+  does the phone's own Do Not Disturb wherever the person lets alarms through (the default). Its sound still plays
+  as a notification's: a phone on silent or vibrate stays so. One notice per session (tagged with it): the next
+  phase's takes its place, and a tap opens the session. What it costs: the app must be allowed to start in the
+  background to show one, as it must already to ring a reminder; a phone whose maker forbids that (some do, until
+  the person allows the app) showed the system's notification before and shows nothing now.
+- **Ring until answered** (off by default; reminders, and a session's notices): Android's own insistent notification,
+  which repeats the sound until the person opens the notifications or acts on it. `sound/Ringing` (Android) posts
+  what rings so and ends it: a button pressed takes the notice down at once; Kadans coming in front, or touched
+  while already in front, is an answer too (`MainActivity.onResume`, `onUserInteraction`); and an alarm set when it
+  begins stops it after one minute (`SoundPreferences.RINGS_FOR`, `RingStopReceiver`). Stopped, the notice stays
+  where it is, silent, buttons and all: the same notification as the system holds it, rebuilt
+  (`Notification.Builder.recoverBuilder`) without its ringing. Android keeps an insistent notification ringing
+  through an update, so whatever replaces or silences one cancels it first; and each alarm knows the one posting it
+  was set for, or the alarm of a phase's notice would silence the next phase's, a minute later under the same tag
+  (seen on the emulator with one-minute phases). Only where the app builds the notification: a reminder the system
+  shows by itself, for an app that cannot ring it, rings once.
 - **Telling the person** (`ui/settings/SoundSection`, `ReminderSoundState`, pure): one sentence for what a reminder
   will do as the phone stands now (like an alarm; the alarm volume at zero; the phone on silent, or on vibrate;
   silenced for Kadans in the system's settings), read again when the app comes back; "Change the sound", which opens
   the system's page for that channel, where any sound the phone has can be picked; and "Test", a sample reminder.
 - **A computer plays the sounds itself** (`sound/DesktopSoundPlayer`, Java's own sound, the files in the app's
   resources): when a reminder rings, when a phase ends, on Linux and on Windows alike, unless Settings → "Sounds" is
-  off. Ringing until answered stops at a click on the notification or one of its buttons, at its dismissal, when the
-  window is opened, or after the minute. A computer whose sound cannot be opened stays silent and nothing fails.
+  off. Ringing until answered is a reminder's and a phase's end alike, and stops at a click on the notification or
+  one of its buttons, at its dismissal (Linux, where the desktop tells the app of both; a phase's notice clicked
+  opens the session), when the window is opened, comes in front, or is clicked or typed in, or after the minute. A
+  computer whose sound cannot be opened stays silent and nothing fails.
 - **Order of release.** The server first, as always: it must know the channels before an app that has them. An app
   with the choice and a server without it would only lose the channel's name on system-shown pushes.
 
@@ -1381,6 +1415,17 @@ the app in the background, each shown by the system in its own channel and sound
 stop against a private notification server. Not checked: any of it by ear on a real phone or a real computer, the
 sounds' loudness beside a phone's own, phone makers' changes to sound and alarms (Samsung, Tecno), Android before 8,
 Windows, and the iPhone, which has no sounds of Kadans' yet.
+
+The owner's test on a real phone (a Samsung, 2026-11-24, from Play's internal track) found five things, each
+reproduced on the emulator before it was changed, and checked there after: Settings' "Change the sound" cut to "Change
+the" at 360 dp (two buttons sharing the width in halves; now each as wide as its words); a phase's end ringing once
+with "ring until answered" on, and "break over" not ringing at all with Do Not Disturb during focus on (both: the
+notices the app now builds, above; after: every phase change of a hands-free session with one-minute phases ringing
+insistently, the one at the start of a focus phase too, `not_intercepted … allowedAlarm` in the system's record,
+stopped by opening Kadans, by a touch in it, and by the minute, the cycle's notice then still showing "Another cycle"
+and "Done"); "Start focus" leaving a notice behind (gone now, above); and a reminder that lagged (1.5 seconds late
+before, 0.03 after: "Reminders ring on the phone"). Still not checked by ear, and not on Android 17, which the
+owner's phone runs and no emulator here has.
 
 ### The desktop app: in the tray, once
 
@@ -1565,11 +1610,12 @@ panel), so CI needs no desktop.
   `occurrenceId`). The apps give it two buttons (`pomodoro/CycleActions`): "Another cycle" resumes, which starts that
   phase then, so a longer break costs nothing; "Done" finishes the session and marks its occurrence done, as a
   reminder's "Done" does (either already so counts, so pressing again is safe). Android builds it from its push
-  (`PomodoroCycleNotices`, `PomodoroActionReceiver`; one per session, a failed button says Kadans could not be
-  reached), the Linux desktop shows it over D-Bus (`DesktopCycleNotices`), a tap opens the session, whose screen asks
+  (`SessionNotices`, `PomodoroActionReceiver`; one per session, gone when a button is pressed, back saying Kadans
+  could not be reached if its request failed), the Linux desktop shows it over D-Bus (`DesktopCycleNotices`), a tap opens the session, whose screen asks
   the same (Another cycle, Finish). The push is `NotificationMessage.ShownByApp`: data at high priority to a phone that
-  rings its reminders (an app that builds its notifications); any other device gets it as a notification the system
-  shows, without the buttons. Neither button: nothing more counts and nothing more notifies; the session ends at its end
+  rings its reminders (an app that builds its notifications), and, since the sounds, to any phone whose app builds a
+  session's notices ("Sounds", above); any other device gets it as a notification the system shows, without the
+  buttons. Neither button: nothing more counts and nothing more notifies; the session ends at its end
   (below) as it ended, with its last cycle, silently (it asked already), and its occurrence stays pending: never marked
   done on a guess. Pressing Next on the last phase goes straight on (the person is there); manual runs wait at every
   phase anyway.

@@ -227,8 +227,14 @@ focus"). Sounds (ARCHITECTURE → "Sounds") are `sound/`: `KadansSound` (a
 notification asks for one in its data, `sound`), `SoundPreferences` and `RingSettings` (the person's choices: like an
 alarm or like a notification, asked once; ring until answered), Android's `KadansChannels` (a sound is its channel's,
 fixed when the channel is made: a new sound is a new channel id, never an edit; the ids are repeated in the server's
-`FcmPushSender`) and the desktop's `DesktopSoundPlayer` (a computer plays them itself). Nobody's phone rings like an
-alarm before they answered the question; whatever replaces a ringing reminder cancels it first.
+`FcmPushSender`), Android's `Ringing` (what rings is posted through it: once, or until answered, a minute at most;
+a button pressed, Kadans opened or touched is an answer) and the desktop's `DesktopSoundPlayer` (a computer plays them
+itself). A focus session's notices (a phase's end, a cycle done) are built by the app from data the server sends
+(`pomodoro/PhaseNotice`, Android's `SessionNotices`), never shown by the system: only then do they ring until answered
+and through Kadans' own quiet during focus. Nobody's phone rings like an alarm before they answered the question;
+a notification that rings never goes up with `notify` alone, always through `Ringing` (it cancels what it replaces).
+A reminder's alarm is set `LocalReminders.AHEAD` of its time and the reminder rings at its second: nothing slow goes
+between that second and the ring.
 Every session a request brings back goes through `KadansApi.seen`: a new call that returns a session must too.
 Whatever makes the phone quiet sets the alarm that ends it in the same step. Share to Kadans (Android: a text or a link
 from any app's share sheet, or a selection's "Add to Kadans") opens the new-todo form filled in and saves nothing by

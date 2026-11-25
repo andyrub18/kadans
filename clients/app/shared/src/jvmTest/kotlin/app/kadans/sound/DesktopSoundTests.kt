@@ -43,6 +43,29 @@ class DesktopSoundTests {
     }
 
     @Test
+    fun a_phases_end_keeps_ringing_if_the_person_asked_and_says_nothing_with_sounds_off() = runTest {
+        val voices = Voices()
+        val player = DesktopSoundPlayer(backgroundScope, ringsFor = 60.seconds, voice = voices::of)
+        fun ring(keepRinging: Boolean, sounds: Boolean = true) = RingChoice(ReminderStyle.Notification, keepRinging, sounds)
+
+        DesktopSound.notice(KadansSound.FocusOver, ring(keepRinging = false), player)
+        runCurrent()
+        assertEquals(listOf("focus-over once"), voices.heard)
+
+        // "Keep ringing until I answer" is a phase's end too, not reminders alone.
+        DesktopSound.notice(KadansSound.BreakOver, ring(keepRinging = true), player)
+        runCurrent()
+        assertEquals(listOf("focus-over once", "break-over loop"), voices.heard)
+        player.stop() // a click on the notice, the window in front or touched
+        assertEquals(listOf("focus-over once", "break-over loop", "break-over stop"), voices.heard)
+
+        DesktopSound.notice(KadansSound.FocusOver, ring(keepRinging = true, sounds = false), player)
+        DesktopSound.notice(KadansSound.FocusOver, ring = null, player = player) // before the app is wired
+        runCurrent()
+        assertEquals(3, voices.heard.size, "sounds turned off: nothing more")
+    }
+
+    @Test
     fun a_reminder_keeps_ringing_until_answered() = runTest {
         val voices = Voices()
         val player = DesktopSoundPlayer(backgroundScope, ringsFor = 60.seconds, voice = voices::of)

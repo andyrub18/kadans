@@ -13,7 +13,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
-/** The desktop app's timer: the next reminder only, the latest schedule only, and on time after the computer slept. */
+/** The desktop app's timer: the next reminder only, a few seconds ahead of it, the latest schedule only, and on time after the computer slept. */
 class DesktopReminderSchedulerTests {
     private val t0 = Instant.parse("2026-10-09T12:00:00Z")
 
@@ -29,15 +29,16 @@ class DesktopReminderSchedulerTests {
         DesktopReminderScheduler(onDue = { onDue() }, now = clock::now, scope = backgroundScope)
 
     @Test
-    fun it_rings_at_the_soonest_reminder() = runTest {
-        var rang = 0
-        val scheduler = timer(Clock(this, t0)) { rang++ }
+    fun it_wakes_for_the_soonest_reminder_a_few_seconds_ahead_of_its_time() = runTest {
+        var woke = 0
+        val scheduler = timer(Clock(this, t0)) { woke++ }
 
+        // Ahead by LocalReminders.AHEAD: the server is asked meanwhile, and ringDue rings the reminder at its second.
         scheduler.schedule(listOf(reminder("later", t0 + 10.minutes), reminder("soon", t0 + 90.seconds)))
-        advanceTimeBy(89.seconds); runCurrent()
-        assertEquals(0, rang)
+        advanceTimeBy(90.seconds - LocalReminders.AHEAD - 1.seconds); runCurrent()
+        assertEquals(0, woke)
         advanceTimeBy(2.seconds); runCurrent()
-        assertEquals(1, rang)
+        assertEquals(1, woke)
     }
 
     @Test

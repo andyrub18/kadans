@@ -2,6 +2,7 @@ package app.kadans.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -44,7 +45,8 @@ import org.koin.compose.koinInject
 /**
  * How reminders sound on this device (ARCHITECTURE → "Sounds"). On a phone: what a reminder will do right now, said
  * in a sentence (the phone's own settings decide, and nobody knows that until told), the switch for ringing like an
- * alarm, the one for ringing until answered, the way to the phone's own page for the sound, and "Test". On a
+ * alarm, the one for ringing until answered (reminders, and a focus session's phases ending), the way to the phone's
+ * own page for the sound, and "Test". On a
  * computer, where the app plays the sounds itself: whether it does, and the same "ring until answered" and "Test".
  * Read again when the app comes back from the system's settings. It brings its own divider.
  */
@@ -70,9 +72,10 @@ fun SoundSection(ring: RingSettings = koinInject()) {
             state = ring.state()
         }
         SwitchLine(s.sound.keepRinging, s.sound.keepRingingHint, checked = keepRinging, onChange = ring::setKeepRinging)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SecondaryButton(onClick = ring::openSystemSettings, modifier = Modifier.weight(1f)) { Text(s.sound.chooseSound, maxLines = 1) }
-            SecondaryButton(onClick = ring::test, modifier = Modifier.weight(1f)) { Text(s.sound.test, maxLines = 1) }
+        // Each as wide as its words, side by side where both fit: halves of a phone's width cut "Change the sound" short.
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SecondaryButton(onClick = ring::openSystemSettings) { Text(s.sound.chooseSound) }
+            SecondaryButton(onClick = ring::test) { Text(s.sound.test) }
         }
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
     } else if (devicePlatform() in Computers) {

@@ -2,6 +2,7 @@ package app.kadans.pomodoro
 
 import app.kadans.api.KadansApi
 import app.kadans.i18n.Language
+import app.kadans.sound.KadansSound
 import app.kadans.sync.DataArea
 import app.kadans.sync.DataChanges
 import io.ktor.client.engine.mock.MockEngine
@@ -39,6 +40,33 @@ class CycleNoticesTests {
         assertNull(CycleNotice.of("occurrence.due", data, "Study", body))
         assertNull(CycleNotice.of("pomodoro.phase.completed", data - "runId", "Study", body))
         assertNull(CycleNotice.of("pomodoro.phase.completed", null, "Study", body))
+    }
+
+    @Test
+    fun a_sessions_notice_is_told_by_the_sound_it_asks_for_and_names_its_session() {
+        val phase = data - "cycleDone" - "occurrenceId" + ("sound" to "break-over")
+
+        // A phase's end: what a phone builds itself, in the channel that has that sound (ARCHITECTURE → "Sounds").
+        assertEquals(
+            PhaseNotice("r1", "t1", "Study", "Focus — 25 min", KadansSound.BreakOver),
+            PhaseNotice.of("pomodoro.phase.completed", phase, "Study", "Focus — 25 min"),
+        )
+        // "Time's up" and "finished" are other kinds, and notices all the same.
+        assertEquals(KadansSound.FocusOver, PhaseNotice.of("pomodoro.time.up", phase + ("sound" to "focus-over"), "Study", "Time's up")?.sound)
+        // A cycle done has its two buttons.
+        val body = "Cycle 1 done. Another one? The session waits for you."
+        val done = PhaseNotice.of("pomodoro.phase.completed", data + ("sound" to "focus-over"), "Study", body)
+        assertEquals(CycleNotice("r1", "t1", "Study", body, "o1"), done?.cycle)
+        assertNull(PhaseNotice.of("pomodoro.phase.completed", phase, "Study", "Focus — 25 min")?.cycle, "inside a cycle: no button")
+
+        // Any other notification: no sound asked for, one nobody knows, a reminder's (reminders ring their own way),
+        // or no session to belong to.
+        assertNull(PhaseNotice.of("budget.limit", phase - "sound", "Groceries", "80% used"))
+        assertNull(PhaseNotice.of("pomodoro.phase.completed", phase + ("sound" to "fanfare"), "Study", "Focus"))
+        assertNull(PhaseNotice.of("occurrence.due", phase + ("sound" to "reminder"), "Study", "Starts now"))
+        assertNull(PhaseNotice.of("pomodoro.phase.completed", phase - "runId", "Study", "Focus"))
+        assertNull(PhaseNotice.of("pomodoro.phase.completed", phase, null, "Focus"))
+        assertNull(PhaseNotice.of("pomodoro.phase.completed", null, "Study", "Focus"))
     }
 
     /** The server: each call's answer by "METHOD path"; a call it has no answer for is unreachable. */

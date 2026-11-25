@@ -1373,11 +1373,24 @@ at most; and the app saying how things stand, with the way to the phone's own se
   (`FcmPushSender.SessionNoticeUsefulFor`: a phase's end heard much later is noise); an older app gets the
   notification the system shows, as before. The app posts it in the sound's channel with the category of an alarm
   or timer (`CATEGORY_ALARM`), which is what a phase's end is: Kadans' own quiet mode lets alarms through, and so
-  does the phone's own Do Not Disturb wherever the person lets alarms through (the default). Its sound still plays
+  does the phone's own Do Not Disturb wherever the person lets alarms through (the default; the owner, asked,
+  2026-11-25: "Yes, a phase end should ring"). Its sound still plays
   as a notification's: a phone on silent or vibrate stays so. One notice per session (tagged with it): the next
   phase's takes its place, and a tap opens the session. What it costs: the app must be allowed to start in the
   background to show one, as it must already to ring a reminder; a phone whose maker forbids that (some do, until
   the person allows the app) showed the system's notification before and shows nothing now.
+- **An open app hears a phase's end first.** The push takes its time: the server's call to Firebase, then
+  Firebase's to the phone (0.3 to 0.8 seconds on the emulator beside a local server, more on a phone's network), and
+  someone watching the countdown reach zero hears the sound that much later. That was the lag the owner felt
+  (2026-11-25: "the phase end is the one that lagged"). The app's live connection hears the same notification at
+  once, so a phone builds the notice from it too (`SystemAlerts`, `showSessionNotice`): 0.05 seconds after the
+  phase's end on the emulator. Whichever brings a notice first shows it, and the other copy is dropped
+  (`SessionNotices.showOnce`, `ShownOnce` by `PhaseNotice.key`: the kind, the session, the phase, kept as long as
+  a push can still arrive). Only one just made is shown from the connection (`PhaseNotice.isLive`, thirty seconds):
+  what a reconnect catches up on was the push's to show, at the time. With the app closed or frozen in the
+  background there is no connection and the push alone brings it, with its delay; nobody is watching a countdown
+  then. A phone ringing a phase's end itself, at its second and offline, as it rings reminders, would need the
+  server to hand out a session's coming notices: not built.
 - **Ring until answered** (off by default; reminders, and a session's notices): Android's own insistent notification,
   which repeats the sound until the person opens the notifications or acts on it. `sound/Ringing` (Android) posts
   what rings so and ends it: a button pressed takes the notice down at once; Kadans coming in front, or touched
@@ -1423,9 +1436,12 @@ with "ring until answered" on, and "break over" not ringing at all with Do Not D
 notices the app now builds, above; after: every phase change of a hands-free session with one-minute phases ringing
 insistently, the one at the start of a focus phase too, `not_intercepted … allowedAlarm` in the system's record,
 stopped by opening Kadans, by a touch in it, and by the minute, the cycle's notice then still showing "Another cycle"
-and "Done"); "Start focus" leaving a notice behind (gone now, above); and a reminder that lagged (1.5 seconds late
-before, 0.03 after: "Reminders ring on the phone"). Still not checked by ear, and not on Android 17, which the
-owner's phone runs and no emulator here has.
+and "Done"); "Start focus" leaving a notice behind (gone now, above); and "a lag for the alarm to take off". I
+measured a reminder's first (1.5 seconds late before, 0.03 after: "Reminders ring on the phone"); the owner then
+said it was the phase's end, which an open app now hears on its live connection (above: 0.3 to 0.8 seconds by the
+push before, 0.05 after, the push's copy dropped; a phase ending with the app in the background and the app reopened
+ten seconds later: not rung again). Still not checked by ear, and not on Android 17, which the owner's phone runs
+and no emulator here has.
 
 ### The desktop app: in the tray, once
 

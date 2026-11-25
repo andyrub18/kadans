@@ -1124,8 +1124,13 @@ installing on real devices second, hosting last.
       heard. That test found five things, fixed in this version's branch (ARCHITECTURE → "Sounds", its last
       paragraph): "Change the sound" cut short in Settings; a phase's end ringing once with "keep ringing" on, and not
       at all at "back to focus" with Do Not Disturb during focus on (a session's notices are now built by the app,
-      from data the server sends); "Start focus" leaving a notice behind; a reminder a second or more late (its alarm
-      now wakes the app five seconds ahead). The next bundle is code 5, after the server is deployed again.
+      from data the server sends); "Start focus" leaving a notice behind; and a lag before the sound: a reminder's
+      (its alarm now wakes the app five seconds ahead) and, the one the owner meant, a phase's end (an open app now
+      builds the notice from its live connection, ahead of the push). The next bundle is code 5, after the server is
+      deployed again.
+      - [ ] If the push's delay at a phase's end still shows with the app closed: the phone ringing a session's
+        phases itself, at their second and offline, as it rings reminders (the server handing out the coming
+        notices). Not asked for yet.
       OWNER-CHECKLIST → v1.3.0 has the order: the pull request, the deploy, the test, the tag, the stores. A debug build could
       not sign in with Google that day: the Android client for the debug key is gone from Google Cloud
       (OWNER-CHECKLIST → Google Sign-In), which concerns test builds only.

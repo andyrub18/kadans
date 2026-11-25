@@ -16,6 +16,8 @@ import app.kadans.notifications.KadansPushChannel
 import app.kadans.shared.R
 import app.kadans.ui.brand.KadansMark
 import app.kadans.ui.focusLink
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +36,18 @@ import org.koin.core.context.GlobalContext
  * could not be reached.
  */
 internal object SessionNotices {
+    /** What was shown lately: as long as a push for it can still arrive (the server's `SessionNoticeUsefulFor`). */
+    private val shown = ShownOnce(keptFor = 15.minutes)
+
+    /**
+     * [show], once per notice: an open app gets each from its live connection and from the push, and whichever
+     * comes first shows it (the connection, by a second or more, on a phone's network).
+     */
+    fun showOnce(context: Context, notice: PhaseNotice, actions: CycleActions?, keepRinging: Boolean) {
+        val first = synchronized(shown) { shown.first(notice.key, Clock.System.now()) }
+        if (first) show(context, notice, actions, keepRinging)
+    }
+
     fun show(context: Context, notice: PhaseNotice, actions: CycleActions?, keepRinging: Boolean, failed: Boolean = false) {
         KadansPushChannel.ensure(context)
         val body = if (failed && actions != null) "${notice.body}\n${actions.strings.reminders.actionFailed}" else notice.body

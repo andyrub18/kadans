@@ -1,6 +1,7 @@
 package app.kadans.notifications
 
 import app.kadans.pomodoro.CycleNotice
+import app.kadans.pomodoro.PhaseNotice
 import app.kadans.sound.KadansSound
 
 /**
@@ -11,6 +12,14 @@ import app.kadans.sound.KadansSound
  * again until answered if the person asked. [link]: what a click on it opens in the app, where a click can be heard.
  */
 expect fun showSystemNotification(title: String, body: String, sound: KadansSound? = null, link: String? = null)
+
+/**
+ * A focus session's notice the app's live connection brought ([live]: just made, not a catch-up after a reconnect),
+ * where the device builds such notices itself (Android, `SessionNotices`: an open app hears a phase's end here well
+ * before the push, and shows it once whichever brings it first). True when this device took it: nothing else shows
+ * it. False elsewhere: [showCycleNotice] or [showSystemNotification] does.
+ */
+expect fun showSessionNotice(notice: PhaseNotice, live: Boolean): Boolean
 
 /**
  * A looping focus session's cycle done, with "Another cycle" and "Done" where the platform has buttons (the Linux

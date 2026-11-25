@@ -105,7 +105,8 @@ class KadansMessagingService : FirebaseMessagingService() {
         val phase = PhaseNotice.of(message.data["kind"], message.data, title, body)
         if (phase != null) {
             val keepRinging = koin?.getOrNull<SoundPreferences>()?.ring?.keepRinging == true
-            SessionNotices.show(this, phase, koin?.getOrNull<CycleActions>(), keepRinging)
+            // Once: an open app may have shown it already, from its live connection (showSessionNotice).
+            SessionNotices.showOnce(this, phase, koin?.getOrNull<CycleActions>(), keepRinging)
             return
         }
         runCatching {

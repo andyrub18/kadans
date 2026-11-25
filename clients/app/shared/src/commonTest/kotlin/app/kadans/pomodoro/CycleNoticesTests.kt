@@ -15,6 +15,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
@@ -48,7 +51,7 @@ class CycleNoticesTests {
 
         // A phase's end: what a phone builds itself, in the channel that has that sound (ARCHITECTURE → "Sounds").
         assertEquals(
-            PhaseNotice("r1", "t1", "Study", "Focus — 25 min", KadansSound.BreakOver),
+            PhaseNotice("r1", "t1", "Study", "Focus — 25 min", KadansSound.BreakOver, key = "pomodoro.phase.completed|r1|2|Paused|null"),
             PhaseNotice.of("pomodoro.phase.completed", phase, "Study", "Focus — 25 min"),
         )
         // "Time's up" and "finished" are other kinds, and notices all the same.
@@ -67,6 +70,41 @@ class CycleNoticesTests {
         assertNull(PhaseNotice.of("pomodoro.phase.completed", phase - "runId", "Study", "Focus"))
         assertNull(PhaseNotice.of("pomodoro.phase.completed", phase, null, "Focus"))
         assertNull(PhaseNotice.of("pomodoro.phase.completed", null, "Study", "Focus"))
+    }
+
+    @Test
+    fun a_notice_brought_twice_is_one_and_the_next_phases_is_another() {
+        val live = data - "cycleDone" + ("sound" to "break-over")
+        // The push carries the same data, with the kind and the words beside it.
+        val pushed = live + mapOf("kind" to "pomodoro.phase.completed", "title" to "Study", "body" to "Focus — 25 min")
+        fun key(kind: String, of: Map<String, String>) = PhaseNotice.of(kind, of, "Study", "Focus — 25 min")!!.key
+
+        assertEquals(key("pomodoro.phase.completed", live), key("pomodoro.phase.completed", pushed))
+        assertTrue(key("pomodoro.phase.completed", live) != key("pomodoro.phase.completed", live + ("currentPhaseIndex" to "3")), "the next phase")
+        assertTrue(key("pomodoro.phase.completed", live) != key("pomodoro.time.up", live), "its time up, then its end")
+        assertTrue(key("pomodoro.phase.completed", live) != key("pomodoro.phase.completed", live + ("runId" to "r2")), "another session")
+        assertTrue(key("pomodoro.phase.completed", live) != key("pomodoro.phase.completed", live + ("cycleDone" to "1")))
+    }
+
+    @Test
+    fun whichever_brings_a_notice_first_shows_it_and_the_other_is_dropped_while_a_push_can_still_come() {
+        val t0 = Instant.parse("2027-01-04T14:25:00Z")
+        val shown = ShownOnce(keptFor = 15.minutes)
+
+        assertTrue(shown.first("phase 2", t0), "the live connection, a moment after the phase ended")
+        assertFalse(shown.first("phase 2", t0 + 2.seconds), "its push, two seconds later")
+        assertTrue(shown.first("phase 3", t0 + 5.minutes))
+        assertFalse(shown.first("phase 2", t0 + 14.minutes), "a push that waited for a phone out of reach")
+        assertTrue(shown.first("phase 2", t0 + 16.minutes), "forgotten once no push for it can come")
+    }
+
+    @Test
+    fun the_live_connection_shows_what_was_just_made_and_leaves_a_catch_up_to_the_push() {
+        val made = Instant.parse("2027-01-04T14:25:00Z")
+
+        assertTrue(PhaseNotice.isLive(made, now = made + 1.seconds))
+        assertTrue(PhaseNotice.isLive(made, now = made - 3.seconds), "a phone whose clock runs behind")
+        assertFalse(PhaseNotice.isLive(made, now = made + 5.minutes), "the app back in front, catching up on what it missed")
     }
 
     /** The server: each call's answer by "METHOD path"; a call it has no answer for is unreachable. */

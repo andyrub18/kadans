@@ -4,4 +4,6 @@ package app.kadans.notifications
 // checklist) — until that lands, the in-app snackbar covers the foreground.
 actual fun showSystemNotification(title: String, body: String, sound: app.kadans.sound.KadansSound?, link: String?) = Unit
 
+actual fun showSessionNotice(notice: app.kadans.pomodoro.PhaseNotice, live: Boolean): Boolean = false
+
 actual fun showCycleNotice(notice: app.kadans.pomodoro.CycleNotice) = showSystemNotification(notice.title, notice.body)

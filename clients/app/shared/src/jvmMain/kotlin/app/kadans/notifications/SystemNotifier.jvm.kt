@@ -47,6 +47,9 @@ internal fun showDesktopNotification(title: String, body: String) {
     }
 }
 
+// A computer shows a session's notices as the two below do, and plays their sound itself.
+actual fun showSessionNotice(notice: app.kadans.pomodoro.PhaseNotice, live: Boolean): Boolean = false
+
 actual fun showCycleNotice(notice: app.kadans.pomodoro.CycleNotice) = app.kadans.pomodoro.DesktopCycleNotices.shared.show(notice)
 
 /** The app's icon for a Linux notification (a file the server reads), or a themed stand-in. */

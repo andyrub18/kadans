@@ -395,9 +395,11 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
          - [ ] "Start focus" on a reminder: the reminder goes at once, and only "Quiet during focus" is left when
                that is on.
          - [ ] A reminder rings at its minute, to the second (it was a second or more late).
-         - [ ] One thing only a real phone can say: with the phone's **own** Do Not Disturb on, a phase's end now
-               rings where alarms are let through (the default), as a timer's would. If that is not wanted, it is
-               one line to change (ARCHITECTURE → "Sounds").
+         - [ ] The lag at a phase's end: with Kadans open on the session, the sound comes as the countdown reaches
+               zero (the app no longer waits for the push). With the app closed or behind another, it still comes by
+               the push, a moment later.
+         - [x] (decided 2026-11-25: "Yes, a phase end should ring") With the phone's **own** Do Not Disturb on, a
+               phase's end rings where alarms are let through (the default), as a timer's would.
       4. **Satisfied**: `git tag v1.3.0 && git push origin v1.3.0` on the merged `main`
          (DEPLOYMENT → Releasing the desktop app: the Linux and Windows installers, about 20 minutes), a new Partner
          Center submission with that release's `.msix`, and the same Play bundle **promoted** to the closed test

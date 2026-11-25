@@ -79,8 +79,15 @@ internal sealed class FcmPushSender : IPushSender
     };
 
     /// <summary>
-    /// The channel that has the sound a notification asks for, on a phone whose app has it: one that said how its
-    /// reminders ring is recent enough. Null: the app's default channel, as before.
+    /// How long a focus session's notice is worth delivering to a phone that was out of reach: a phase's end heard much
+    /// later is only noise (the server itself says nothing of one older than this: <c>PomodoroTimeUp.StaleAfter</c>).
+    /// </summary>
+    internal static readonly TimeSpan SessionNoticeUsefulFor = TimeSpan.FromMinutes(15);
+
+    /// <summary>
+    /// The channel that has the sound a notification asks for (a focus session's notice: a phase's end, its time up,
+    /// the session over), on a phone whose app has it: one that said how its reminders ring is recent enough. Null: no
+    /// such sound, or an app from before the sounds.
     /// </summary>
     internal static string? SoundChannelFor(PushTarget target, IReadOnlyDictionary<string, string> data)
     {
@@ -100,6 +107,11 @@ internal sealed class FcmPushSender : IPushSender
     /// already rang (ARCHITECTURE → "Reminders ring on the phone"); to any other it stays a notification the system
     /// shows, in the reminders channel. A silent signal is data only, at normal priority: nothing is shown. A message the
     /// app builds itself (<see cref="NotificationMessage.ShownByApp"/>) is data too, to an app that rings reminders.
+    /// A focus session's notice (it asks for a sound: <see cref="SoundChannelFor"/>) is data too, to an app that has the
+    /// sounds: only a notification the app builds can ring until it is answered, and count as a timer's alarm so that
+    /// Kadans' own quiet during focus lets "back to focus" through (ARCHITECTURE → "Sounds"). At high priority, the
+    /// session's latest replacing one still waiting, and dropped once too old to be of use. An older app gets the
+    /// notification the system shows, as before.
     /// A focus session's change (<see cref="FocusSignal"/>) is data as well: at high priority, and only until the phase
     /// ends, while a focus phase counts down (the phone goes quiet and says so); at normal priority otherwise. The
     /// latest replaces one still waiting for a phone that is offline: the phone reads the sessions as they are then.
@@ -139,6 +151,24 @@ internal sealed class FcmPushSender : IPushSender
             };
 
         var notification = new Notification { Title = message.Title, Body = message.Body };
+        if (message.Reminder is null && SoundChannelFor(envelope.Target, data) is not null)
+        {
+            // A focus session's notice, to an app that builds it: in the channel its sound names, ringing as the
+            // person asked.
+            data["title"] = message.Title;
+            data["body"] = message.Body;
+            return new Message
+            {
+                Token = token,
+                Data = data,
+                Android = new AndroidConfig
+                {
+                    Priority = Priority.High,
+                    TimeToLive = SessionNoticeUsefulFor,
+                    CollapseKey = data.TryGetValue("runId", out var run) ? run : message.Kind,
+                },
+            };
+        }
         if (message.ShownByApp && envelope.Target.RemindersSyncedAt is not null)
         {
             // The app builds it, buttons and all: data, at high priority (shown at once, Doze or not).
@@ -146,20 +176,9 @@ internal sealed class FcmPushSender : IPushSender
             data["body"] = message.Body;
             return new Message { Token = token, Data = data, Android = new AndroidConfig { Priority = Priority.High } };
         }
+        // Any other notification, and a session's notice for an app from before the sounds: shown by the system.
         if (message.Reminder is not { } reminder)
-        {
-            // A phase's end has its own sound: shown in the channel that has it, where the app has that channel.
-            var channel = SoundChannelFor(envelope.Target, data);
-            return channel is null
-                ? new Message { Token = token, Notification = notification, Data = data }
-                : new Message
-                {
-                    Token = token,
-                    Notification = notification,
-                    Data = data,
-                    Android = new AndroidConfig { Notification = new AndroidNotification { ChannelId = channel } },
-                };
-        }
+            return new Message { Token = token, Notification = notification, Data = data };
 
         var android = new AndroidConfig
         {

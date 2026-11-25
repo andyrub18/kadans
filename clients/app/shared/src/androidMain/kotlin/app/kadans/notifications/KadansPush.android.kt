@@ -8,8 +8,9 @@ import android.content.Context
 import android.os.Build
 import app.kadans.api.model.UpcomingReminder
 import app.kadans.pomodoro.CycleActions
-import app.kadans.pomodoro.CycleNotice
-import app.kadans.pomodoro.PomodoroCycleNotices
+import app.kadans.pomodoro.PhaseNotice
+import app.kadans.pomodoro.SessionNotices
+import app.kadans.sound.SoundPreferences
 import app.kadans.push.DeviceRegistrar
 import app.kadans.quiet.FocusQuiet
 import app.kadans.reminders.AndroidReminderScheduler
@@ -50,8 +51,9 @@ object KadansPushChannel {
  * Foreground FCM messages don't reach the system tray by themselves — this shows them.
  * (Backgrounded, the system displays notification-type messages on its own.) Reminders go through [LocalReminders]:
  * one this phone already rang is not shown twice, and "reminders changed" fetches the window again. A focus session's
- * cycle done comes as data, foreground or not, and is shown with its buttons ([PomodoroCycleNotices]). A session changed
- * on another device, for a phone that goes quiet during focus, shows nothing of its own ([FocusQuiet]).
+ * notices (a phase's end, a cycle done with its buttons) come as data, foreground or not, and are built here
+ * ([SessionNotices]). A session changed on another device, for a phone that goes quiet during focus, shows nothing of
+ * its own ([FocusQuiet]).
  */
 class KadansMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
@@ -98,11 +100,13 @@ class KadansMessagingService : FirebaseMessagingService() {
         }
         val title = message.notification?.title ?: message.data["title"] ?: return
         val body = message.notification?.body ?: message.data["body"] ?: ""
-        // A focus session's cycle done: with "Another cycle" and "Done" (the server sends it as data to an app like this one).
-        val cycle = CycleNotice.of(message.data["kind"], message.data, title, body)
-        val cycleActions = koin?.getOrNull<CycleActions>()
-        if (cycle != null && cycleActions != null) {
-            PomodoroCycleNotices.show(this, cycle, cycleActions)
+        // A focus session's notice (a phase's end, a cycle done with its buttons): built here, so that it rings as the
+        // person asked and through Kadans' own quiet during focus (the server sends it as data to an app like this one).
+        val phase = PhaseNotice.of(message.data["kind"], message.data, title, body)
+        if (phase != null) {
+            val keepRinging = koin?.getOrNull<SoundPreferences>()?.ring?.keepRinging == true
+            // Once: an open app may have shown it already, from its live connection (showSessionNotice).
+            SessionNotices.showOnce(this, phase, koin?.getOrNull<CycleActions>(), keepRinging)
             return
         }
         runCatching {

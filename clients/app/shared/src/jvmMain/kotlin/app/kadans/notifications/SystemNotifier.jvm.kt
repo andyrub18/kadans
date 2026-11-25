@@ -13,10 +13,26 @@ import javax.imageio.ImageIO
  * isn't installed) — GNOME shows those even with no tray support. Elsewhere an AWT tray icon's
  * balloon does the job. Kadans' own [sound] flags the change when the user's eyes are off the screen (the desktop
  * shows a notification without one); a notification that asks for none gets the system's beep, as it always did.
+ * One with a sound (a focus session's phase ending) may keep ringing until answered: where the desktop tells a click
+ * from a dismissal, either is an answer, and the click opens [link] (the session).
  */
-actual fun showSystemNotification(title: String, body: String, sound: app.kadans.sound.KadansSound?) {
-    showDesktopNotification(title, body)
-    if (sound != null) app.kadans.sound.DesktopSound.notice(sound) else runCatching { Toolkit.getDefaultToolkit().beep() }
+actual fun showSystemNotification(title: String, body: String, sound: app.kadans.sound.KadansSound?, link: String?) {
+    if (sound == null) {
+        showDesktopNotification(title, body)
+        runCatching { Toolkit.getDefaultToolkit().beep() }
+        return
+    }
+    app.kadans.sound.DesktopSound.notice(sound)
+    val answered = { app.kadans.sound.DesktopSound.answered() }
+    val linux = if ("linux" in System.getProperty("os.name").lowercase()) app.kadans.reminders.DesktopReminderNotices.session else null
+    val shown = linux?.takeIf { it.clickable }?.show(title, body, notificationIcon, onDismissed = answered) { key ->
+        answered()
+        if (key == FreedesktopNotifications.DEFAULT) {
+            val open = link?.takeIf { it.startsWith("kadans://") }
+            if (open != null) app.kadans.desktop.DesktopWindow.open(open) else app.kadans.desktop.DesktopWindow.show()
+        }
+    }
+    if (shown == null) showDesktopNotification(title, body)
 }
 
 /** The notification alone, with no sound of any kind: for what plays its own (a reminder, a cycle's notice). */
@@ -30,6 +46,9 @@ internal fun showDesktopNotification(title: String, body: String) {
         }
     }
 }
+
+// A computer shows a session's notices as the two below do, and plays their sound itself.
+actual fun showSessionNotice(notice: app.kadans.pomodoro.PhaseNotice, live: Boolean): Boolean = false
 
 actual fun showCycleNotice(notice: app.kadans.pomodoro.CycleNotice) = app.kadans.pomodoro.DesktopCycleNotices.shared.show(notice)
 

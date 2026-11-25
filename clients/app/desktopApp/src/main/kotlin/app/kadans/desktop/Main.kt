@@ -31,8 +31,15 @@ import app.kadans.ui.brand.SplashOver
 import app.kadans.ui.currentAppStrings
 import app.kadans.ui.rememberAppStrings
 import app.kadans.updates.startUpdateChecks
+import java.awt.AWTEvent
 import java.awt.Desktop
 import java.awt.SystemTray
+import java.awt.Toolkit
+import java.awt.event.AWTEventListener
+import java.awt.event.KeyEvent
+import java.awt.event.MouseEvent
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import java.awt.desktop.AppReopenedListener
 import java.awt.image.BufferedImage
 import kotlinx.coroutines.channels.Channel
@@ -160,6 +167,22 @@ fun main(args: Array<String> = emptyArray()) {
         ) {
             // Asked for again while already open: in front of the other windows.
             LaunchedEffect(raised) { if (raised > 0) window.toFront() }
+            // The person is in Kadans (its window in front, a click or a key in it): a reminder or a phase's end that
+            // keeps ringing has been heard, and stops (ARCHITECTURE → "Sounds").
+            DisposableEffect(window) {
+                val inFront = object : WindowAdapter() {
+                    override fun windowGainedFocus(event: WindowEvent) = DesktopWindow.cameForward()
+                }
+                val touched = AWTEventListener { event ->
+                    if (event.id == MouseEvent.MOUSE_PRESSED || event.id == KeyEvent.KEY_PRESSED) DesktopWindow.cameForward()
+                }
+                window.addWindowFocusListener(inFront)
+                Toolkit.getDefaultToolkit().addAWTEventListener(touched, AWTEvent.MOUSE_EVENT_MASK or AWTEvent.KEY_EVENT_MASK)
+                onDispose {
+                    window.removeWindowFocusListener(inFront)
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(touched)
+                }
+            }
             // The splash plays over the app while it loads, once per launch (closing to the tray keeps it played).
             SplashOver { App() }
         }

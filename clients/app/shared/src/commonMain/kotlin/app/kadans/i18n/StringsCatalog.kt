@@ -777,8 +777,6 @@ data class ReminderStrings(
     /** A reminder rung again after "In 10 min", read afresh. `%s` = its start, a clock time. */
     val startsAtFormat: String,
     val startedAtFormat: String,
-    /** "Start focus" pressed: the session runs. */
-    val focusStarted: String,
     /** A button whose request failed (offline, signed out): the reminder stays, with its buttons. */
     val actionFailed: String,
     /**

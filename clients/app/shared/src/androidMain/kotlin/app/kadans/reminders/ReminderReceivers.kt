@@ -24,7 +24,8 @@ import org.koin.core.context.GlobalContext
 class ReminderAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION) return
-        // No overall limit: its server check gives up after two seconds, and cut short it could ring nothing.
+        // No overall limit: it rings at the reminder's second, a few seconds from now (LocalReminders.AHEAD), its server
+        // check gives up after two, and cut short it could ring nothing.
         work { it.ringDue() }
     }
 
@@ -34,10 +35,9 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
 }
 
 /**
- * A reminder's button ([ReminderActions]): "Start focus" or "Done" asks the server, within the time a receiver has,
- * "In 10 min" puts it off on this phone. The notification then shows what happened: the session's notice, gone, or the
- * reminder again saying Kadans could not be reached, its buttons still there. It also receives the alarm that ends a
- * reminder's ringing when it has kept on for a minute.
+ * A reminder's button ([ReminderActions]): the reminder goes at once, and its ringing with it. "Start focus" or "Done"
+ * then asks the server, within the time a receiver has, and "In 10 min" puts it off on this phone. Only a request that
+ * failed brings the reminder back, saying Kadans could not be reached, its buttons still there.
  */
 class ReminderActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -50,21 +50,14 @@ class ReminderActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
+                // Pressed is answered: gone before the server's word, which can take seconds on a phone's network.
+                notices.dismiss(reminder)
                 when (intent.action) {
-                    START_FOCUS -> when (withTimeoutOrNull(WITHIN) { actions.startFocus(reminder) }) {
-                        is ReminderActions.Result.FocusStarted -> notices.showFocusStarted(reminder)
-                        else -> notices.showFailed(reminder)
-                    }
-                    DONE -> when (withTimeoutOrNull(WITHIN) { actions.done(reminder) }) {
-                        ReminderActions.Result.Done -> notices.dismiss(reminder)
-                        else -> notices.showFailed(reminder)
-                    }
-                    SNOOZE -> {
-                        actions.snooze(reminder)
-                        notices.dismiss(reminder)
-                    }
-                    // Not a button: the alarm set when a reminder began to keep ringing (ARCHITECTURE → "Sounds").
-                    QUIET -> notices.quiet(reminder)
+                    START_FOCUS ->
+                        if (withTimeoutOrNull(WITHIN) { actions.startFocus(reminder) } !is ReminderActions.Result.FocusStarted) notices.showFailed(reminder)
+                    DONE ->
+                        if (withTimeoutOrNull(WITHIN) { actions.done(reminder) } != ReminderActions.Result.Done) notices.showFailed(reminder)
+                    SNOOZE -> actions.snooze(reminder)
                 }
             } catch (_: Exception) {
             } finally {
@@ -77,7 +70,6 @@ class ReminderActionReceiver : BroadcastReceiver() {
         const val START_FOCUS = "app.kadans.reminders.START_FOCUS"
         const val DONE = "app.kadans.reminders.DONE"
         const val SNOOZE = "app.kadans.reminders.SNOOZE"
-        const val QUIET = "app.kadans.reminders.QUIET"
         const val REMINDER = "reminder"
 
         /** Inside the ten seconds a receiver has: the server's answer, or "could not be reached". */

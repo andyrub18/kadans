@@ -14,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import app.kadans.auth.AndroidActivityHolder
+import app.kadans.sound.Ringing
 import app.kadans.ui.App
 import app.kadans.ui.IncomingLinks
 import app.kadans.ui.brand.KadansMark
@@ -79,6 +80,18 @@ class MainActivity : ComponentActivity() {
                 view.animate().alpha(0f).setDuration(KadansMark.FADE_MS.toLong()).withEndAction(view::remove).start()
             }, left)
         }
+    }
+
+    /** Kadans in front: a reminder or a phase's end that keeps ringing has been heard (ARCHITECTURE → "Sounds"). */
+    override fun onResume() {
+        super.onResume()
+        Ringing.answered(this, cameBack = true)
+    }
+
+    /** A touch or a key while one rings with Kadans already in front is an answer too. */
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        Ringing.answered(this, cameBack = false)
     }
 
     override fun onDestroy() {

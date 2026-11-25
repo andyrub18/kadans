@@ -1,0 +1,5 @@
+• Une nouvelle apparence : des couleurs plus chaleureuses, des formes plus rondes, et l'avancement de votre journée sur l'accueil.
+• Cochez une tâche directement depuis l'accueil.
+• Des sons : les rappels peuvent sonner comme une alarme, même en silencieux, et la fin d'une phase de concentration ou d'une pause a son propre son.
+• Kadans parle maintenant espagnol.
+• L'écran de connexion vous dit tout de suite quand le serveur est injoignable.

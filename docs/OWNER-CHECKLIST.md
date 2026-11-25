@@ -67,6 +67,14 @@ their platform needs – so nothing to rebuild or configure in the apps.
       client with the *Play App Signing* SHA-1 from the Play Console – Play re-signs the app, so the
       release keystore's fingerprint is not the one on users' phones. Done 2026-11-08 (Protected with Play → Play
       Store protection → Manage Play app signing → App signing key).
+- [ ] The Android client for the **debug** key is gone or changed (found 2026-11-24): a debug build installed with
+      adb showed "Google sign-in did not complete", and the phone's log had Google's own answer, "This android
+      application is not registered to use OAuth2.0, please confirm the package name and SHA-1 certificate
+      fingerprint" (`UNREGISTERED_ON_API_CONSOLE`; `adb logcat -d | grep -E "Auth |Auth.Api.Credentials"` right
+      after a try). The build was signed with the debug key above, and the copy from Play signed in the day before:
+      each signing key needs its own Android client. Only test builds are concerned. To have them sign in with
+      Google again: Credentials → Create credentials → OAuth client ID → Android, package `app.kadans`, the debug
+      SHA-1 above. Until then a test goes through Play's internal track, or signs in with a password.
 - [ ] **iOS** OAuth client (bundle id `app.kadans`) when iOS happens; its id goes into the
       `ExternalAuth:Google:ClientIds` list (extra accepted audiences).
 
@@ -294,7 +302,7 @@ Both:
       and its terms. It is Latin American Spanish with "tú"; the words chosen are at the head of
       `clients/app/shared/src/commonMain/kotlin/app/kadans/i18n/Es.kt` ("tarea", "repetición", "enfoque",
       "descanso", "monto", "estado de cuenta"). Send me what reads wrong, with the screen it is on.
-- [ ] Deploy: the website's pages and nginx both changed (the `/es/…` addresses), so after `git pull` nginx is
+- [x] (2026-11-24, with the look and the sounds; both checks passed) Deploy: the website's pages and nginx both changed (the `/es/…` addresses), so after `git pull` nginx is
       created again (DEPLOYMENT → The website; a few seconds without the site, the API does not restart). Check:
       `curl -sI https://kadansplanning.com/es/ | head -1` says 200, and
       `curl -sI -H 'Accept-Language: es' https://kadansplanning.com/ | grep -i location` points at `/es/`.
@@ -347,10 +355,11 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
 - [ ] A Samsung or a Tecno, if you can borrow one: these change how alarms and sounds behave, and only stock
       Android was checked. What matters: does a reminder ring on silent in alarm style, and does it stop after a
       minute with "keep ringing" on.
-- [ ] Deploy the server before the version that has the sounds is released (it deploys on merge, so merging first
-      is enough). It adds one column to the devices table by itself.
-- [ ] The privacy policy says one more thing is kept for a phone (whether its reminders ring like an alarm), in
-      the four languages, dated 24 November 2026: it goes live with the website's next deploy.
+- [x] (2026-11-24: deployed by hand, as every time; nothing deploys by itself on a merge. The log named the
+      migration.) Deploy the server before the version that has the sounds is released. It adds one column to the
+      devices table by itself.
+- [x] (2026-11-24: live) The privacy policy says one more thing is kept for a phone (whether its reminders ring
+      like an alarm), in the four languages, dated 24 November 2026.
 
 ## Client (Compose Multiplatform)
 
@@ -363,6 +372,40 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
       submission with that release's `kadans-microsoft-store-x64.msix`. Android takes it with its next upload.
       Tagged and released 2026-11-12 (GitHub's release `v1.1.1`); its `.msix` went to Partner Center the same day,
       and Microsoft certified it: the Store's copy works (2026-11-18).
+- [ ] v1.3.0 (prepared 2026-11-24): the new look, the sounds and Spanish. Play's version code 5 (code 4 was the
+      first test build, on the internal track only; five things found with it on a real phone were fixed, below). In
+      this order:
+      1. **The server**: `main` was deployed on 2026-11-24 (Spanish, the look's `completed=true`, the sounds' column;
+         nginx made again for the `/es/` addresses). The fixes change the server too (a session's notices go to the
+         phone as data): **merge this version's pull request and deploy again before testing code 5**, or its phase
+         notices are still the ones the system shows, which ring once and not at all at "back to focus".
+      2. **Android, by Play's internal testing track**: the bundle built from this version's branch with
+         `-Pkadans.versionCode=5` (DEPLOYMENT → Building the apps). Test and release → Testing → Internal testing →
+         Create new release → upload it → release notes from `store/play/<language>/changelogs/5.txt` (English and
+         French; Spanish once its listing exists: Spanish, above) → Save → Review → Start rollout. On the phone:
+         uninstall any copy installed with adb first (it is signed with another key and Play will not replace it),
+         then install from Play. Not with adb for this one: on 2026-11-24 a debug build could not sign in with
+         Google (Google Sign-In, above), and Play's copy can.
+      3. **What to hear and see**: Sounds and The new look, above, and what the first test found:
+         - [ ] Settings → Reminder sound: the button reads "Change the sound", whole.
+         - [ ] With "Keep ringing until I answer" on, a hands-free session: each phase change rings, the first break
+               to the second focus too (with "Do Not Disturb during focus" on), and goes on ringing until the
+               notifications are opened, the notice is tapped or swiped away, Kadans is opened or touched, or a
+               minute has passed. With the option off, each rings once.
+         - [ ] "Start focus" on a reminder: the reminder goes at once, and only "Quiet during focus" is left when
+               that is on.
+         - [ ] A reminder rings at its minute, to the second (it was a second or more late).
+         - [ ] The lag at a phase's end: with Kadans open on the session, the sound comes as the countdown reaches
+               zero (the app no longer waits for the push). With the app closed or behind another, it still comes by
+               the push, a moment later.
+         - [x] (decided 2026-11-25: "Yes, a phase end should ring") With the phone's **own** Do Not Disturb on, a
+               phase's end rings where alarms are let through (the default), as a timer's would.
+      4. **Satisfied**: `git tag v1.3.0 && git push origin v1.3.0` on the merged `main`
+         (DEPLOYMENT → Releasing the desktop app: the Linux and Windows installers, about 20 minutes), a new Partner
+         Center submission with that release's `.msix`, and the same Play bundle **promoted** to the closed test
+         (never uploaded again: Play takes a version code once). A fix found while testing is a new bundle with
+         the next code.
+      5. **After it**: the stores' screenshots with the new look, and the Spanish listing on Play.
 - [ ] v1.2.0 (prepared 2026-11-17): November's six integrations (the calendar link, the home-screen widget, Do Not
       Disturb during focus, Share to Kadans, the phone's calendar, statements in and data out) and the sealed session.
       Test it before tagging, in this order:

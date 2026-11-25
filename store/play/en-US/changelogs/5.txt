@@ -1,0 +1,5 @@
+• A new look: warmer colours, rounder shapes, and your day's progress on Home.
+• Tick a task done right from Home.
+• Sounds: reminders can ring like an alarm, even on silent, and a focus phase or a break ends with its own sound.
+• Kadans now speaks Spanish.
+• The sign-in screen tells you at once when the server can't be reached.

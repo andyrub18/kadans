@@ -26,6 +26,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -56,6 +57,9 @@ class LocalReminders(
     private val checkWithin: Duration = CHECK_WITHIN,
     /** What a reminder rung again after "In 10 min" says at that time ("Starts at 09:00", "Started at 09:00"). */
     private val snoozedText: (UpcomingReminder, Instant) -> String = { reminder, _ -> reminder.body },
+    /** How long before a reminder's time its alarm wakes the app ([AHEAD]), and how the app then waits for that time. */
+    private val ahead: Duration = AHEAD,
+    private val wait: suspend (Duration) -> Unit = { delay(it) },
 ) {
     /** One window fetch at a time. */
     private val fetching = Mutex()
@@ -134,26 +138,36 @@ class LocalReminders(
     }
 
     /**
-     * The alarm rang: shows every reminder now due that has not rung here. When the server answers within two
-     * seconds, one no longer due at its time stays quiet: deleted, done or moved on another device since the window was
-     * fetched, or a focus session on the todo runs (the person has begun). Offline, it rings: the phone cannot know
-     * better. Then the next alarm is set.
+     * The alarm rang, [AHEAD] of the first reminder's time: the server is asked while there is time, and each reminder
+     * rings at its own time, to the second (ARCHITECTURE → "Reminders ring on the phone"). When the server answered
+     * (it has two seconds), one no longer due at its time stays quiet: deleted, done or moved on another device since
+     * the window was fetched, or a focus session on the todo runs (the person has begun). Offline, it rings: the phone
+     * cannot know better. One dealt with on this device while it waited (done, its window fetched again without it)
+     * stays quiet too. Then the next alarm is set.
      */
     suspend fun ringDue() = ringing.withLock {
-        val (started, due) = state.withLock { session to due(now()) }
+        val (started, due) = state.withLock { session to due(now() + ahead) }
         val answers = if (due.isEmpty()) emptyList() else checks(due)
-        state.withLock {
-            if (session != started) return@withLock
-            var moved = false
-            due.forEachIndexed { i, reminder ->
+        var moved = false
+        due.forEachIndexed { i, reminder ->
+            val early = reminder.notifyAt - now()
+            if (early > Duration.ZERO) wait(early)
+            state.withLock {
+                if (session != started) return@withLock
                 val answer = answers[i]
+                // As the device holds it now: what rings is always read from the stored window.
+                val held = ringing(now()).firstOrNull { it.occurrenceId == reminder.occurrenceId && it.notifyAt == reminder.notifyAt }
                 when {
-                    answer == null || answer.due -> scheduler.show(shown(reminder))
+                    held == null -> Unit
+                    answer == null || answer.due -> scheduler.show(shown(held))
                     // Still pending, but this time is none of its reminders any more: its new times come with the next window.
                     answer.notifyAt != null && reminder.moment != answer.notifyAt && reminder.moment != answer.startsAt -> moved = true
                 }
+                store.markRung(listOf(reminder), now())
             }
-            store.markRung(due, now())
+        }
+        state.withLock {
+            if (session != started) return@withLock
             store.saveSnoozed(store.snoozed().filterNot { it in due })
             reschedule()
             if (moved) syncSoon()
@@ -304,6 +318,13 @@ class LocalReminders(
 
         /** How long a ringing alarm waits for the server's word before it rings anyway. */
         val CHECK_WITHIN = 2.seconds
+
+        /**
+         * How long before a reminder's time the device wakes for it (Android's alarm, the desktop's timer): time for
+         * the app to start and for the server's word, so that the reminder rings at its second and not after them.
+         * Well inside the ten seconds Android gives an alarm's receiver.
+         */
+        val AHEAD = 5.seconds
 
         /** A reminder rung late (a reboot, a phone that was off) is of use until its event starts, or this long after its time. */
         val LATE = 10.minutes

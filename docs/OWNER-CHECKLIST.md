@@ -314,8 +314,9 @@ Both:
 - [ ] Play Console, once the version with Spanish is on the track (not before: the listing would promise a language
       the app does not have): Grow → Store presence → Main store listing → Manage translations → add **Spanish
       (Latin America) – es-419**, with the title, the short and the full description of `store/play/es-419/`; and
-      paste the English and French full descriptions again (their last lines name four languages). No Spanish
-      screenshots yet: Play shows the English ones. That release's notes need a Spanish "What's new" too.
+      paste the English and French full descriptions again (their last lines name four languages). Its eight
+      screenshots are in `store/play/es-419/images/phoneScreenshots/` (taken 2026-11-25). That release's notes need
+      a Spanish "What's new" too (`store/play/es-419/changelogs/5.txt`).
 
 ## The new look (2026-11-24)
 
@@ -335,8 +336,8 @@ size and at a computer's; nobody has looked at it on your computer or on a real 
       home-screen widget, whose colours changed with the app's (I did not see it on a home screen).
 - [ ] Windows: the same look at the installed app when the next version is out, the tray's menu included (it takes
       the app's colours). The fonts are the app's own files, so they should be the same as on Linux; nobody checked.
-- [ ] The stores' screenshots still show the old look. When you are happy with the new one, tell me and I retake
-      them (Play in four languages, the Microsoft Store's seven) for the next version's release.
+- [x] (2026-11-25) The stores' screenshots show the new look: Play's eight and the Microsoft Store's seven, each in
+      English, French and Spanish (neither store lists Kreyòl). Uploading them is in v1.3.0's entry, below.
 
 ## Sounds (2026-11-24)
 
@@ -379,14 +380,17 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
          nginx made again for the `/es/` addresses). The fixes change the server too (a session's notices go to the
          phone as data): **merge this version's pull request and deploy again before testing code 5**, or its phase
          notices are still the ones the system shows, which ring once and not at all at "back to focus".
+         Done 2026-11-25: merged, and deployed by you.
       2. **Android, by Play's internal testing track**: the bundle built from this version's branch with
          `-Pkadans.versionCode=5` (DEPLOYMENT → Building the apps). Test and release → Testing → Internal testing →
          Create new release → upload it → release notes from `store/play/<language>/changelogs/5.txt` (English and
          French; Spanish once its listing exists: Spanish, above) → Save → Review → Start rollout. On the phone:
          uninstall any copy installed with adb first (it is signed with another key and Play will not replace it),
          then install from Play. Not with adb for this one: on 2026-11-24 a debug build could not sign in with
-         Google (Google Sign-In, above), and Play's copy can.
-      3. **What to hear and see**: Sounds and The new look, above, and what the first test found:
+         Google (Google Sign-In, above), and Play's copy can. Done 2026-11-25: code 5 is on the internal track.
+      3. **What to hear and see**: Sounds and The new look, above, and what the first test found. Tested by you
+         on 2026-11-25, from Play's internal track on your phone: "I'm very satisfied with the tests" (said of the
+         whole; the points below were not gone through one by one with me, so their boxes stay as they were):
          - [ ] Settings → Reminder sound: the button reads "Change the sound", whole.
          - [ ] With "Keep ringing until I answer" on, a hands-free session: each phase change rings, the first break
                to the second focus too (with "Do Not Disturb during focus" on), and goes on ringing until the
@@ -400,12 +404,29 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
                the push, a moment later.
          - [x] (decided 2026-11-25: "Yes, a phase end should ring") With the phone's **own** Do Not Disturb on, a
                phase's end rings where alarms are let through (the default), as a timer's would.
-      4. **Satisfied**: `git tag v1.3.0 && git push origin v1.3.0` on the merged `main`
+      4. **Satisfied** (2026-11-25, and "You can tag"): `git tag v1.3.0 && git push origin v1.3.0` on the merged
+         `main`, **once the store pictures' pull request is merged** (the Store's package declares Spanish from
+         it; tagged before, 1.3.0's `.msix` would not)
          (DEPLOYMENT → Releasing the desktop app: the Linux and Windows installers, about 20 minutes), a new Partner
          Center submission with that release's `.msix`, and the same Play bundle **promoted** to the closed test
          (never uploaded again: Play takes a version code once). A fix found while testing is a new bundle with
          the next code.
-      5. **After it**: the stores' screenshots with the new look, and the Spanish listing on Play.
+      5. **The stores' pictures and Spanish** (the pictures were retaken on 2026-11-25, with the new look; upload
+         them with this version, not before: they show what 1.3.0 looks like). Neither store has Kreyòl in its list
+         of languages, so each gets three sets: English, French, Spanish.
+         - [ ] Play Console → Grow → Store presence → Main store listing: replace the eight phone screenshots with
+               `store/play/en-US/images/phoneScreenshots/` (delete the old ones first, upload in the files' order);
+               Manage translations → French: the same from `fr-FR`; → add **Spanish (Latin America) – es-419**
+               (Spanish, above: its texts and its eight from `es-419`). The fourth picture is new: the question "How
+               should reminders reach you?". The todo's own page left the set to make room for it; tell me if you
+               would rather drop another.
+         - [ ] Partner Center → the new submission → Store listings: English and French get the seven of
+               `store/microsoft/en-US/screenshots/` and `fr-FR`; **Spanish (Latin America)** is offered once the
+               submission's package is 1.3.0's (its package is the first to declare Spanish): give it the texts of
+               `store/play/es-419/` and the seven of `store/microsoft/es-419/screenshots/`. If Partner Center does
+               not offer Spanish after the package is uploaded, tell me what its Store listings page shows.
+         - [ ] Look at the pictures before uploading: I chose what each shows, and a Spanish speaker has not read
+               the Spanish ones.
 - [ ] v1.2.0 (prepared 2026-11-17): November's six integrations (the calendar link, the home-screen widget, Do Not
       Disturb during focus, Share to Kadans, the phone's calendar, statements in and data out) and the sealed session.
       Test it before tagging, in this order:
@@ -442,10 +463,10 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
       `kadans-microsoft-store-x64.msix` from the GitHub Release (DEPLOYMENT → Releasing the desktop app); before the
       first release, from the release workflow's run on a pull request (Actions → the run → Artifacts → `windows`).
       Partner Center asks why the package needs `runFullTrust`: "Kadans is a desktop app (Java, Compose) packaged as
-      MSIX; it runs its own desktop executable." The package declares English and French: give the Store listing
-      both (the texts of `store/play/en-US` and `fr-FR` fit, and the desktop screenshots are in
-      `store/microsoft/<language>/screenshots/`; Store logos → 1:1 App tile icon is `store/microsoft/app-tile-icon.png`,
-      the same for both: store/microsoft/README.md). The Store installs and updates it, signed by Microsoft,
+      MSIX; it runs its own desktop executable." The package declares English and French, and from 1.3.0 Spanish
+      (Latin America): give the Store listing each (the texts of `store/play/en-US`, `fr-FR` and `es-419` fit, and
+      the desktop screenshots are in `store/microsoft/<language>/screenshots/`; Store logos → 1:1 App tile icon is
+      `store/microsoft/app-tile-icon.png`, the same for all: store/microsoft/README.md). The Store has no Kreyòl. The Store installs and updates it, signed by Microsoft,
       so Windows shows no unknown-publisher warning; the `.msi` from the site still does, until it is signed with a
       code-signing certificate (optional).
 - [ ] Google Play / App Store developer accounts when it is time to ship
@@ -453,11 +474,11 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
       default, French under "Manage translations", Kreyòl when Play offers it: store/play/README.md), the app icon
       is `branding/play-store-icon.png` (512 x 512, the logo: branding/README.md) and the feature graphic
       `branding/play-feature-graphic.png` (1024 x 500, no text: Play writes the name beside it). Phone screenshots:
-      `store/play/en-US/images/phoneScreenshots/` for the main listing and `store/play/fr-FR/images/phoneScreenshots/`
-      for the French translation, eight each, uploaded in their order (a language without its own set shows the
-      English one). To take a set again (two to eight): register a demo account per language in the app, fill it
-      with
-      `python3 tools/demo/seed_demo.py <username> --language en|fr|ht` (it refuses an account with data), take the
+      `store/play/en-US/images/phoneScreenshots/` for the main listing, `store/play/fr-FR/images/phoneScreenshots/`
+      for the French translation and `store/play/es-419/images/phoneScreenshots/` for the Spanish one, eight each,
+      uploaded in their order (a language without its own set shows the English one). To take a set again (two to
+      eight): register a demo account per language in the app, fill it with
+      `python3 tools/demo/seed_demo.py <username> --language en|fr|ht|es` (it refuses an account with data), take the
       screenshots on the phone within a few hours (today's todos are on Home), then
       `python3 tools/store/play.py crop <files>` (Play refuses taller than 2:1; a 1080 x 2340 capture is). Run the
       script on `googleTest` too: Google's reviewers then find a lived-in account.

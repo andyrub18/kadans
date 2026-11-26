@@ -27,9 +27,15 @@
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
   </Dependencies>
 
+  <!--
+    The languages the Store lists the app in, the first being the default: Spanish as Latin America writes it, like
+    Google Play's listing. Kreyòl, which the app speaks too, is not a language the Store takes ("ht" is not in its
+    list, and a package naming a code outside it can fail certification): store/microsoft/README.md.
+  -->
   <Resources>
     <Resource Language="en-us" />
     <Resource Language="fr-fr" />
+    <Resource Language="es-419" />
   </Resources>
 
   <Applications>

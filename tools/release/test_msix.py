@@ -28,6 +28,11 @@ class MsixTests(unittest.TestCase):
         # The startup task starts the launcher that passes --background.
         self.assertIn('Executable="KadansBackground.exe"', text)
 
+    def test_the_package_names_the_languages_the_store_lists_it_in(self):
+        resources = xml.dom.minidom.parseString(msix.manifest("1.1.0")).getElementsByTagName("Resource")
+        # English first (the default); never "ht": the Store's list has no Kreyòl, and refuses a code outside it.
+        self.assertEqual(["en-us", "fr-fr", "es-419"], [r.getAttribute("Language") for r in resources])
+
     def test_every_logo_the_manifest_names_is_drawn(self):
         text = msix.manifest("1.1.0")
         self.assertEqual(["Square150x150Logo", "Square44x44Logo", "StoreLogo"], msix.named_logos(text))

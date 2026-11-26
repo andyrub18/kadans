@@ -12,9 +12,8 @@ like the rest. One folder per language, in fastlane's layout (`fastlane supply` 
 
 `en-US` is the default language; `fr-FR` and `es-419` (Spanish as Latin America writes it, Play's "Spanish (Latin
 America)") are added under "Manage translations". `ht` (Kreyòl) is ready for when Play Console offers Haitian Creole
-in its list; until then Play shows Kreyòl speakers the French or English listing. `es-419` has no changelog of the
-uploads made before the app spoke Spanish, and no screenshots yet: Play shows the English ones until a set is taken
-(`seed_demo.py --language es`).
+in its list (it did not on 2026-11-25); until then Play shows Kreyòl speakers the French or English listing, so `ht`
+has its texts and no screenshots. `es-419` has no changelog of the uploads made before the app spoke Spanish.
 
 ```bash
 python3 tools/store/play.py check                       # every text within the limits (CI runs it)
@@ -23,20 +22,34 @@ python3 tools/store/play.py crop ~/Pictures/Screenshot*.png   # screenshots trim
 
 The graphics: the icon `branding/play-store-icon.png` (512 x 512) and the feature graphic
 `branding/play-feature-graphic.png` (1024 x 500), both drawn by `branding/generate.py`. The screenshots (two to eight,
-phone, portrait) are in `<language>/images/phoneScreenshots/`, in the listing's order (fastlane sorts by name); Play
-shows a language without its own the default language's. They are taken in a demo account filled by
-`tools/demo/seed_demo.py` (its time zone chosen so today's todos are still ahead), on a phone or on the emulator
+phone, portrait) are in `<language>/images/phoneScreenshots/`, in the listing's order (fastlane sorts by name), one
+set for each language Play lists: English, French, Spanish. They are taken in a demo account filled by
+`tools/demo/seed_demo.py` (English and Spanish on a 12-hour clock, French on a 24-hour one), on the emulator
 (`adb shell wm size 1080x1920`, `wm density 420`, the status bar's demo mode for a clean clock), then passed through
 `play.py crop`: within 2:1 and 24-bit PNG without transparency, as Play wants. Retake them when a screen in them
 changes.
 
-The eight, as of 1.2: Home, the widget on a home screen, a reminder ringing with its buttons, a todo with its cycle,
-a focus session, the calendar, the budget month, its limits with "Import a statement". How the less obvious ones are
-made on the emulator: started with `-timezone America/Port-au-Prince` so the demo account's day is the phone's; the
-widget placed from Settings → "Add to my home screen", then made taller by its handles (a long press on it) so that
-it lists the day and tomorrow; the reminder from a one-time todo with a cycle created a minute or two ahead through
-the API while the app is open, the shade pulled down when it rings (`cmd statusbar expand-notifications`), the
-notification expanded, the emulator's own notices swiped away, and the demo clock set to the todo's time.
+The eight, as of 1.3 (2026-11-25, the new look): Home, the widget on a home screen, a reminder ringing with its
+buttons, the question "How should reminders reach you?" (like an alarm, like a notification), a focus session, the
+calendar, the budget month, its limits with the recurring salary and "Import a statement". The todo's own page left
+the set to make room for the sounds; the Microsoft Store's set has it. How they are made on the emulator:
+
+- **The day.** Home wants today's todos still ahead, and the script puts the first one 45 minutes from now. Taken in
+  the evening, the account and the phone are given a time zone where the day is starting (`seed_demo.py --time-zone
+  Asia/Dhaka`, the emulator started with `-timezone Asia/Dhaka`): nothing in the eight shows the zone. An account is
+  made and filled just before its pictures, one language at a time, each on an app wiped with `pm clear` (the
+  question about sounds is asked once per phone). One of the day's todos is marked done through the API, so the
+  ring on Home shows progress.
+- **The focus session** is six minutes in when it is taken (a quarter of the ring): started first, the calendar and
+  the budget are taken while it runs, then the todo's "Open focus session" leads back to it.
+- **The question about sounds** comes by itself the first time Home is seen again after a todo was opened.
+- **The widget** is placed from Settings → "Add to my home screen", then made taller by its handles (a long press on
+  it) so that it lists the day and tomorrow. It stays on the launcher from one language to the next and takes the
+  account's language.
+- **The reminder** is a one-time todo with a cycle created a minute or two ahead through the API while the app is on
+  Home, caught a second after it rings, as Android shows it over the app. The word beside its title ("now") is
+  Android's own: the emulator's system language is set to the listing's (`settings put system system_locales
+  fr-FR`, `es-US` for Spanish, then a restart), and the status bar's demo clock to the todo's time.
 
 The texts state what the app does today; change them with the app (and the website, `site/texts.py`, says the same
 things). The price and the trial follow OWNER-CHECKLIST → Subscriptions.

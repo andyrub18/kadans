@@ -1076,8 +1076,9 @@ installing on real devices second, hosting last.
       notifications' buttons in Spanish (their words are the catalog's), Windows, the iPhone.
       - [ ] By the owner: the points in OWNER-CHECKLIST → Spanish (a Spanish speaker's reading, Play's listing once
         the version is out, the website's deploy with nginx).
-      - [ ] With the new look's screenshots: a Spanish set for Play (`seed_demo.py --language es`), and Spanish in
-        the Microsoft Store's package and listing (its package declares English and French today).
+      - [x] With the new look's screenshots (2026-11-25, the item below): a Spanish set for Play, and Spanish in the
+        Microsoft Store's package (`es-419` in its manifest, from 1.3.0's package) with its seven pictures; the
+        listings themselves are the owner's to fill (OWNER-CHECKLIST → v1.3.0).
 
 - [x] The look (2026-11-24): the testers' second ask. Two directions on a design canvas, phone and computer; the
       owner took the warm one (ARCHITECTURE → "The look"): a cream page, white rounded cards, the logo's purple for
@@ -1100,8 +1101,7 @@ installing on real devices second, hosting last.
         server cannot be reached, with "Retry", instead of only leaving "Continue with Google" out.
       - [x] Sounds, from the same look and the testers: its own item, below.
       - [ ] By the owner: the rest of OWNER-CHECKLIST → The new look (a phone, the widget, Windows).
-      - [ ] After the owner's look: new screenshots for Play (four languages) and the Microsoft Store, taken with
-        `seed_demo.py` as the current ones were; the stores' pictures still show the old look.
+      - [x] New screenshots for both stores (2026-11-25): the item under version 1.3.0, below.
       - [ ] Not a new version by itself: it ships with Spanish in the next one.
 
 - [x] Sounds (2026-11-24): the testers forgot a running session and missed reminders, because nothing was
@@ -1134,8 +1134,30 @@ installing on real devices second, hosting last.
       OWNER-CHECKLIST → v1.3.0 has the order: the pull request, the deploy, the test, the tag, the stores. A debug build could
       not sign in with Google that day: the Android client for the debug key is gone from Google Cloud
       (OWNER-CHECKLIST → Google Sign-In), which concerns test builds only.
-      - [ ] After the release: the stores' screenshots with the new look (Play in four languages, the Microsoft
-        Store's seven) and Play's Spanish listing.
+      - [x] The stores' screenshots with the new look (2026-11-25, while the owner tested code 5): Play's eight
+        (`store/play/<language>/images/phoneScreenshots/`) and the Microsoft Store's seven
+        (`store/microsoft/<language>/screenshots/`), each in English, French and Spanish: 45 pictures. Three
+        languages, not four: neither store lists Kreyòl (read in both stores' own lists that day), so `ht` keeps its
+        texts for the day Play does. What changed beside the look:
+        - Play's set gains the question "How should reminders reach you?" (the sounds, this version's feature) and
+          loses the todo's own page, which the Microsoft set keeps; its reminder is caught as it rings over Home
+          with its buttons, instead of lying in the notification shade.
+        - Home shows a day with one todo done (the ring a quarter full) and the focus session is six minutes in,
+          where both were at their start.
+        - The Microsoft Store's Settings picture shows the four languages and the sounds, and its package declares
+          Spanish (`es-419`, Play's Latin American Spanish too) from 1.3.0: `tools/release/test_msix.py` holds the
+          three languages, and that `ht` stays out of the manifest (a code outside the Store's list can fail
+          certification).
+        - How they are taken in the evening (an account and a device in a time zone where the day is starting) is
+          in the two READMEs.
+        Seen while taking them, not changed (the bundle under test is built): French writes "Cycle: Classique" on
+        a todo's page where its typography wants "Cycle : Classique".
+        Not checked: a Spanish speaker's reading of the pictures; how Partner Center offers the Spanish listing
+        once the package declares it.
+      - [ ] By the owner: upload them with 1.3.0, and Play's Spanish listing (OWNER-CHECKLIST → v1.3.0, step 5).
+      - [x] The second test (2026-11-25): the owner deployed `main` with the fixes, updated to code 5 from Play's
+        internal track and tested on their phone: "I'm very satisfied with the tests". The tag `v1.3.0` follows the
+        merge of the store pictures' pull request, so that the Store's package declares Spanish.
 
 Nice-to-have hardening
 

@@ -435,6 +435,13 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
                not offer Spanish after the package is uploaded, tell me what its Store listings page shows.
          - [ ] Look at the pictures before uploading: I chose what each shows, and a Spanish speaker has not read
                the Spanish ones.
+         - [ ] The short description changed on 2026-11-26, at your word: it says "a budget in your currencies"
+               where it named gourdes and dollars (pesos, in Spanish), as the website and the full description
+               do. While you are in each listing, paste it again from
+               `store/play/<language>/short_description.txt`: Play Console → Main store listing → Short
+               description (English, then French and Spanish under Manage translations), and Partner Center →
+               Store listings → Product features, where the same line serves. The Spanish one lost "a tiempo"
+               to stay within Play's 80 characters: one more sentence for a Spanish speaker to read.
 - [ ] v1.2.0 (prepared 2026-11-17): November's six integrations (the calendar link, the home-screen widget, Do Not
       Disturb during focus, Share to Kadans, the phone's calendar, statements in and data out) and the sealed session.
       Test it before tagging, in this order:

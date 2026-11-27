@@ -1155,6 +1155,11 @@ installing on real devices second, hosting last.
         Not checked: a Spanish speaker's reading of the pictures; how Partner Center offers the Spanish listing
         once the package declares it.
       - [ ] By the owner: upload them with 1.3.0, and Play's Spanish listing (OWNER-CHECKLIST → v1.3.0, step 5).
+      - [x] The stores' short description says "a budget in your currencies" (2026-11-26, the owner's wording), in
+        the four languages, where it named two of the six (HTG and USD; "pesos" in Spanish): a reader with
+        Canadian dollars, euros or pesos took the listing as not theirs, and the website and the full description
+        already said "your currencies". The names stay in the full description. The owner pastes it into both
+        stores' listings (OWNER-CHECKLIST → v1.3.0, step 5).
       - [x] The second test (2026-11-25): the owner deployed `main` with the fixes, updated to code 5 from Play's
         internal track and tested on their phone: "I'm very satisfied with the tests". The tag `v1.3.0` follows the
         merge of the store pictures' pull request, so that the Store's package declares Spanish.

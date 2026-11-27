@@ -52,4 +52,5 @@ the set to make room for the sounds; the Microsoft Store's set has it. How they 
   fr-FR`, `es-US` for Spanish, then a restart), and the status bar's demo clock to the todo's time.
 
 The texts state what the app does today; change them with the app (and the website, `site/texts.py`, says the same
-things). The price and the trial follow OWNER-CHECKLIST → Subscriptions.
+things). The short description names no currency: "a budget in your currencies", as the website does, since naming
+two of the six told the readers of the four others that the app was not theirs; the full description lists them. The price and the trial follow OWNER-CHECKLIST → Subscriptions.

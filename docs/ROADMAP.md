@@ -1158,6 +1158,10 @@ installing on real devices second, hosting last.
       - [x] The second test (2026-11-25): the owner deployed `main` with the fixes, updated to code 5 from Play's
         internal track and tested on their phone: "I'm very satisfied with the tests". The tag `v1.3.0` follows the
         merge of the store pictures' pull request, so that the Store's package declares Spanish.
+      - [x] Tagged 2026-11-26, on that merge: the release workflow published "Kadans 1.3.0" (the Linux and Windows
+        installers, the Store's `.msix`, `latest.json`), and the published `.msix` names `en-us`, `fr-fr` and
+        `es-419`. Left to the owner: the Partner Center submission and Play's promotion of code 5 to the closed
+        test (OWNER-CHECKLIST → v1.3.0, steps 4 and 5).
 
 Nice-to-have hardening
 

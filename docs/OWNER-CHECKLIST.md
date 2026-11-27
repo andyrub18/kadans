@@ -411,6 +411,14 @@ What you chose: the marimba, reminders like an alarm (asked once, with a switch)
          Center submission with that release's `.msix`, and the same Play bundle **promoted** to the closed test
          (never uploaded again: Play takes a version code once). A fix found while testing is a new bundle with
          the next code.
+         **Tagged 2026-11-26**, after the store pictures' pull request was merged: the release "Kadans 1.3.0" is
+         published (the `.deb`, the `.rpm`, the `.msi`, `kadans-microsoft-store-x64.msix`, `latest.json`), the
+         site's download buttons point at it, and its `.msix` declares English, French and Spanish (read in the
+         published file). Left, both yours:
+         - [ ] Partner Center → Kadans → a new submission → Packages: that release's
+               `kadans-microsoft-store-x64.msix` (Microsoft Store, below), with step 5's pictures and listings.
+         - [ ] Play Console → Testing → Internal testing → Releases → the 1.3.0 (5) release → **Promote release** →
+               Closed testing, with its release notes; then Publishing overview → **Send changes for review**.
       5. **The stores' pictures and Spanish** (the pictures were retaken on 2026-11-25, with the new look; upload
          them with this version, not before: they show what 1.3.0 looks like). Neither store has Kreyòl in its list
          of languages, so each gets three sets: English, French, Spanish.
